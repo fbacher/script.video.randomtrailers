@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<addon id="plugin.video.randomtrailers"
+       name="Random Trailers"
+       version="2.0.1"
+       provider-name="fbacher">
+  <requires>
+    <import addon="xbmc.python"					version="2.26.0"/>
+    <import addon="xbmc.addon"					version="18.0.701"/>
+    <import addon="script.module.simplejson"	version="3.3.0"/>
+    <import addon="script.module.xbmcswift2" version="2.4.0"/>
+    <import addon="script.module.pydevd" version="4.4.0"/> 
+    </requires>
+  <extension point="xbmc.python.script" library="default.py"> 
+    <provides>video</provides>
+   </extension>
+  <extension point="xbmc.addon.metadata">
+	<language></language>
+    <platform>all</platform>
+    <summary lang="en">Plays Random Trailers from Multiple Sources</summary>
+    <description lang="en">Plays random movie trailers from a variety of sources:[CR]-The Users Movie Library[CR]-Apple iTunes[CR]-YouTube(via themoviedb.org)[CR]-A user specified folder[CR]
+Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations. 
+When viewing trailers you can press UP or I to view movie information and DOWN or I to hide. RIGHT or X will display next trailer. LEFT or ESC will exit. If the current playing trailer is from
+the users movie library hitting enter or return will play the associated movie.
+	</description>
+	<license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
+	<forum>http://forum.xbmc.org/showthread.php?tid=167276</forum>
+    <website></website>
+    <email>fbacher@brisbin.net</email>
+    <source>https://github.com/fbacher/plugin.video.randomtrailers</source>
+    <news>v1.2.3 (01/02/201x)
+      [new] some new feature
+      [fix] some fix
+    </news>
+    <assets>
+        <icon>resources/icon.png</icon>
+        <fanart>resources/fanart.jpg</fanart>
+        <banner></banner>
+        <clearlogo>resources/clearlogo.png</clearlogo>
+        <screenshot></screenshot>
+    </assets>
+  </extension>
+</addon>
+
+
+
