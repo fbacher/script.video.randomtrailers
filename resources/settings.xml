@@ -11,7 +11,7 @@
     <setting id="group_delay" type="number" enable="eq(-2,true)" label="32055" default="10" />
     <setting id="do_animation" type="bool" label="32001" default="true" />
     <setting id="hide_title" type="bool" label="32008" defalt="false"/>
-    <setting id="hide_info" type="bool" label="32003" default="false" />
+    <setting id="InfoDialogTime" type="int" label="32003" default="false" />
     <setting id="do_volume" type="bool" label="32006" default="false" />
     <setting id="volume" label="32011" type="number" enable = "eq(-1,true)" default="100" />
     <setting id="do_fullscreen" type="bool" label="32007" default="false" />

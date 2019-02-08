@@ -28,8 +28,13 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 import xbmcvfs
+import xbmcplugin
+import xbmcaddon
+#import xbmcwsgi
+import xbmcdrm
 import xml.dom.minidom
 import string
+import actions.actionMap
 
 '''
     Rough outline:
@@ -78,7 +83,8 @@ class Constants:
     addonName = u'script.video.randomtrailers'
     ADDON = None
     ADDON_PATH = None
-    TRAILER_INFO_DISPLAY_SECONDS = 6000
+    TRAILER_INFO_DISPLAY_SECONDS = 60
+    TRAILER_INFO_DISPLAY_MILLISECONDS = 6000
     SECONDS_BEFORE_RESHUFFLE = 1 * 60
     PLAY_LIST_LOOKBACK_WINDOW_SIZE = 10
 
@@ -269,10 +275,23 @@ List.Sort
 
     # Properties invented by this plugin:
 
-    # TODO- question the purpose of this
-    ITUNES_TRAILER_TYPE = u'trailerType'
+    MOVIE_TYPE = u'trailerType'
     # TODO rename to trailerSource
     MOVIE_SOURCE = u'source'
+
+    # Processed values for InfoDialog
+    MOVIE_DETAIL_ACTORS = u'rts.actors'
+    MOVIE_DETAIL_DIRECTORS = u'rts.directors'
+    MOVIE_DETAIL_GENRES = u'rts.genres'
+    MOVIE_DETAIL_RATING = u'rts.rating'
+    MOVIE_DETAIL_RATING_IMAGE = u'rts.ratingImage'
+    MOVIE_DETAIL_RUNTIME = u'rts.runtime'
+    MOVIE_DETAIL_STUDIOS = u'rts.studios'
+    MOVIE_DETAIL_TITLE = u'rts.title'
+    MOVIE_DETAIL_WRITERS = u'rts.writers'
+
+    # Reference to corresponding movie dict entry
+    MOVIE_DETAIL_MOVIE_ENTRY = u'rts.movie.entry'
 
     # Source Values:
     MOVIE_FOLDER_SOURCE = u'folder'
@@ -280,11 +299,11 @@ List.Sort
     MOVIE_ITUNES_SOURCE = u'iTunes'
     MOVIE_TMDB_SOURCE = u'tmdb'
 
-    TRAILER_DISCOVERY_STATE = u'trailerDiscoveryState'
+    MOVIE_DISCOVERY_STATE = u'trailerDiscoveryState'
     MOVIE_NOT_FULLY_DISCOVERED = u'notFullyDiscovered'
     MOVIE_TRAILER_DISCOVERY_IN_PROGRESS = u'discoveryInProgress'
-    TRAILER_DISCOVERY_COMPLETE = u'discoveryComplete'
-    MOVIE_TRAILER_PLAYED_KEY = u'trailerPlayed'
+    MOVIE_DISCOVERY_COMPLETE = u'discoveryComplete'
+    MOVIE_TRAILER_PLAYED = u'trailerPlayed'
     MOVIE_TRAILER_PLAY_ORDER_KEY = u'trailerPlayOrder'
 
     tmdbRequestCount = 0  # Limit is tmdbRequestLmit every 10 seconds
@@ -316,16 +335,16 @@ currentVolume = xbmc.getInfoLabel(u'Player.Volume')
 currentVolume = int(
     (float(currentVolume.split(u' ')[0]) + 60.0) / 60.0 * 100.0)
 
-selectedGenre = ''
+selectedGenre = u''
 exit_requested = False
-movie_file = ''
+movie_file = u''
 opener = urllib.request.build_opener()
 opener.addheaders = [('User-Agent', 'iTunes')]
 APPLE_URL_PREFIX = "http://trailers.apple.com"
 monitor = None
 
-trailer = ''
-info = ''
+trailer = u''
+info = u''
 played = []
 
 
@@ -354,14 +373,14 @@ class Utils:
             # with a forced sleep of 10 seconds, which is the maximum required
             # wait time.
             if forcedTMDBSleep:
-                xbmc.sleep(10000)
+                time.sleep(10)
 
             secondsUntilReset = Constants.tmdbRequestLimitResetTime - \
                 int(time.time())
             if (Constants.tmdbRemainingRequests < 10) and (secondsUntilReset < 2):
                 Debug.myLog(
                     u'Sleeping two seconds to avoid TMBD traffic limit.', xbmc.LOGINFO)
-                xbmc.sleep(2000)
+                time.sleep(2)
 
             Constants.tmdbRequestCount += 1
 
@@ -414,12 +433,12 @@ class Utils:
             if status is not None:
                 statusCode = status
 
-            #Debug.myLog(u'StatusCode from jsonText: ' + str(status), xbmc.LOGINFO)
+            # Debug.myLog(u'StatusCode from jsonText: ' + str(status), xbmc.LOGINFO)
         except Exception as e:
             pass
 
-        Debug.myLog(u'getJSON jsonText: ' + jsonText.__class__.__name__ +
-                    u' ' + json.dumps(jsonText), xbmc.LOGDEBUG)
+        # Debug.myLog(u'getJSON jsonText: ' + jsonText.__class__.__name__ +
+        #            u' ' + json.dumps(jsonText), xbmc.LOGDEBUG)
 
         if statusCode == Constants.TOO_MANY_TMDB_REQUESTS:  # Too many requests,
             Debug.myLog(u'Request rate to TMDB exceeds limits ('
@@ -464,7 +483,7 @@ class Utils:
 
     @staticmethod
     def throwExceptionIfAbortRequested():
-        if Utils.getMonitor().abortRequested():
+        if Utils.isAbortRequested():
             raise AbortException()
 
     @staticmethod
@@ -479,38 +498,92 @@ class AbortException(Exception):
 
 class WatchDog(threading.Thread):
     _threadsToWatch = []
+    _reaperThread = None
+    _watchDogThread = None
+
+    @staticmethod
+    def create():
+        WatchDog._reaperThread = None
+        WatchDog._watchDogThread = WatchDog(False)
+        WatchDog._watchDogThread.start()
+
+    @staticmethod
+    def createReaper():
+        WatchDog._reaperThread = WatchDog(True)
+        WatchDog._reaperThread.start()
 
     @staticmethod
     def registerThread(thread):
         WatchDog._threadsToWatch.append(thread)
 
-    def __init__(self):
-        threadName = Constants.ADDON_PATH + u'.WatchDog'
+    def __init__(self, threadReaper):
+
+        if threadReaper:
+            threadName = type(self).__name__ + u'_threadReaper'
+        else:
+            threadName = type(self).__name__
+
+        self._abortTime = None
         super(WatchDog, self).__init__(group=None, target=None,
                                        name=threadName,
                                        args=(), kwargs=None, verbose=None)
 
     def run(self):
-        while not Utils.isShutdownRequested():
-            xbmc.sleep(3000)  # Wait 3 seconds
+        if self is WatchDog._reaperThread:
+            self.reapDeadThreads()
+        else:
+            self.waitForDeathSignal()
 
+    def reapDeadThreads(self):
+        while not Utils.isShutdownRequested():
+            try:
+                # Wait 10 seconds before checking for dead threads
+                time.sleep(10)
+                self.joinWithCompletedThreads(0.25)
+            except Exception as e:
+                Debug.logException(e)
+
+    def waitForDeathSignal(self):
+        while not Utils.isShutdownRequested():
+            time.sleep(0.750)  # Wait 750 ms
+
+        self._abortTime = datetime.datetime.now()
         for thread in WatchDog._threadsToWatch:
+            Debug.myLog(u'WatchDog stopping ' +
+                        thread.getName(), xbmc.LOGDEBUG)
             thread.stop()
 
         finished = False
-        delay = 0.10
+        delay = 0.05  # We have max 5 seconds to shut down
         attempt = 0
         while not finished:
             attempt += 1
-            finished = True
-            for thread in WatchDog._threadsToWatch:
-                if thread.isAlive():
-                    thread.join(delay)
-                if thread.isAlive():
-                    finished = False
+            self.joinWithCompletedThreads(delay)
+            if len(WatchDog._threadsToWatch) == 0:
+                finished = True
+                break
 
-            if attempt == 5:
-                delay = 0.5
+            delay = 0.025
+
+        duration = datetime.datetime.now() - self._abortTime
+        Debug.myLog(u'Waited ' + str(duration.seconds) +
+                    u' seconds to exit after shutdown request.', xbmc.LOGINFO)
+
+    def joinWithCompletedThreads(self, delay):
+        for thread in WatchDog._threadsToWatch:
+            try:
+                if thread.isAlive():
+                    if Utils.isShutdownRequested():
+                        Debug.myLog(u'Watchdog joining with ' +
+                                    thread.getName(), xbmc.LOGDEBUG)
+                    thread.join(delay)
+                if not thread.isAlive():
+                    WatchDog._threadsToWatch.remove(thread)
+                    Debug.myLog(u'Thread: ' + thread.getName() +
+                                u' REAPED.', xbmc.LOGDEBUG)
+
+            except Exception as e:
+                Debug.logException(e)
 
 
 class Settings:
@@ -518,10 +591,6 @@ class Settings:
     #@staticmethod
     # def getAddonPath():
     #    return unicode(Constants.ADDON.getAddonInfo('path'))
-
-    @staticmethod
-    def getShowInfoDetail():
-        return Constants.ADDON.getSetting('hide_info') != u'true'
 
     @staticmethod
     def getNumberOfTrailersToPlay():
@@ -534,7 +603,7 @@ class Settings:
 
     @staticmethod
     def getShowCurtains():
-        return Constants.ADDON.getSetting('do_animation') == u'true'
+        return Constants.ADDON.getSetting(u'do_animation') == u'true'
 
     # do_genre
     @staticmethod
@@ -542,14 +611,14 @@ class Settings:
         if len(sys.argv) == 2:
             return False
         else:
-            return Constants.ADDON.getSetting('do_genre') == u'true'
+            return Constants.ADDON.getSetting(u'do_genre') == u'true'
 
     @staticmethod
     def getAdjustVolume():
         if Settings.getVolume() > 100:
             return False
         else:
-            return Constants.ADDON.getSetting('do_volume') == u'true'
+            return Constants.ADDON.getSetting(u'do_volume') == u'true'
 
     @staticmethod
     def getVolume():
@@ -579,11 +648,11 @@ class Settings:
 
     @staticmethod
     def getIncludeClips():
-        return Constants.ADDON.getSetting('do_clips') == u'true'
+        return Constants.ADDON.getSetting(u'do_clips') == u'true'
 
     @staticmethod
     def getIncludeFeaturettes():
-        return Constants.ADDON.getSetting('do_featurettes') == u'true'
+        return Constants.ADDON.getSetting(u'do_featurettes') == u'true'
 
     @staticmethod
     def getQuality():
@@ -599,8 +668,10 @@ class Settings:
         return int(Constants.ADDON.getSetting(u'trailer_type'))
 
     @staticmethod
-    def getHideTrailerTitle():
-        return Constants.ADDON.getSetting(u'hide_title') != u'true'
+    def getShowTrailerTitle():
+        showTitle = Constants.ADDON.getSetting(u'hide_title') != u'true'
+        Debug.myLog(u'getShowTrailerTitle: ' + str(showTitle), xbmc.LOGDEBUG)
+        return showTitle
 
     @staticmethod
     def getHideWatchedMovies():
@@ -632,55 +703,55 @@ class Settings:
 
     @staticmethod
     def getTrailersPaths():
-        return Constants.ADDON.getSetting('path')
+        return Constants.ADDON.getSetting(u'path')
 
     @staticmethod
     def getGenreAction():
-        return Constants.ADDON.getSetting('g_action') == u'true'
+        return Constants.ADDON.getSetting(u'g_action') == u'true'
 
     @staticmethod
     def getGenreComedy():
-        return Constants.ADDON.getSetting('g_comedy') == u'true'
+        return Constants.ADDON.getSetting(u'g_comedy') == u'true'
 
     @staticmethod
     def getGenreDocumentary():
-        return Constants.ADDON.getSetting('g_docu') == u'true'
+        return Constants.ADDON.getSetting(u'g_docu') == u'true'
 
     @staticmethod
     def getGenreDrama():
-        return Constants.ADDON.getSetting('g_drama') == u'true'
+        return Constants.ADDON.getSetting(u'g_drama') == u'true'
 
     @staticmethod
     def getGenreFamily():
-        return Constants.ADDON.getSetting('g_family') == u'true'
+        return Constants.ADDON.getSetting(u'g_family') == u'true'
 
     @staticmethod
     def getGenreFantasy():
-        return Constants.ADDON.getSetting('g_fantasy') == u'true'
+        return Constants.ADDON.getSetting(u'g_fantasy') == u'true'
 
     @staticmethod
     def getGenreForeign():
-        return Constants.ADDON.getSetting('g_foreign') == u'true'
+        return Constants.ADDON.getSetting(u'g_foreign') == u'true'
 
     @staticmethod
     def getGenreHorror():
-        return Constants.ADDON.getSetting('g_horror') == u'true'
+        return Constants.ADDON.getSetting(u'g_horror') == u'true'
 
     @staticmethod
     def getGenreMusical():
-        return Constants.ADDON.getSetting('g_musical') == u'true'
+        return Constants.ADDON.getSetting(u'g_musical') == u'true'
 
     @staticmethod
     def getGenreRomance():
-        return Constants.ADDON.getSetting('g_romance') == u'true'
+        return Constants.ADDON.getSetting(u'g_romance') == u'true'
 
     @staticmethod
     def getGenreSciFi():
-        return Constants.ADDON.getSetting('g_scifi') == u'true'
+        return Constants.ADDON.getSetting(u'g_scifi') == u'true'
 
     @staticmethod
     def getGenreThriller():
-        return Constants.ADDON.getSetting('g_thriller') == u'true'
+        return Constants.ADDON.getSetting(u'g_thriller') == u'true'
 
     @staticmethod
     def getTmdbApiKey():
@@ -699,7 +770,7 @@ class Settings:
 
     @staticmethod
     def getGroupDelay():
-        return int(Constants.ADDON.getSetting('group_delay')) * 60 * 1000
+        return int(Constants.ADDON.getSetting(u'group_delay')) * 60
 
     @staticmethod
     def getTmdbSourceSetting():
@@ -707,13 +778,35 @@ class Settings:
 
     @staticmethod
     def getRatingLimitSetting():
-        rating_limit = Constants.ADDON.getSetting('rating_limit')
+        rating_limit = Constants.ADDON.getSetting(u'rating_limit')
         return rating_limit
 
     @staticmethod
     def getDoNotRatedSetting():
-        do_nr = Constants.ADDON.getSetting('do_nr') == u'true'
+        do_nr = Constants.ADDON.getSetting(u'do_nr') == u'true'
         return do_nr
+
+    '''
+        Time in seconds to display detailed movie info prior
+        to playing a trailer. Default is 5 seconds
+    '''
+
+    @staticmethod
+    def getTimeToDisplayDetailInfo():
+        timeToDisplayDetailInfo = Constants.ADDON.getSetting(
+            u'InfoDialogTime')
+        if timeToDisplayDetailInfo is None or str(timeToDisplayDetailInfo) == u'':
+            timeToDisplayDetailInfo = 20
+
+        return int(timeToDisplayDetailInfo)
+
+    @staticmethod
+    def isTraceEnabled():
+        return Constants.ADDON.getSetting(u'do_trace') == u'true'
+
+    @staticmethod
+    def isTraceStatsEnabled():
+        return Constants.ADDON.getSetting(u'do_trace_stats') == u'true'
 
 
 class Genre:
@@ -850,8 +943,8 @@ class Rating:
             if adultRating:
                 rating = cls.RATING_NC_17
 
-        xbmc.log(u'In randomtrailers.getMPAArating rating: ' +
-                 mpaaRating + u' adult: ' + str(adultRating), xbmc.LOGNOTICE)
+        Debug.myLog(u'In randomtrailers.getMPAArating rating: ' +
+                    mpaaRating + u' adult: ' + str(adultRating), xbmc.LOGNOTICE)
 
         foundRating = False
         for ratingPattern in Rating.ALLOWED_RATINGS:
@@ -890,32 +983,114 @@ class Rating:
 Rating._initClass()
 
 
+class Trace:
+    TRACE = u'TRACE'
+    STATS = u'STATS'
+    TRACE_UI = u'TRACE_UI'
+    STATS_UI = u'STATS_UI'
+    TRACE_DISCOVERY = u'TRACE_DISCOVERY'
+    STATS_DISCOVERY = u'STATS_DISCOVERY'
+
+    _traceCatagories = set()
+
+    @staticmethod
+    def configure():
+        if Settings.isTraceEnabled():
+            Trace.enable(Trace.TRACE)
+
+        if Settings.isTraceStatsEnabled():
+            Trace.enable(Trace.STATS)
+
+    @staticmethod
+    def log(msg, *flags):
+        found = False
+        prefix = u''
+        separator = u''
+        for flag in flags:
+            if flag in Trace._traceCatagories:
+                found = True
+                prefix += separator + flag
+                separator = u', '
+
+        if found:
+            Debug.myLog(prefix + u': ' + msg, xbmc.LOGDEBUG)
+
+    @staticmethod
+    def logError(msg, *flags):
+        Trace.log(msg, *flags)
+        Debug.myLog(msg, xbmc.LOGERROR)
+
+    @staticmethod
+    def enable(*flags):
+        for flag in flags:
+            Trace._traceCatagories.add(flag)
+
+    @staticmethod
+    def disable(*flags):
+        for flag in flags:
+            Trace._traceCatagories.remove(flag)
+
+
 class Debug:
 
     @staticmethod
     def myLog(*args):
-        text = str('')
-        for p in args[0:len(args) - 1]:
-            if p is None:
-                newP = str('None')
-            elif isinstance(p, unicode):
-                newP = p.encode('utf-8')
-            elif isinstance(p, list):
-                newP = str(p)
-            elif isinstance(p, dict):
-                newP = str(p)
-            elif isinstance(p, bool):
-                newP = str(p)
-            elif isinstance(p, int):
-                newP = str(p)
-            else:
-                newP = p
+        msg = u''.encode(u'utf-8')
+        logType = args[len(args) - 1]
+        saveMsg = u''.encode(u'utf-8')
 
-            xbmc.log(newP, args[len(args) - 1])
+        try:
+            for p in args[0:len(args) - 1]:
+                myType = None
+                if p is None:
+                    newP = str('None')
+                elif isinstance(p, unicode):
+                    newP = p.encode(u'utf-8')
+                elif isinstance(p, list):
+                    newP = str(p)
+                elif isinstance(p, dict):
+                    newP = json.dumps(p, ensure_ascii=False,
+                                      encoding=u'utf-8', indent=4,
+                                      sort_keys=True)
+                    newP = str(p)
+                elif isinstance(p, bool):
+                    newP = str(p)
+                elif isinstance(p, int):
+                    newP = str(p)
+                elif isinstance(p, str):
+                    newP = p
+                elif p is not None:
+                    newP = str(p)
+                    myType = type(p).__name__
+                    Debug.myLog('unknown type: ' + myType, xbmc.LOGDEBUG)
+
+                msg += newP
+                saveMsg = msg
+        except Exception as e:
+            Debug.logException(e)
+            text = u'Blew up creating message for Logging printing log fragment: '
+            msg = text + saveMsg
+
+        xbmc.log(msg, logType)
 
     @staticmethod
-    def logException():
-        xbmc.log(traceback.format_exc(), xbmc.LOGERROR)
+    def logException(e=None):
+
+        exec_type, exec_value, exec_traceback = sys.exc_info()
+        Debug.myLog(
+            u'LEAK: TraceBack Traceback traceback stacktrace Stacktrace StackTrace:',
+            xbmc.LOGDEBUG)
+        lines = traceback.format_exception(
+            exec_type, exec_value, exec_traceback)
+        if len(lines) == 0:
+            Debug.myLog(u'No lines in traceback execType: ' +
+                        str(exec_type), xbmc.LOGDEBUG)
+
+            Debug.dumpStack()
+
+        else:
+            for line in lines:
+                Debug.myLog(line, xbmc.LOGERROR)
 
     @staticmethod
     def dumpDictionaryKeys(d):
@@ -923,7 +1098,7 @@ class Debug:
             if isinstance(v, dict):
                 Debug.dumpDictionaryKeys(v)
             else:
-                xbmc.log('{0} : {1}'.format(k, v), xbmc.LOGDEBUG)
+                Debug.myLog('{0} : {1}'.format(k, v), xbmc.LOGDEBUG)
 
     @staticmethod
     def dumpStack(msg=u''):
@@ -943,22 +1118,22 @@ class Debug:
     def compareMovies(trailer, newTrailer):
         for key in trailer:
             if newTrailer.get(key) is None:
-                Debug.myLog(u'CompareMovies- key: ' + str(key) + u' is missing from new. Value: '
-                            + str(trailer.get(key)), xbmc.LOGINFO)
+                Debug.myLog(u'CompareMovies- key: ' + key + u' is missing from new. Value: ',
+                            trailer.get(key), xbmc.LOGINFO)
 
-            if trailer.get(key) != newTrailer.get(key):
-                Debug.myLog(u'Values for: ' + str(key) + u' different: ' + str(trailer.get(key))
-                            + u' new: ' + str(newTrailer.get(key)), xbmc.LOGINFO)
+            elif trailer.get(key) is not None and trailer.get(key) != newTrailer.get(key):
+                Debug.myLog(u'Values for: ' + key + u' different: ', trailer.get(key),
+                            u' new: ', newTrailer.get(key), xbmc.LOGINFO)
 
         for key in newTrailer:
             if trailer.get(key) is None:
-                Debug.myLog(u'CompareMovies- key: ' + str(key) + u' is missing from old. Value: '
-                            + str(newTrailer.get(key)), xbmc.LOGINFO)
+                Debug.myLog(u'CompareMovies- key: ' + key + u' is missing from old. Value: ',
+                            newTrailer.get(key), xbmc.LOGINFO)
 
     @staticmethod
     def validateBasicMovieProperties(movie):
         basicProperties = (
-            Constants.ITUNES_TRAILER_TYPE,
+            Constants.MOVIE_TYPE,
             Constants.MOVIE_FANART,
             Constants.MOVIE_THUMBNAIL,
             Constants.MOVIE_TRAILER,
@@ -992,15 +1167,49 @@ class Debug:
                 movie.setdefault(propertyName, u'default_' + propertyName)
 
 
+class Playlist:
+    RECORD_PLAYLIST_FILE = u'Viewed.playlist'
+
+    @staticmethod
+    def configure():
+        Playlist._playedTrailerPlaylist = Playlist(
+            type=Playlist.RECORD_PLAYLIST_FILE)
+
+    def __init__(self, *args, **kwargs):
+        playlistType = kwargs.get(u'type', u'')
+        if playlistType == Playlist.RECORD_PLAYLIST_FILE:
+            path = Constants.ADDON_PATH + u'/' + Playlist.RECORD_PLAYLIST_FILE
+            self._file = file(path, u'a', 1)
+
+    @staticmethod
+    def recordPlayedTrailer(trailer):
+        name = trailer.get(Constants.MOVIE_TITLE, u'unknown Title')
+        year = u'(' + str(trailer.get(Constants.MOVIE_YEAR, u'unknown Year')) + u')'
+        movieType = trailer.get(Constants.MOVIE_TYPE, u'Unknown MovieType')
+        if name is None:
+            name = u'name is None'
+        if year is None:
+            year = u'year is None'
+        if movieType is None:
+            movieType = u'movieType is None'
+
+        Playlist._playedTrailerPlaylist._file.write(name + u'  ' + year + u'  # ' +
+                                                    movieType)
+        Playlist._playedTrailerPlaylist._file.flush()
+
+    @staticmethod
+    def shutdown():
+        Playlist._playedTrailerPlaylist._file.close()
+
+
 class BaseTrailerManager(threading.Thread):
     _trailerManagers = []
-    _discoveredTrailers = []
-    _discoveredTrailersQueue = queue.Queue(maxsize=0)
-    _discoveredTrailersQueueLock = threading.Condition()
-    _trailersToFetchQueueLock = threading.Condition()
-    _trailersToFetchQueue = queue.Queue(maxsize=5)
+    _aggregateTrailersByNameDate = None
+    _discoveredTrailers = None
+    _discoveredTrailersQueue = None
+    _trailersToFetchQueue = None
     _singletonInstance = None
-    _readyToPlayQueue = queue.Queue(maxsize=3)
+    _readyToPlayQueue = None
 
     '''    
         Instance variables
@@ -1024,21 +1233,21 @@ class BaseTrailerManager(threading.Thread):
 
     @staticmethod
     def stop():
-        pass
-        # for manager in BaseTrailerManager._singletonInstance.getManagers():
-        #    for fetcher in manager.trailerFetcher:
-        #        for fetcherThread in fetcher._trailerFetchers:
-        #            fetcherThread.stop()
+        for manager in BaseTrailerManager.getInstance().getManagers():
+            for fetcher in manager.trailerFetcher:
+                for fetcherThread in fetcher._trailerFetchers:
+                    fetcherThread.stop()
+
+        BaseTrailerManager.getInstance().joinAll()
 
     def joinAll(self):
         for manager in self._trailerManagers:
-            if manager.isAlive(1.0):
+            if manager.isAlive(0.25):
                 manager.join()
 
     def __init__(self, group=None, target=None, name=None,
                  args=(), kwargs=None, verbose=None):
         Debug.myLog(self.__class__.__name__ + '.__init__', xbmc.LOGDEBUG)
-        Debug.dumpStack()
         if name is None or name == u'':
             name = Constants.ADDON_PATH + u'.BaseTrailerManager'
         super(BaseTrailerManager, self).__init__(group, target, name,
@@ -1048,7 +1257,30 @@ class BaseTrailerManager(threading.Thread):
                     u' set _discoveryComplete = False', xbmc.LOGDEBUG)
         WatchDog.registerThread(self)
         self._discoveryComplete = False
-        self._trailersAvailable = threading.Event()
+        self._trailersAvailableToPlay = threading.Event()
+        self._trailersDiscovered = threading.Event()
+        self._aggregateTrailersByNameDateLock = threading.Condition()
+        self._aggregateTrailersByNameDate = dict()
+        self._removedTrailers = 0
+        self._next_totalDuration = 0
+        self._next_calls = 0
+        self._next_attempts = 0
+        self._loadFetch_totalDuration = 0
+        self._next_failures = 0
+        self._next_totalFirstMethodAttempts = 0
+        self._next_second_attempts = 0
+        self._next_second_total_Duration = 0
+
+        if self.__class__.__name__ != u'BaseTrailerManager':
+            self._lastShuffleTime = datetime.datetime.fromordinal(1)
+            self._lastShuffledIndex = -1
+            self._lock = threading.Condition()
+            self._lastShuffledIndex = -1
+            self._discoveredTrailers = []  # Access via self._lock
+            self._discoveredTrailersQueue = queue.Queue(maxsize=0)
+            self._trailersToFetchQueue = queue.Queue(maxsize=3)
+            self._trailersToFetchQueueLock = threading.Condition()
+            self._readyToPlayQueue = queue.Queue(maxsize=3)
 
     def discoverBasicInformation(self, genre):
         pass
@@ -1063,55 +1295,69 @@ class BaseTrailerManager(threading.Thread):
         self.genre = genre
 
     def finishedDiscovery(self):
-        Debug.myLog(self.__class__.__name__ +
-                    u' finishedDiscovery.', xbmc.LOGDEBUG)
+        METHOD_NAME = self.getName() + u'.finishedDiscovery'
+        Debug.myLog(METHOD_NAME +
+                    u'.finishedDiscovery.', xbmc.LOGDEBUG)
+        Debug.myLog(METHOD_NAME + u' before self._lock', xbmc.LOGDEBUG)
+
         with self._lock:
+            Debug.myLog(METHOD_NAME + u' got self._lock', xbmc.LOGDEBUG)
+
             self.shuffleDiscoveredTrailers(markUnplayed=False)
             self._discoveryComplete = True
-
-    # DEAD CODE
-    def isDiscoveryComplete(self):
-        complete = True
-        Debug.myLog('# Managers: ' + len(self.getManagers()), xbmc.LOGDEBUG)
-        for index in xrange(len(self.getManagers()) - 1, -1, -1):
-            trailerManager = self.getManagers[index]
-            if trailerManager.isAlive():
-                complete = False
-            else:
-                trailerManager.join()
-
-        return complete
+            self._lock.notify
 
     def addToDiscoveredTrailers(self, movie):
-        METHOD_NAME = self.__class__.__name__ + u'.addToDiscoveredTrailers'
+        METHOD_NAME = self.getName() + u'.addToDiscoveredTrailers'
         Debug.myLog(METHOD_NAME + u': ' +
                     movie.get(Constants.MOVIE_TITLE), xbmc.LOGDEBUG)
 
         # Assume more discovery is required for movie details, etc.
 
-        movie[Constants.MOVIE_TRAILER_PLAYED_KEY] = False
-        movie[Constants.TRAILER_DISCOVERY_STATE] = Constants.MOVIE_NOT_FULLY_DISCOVERED
+        movie[Constants.MOVIE_TRAILER_PLAYED] = False
+        movie[Constants.MOVIE_DISCOVERY_STATE] = Constants.MOVIE_NOT_FULLY_DISCOVERED
+        Debug.myLog(METHOD_NAME + u' before self._lock', xbmc.LOGDEBUG)
 
         with self._lock:
+            Debug.myLog(METHOD_NAME + u' got self._lock', xbmc.LOGDEBUG)
+
             self._discoveredTrailers.append(movie)
+            self._trailersDiscovered.set()
             secondsSinceLastShuffle = (
-                datetime.datetime.utcnow() - self._lastShuffleTime).total_seconds()
-            Debug.myLog('seconds: ' + str(secondsSinceLastShuffle) + ' lastShuffle: ' +
-                        str(self._lastShuffleTime),
-                        xbmc.LOGDEBUG)
-            if self._lastShuffledIndex < ((len(self._discoveredTrailers) * 0.10)
-                                          or secondsSinceLastShuffle > Constants.SECONDS_BEFORE_RESHUFFLE):
-                self.shuffleDiscoveredTrailers(markUnplayed=False)
+                datetime.datetime.now() - self._lastShuffleTime).seconds
+            if self._lastShuffleTime != datetime.datetime.fromordinal(1):
+                Debug.myLog(u'seconds: ' +
+                            str(secondsSinceLastShuffle), xbmc.LOGDEBUG)
+            else:
+                Debug.myLog(u'FirstShuffle', xbmc.LOGDEBUG)
             self._lock.notify()
+
+        reshuffle = False
+        if ((self._lastShuffledIndex * 1.10 + 25) < len(self._discoveredTrailers)
+                or secondsSinceLastShuffle > Constants.SECONDS_BEFORE_RESHUFFLE):
+            reshuffle = True
+
+        if reshuffle:
+            self.shuffleDiscoveredTrailers(markUnplayed=False)
 
         Debug.myLog(METHOD_NAME + u' Added movie to _discoveredTrailers: '
                     + movie.get(Constants.MOVIE_TITLE) + u' length: '
                     + str(len(self._discoveredTrailers)), xbmc.LOGDEBUG)
 
     def shuffleDiscoveredTrailers(self, markUnplayed=False):
-        METHOD_NAME = self.__class__.__name__ + u'.shuffleDiscoveredTrailers'
+        METHOD_NAME = self.getName() + u'.shuffleDiscoveredTrailers'
         Debug.myLog(METHOD_NAME, xbmc.LOGDEBUG)
+        Utils.throwExceptionIfShutdownRequested()
+        Debug.myLog(METHOD_NAME + u' before self._lock', xbmc.LOGDEBUG)
+
         with self._lock:
+            Debug.myLog(METHOD_NAME + u' got self._lock', xbmc.LOGDEBUG)
+
+            if len(self._discoveredTrailers) == 0:
+                Debug.myLog(METHOD_NAME + u' nothing to shuffle',
+                            xbmc.LOGDEBUG)
+                return
+
             # Shuffle a shallow copy and then put that copy
             # into the._discoveredTrailersQueue
             shuffledTrailers = self._discoveredTrailers[:]
@@ -1120,39 +1366,53 @@ class BaseTrailerManager(threading.Thread):
 
             Utils.RandomGenerator.shuffle(shuffledTrailers)
             if markUnplayed:
-                for trailer in self._discoveredTrailers:
-                    trailer[Constants.MOVIE_TRAILER_PLAYED_KEY] = False
+                for trailer in shuffledTrailers:
+                    trailer[Constants.MOVIE_TRAILER_PLAYED] = False
 
-            self._lastShuffledIndex = len(self._discoveredTrailers) - 1
+            self._lastShuffledIndex = len(shuffledTrailers) - 1
             Debug.myLog('lastShuffledIndex: ' + str(self._lastShuffledIndex),
                         xbmc.LOGDEBUG)
 
             # Drain anything previously in queue
+
             try:
                 while True:
                     self._discoveredTrailersQueue.get(block=False)
             except queue.Empty:
                 pass
 
-            Debug.myLog('reloading._discoveredTrailersQueue', xbmc.LOGDEBUG)
-            for trailer in shuffledTrailers:
-                if not trailer[Constants.MOVIE_TRAILER_PLAYED_KEY]:
-                    self._discoveredTrailersQueue.put(trailer)
+            Utils.throwExceptionIfShutdownRequested()
             Debug.myLog(
-                'discoverdTrailerQueue length: ' +
-                str(self._discoveredTrailersQueue.qsize()) +
-                u'_discoveredTrailers length: '
-                + str(len(self._discoveredTrailers)),
-                xbmc.LOGDEBUG)
+                METHOD_NAME + u' reloading _discoveredTrailersQueue', xbmc.LOGDEBUG)
+            for trailer in shuffledTrailers:
+                if not trailer[Constants.MOVIE_TRAILER_PLAYED]:
+                    self._discoveredTrailersQueue.put(trailer)
+
+            Debug.myLog(METHOD_NAME +
+                        u' _discoverdTrailerQueue length: ' +
+                        str(self._discoveredTrailersQueue.qsize()) +
+                        u'_discoveredTrailers length: '
+                        + str(len(self._discoveredTrailers)),
+                        xbmc.LOGDEBUG)
 
     def addToReadyToPlayQueue(self, movie):
-        Debug.myLog(self.__class__.__name__ + u'.addToReadyToPlayQueue: ' +
-                    movie[Constants.MOVIE_TITLE], xbmc.LOGDEBUG)
-        self._readyToPlayQueue.put(movie)
-        if not BaseTrailerManager.getInstance()._trailersAvailable.isSet():
-            BaseTrailerManager.getInstance()._trailersAvailable.set()
+        METHOD_NAME = self.getName() + u'.addToReadyToPlayQueue'
+        Debug.myLog(METHOD_NAME + u' movie: ' +
+                    movie[Constants.MOVIE_TITLE] +
+                    u' queue empty: ' + str(self._readyToPlayQueue.empty()) +
+                    u' full: ' + str(self._readyToPlayQueue.full()), xbmc.LOGDEBUG)
+        finished = False
+        while not finished:
+            try:
+                self._readyToPlayQueue.put(movie, timeout=0.75)
+                finished = True
+            except queue.Full:
+                Utils.throwExceptionIfShutdownRequested()
 
-        Debug.myLog(u'_readyToPlayQueue size: ' + str(BaseTrailerManager._readyToPlayQueue.qsize()),
+        if not BaseTrailerManager.getInstance()._trailersAvailableToPlay.isSet():
+            BaseTrailerManager.getInstance()._trailersAvailableToPlay.set()
+
+        Debug.myLog(u'_readyToPlayQueue size: ' + str(self._readyToPlayQueue.qsize()),
                     xbmc.LOGDEBUG)
         return
 
@@ -1171,15 +1431,18 @@ class BaseTrailerManager(threading.Thread):
         return self.__next__()
 
     def __next__(self):
+        METHOD_NAME = self.__class__.__name__ + u'.next'
 
-        Debug.myLog(u'BaseTrailerManager.next trailersAvail: ' +
-                    str(BaseTrailerManager.getInstance()._trailersAvailable.isSet()), xbmc.LOGDEBUG)
-        if not BaseTrailerManager.getInstance()._trailersAvailable.isSet():
-            BaseTrailerManager.getInstance()._trailersAvailable.wait()
+        Trace.log(METHOD_NAME + u' trailersAvail: ' +
+                  str(BaseTrailerManager.getInstance()._trailersAvailableToPlay.isSet()), Trace.TRACE)
+
+        while not BaseTrailerManager.getInstance()._trailersAvailableToPlay.wait(0.25):
+            pass
 
         Debug.myLog(
             'BaseTrailerManager.next after trailersAvail wait', xbmc.LOGDEBUG)
         totalNumberOfTrailers = 0
+        startTime = datetime.datetime.now()
 
         # Considered locking all TrailerManagers here to guarantee
         # that lengths don't change while finding the right trailer
@@ -1188,6 +1451,8 @@ class BaseTrailerManager(threading.Thread):
         # the incorrect trailer, as long as we get one. The
         # major fear is if we have no trailers at all, but that
         # will be handled elsewhere.
+
+        # Get total number of trailers from all managers.
 
         managers = BaseTrailerManager._singletonInstance.getManagers()
         for manager in managers:
@@ -1198,11 +1463,20 @@ class BaseTrailerManager(threading.Thread):
         Debug.myLog('BaseTrailerManager.next numTrailers: ' +
                     str(totalNumberOfTrailers), xbmc.LOGDEBUG)
 
+        # Now, randomly pick manager to get a trailer from based upon
+        # the number of trailers in each.
+        #
+        # We loop here because there may not be any trailers in the readyToPlayQueue
+        # for a specific manager
+
         trailer = None
         attempts = 0
         while trailer is None and attempts < 10:
+            Utils.throwExceptionIfShutdownRequested()
             trailerIndexToPlay = Utils.RandomGenerator.randint(
                 0, totalNumberOfTrailers - 1)
+            Debug.myLog(u'BaseTrailerManager.next trailerIndexToPlay: '
+                        + str(trailerIndexToPlay), xbmc.LOGDEBUG)
 
             totalNumberOfTrailers = 0
             foundManager = None
@@ -1217,17 +1491,81 @@ class BaseTrailerManager(threading.Thread):
             try:
                 attempts += 1
                 Debug.myLog(u'BaseTrailerManager.next Attempt: ' + str(attempts)
-                            + u' manager: ' + str(foundManager), xbmc.LOGDEBUG)
-                trailer = foundManager._readyToPlayQueue.get(
-                    block=False, timeout=0.25)
+                            + u' manager: ' + foundManager.__class__.__name__, xbmc.LOGDEBUG)
+                trailer = foundManager._readyToPlayQueue.get(block=False)
+                title = trailer[Constants.MOVIE_TITLE] + \
+                    u' : ' + trailer[Constants.MOVIE_TRAILER]
+                Debug.myLog(u'BaseTrailerManager.next found:: ' +
+                            title, xbmc.LOGDEBUG)
             except queue.Empty:
                 trailer = None
 
-        title = 'No Trailer found before timeout'
-        if trailer is not None:
-            title = trailer[Constants.MOVIE_TITLE]
+        durationOfFirstAttempt = datetime.datetime.now() - startTime
+        secondAttemptStartTime = None
+        secondMethodAttempts = None
+
+        if trailer is None:
+            Trace.log(METHOD_NAME +
+                      u' trailer not found by preferred method', Trace.TRACE)
+
+            # Alternative method is to pick a random manager to start with and
+            # then find one that has a trailer. Otherwise, camp out.
+
+            secondAttemptStartTime = datetime.datetime.now()
+            secondMethodAttempts = 0
+            numberOfManagers = len(managers)
+            startingIndex = Utils.RandomGenerator.randint(
+                0, numberOfManagers - 1)
+            managerIndex = startingIndex
+            while trailer is None:
+                Utils.throwExceptionIfShutdownRequested()
+                manager = managers[managerIndex]
+                try:
+                    if not manager._readyToPlayQueue.empty():
+                        trailer = manager._readyToPlayQueue.get(block=False)
+                        break
+                except queue.Empty:
+                    pass  # try again
+
+                managerIndex += 1
+                if managerIndex >= numberOfManagers:
+                    managerIndex = 0
+                    if managerIndex == startingIndex:
+                        secondMethodAttempts += 1
+                        time.sleep(0.5)
+
+        movie = trailer[Constants.MOVIE_DETAIL_MOVIE_ENTRY]
+        movie[Constants.MOVIE_TRAILER_PLAYED] = True
+        title = trailer[Constants.MOVIE_TITLE] + \
+            u' : ' + trailer[Constants.MOVIE_TRAILER]
         Debug.myLog(u'BaseTrailerManager.next trailer: ' +
                     title, xbmc.LOGDEBUG)
+
+        duration = datetime.datetime.now() - startTime
+        self._next_totalDuration += duration.seconds
+        self._next_calls += 1
+        self._next_attempts += attempts
+        self._next_totalFirstMethodAttempts += attempts
+
+        if trailer is None:
+            self._next_failures += 1
+
+        Trace.log(METHOD_NAME + u' elapsedTime: ' + str(duration.seconds) + u' seconds' +
+                  u' FirstMethod- elapsedTime: ' +
+                  str(durationOfFirstAttempt.seconds)
+                  + u' attempts: ' + str(attempts), Trace.STATS)
+        if secondMethodAttempts is not None:
+            self._next_attempts += secondMethodAttempts
+            self._next_second_attempts += secondMethodAttempts
+            secondDuration = datetime.datetime.now() - secondAttemptStartTime
+            self._next_second_total_Duration += secondDuration.seconds
+            Trace.log(METHOD_NAME + u' SecondMethod- attempts: ' +
+                      str(secondMethodAttempts) + u' elpasedTime: ' +
+                      str(secondDuration.seconds), Trace.STATS)
+
+        Trace.log(METHOD_NAME + u' Playing: ' +
+                  trailer[Constants.MOVIE_DETAIL_TITLE], Trace.TRACE)
+        Playlist.recordPlayedTrailer(trailer)
         return trailer
 
     '''
@@ -1236,12 +1574,22 @@ class BaseTrailerManager(threading.Thread):
     '''
 
     def removeDiscoveredTrailer(self, trailer):
-        METHOD_NAME = self.__class__.__name__ + u'.removeDiscoveredTrailer'
+        METHOD_NAME = self.getName() + u'.removeDiscoveredTrailer'
         Debug.myLog(METHOD_NAME + u' : ',
                     trailer.get(Constants.MOVIE_TITLE), xbmc.LOGDEBUG)
+        Debug.myLog(METHOD_NAME + u' before self._lock', xbmc.LOGDEBUG)
+
         with self._lock:
-            self._discoveredTrailers.remove(trailer)
+            Debug.myLog(METHOD_NAME + u' got self._lock', xbmc.LOGDEBUG)
+
+            try:
+                self._discoveredTrailers.remove(trailer)
+            except ValueError:  # Already deleted
+                pass
+
             self._lock.notify()
+
+        self._removedTrailers += 1
 
     '''
         Load the _trailersToFetchQueue from._discoveredTrailersQueue.
@@ -1272,110 +1620,187 @@ class BaseTrailerManager(threading.Thread):
     _firstLoad = True
 
     def loadFetchQueue(self):
-        METHOD_NAME = self.__class__.__name__ + u'loadFetchQueue'
+        METHOD_NAME = self.getName() + u'.loadFetchQueue'
+        startTime = datetime.datetime.now()
         if BaseTrailerManager._firstLoad:
-            time.sleep(2)
+            time.sleep(2)  # TODO- review later
             BaseTrailerManager._firstLoad = False
 
-        with self._trailersToFetchQueueLock:
-            Debug.myLog(
-                METHOD_NAME + u' Got _trailersToFetchQueueLock', xbmc.LOGDEBUG)
-            finished = False
-            attempts = 0
-            while not finished:
-                attempts += 1
-                block = False
-                shuffle = False
-                try:
-                    Debug.myLog(METHOD_NAME + u' Attempt: ' +
-                                str(attempts), xbmc.LOGDEBUG)
-                    if self._trailersToFetchQueue.full():
-                        Debug.myLog(METHOD_NAME + u' _trailersToFetchQueue full',
-                                    xbmc.LOGDEBUG)
-                        finished = True
-                    elif self._discoveryComplete and len(self._discoveredTrailers) == 0:
-                        Debug.myLog(METHOD_NAME +
-                                    u' Discovery Complete and nothing found.', xbmc.LOGDEBUG)
-                        finished = True
-                    elif self._discoveryComplete and self._discoveredTrailersQueue.empty():
-                        Debug.myLog(METHOD_NAME +
-                                    u'_ discoveryComplete,._discoveredTrailersQueue empty',
-                                    xbmc.LOGDEBUG)
-                        shuffle = True
-                    elif (self._discoveredTrailersQueue.empty()
-                          and not self._trailersToFetchQueue.empty):
-                        Debug.myLog(
-                            METHOD_NAME + u' Discovery incomplete._discoveredTrailersQueue ' +
-                            u'empty and _trailersToFetchQueue not empty', xbmc.LOGDEBUG)
-                        finished = True
-                    elif self._trailersToFetchQueue.empty():
-                        # Discovery incomplete, fetch queue is empty
-                        # wait until we get an item, or discovery complete
-
-                        Debug.myLog(METHOD_NAME + u' Discovery incomplete, ' +
-                                    u'_trailersToFetchQueue empty, will wait', xbmc.LOGDEBUG)
-                        block = True
-                        trailer = self._discoveredTrailersQueue.get(
-                            timeout=0.5)
-                        block = False
-                        self._trailersToFetchQueue.put(trailer)
-
-                    else:
-                        # Fetch queue is not empty, nor full. Discovery
-                        # is not complete. Get something from _discoveredTrailerQueue
-                        # if available
-
-                        trailer = self._discoveredTrailersQueue.get(
-                            block=False)
-                        Debug.myLog(
-                            'Got from _discoverdTrailerQueue', xbmc.LOGINFO)
-                        self._trailersToFetchQueue.put(trailer, timeout=1)
-                        Debug.myLog('Put in _trailersToFetchQueue',
-                                    xbmc.LOGDEBUG)
-                        finished = True
-                except queue.Full:
-                    # Not a permanent loss. Means that we just
-                    # won't show one trailer this time around.
-                    # If they keep playing long enough, it will
-                    # cycle back another time. Should be quite
-                    # rare.
-                    finished = True
-                except queue.Empty:
-                    #._discoveredTrailersQueue is empty
-
-                    if block:
-                        # We don't want to keep blocking on
-                        # self._trailersToFetchQueueLock. Go ahead and exit loop
-                        # and release lock. Then block on a regular Queue.get
-                        finished = True
-                if not finished:
-                    Debug.myLog(self.__class__.__name__ + u'.loadFetchQueue is ' +
-                                u'hung reloading from._discoveredTrailersQueue.'
-                                + ' length of _discoveredTrailers: '
-                                + str(len(self._discoveredTrailers))
-                                + u' length of._discoveredTrailersQueue: '
-                                + str(self._discoveredTrailersQueue.qsize()),
-                                xbmc.LOGERROR)
-
-                if shuffle:
-                    self.shuffleDiscoveredTrailers(markUnplayed=True)
-        if block:
+        Utils.throwExceptionIfShutdownRequested()
+        finished = False
+        attempts = 0
+        fetchQueueFull = False
+        discoveryFoundNothing = False
+        discoveryCompleteQueueEmpty = 0
+        discoveredAndFetchQueuesEmpty = 0
+        discoveryIncompleteFetchNotEmpty = 0
+        discoveryIncompleteFetchQueueEmpty = 0
+        getAttempts = 0
+        putAttempts = 0
+        while not finished:
+            trailer = None
+            Utils.throwExceptionIfShutdownRequested()
+            attempts += 1
+            shuffle = False
+            iterationSuccessful = False
             try:
-                Debug.myLog(
-                    u'FetchQueue completely empty. Blocking on get.', xbmc.LOGDEBUG)
-                trailer = self._discoveredTrailersQueue.get()
-                self._trailersToFetchQueue.put(trailer)
-                Debug.myLog(
-                    METHOD_NAME + u' got trailer afterblock', xbmc.LOGDEBUG)
-            except Exception:
-                Debug.logException()
+                elapsed = datetime.datetime.now() - startTime
+                if attempts > 0:
+                    Debug.myLog(METHOD_NAME + u' Attempt: ' +
+                                str(attempts) + u' elapsed: ' + str(elapsed.seconds), xbmc.LOGDEBUG)
+
+                if self._trailersToFetchQueue.full():
+                    Trace.log(METHOD_NAME +
+                              u' _trailersToFetchQueue full', Trace.TRACE)
+                    finished = True
+                    iterationSuccessful = True
+                    fetchQueueFull = True
+                elif self._discoveryComplete and len(self._discoveredTrailers) == 0:
+                    Trace.log(METHOD_NAME +
+                              u' Discovery Complete and nothing found.', Trace.TRACE)
+                    finished = True
+                    iterationSuccessful = True
+                    discoveryFoundNothing = True
+                elif self._discoveryComplete and self._discoveredTrailersQueue.empty():
+                    Trace.error(METHOD_NAME +
+                                u'_ discoveryComplete,_discoveredTrailersQueue empty',
+                                Trace.TRACE)
+                    shuffle = True
+                    discoveryCompleteQueueEmpty += 1
+                    #
+                    # In the following, Discovery is INCOMPLETE
+                    #
+                elif (self._discoveredTrailersQueue.empty()
+                      and not self._trailersToFetchQueue.empty):
+                    discoveredAndFetchQueuesEmpty += 1
+                    # Use what we have
+                    Trace.log(
+                        METHOD_NAME + u' Discovery incomplete._discoveredTrailersQueue ' +
+                        u'empty and _trailersToFetchQueue not empty', Trace.TRACE)
+                    finished = True
+                elif not self._trailersToFetchQueue.empty():
+                    # Fetch queue is not empty, nor full. Discovery
+                    # is not complete. Get something from _discoveredTrailerQueue
+                    # if available
+
+                    try:
+                        discoveryIncompleteFetchNotEmpty += 1
+                        trailer = self._discoveredTrailersQueue.get(
+                            timeout=0.25)
+                        Debug.myLog(METHOD_NAME +
+                                    u' Got from _discoverdTrailerQueue', xbmc.LOGINFO)
+                    except queue.Empty:
+                        pass
+
+                    if trailer is not None:
+                        try:
+                            self._trailersToFetchQueue.put(
+                                trailer, timeout=1)
+                            Trace.log(METHOD_NAME + u' Put in _trailersToFetchQueue qsize: ' +
+                                      str(self._trailersToFetchQueue.qsize()) + u' ' +
+                                      trailer.get(Constants.MOVIE_TITLE), Trace.TRACE)
+                            iterationSuccessful = True
+                        except queue.Full:
+                            Trace.log(
+                                METHOD_NAME + u' _trailersToFetchQueue.put failed', Trace.TRACE)
+                        #
+                        # It is not a crisis if the put fails. Since the
+                        # fetch queue does have at least one entry, we are ok
+                        # Even if the trailer is lost from the FetchQueue,
+                        # it will get reloaded once the queue is exhausted.
+                        #
+                        # But since iterationSuccessful is not true, we might
+                        # still fix it at the end.
+                        #
+                else:
+                    # Discovery incomplete, fetch queue is empty
+                    # wait until we get an item, or discovery complete
+
+                    discoveryIncompleteFetchQueueEmpty += 1
+                    Trace.log(METHOD_NAME + u' Discovery incomplete, ' +
+                              u'_trailersToFetchQueue empty, will wait', Trace.TRACE)
+
+                if not iterationSuccessful:
+                    if shuffle:  # Because we were empty
+                        Utils.throwExceptionIfShutdownRequested()
+                        self.shuffleDiscoveredTrailers(markUnplayed=False)
+
+                    if trailer is None:
+                        getFinished = False
+                        while not getFinished:
+                            try:
+                                getAttempts += 1
+                                trailer = self._discoveredTrailersQueue.get(
+                                    timeout=0.5)
+                                getFinished = True
+                            except queue.Empty:
+                                Utils.throwExceptionIfShutdownRequested()
+
+                    putFinished = False
+                    while not putFinished:
+                        try:
+                            putAttempts += 1
+                            self._trailersToFetchQueue.put(
+                                trailer, timeout=0.25)
+                            putFinished = True
+                        except queue.Full:
+                            Utils.throwExceptionIfShutdownRequested()
+                        iterationSuccessful = True
+
+                Debug.myLog(METHOD_NAME + u' Queue has: ' + str(self._trailersToFetchQueue.qsize())
+                            + u' Put in _trailersToFetchQueue: ' +
+                            trailer.get(Constants.MOVIE_TITLE), xbmc.LOGDEBUG)
+            except Exception as e:
+                Debug.logException(e)
+                # TODO Continue?
+
+            if self._trailersToFetchQueue.full():
+                finished = True
+
+            if not self._trailersToFetchQueue.empty() and not iterationSuccessful:
+                finished = True
+
+            if not finished:
+                if attempts % 10 == 0:
+                    Trace.logError(METHOD_NAME +
+                                   u' hung reloading from._discoveredTrailersQueue.'
+                                   + u' length of _discoveredTrailers: '
+                                   + str(len(self._discoveredTrailers))
+                                   + u' length of._discoveredTrailersQueue: '
+                                   + str(self._discoveredTrailersQueue.qsize()), Trace.TRACE)
+                time.sleep(0.5)
+
+        stopTime = datetime.datetime.now()
+        duration = stopTime - startTime
+        self._loadFetch_totalDuration += duration.seconds
+
+        attempts = 0
+        fetchQueueFull = False
+        discoveryFoundNothing = False
+        discoveryCompleteQueueEmpty = 0
+        discoveredAndFetchQueuesEmpty = 0
+        discoveryIncompleteFetchNotEmpty = 0
+        discoveryIncompleteFetchQueueEmpty = 0
+        getAttempts = 0
+        putAttempts = 0
+
+        Trace.log(METHOD_NAME + u' took ' +
+                  str(duration.seconds) + u' seconds', Trace.STATS)
 
     def getFromFetchQueue(self):
-        Debug.myLog(self.__class__.__name__ +
-                    u'.getFromFetchQueue: ', xbmc.LOGDEBUG)
+        METHOD_NAME = self.getName() + u'.getFromFetchQueue'
+        Debug.myLog(METHOD_NAME, xbmc.LOGDEBUG)
         self.loadFetchQueue()
-        trailer = self._trailersToFetchQueue.get()
-        Debug.myLog(self.__class__.__name__ + u'.getFromFetchQueue: ' +
+        trailer = None
+        if self._trailersToFetchQueue.empty():
+            Debug.myLog(METHOD_NAME + u': empty', xbmc.LOGDEBUG)
+        while trailer is None:
+            try:
+                trailer = self._trailersToFetchQueue.get(timeout=0.5)
+            except queue.Empty:
+                Utils.throwExceptionIfShutdownRequested()
+
+        Debug.myLog(METHOD_NAME + u' ' +
                     trailer[Constants.MOVIE_TITLE], xbmc.LOGDEBUG)
         return trailer
 
@@ -1393,16 +1818,10 @@ class LibraryTrailerManager(BaseTrailerManager):
     _singletonInstance = None
 
     def __init__(self):
-        threadName = Constants.ADDON_PATH + u'.LibraryTrailerManager'
+        threadName = type(self).__name__
         super(LibraryTrailerManager, self).__init__(group=None, target=None,
                                                     name=threadName,
                                                     args=(), kwargs=None, verbose=None)
-        self._lastShuffleTime = datetime.datetime.fromordinal(1)
-        self._lastShuffledIndex = -1
-        self._trailersToFetchQueue = queue.Queue(maxsize=0)
-        self._lock = threading.Condition()
-        self._lastShuffledIndex = -1
-        self._discoveredTrailers = []
 
     @staticmethod
     def getInstance():
@@ -1436,16 +1855,17 @@ class LibraryTrailerManager(BaseTrailerManager):
             Debug.logException()
 
     def discoverBasicInformation(self, genre):
-        METHOD_NAME = u'LibraryTrailerManager.discoverBasicInformation'
+        METHOD_NAME = self.getName() + u'.discoverBasicInformation'
         self.setGenre(genre)
         self.start()
 
         Debug.myLog(METHOD_NAME + u': started', xbmc.LOGDEBUG)
 
     def run(self):
-        METHOD_NAME = u'LibraryTrailerManager.run'
+        METHOD_NAME = self.getName() + u'.run'
         memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         Debug.myLog(METHOD_NAME + u': memory: ' + str(memory), xbmc.LOGDEBUG)
+        startTime = datetime.datetime.now()
         try:
             self.runWorker()
             self.finishedDiscovery()
@@ -1454,9 +1874,46 @@ class LibraryTrailerManager(BaseTrailerManager):
         except Exception:
             Debug.logException()
 
+        duration = datetime.datetime.now() - startTime
+        Trace.log(METHOD_NAME + u' Time to discover: ' +
+                  str(duration.seconds) + u' seconds', Trace.STATS)
+
     def runWorker(self):
-        METHOD_NAME = u'LibraryTrailerManager.runWorker'
-        if self.genre == '':
+        METHOD_NAME = self.getName() + u'.runWorker'
+
+        # Disovery is done in two parts:
+        #
+        # 1- query DB for every movie in library
+        # 2- Get additional information
+        #
+        # There are three types of trailers for these movies:
+        #
+        #  a- Movies with local trailers
+        #  b- Movies with trailer URLS (typically youtube links from tmdb)
+        #    TMdb will need to be queried for details
+        #  c. Movies with no trailer information, requiring a check with tmdb
+        #     to see if one exists
+        #
+        # Because of the above, this manager will query the DB for every movie
+        # and then only process the ones with local trailers. The others will
+        # be handed off to their own managers. This is done because of
+        # the way that this application works:
+        #    Once enough information to identify a movie that matches
+        #    what the user wants, it is added to the pool of movies that
+        #    can be randomly selected for playing. Once a movie has been
+        #    selected, it is placed into a TrailerFetcherQueue. A
+        #    TrailerFetcher then gathers the remaining information so that
+        #    it can be played.
+        #
+        #    If the lion's share of movies in the pool require significant
+        #    extra processing because they don't have local trailers, then
+        #    the fetcher can get overwhelmed.
+        #
+
+        #
+        #   Initial Discovery of all movies in Kodi:
+
+        if self.genre == u'':
             #        query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "lastplayed", "studio", "cast", "plot", "writer", "director", "fanart", "runtime", "mpaa", "adult", "thumbnail", "file", "year", "genre", "trailer"]}, "id": 1}'
             query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
                     "params": {\
@@ -1489,9 +1946,14 @@ class LibraryTrailerManager(BaseTrailerManager):
         # Debug.myLog('movies: ', json.dumps(movieString, indent=3), xbmc.LOGDEBUG)
         moviesSkipped = 0
         moviesFound = 0
+        moviesWithLocalTrailers = 0
+        moviesWithTrailerURLs = 0
+        moviesWithoutTrailerInfo = 0
 
         result = queryResult.get('result', {})
-        for movie in result["movies"]:
+        movies = result.get(u'movies', [])
+        Utils.RandomGenerator.shuffle(movies)
+        for movie in movies:
             Utils.throwExceptionIfShutdownRequested()
 
             Debug.myLog('Kodi library movie: ' +
@@ -1511,22 +1973,159 @@ class LibraryTrailerManager(BaseTrailerManager):
                 movie.get(Constants.MOVIE_MPAA), movie.get(u'adult'))
             movie[Constants.MOVIE_SOURCE] = Constants.MOVIE_LIBRARY_SOURCE
             movie.setdefault(Constants.MOVIE_TRAILER, u'')
-            movie[Constants.ITUNES_TRAILER_TYPE] = 'Bogus Library Movie Type'
+            movie[Constants.MOVIE_TYPE] = u''
 
             Debug.validateBasicMovieProperties(movie)
 
-            if checkRating(rating):
-                self.addToDiscoveredTrailers(movie)
+            # Basic discovery is complete at this point. Now send
+            # all of the movies without any trailer information to
+            # LibraryNoTrailerInfoManager while
+            # those with trailer URLs to LibraryURLManager
 
-        if Settings.getHideWatchedMovies():
-            Debug.myLog(u'Omitted ' + str(moviesSkipped) +
-                        u' movies', xbmc.LOGDEBUG)
+            libraryURLManager = LibraryURLManager.getInstance()
+            libraryNoTrailerInfoManager = LibraryNoTrailerInfoManager.getInstance()
+
+            if checkRating(rating):
+                trailer = movie[Constants.MOVIE_TRAILER]
+                if trailer == u'':
+                    moviesWithoutTrailerInfo += 1
+                    libraryNoTrailerInfoManager.addToDiscoveredTrailers(movie)
+                elif trailer.startswith(u'plugin://') or trailer.startswith(u'http'):
+                    moviesWithTrailerURLs += 1
+                    libraryURLManager.addToDiscoverdTrailers(movie)
+                else:
+                    moviesWithLocalTrailers += 1
+                    self.addToDiscoveredTrailers(movie)
+
+        Trace.log(u'Local movies found in library: ' +
+                  str(moviesFound), Trace.STATS)
+        Trace.log(u'Local movies filterd out ' +
+                  str(moviesSkipped), Trace.STATS)
+        Trace.log(u'Movies with local trailers: ' +
+                  str(moviesWithLocalTrailers), Trace.STATS)
+        Trace.log(u'Movies with trailer URLs: ' +
+                  str(moviesWithTrailerURLs), Trace.STATS)
+        Trace.log(u'Movies with no trailer information: ' +
+                  str(moviesWithoutTrailerInfo), Trace.STATS)
 
         memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         Debug.myLog(u'loadLibraryTrailers: exit memory: ' +
                     str(memory), xbmc.LOGDEBUG)
-        Debug.myLog(METHOD_NAME + u': moviesFound: ' + str(moviesFound) + u' moviesSkipped: '
-                    + str(moviesSkipped), xbmc.LOGDEBUG)
+
+
+class LibraryURLManager(BaseTrailerManager):
+
+    '''
+        This manager does not do any discovery, it receives local movies 
+        with trailer URLs from LibraryManager. This manager primarily 
+        acts as a container to hold the list of movies while the 
+        TrailerFetcher and BaseTrailerManager does the work
+    '''
+
+    _singletonInstance = None
+
+    def __init__(self):
+        threadName = type(self).__name__
+        super(LibraryURLManager, self).__init__(group=None, target=None,
+                                                name=threadName,
+                                                args=(), kwargs=None, verbose=None)
+
+    @staticmethod
+    def getInstance():
+        try:
+            Debug.myLog('In LibraryURLManager.getInstance', xbmc.LOGDEBUG)
+            if LibraryURLManager._singletonInstance is None:
+                Debug.myLog(
+                    'In LibraryURLManager. singletonInstance None', xbmc.LOGDEBUG)
+                singleton = LibraryURLManager()
+                Debug.myLog(
+                    'In LibraryURLManager. new Instance', xbmc.LOGDEBUG)
+
+                LibraryURLManager._singletonInstance = singleton
+                Debug.myLog(
+                    'In LibraryURLManager. set singletonInstance field', xbmc.LOGDEBUG)
+
+                BaseTrailerManager.getInstance().addManager(singleton)
+                Debug.myLog('In LibraryURLManager. addManager',
+                            xbmc.LOGDEBUG)
+
+                singleton.trailerFetcher = TrailerFetcher()
+                Debug.myLog(
+                    'In LibraryURLManager. Got TrailerFetcher', xbmc.LOGDEBUG)
+
+                singleton.trailerFetcher.startFetchers(singleton)
+                Debug.myLog(
+                    'In LibraryURLManager. started Fetchers', xbmc.LOGDEBUG)
+
+            return LibraryURLManager._singletonInstance
+        except Exception:
+            Debug.logException()
+
+    def discoverBasicInformation(self, genre):
+        METHOD_NAME = self.getName() + u'.discoverBasicInformation'
+        Debug.myLog(METHOD_NAME + u' dummy method', xbmc.LOGDEBUG)
+
+    def run(self):
+        METHOD_NAME = self.getName() + u'.run'
+        Debug.myLog(METHOD_NAME + u' dummy thread', xbmc.LOGDEBUG)
+
+
+class LibraryNoTrailerInfoManager(BaseTrailerManager):
+
+    '''
+        This manager does not do any discovery, it receives local movies 
+        without any trailer information from LibraryManager. This manager 
+        primarily acts as a container to hold the list of movies while the 
+        TrailerFetcher and BaseTrailerManager does the work
+    '''
+
+    _singletonInstance = None
+
+    def __init__(self):
+        threadName = type(self).__name__
+        super(LibraryNoTrailerInfoManager, self).__init__(group=None, target=None,
+                                                          name=threadName,
+                                                          args=(), kwargs=None, verbose=None)
+
+    @staticmethod
+    def getInstance():
+        try:
+            Debug.myLog(
+                'In LibraryNoTrailerInfoManager.getInstance', xbmc.LOGDEBUG)
+            if LibraryNoTrailerInfoManager._singletonInstance is None:
+                Debug.myLog(
+                    'In LibraryNoTrailerInfoManager. singletonInstance None', xbmc.LOGDEBUG)
+                singleton = LibraryNoTrailerInfoManager()
+                Debug.myLog(
+                    'In LibraryNoTrailerInfoManager. new Instance', xbmc.LOGDEBUG)
+
+                LibraryNoTrailerInfoManager._singletonInstance = singleton
+                Debug.myLog(
+                    'In LibraryNoTrailerInfoManager. set singletonInstance field', xbmc.LOGDEBUG)
+
+                BaseTrailerManager.getInstance().addManager(singleton)
+                Debug.myLog('In LibraryNoTrailerInfoManager. addManager',
+                            xbmc.LOGDEBUG)
+
+                singleton.trailerFetcher = TrailerFetcher()
+                Debug.myLog(
+                    'In LibraryNoTrailerInfoManager. Got TrailerFetcher', xbmc.LOGDEBUG)
+
+                singleton.trailerFetcher.startFetchers(singleton)
+                Debug.myLog(
+                    'In LibraryNoTrailerInfoManager. started Fetchers', xbmc.LOGDEBUG)
+
+            return LibraryNoTrailerInfoManager._singletonInstance
+        except Exception:
+            Debug.logException()
+
+    def discoverBasicInformation(self, genre):
+        METHOD_NAME = self.getName() + u'.discoverBasicInformation'
+        Debug.myLog(METHOD_NAME + u' dummy method', xbmc.LOGDEBUG)
+
+    def run(self):
+        METHOD_NAME = self.getName() + u'.run'
+        Debug.myLog(METHOD_NAME + u' dummy thread', xbmc.LOGDEBUG)
 
 
 class FolderTrailerManager(BaseTrailerManager):
@@ -1541,16 +2140,10 @@ class FolderTrailerManager(BaseTrailerManager):
     _singletonInstance = None
 
     def __init__(self):
-        threadName = Constants.ADDON_PATH + u'.FolderTrailerManager'
+        threadName = type(self).__name__
         super(FolderTrailerManager, self).__init__(group=None, target=None,
                                                    name=threadName,
                                                    args=(), kwargs=None, verbose=None)
-        self._lastShuffleTime = datetime.datetime.fromordinal(1)
-        self._lastShuffledIndex = -1
-        self._trailersToFetchQueue = queue.Queue(maxsize=0)
-        self._lock = threading.Condition()
-        self._lastShuffledIndex = -1
-        self._discoveredTrailers = []
 
     @staticmethod
     def getInstance():
@@ -1572,12 +2165,17 @@ class FolderTrailerManager(BaseTrailerManager):
         METHOD_NAME = u'FolderTrailerManager.run'
         memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         Debug.myLog(METHOD_NAME + u': memory: ' + str(memory), xbmc.LOGDEBUG)
+        startTime = datetime.datetime.now()
         try:
             self.discoverBasicInformationWorker(Settings.getTrailersPaths())
         except AbortException:
             return  # Just exit thread
         except Exception:
             Debug.logException()
+
+        duration = datetime.datetime.now() - startTime
+        Trace.log(METHOD_NAME + u' Time to discover: ' +
+                  str(duration.seconds) + u' seconds', Trace.STATS)
 
     def discoverBasicInformationWorker(self, path):
         METHOD_NAME = u'FolderTrailerManager.discoverBasicInformationWorker'
@@ -1589,6 +2187,7 @@ class FolderTrailerManager(BaseTrailerManager):
                 folders.append(urllib.parse.unquote_plus(item))
         else:
             folders.append(path)
+        Utils.RandomGenerator.shuffle(folders)
         for folder in folders:
             Utils.throwExceptionIfShutdownRequested()
 
@@ -1598,7 +2197,7 @@ class FolderTrailerManager(BaseTrailerManager):
 
                 # Assume every file is a movie trailer. Manufacture
                 # a movie name and other info from the filename.
-
+                Utils.RandomGenerator.shuffle(files)
                 for item in files:
                     filePath = os.path.join(folder, item)
                     if filePath not in played:
@@ -1607,7 +2206,7 @@ class FolderTrailerManager(BaseTrailerManager):
                         title = os.path.splitext(title)[0]
                         newTrailer = {Constants.MOVIE_TITLE: title,
                                       Constants.MOVIE_TRAILER: filePath,
-                                      Constants.ITUNES_TRAILER_TYPE: u'trailer file',
+                                      Constants.MOVIE_TYPE: u'trailer file',
                                       Constants.MOVIE_SOURCE:
                                       Constants.MOVIE_FOLDER_SOURCE,
                                       Constants.MOVIE_FANART: u'',
@@ -1630,17 +2229,10 @@ class FolderTrailerManager(BaseTrailerManager):
 class ItunesTrailerManager(BaseTrailerManager):
 
     def __init__(self):
-        threadName = Constants.ADDON_PATH + u'.ItunesTrailerManager'
+        threadName = type(self).__name__
         super(ItunesTrailerManager, self).__init__(group=None, target=None,
                                                    name=threadName,
                                                    args=(), kwargs=None, verbose=None)
-        self._lastShuffleTime = datetime.datetime.fromordinal(1)
-        self._lastShuffledIndex = -1
-        self._trailersToFetchQueue = queue.Queue(maxsize=0)
-        self._lock = threading.Condition()
-        self._lastShuffledIndex = -1
-        self._discoveredTrailers = []
-
     _singletonInstance = None
 
     @staticmethod
@@ -1661,6 +2253,8 @@ class ItunesTrailerManager(BaseTrailerManager):
         Debug.myLog(METHOD_NAME + u': started', xbmc.LOGDEBUG)
 
     def run(self):
+        METHOD_NAME = self.__class__.__name__ + u'.run'
+        startTime = datetime.datetime.now()
         try:
             self.runWorker()
         except AbortException:
@@ -1668,17 +2262,21 @@ class ItunesTrailerManager(BaseTrailerManager):
         except Exception:
             Debug.logException()
 
+        duration = datetime.datetime.now() - startTime
+        Trace.log(METHOD_NAME + u' Time to discover: ' +
+                  str(duration.seconds) + u' seconds', Trace.STATS)
+
     def runWorker(self):
         Utils.throwExceptionIfShutdownRequested()
 
-        METHOD_NAME = u'ItunesTrailerManager.run'
+        METHOD_NAME = self.__class__.__name__ + u'.runWorker'
         memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         showOnlyiTunesTrailersOfThisType = Settings.getIncludeItunesTrailerType()
-        xbmc.log('trailer_type: ' +
-                 str(showOnlyiTunesTrailersOfThisType), xbmc.LOGINFO)
+        Debug.myLog('trailer_type: ' +
+                    str(showOnlyiTunesTrailersOfThisType), xbmc.LOGINFO)
         if showOnlyiTunesTrailersOfThisType > 4:
-            xbmc.log(u'Invalid iTunes Trailer Type: ' +
-                     str(showOnlyiTunesTrailersOfThisType), xbmc.LOGERROR)
+            Debug.myLog(u'Invalid iTunes Trailer Type: ' +
+                        str(showOnlyiTunesTrailersOfThisType), xbmc.LOGERROR)
             return
 
         if showOnlyiTunesTrailersOfThisType == 0:
@@ -1696,7 +2294,7 @@ class ItunesTrailerManager(BaseTrailerManager):
         Debug.myLog(u'iTunes jsonURL: ' + jsonURL, xbmc.LOGDEBUG)
         statusCode, parsedContent = Utils.getJSON(jsonURL)
 
-        Debug.myLog('parsedContent type: ',
+        Debug.myLog(u'parsedContent type: ',
                     parsedContent[0].__class__.__name__, xbmc.LOGINFO)
         Debug.myLog(u'parsedContent: ', json.dumps(parsedContent, ensure_ascii=False,
                                                    encoding='unicode', indent=4,
@@ -1738,10 +2336,12 @@ class ItunesTrailerManager(BaseTrailerManager):
         #
         # Create Kodi movie entries from what iTunes has given us.
 
+        Debug.myLog(u'Itunes parsedContent type: ' +
+                    type(parsedContent).__name__, xbmc.LOGDEBUG)
         for iTunesMovie in parsedContent:
             Utils.throwExceptionIfShutdownRequested()
 
-            Debug.myLog(u'value: ' + str(iTunesMovie), xbmc.LOGINFO)
+            Debug.myLog(u'value: ', iTunesMovie, xbmc.LOGINFO)
 
             title = iTunesMovie.get(
                 Constants.MOVIE_TITLE, u'Missing title from iTunes')
@@ -1749,7 +2349,7 @@ class ItunesTrailerManager(BaseTrailerManager):
 
             releaseDateString = iTunesMovie.get('releasedate')
             Debug.myLog('releaseDateString: ', releaseDateString, xbmc.LOGINFO)
-            if releaseDateString != '':
+            if releaseDateString != u'':
                 STRIP_TZ_PATTERN = ' .[0-9]{4}$'
 
                 stripTZPattern = re.compile(STRIP_TZ_PATTERN)
@@ -1767,13 +2367,13 @@ class ItunesTrailerManager(BaseTrailerManager):
 
             studio = iTunesMovie.get('studio')
             if studio is None:
-                studio = ''
+                studio = u''
 
             Debug.myLog('studio: ', studio, xbmc.LOGINFO)
 
             poster = iTunesMovie.get('poster')
             if poster is None:
-                poster = ''
+                poster = u''
 
             Debug.myLog('poster: ', poster, xbmc.LOGINFO)
 
@@ -1784,13 +2384,13 @@ class ItunesTrailerManager(BaseTrailerManager):
 
             poster_2x = iTunesMovie.get('poster_2x')
             if poster_2x is None:
-                poster_2x = ''
+                poster_2x = u''
 
             Debug.myLog('poster_2x: ', poster_2x, xbmc.LOGINFO)
 
             location = iTunesMovie.get('location')
             if location is None:
-                location = ''
+                location = u''
 
             Debug.myLog('location: ', location, xbmc.LOGINFO)
 
@@ -1844,13 +2444,13 @@ class ItunesTrailerManager(BaseTrailerManager):
                 Debug.myLog('iTunesTrailer: ', iTunesTrailer, xbmc.LOGINFO)
                 postDate = iTunesTrailer.get('postdate')
                 if postDate is None:
-                    postDate = ''
+                    postDate = u''
 
                 Debug.myLog('postDate: ', postDate, xbmc.LOGINFO)
 
                 url = iTunesTrailer.get('url')
                 if url is None:
-                    url = ''
+                    url = u''
 
                 Debug.myLog('url: ', url, xbmc.LOGINFO)
 
@@ -1880,7 +2480,7 @@ class ItunesTrailerManager(BaseTrailerManager):
                              Constants.MOVIE_TRAILER: url,
                              # Not sure of value of Apple's trailer type
                              # 'Trailer 3', etc
-                             Constants.ITUNES_TRAILER_TYPE: trailerType,
+                             Constants.MOVIE_TYPE: trailerType,
                              Constants.MOVIE_MPAA: rating,
                              Constants.MOVIE_YEAR: str(releaseDate.year),
                              Constants.MOVIE_THUMBNAIL: thumb,
@@ -1907,16 +2507,10 @@ class TmdbTrailerManager(BaseTrailerManager):
     _singletonInstance = None
 
     def __init__(self):
-        threadname = Constants.ADDON_PATH + u'.TmdbTrailerManager'
+        threadname = type(self).__name__
         super(TmdbTrailerManager, self).__init__(group=None, target=None,
                                                  name=threadname,
                                                  args=(), kwargs=None, verbose=None)
-        self._lastShuffleTime = datetime.datetime.fromordinal(1)
-        self._lastShuffledIndex = -1
-        self._trailersToFetchQueue = queue.Queue(maxsize=0)
-        self._lock = threading.Condition()
-        self._lastShuffledIndex = -1
-        self._discoveredTrailers = []
 
     @staticmethod
     def getInstance():
@@ -1936,12 +2530,19 @@ class TmdbTrailerManager(BaseTrailerManager):
         Debug.myLog(METHOD_NAME + u': started', xbmc.LOGDEBUG)
 
     def run(self):
+        METHOD_NAME = self.__class__.__name__ + u'.run'
+
+        startTime = datetime.datetime.now()
         try:
             self.runWorker()
         except AbortException:
             return  # Just exit thread
         except Exception:
             Debug.logException()
+
+        duration = datetime.datetime.now() - startTime
+        Trace.log(METHOD_NAME + u' Time to discover: ' +
+                  str(duration.seconds) + u' seconds', Trace.STATS)
 
     def runWorker(self):
         Utils.throwExceptionIfShutdownRequested()
@@ -1965,7 +2566,7 @@ class TmdbTrailerManager(BaseTrailerManager):
 
         # TODO: Verify that these rating strings are correct and
         #     complete for Tmdb
-        rating_limit = Constants.ADDON.getSetting('rating_limit')
+        rating_limit = Constants.ADDON.getSetting(u'rating_limit')
         if rating_limit == '0':
             rating_limit = 'NC-17'
         elif rating_limit == '1':
@@ -2022,7 +2623,10 @@ class TmdbTrailerManager(BaseTrailerManager):
                 full_url = url + '?' + url_values
                 statusCode, infostring = Utils.getJSON(full_url)
 
-                for movie in infostring[u'results']:
+                movies = infostring[u'results']
+                Debug.myLog(u'Tmdb movies type: ' +
+                            type(movies).__name__, xbmc.LOGDEBUG)
+                for movie in movies:
                     Utils.throwExceptionIfShutdownRequested()
 
                     trailerId = movie[u'id']
@@ -2144,7 +2748,7 @@ class TrailerFetcher(threading.Thread):
 
     def __init__(self):
         Debug.myLog(u'TrailerFetcher.__init__', xbmc.LOGDEBUG)
-        threadName = Constants.ADDON_PATH + u'.TrailerFetcher'
+        threadName = type(self).__name__
         super(TrailerFetcher, self).__init__(name=threadName)
 
     def startFetchers(self, trailerManager):
@@ -2173,6 +2777,8 @@ class TrailerFetcher(threading.Thread):
             Debug.logException()
 
     def runWorker(self):
+        while not self._trailerManager._trailersDiscovered.wait(0.5):
+            pass
         while True:
             Utils.throwExceptionIfShutdownRequested()
 
@@ -2183,8 +2789,11 @@ class TrailerFetcher(threading.Thread):
             self.fetchTrailerToPlay(trailer)
 
     def fetchTrailerToPlay(self, trailer):
-        xbmc.log('In randomtrailers.TrailerFetcher.fetchTrailerToPlay',
-                 xbmc.LOGNOTICE)
+        METHOD_NAME = type(self).__name__ + u'.fetchTrailerToPlay'
+        Debug.myLog(METHOD_NAME +
+                    trailer[Constants.MOVIE_TITLE],
+                    xbmc.LOGNOTICE)
+        self._startFetchTime = datetime.datetime.now()
 
         if trailer[Constants.MOVIE_TRAILER] == Constants.MOVIE_TMDB_SOURCE:
             #
@@ -2203,22 +2812,18 @@ class TrailerFetcher(threading.Thread):
             if status == Constants.TOO_MANY_TMDB_REQUESTS:
                 pass
             elif populatedTrailer is not None:
-                for prop in trailer:
-                    Debug.myLog('Prop: ' + prop + ' old: ' + str(trailer.get(prop))
-                                + u' new: ' + str(populatedTrailer.get(prop)), xbmc.LOGDEBUG)
+                Debug.compareMovies(trailer, populatedTrailer)
 
-                for prop in populatedTrailer:
-                    if prop not in trailer:
-                        Debug.myLog('New Prop: ' + prop + ' value: ' +
-                                    str(populatedTrailer.get(prop)), xbmc.LOGDEBUG)
+                # TODO Rework this, I don't like blindly clobbering
+
                 trailer.update(populatedTrailer)  # Remember what we found
         else:
             source = trailer[Constants.MOVIE_SOURCE]
             if source == Constants.MOVIE_LIBRARY_SOURCE:
-                if trailer[Constants.MOVIE_TRAILER] == '':  # no trailer search tmdb for one
+                if trailer[Constants.MOVIE_TRAILER] == u'':  # no trailer search tmdb for one
                     trailerId = searchForTrailerFromTMDB(
                         trailer[Constants.MOVIE_TITLE], trailer[u'year'])
-                    if trailerId != '':
+                    if trailerId != u'':
 
                         # Returns a tuple of dictionary objects for each movie
                         # found
@@ -2231,6 +2836,7 @@ class TrailerFetcher(threading.Thread):
                             self._trailerManager.addToFetchQueue(trailer)
                             return
 
+                        trailer[Constants.MOVIE_TYPE] = u'TMDB trailer'
                         trailer[Constants.MOVIE_TRAILER] = \
                             newTrailerData[Constants.MOVIE_TRAILER]
                         Debug.compareMovies(trailer, newTrailerData)
@@ -2245,20 +2851,66 @@ class TrailerFetcher(threading.Thread):
                     url = urlTemp[:urlTemp.find("?")].replace(
                         "480p", "h" + Settings.getQuality()) + "|User-Agent=iTunes/9.1.1"
                 except:
-                    url = ''
-                trailer[Constants.MOVIE_TRAILER] = url
+                    url = u''
 
         Debug.myLog('Exiting randomtrailers.TrailerFetcher.fetchTrailerToPlay movie: ' +
                     trailer.get(Constants.MOVIE_TITLE), xbmc.LOGNOTICE)
 
         # If no trailer possible then remove it from further consideration
 
-        if trailer[Constants.MOVIE_TRAILER] != u'':
-            trailer[Constants.TRAILER_DISCOVERY_STATE] = Constants.TRAILER_DISCOVERY_COMPLETE
-            self._trailerManager.addToReadyToPlayQueue(trailer)
-        else:
-            self._trailerManager.removeDiscoveredTrailer(trailer)
+        movieId = trailer[Constants.MOVIE_TITLE] + \
+            u'_' + str(trailer[Constants.MOVIE_YEAR])
 
+        movieId = movieId.lower()
+        keepNewTrailer = True
+        trailerManager = BaseTrailerManager.getInstance()
+        with trailerManager._aggregateTrailersByNameDateLock:
+            if trailer[Constants.MOVIE_TRAILER] == u'':
+                keepNewTrailer = False
+            elif movieId in trailerManager._aggregateTrailersByNameDate:
+                keepNewTrailer = False
+                trailerInDictionary = trailerManager._aggregateTrailersByNameDate[movieId]
+
+                Debug.myLog(u'Duplicate Movie id: ' + movieId + u' found in: ' +
+                            trailerInDictionary[Constants.MOVIE_SOURCE], xbmc.LOGDEBUG)
+
+                # Always prefer the local trailer
+                source = trailer[Constants.MOVIE_SOURCE]
+                if source == Constants.MOVIE_LIBRARY_SOURCE:                        #
+                    # Joy, two copies, both with trailers. Toss the new one.
+                    #
+                    pass
+                elif source == Constants.MOVIE_FOLDER_SOURCE:
+                    FolderTrailerManager.getInstance().removeDiscoveredTrailer(
+                        trailerInDictionary)
+                    keepNewTrailer = True
+                elif source == Constants.MOVIE_ITUNES_SOURCE:
+                    ItunesTrailerManager.getInstance().removeDiscoveredTrailer(
+                        trailerInDictionary)
+                    keepNewTrailer = True
+                elif source == Constants.MOVIE_TMDB_SOURCE:
+                    TmdbTrailerManager.getInstance().removeDiscoveredTrailer(
+                        trailerInDictionary)
+                    keepNewTrailer = True
+
+            if keepNewTrailer:
+                trailer[Constants.MOVIE_DISCOVERY_STATE] = Constants.MOVIE_DISCOVERY_COMPLETE
+                trailerManager._aggregateTrailersByNameDate[movieId] = trailer
+
+            else:
+                self._trailerManager.removeDiscoveredTrailer(trailer)
+
+            self._stopFetchTime = datetime.datetime.now()
+            self._trailerManager.addToReadyToPlayQueue(
+                self.getDetailInfo(trailer))
+            self._stopAddReadyToPlayTime = datetime.datetime.now()
+            discoveryTime = self._stopFetchTime - self._startFetchTime
+            queueTime = self._stopAddReadyToPlayTime - self._stopFetchTime
+            Trace.log(METHOD_NAME + u' took: ' + str(discoveryTime.seconds) +
+                      u'QueueTime: ' + str(queueTime.seconds) +
+                      u' movie: ' +
+                      trailer.get(Constants.MOVIE_TITLE) + u' Kept: '
+                      + str(keepNewTrailer), Trace.STATS)
     '''
         Given the movieId from TMDB, query TMDB for trailer details and manufacture
         a trailer entry based on the results. The trailer itself will be a Youtube
@@ -2268,8 +2920,8 @@ class TrailerFetcher(threading.Thread):
     def getTmdbTrailer(self, movieId, trailerOnly=False):
         Debug.myLog(u'getTmdbTrailer movieId: ' + str(movieId), xbmc.LOGDEBUG)
 
-        trailer_url = ''
-        trailerType = ''
+        trailer_url = u''
+        trailerType = u''
         you_tube_base_url = u'plugin://plugin.video.youtube/?action=play_video&videoid='
         image_base_url = u'http://image.tmdb.org/t/p/'
 
@@ -2290,7 +2942,7 @@ class TrailerFetcher(threading.Thread):
                             + str(Constants.tmdbRequestCount), xbmc.LOGINFO)
                 return statusCode, None
         except:
-            xbmc.log(traceback.format_exc(), xbmc.LOGERROR)
+            Debug.myLog(traceback.format_exc(), xbmc.LOGERROR)
             return -1, None
         else:
             #
@@ -2312,11 +2964,11 @@ class TrailerFetcher(threading.Thread):
                         tmdbTrailer[u'source']
                     break
             tmdbCountries = tmdbResult[u'releases'][u'countries']
-            mpaa = ''
+            mpaa = u''
             for c in tmdbCountries:
                 if c[u'iso_3166_1'] == 'US':
                     mpaa = c[u'certification']
-            if mpaa == '':
+            if mpaa == u'':
                 mpaa = Rating.RATING_NR
             year = tmdbResult[u'release_date'][:-6]
             fanart = image_base_url + 'w380' + \
@@ -2384,124 +3036,183 @@ class TrailerFetcher(threading.Thread):
         return 0, dictInfo
 
     def getDetailInfo(self, trailer):
-        return
+        detailTrailer = dict()
+        detailTrailer[Constants.MOVIE_DETAIL_MOVIE_ENTRY] = trailer
+        self.cloneFields(trailer, detailTrailer, Constants.MOVIE_TRAILER,
+                         Constants.MOVIE_SOURCE, Constants.MOVIE_TITLE,
+                         Constants.MOVIE_FANART, Constants.MOVIE_PLOT,
+                         Constants.MOVIE_FILE, Constants.MOVIE_THUMBNAIL,
+                         Constants.MOVIE_YEAR, Constants.MOVIE_TYPE)
         source = trailer[Constants.MOVIE_SOURCE]
-        #control = self.getControl(38001)
-        thumbnail = trailer[u'thumbnail']
-        # control.setImage(thumbnail)
-        # self.getControl(38003).setImage(trailer["fanart"])
-        title_font = getTitleFont()
-        trailerType = source
-        if u'type' in trailer:
-            trailerType = trailer[u'type']
 
-        title_string = trailer["title"] + ' - ' + trailer[Constants.MOVIE_SOURCE] + \
-            ' ' + trailerType + ' - ' + str(trailer["year"])
-        #title = xbmcgui.ControlLabel(10, 40, 380, 40, title_string, title_font)
-        #title = self.addControl(title)
-        #title = self.getControl(38002)
-        #title.setAnimations([('windowclose', 'effect=fade end=0 time=1000')])
-        movieDirector = ''
-        movieWriter = ''
-        genres = ''
+        detailTrailer.setdefault(Constants.MOVIE_THUMBNAIL, u'')
+
+        trailerType = trailer.get(Constants.MOVIE_TYPE, u'')
+        if trailerType != u'':
+            trailerType = trailerType + u' - '
+
+        year = str(trailer.get(Constants.MOVIE_YEAR), u'')
+        if year != u'':
+            year = u'(' + year + u')'
+
+        titleString = (trailer[Constants.MOVIE_TITLE] + u' - ' +
+                       trailer[Constants.MOVIE_SOURCE] +
+                       ' ' + trailerType + year)
+        detailTrailer[Constants.MOVIE_DETAIL_TITLE] = titleString
+
+        info = None
         if source == Constants.MOVIE_ITUNES_SOURCE:
             info = getInfo(trailer[Constants.MOVIE_TITLE], trailer[u'year'])
-            writers = info[u'writer']
-            directors = info[u'director']
-            actors = info[u'cast']
-            plot = info[u'plot']
-            genres = info[u'genre']
-            movieActor = ''
-            actorcount = 0
-            for actor in actors:
-                actorcount = actorcount + 1
-                movieActor = movieActor + actor + ", "
-                if actorcount == 8:
-                    break
-            if not movieActor == '':
-                movieActor = movieActor[:-2]
-        else:
-            plot = trailer["plot"]
-            writers = trailer["writer"]
-            directors = trailer["director"]
-            actors = trailer["cast"]
-            movieActor = ''
-            actorcount = 0
-            if source == Constants.MOVIE_LIBRARY_SOURCE:
-                for actor in actors:
-                    actorcount = actorcount + 1
-                    movieActor = movieActor + actor[u'name'] + ", "
-                    if actorcount == 8:
-                        break
-                if not movieActor == '':
-                    movieActor = movieActor[:-2]
-            else:
-                movieActor = ''
-                actorcount = 0
-                for actor in actors:
-                    actorcount = actorcount + 1
-                    movieActor = movieActor + actor + ", "
-                    if actorcount == 8:
-                        break
-                if not movieActor == '':
-                    movieActor = movieActor[:-2]
-        for director in directors:
-            movieDirector = movieDirector + director + ", "
-        if not movieDirector == '':
-            movieDirector = movieDirector[:-2]
-        for writer in writers:
-            movieWriter = movieWriter + writer + ", "
-        if not movieWriter == '':
-            movieWriter = movieWriter[:-2]
-        # self.getControl(38005).setLabel(movieDirector)
-        # self.getControl(38006).setLabel(movieActor)
-        # self.getControl(38005).setLabel(movieDirector)
-        # self.getControl(38007).setLabel(movieWriter)
-        # self.getControl(38009).setText(plot)
-        movieStudio = ''
-        if source == Constants.MOVIE_ITUNES_SOURCE:
-            studios = trailer["studio"]
-            movieStudio = studios
-        if source == Constants.MOVIE_LIBRARY_SOURCE or source == Constants.MOVIE_TMDB_SOURCE:
-            studios = trailer["studio"]
-            for studio in studios:
-                movieStudio = movieStudio + studio + ", "
-                if not movieStudio == '':
-                    movieStudio = movieStudio[:-2]
-        # self.getControl(38010).setLabel(movieStudio)
-        movieGenre = ''
-        if source == Constants.MOVIE_LIBRARY_SOURCE or source == Constants.MOVIE_TMDB_SOURCE:
-            genres = trailer["genre"]
-        for genre in genres:
-            movieGenre = movieGenre + genre + " / "
-        if not movieGenre == '':
-            movieGenre = movieGenre[:-3]
-        runtime = ''
-        if source == Constants.MOVIE_ITUNES_SOURCE:
-            runtime = ''
-        if source == Constants.MOVIE_LIBRARY_SOURCE:
-            runtime = str(trailer["runtime"] / 60)
-        if runtime != '':
-            runtime = runtime + ' Minutes - '
-        #self.getControl(38011).setLabel(runtime + movieGenre)
+            self.cloneFields(info, detailTrailer, Constants.MOVIE_PLOT)
+
+        movieWriters = self.getWriters(trailer, info, source)
+        detailTrailer[Constants.MOVIE_DETAIL_WRITERS] = movieWriters
+
+        movieDirectors = self.getDirectors(trailer, info, source)
+        detailTrailer[Constants.MOVIE_DETAIL_DIRECTORS] = movieDirectors
+
+        actors = self.getActors(trailer, info, source)
+        detailTrailer[Constants.MOVIE_DETAIL_ACTORS] = actors
+
+        movieStudios = self.getStudios(trailer, info, source)
+        detailTrailer[Constants.MOVIE_DETAIL_STUDIOS] = movieStudios
+
+        genres = self.getGenres(trailer, info, source)
+        detailTrailer[Constants.MOVIE_DETAIL_GENRES] = genres
+
+        runTime = self.getRuntime(trailer, info, source)
+        detailTrailer[Constants.MOVIE_DETAIL_RUNTIME] = runTime
+
         rating = Rating.getMPAArating(trailer.get(
-            Constants.MOVIE_MPAA), trailer.get(u'adult'))
+            Constants.MOVIE_MPAA), trailer.get(Constants.MOVIE_ADULT))
+        detailTrailer[Constants.MOVIE_DETAIL_RATING] = rating
 
         imgRating = Rating.getImageForRating(rating)
+        detailTrailer[Constants.MOVIE_DETAIL_RATING_IMAGE] = imgRating
 
-        return
+        return detailTrailer
+
+    def cloneFields(self, trailer, detailTrailer, *argv):
+        for arg in argv:
+            detailTrailer[arg] = trailer.get(arg, arg + u' was None at clone')
+
+    def getWriters(self, trailer, info, source):
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            writers = info.get(Constants.MOVIE_WRITER, [])
+        else:
+            writers = trailer.get(Constants.MOVIE_WRITER, [])
+
+        movieWriter = u''
+        separator = u''
+        for writer in writers:
+            movieWriter = movieWriter + separator + writer
+            separator = u', '
+
+        return movieWriter
+
+    def getDirectors(self, trailer, info, source):
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            directors = info.get(Constants.MOVIE_DIRECTOR, [])
+        else:
+            directors = trailer.get(Constants.MOVIE_DIRECTOR, [])
+
+        movieDirectors = u''
+        separator = u''
+        for director in directors:
+            movieDirectors = movieDirectors + separator + director
+            separator = u', '
+
+        return movieDirectors
+
+    def getActors(self, trailer, info, source):
+        movieActors = u''
+        actorcount = 0
+        separator = u''
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            actors = info.get(Constants.MOVIE_CAST, [])
+            for actor in actors:
+                actorcount += 1
+                movieActors = movieActors + separator + actor
+                separator = u', '
+                if actorcount == 6:
+                    break
+        else:
+            actors = trailer.get(Constants.MOVIE_CAST, [])
+            if source == Constants.MOVIE_LIBRARY_SOURCE:
+                for actor in actors:
+                    if u'name' in actor:
+                        actorcount += 1
+                        movieActors = movieActors + actor[u'name'] + separator
+                        separator = u', '
+                    if actorcount == 6:
+                        break
+            else:
+                for actor in actors:
+                    actorcount += 1
+                    movieActors = movieActors + separator + actor
+                    separator = u', '
+                    if actorcount == 6:
+                        break
+
+        return movieActors
+
+    def getStudios(self, trailer, info, source):
+        studiosString = u''
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            studiosString = trailer.get(Constants.MOVIE_STUDIO, u'')
+        elif source == Constants.MOVIE_LIBRARY_SOURCE or source == Constants.MOVIE_TMDB_SOURCE:
+            separator = u''
+            studios = trailer.get(Constants.MOVIE_STUDIO, [])
+            for studio in studios:
+                studiosString = studiosString + separator + studio
+                separator = u', '
+
+        return studiosString
+
+    def getGenres(self, trailer, info, source):
+        genres = u''
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            genres = info.get(Constants.MOVIE_GENRE, u'')
+
+        elif (source == Constants.MOVIE_LIBRARY_SOURCE or source == Constants.MOVIE_TMDB_SOURCE):
+            separator = u''
+            for genre in trailer.get(Constants.MOVIE_GENRE, []):
+                genres = genres + separator + genre
+                separator = u' / '
+
+        return genres
+
+    def getPlot(self, trailer, info, source):
+        plot = u''
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            plot = info.get(Constants.MOVIE_PLOT, u'')
+        else:
+            plot = trailer.get(Constants.MOVIE_PLOT, u'')
+
+        return plot
+
+    def getRuntime(self, trailer, info, source):
+        runtime = u''
+        if source == Constants.MOVIE_ITUNES_SOURCE:
+            pass
+        elif source == Constants.MOVIE_LIBRARY_SOURCE:
+            if trailer.get(Constants.MOVIE_RUNTIME) is int:
+                runtime = str(
+                    trailer[Constants.MOVIE_RUNTIME] / 60) + u' Minutes'
+
+        return runtime
 
 
 def getTitleFont():
-    xbmc.log('In randomtrailer.getTitleFont', xbmc.LOGNOTICE)
+    Debug.myLog('In randomtrailer.getTitleFont', xbmc.LOGNOTICE)
     title_font = 'font13'
     base_size = 20
     multiplier = 1
     skin_dir = xbmc.translatePath("special://skin/")
     list_dir = os.listdir(skin_dir)
     fonts = []
-    fontxml_path = ''
-    font_xml = ''
+    fontxml_path = u''
+    font_xml = u''
     for item in list_dir:
         item = os.path.join(skin_dir, item)
         if os.path.isdir(item):
@@ -2535,7 +3246,7 @@ def getTitleFont():
 
 
 def promptForGenre():
-    xbmc.log('In randomtrailer.promptForGenre', xbmc.LOGNOTICE)
+    Debug.myLog('In randomtrailer.promptForGenre', xbmc.LOGNOTICE)
     selectedGenre = u''
 
     # ask user whether they want to select a genre
@@ -2586,15 +3297,15 @@ def checkRating(rating):
     passed = False
     maxRating = Settings.getRatingLimitSetting()
 
-    xbmc.log('In randomtrailer.checkRating rating: ' +
-             str(rating) + u' limit: ' + maxRating, xbmc.LOGNOTICE)
+    Debug.myLog('In randomtrailer.checkRating rating: ' +
+                str(rating) + u' limit: ' + maxRating, xbmc.LOGNOTICE)
 
     if maxRating == '0':
         passed = True
     else:
         do_nr = Settings.getDoNotRatedSetting()
-        nyr = ''
-        nr = ''
+        nyr = u''
+        nr = u''
 
         if Settings.getIncludeNotYetRatedTrailers():
             nyr = 'Not yet rated'
@@ -2657,7 +3368,7 @@ def getInfo(title, year):
     if len(infostring[u'results']) > 0:
         results = infostring[u'results'][0]
         movieId = str(results[u'id'])
-        if not movieId == '':
+        if not movieId == u'':
             data = {}
             data[u'api_key'] = Settings.getTmdbApiKey()
             data[u'append_to_response'] = 'credits'
@@ -2668,8 +3379,8 @@ def getInfo(title, year):
             director = []
             writer = []
             cast = []
-            plot = ''
-            runtime = ''
+            plot = u''
+            runtime = u''
             genre = []
             plot = infostring[u'overview']
             runtime = infostring[u'runtime']
@@ -2731,7 +3442,7 @@ def getDaysSinceLastPlayed(lastPlayedField, movieName):
 def searchForTrailerFromTMDB(title, year):
     Debug.myLog(u'searchForTrailerFromTMDB: title: ' + title, xbmc.LOGDEBUG)
 
-    trailerId = ''
+    trailerId = u''
     data = {}
     data[u'api_key'] = Settings.getTmdbApiKey()
     data[u'page'] = '1'
@@ -2743,11 +3454,11 @@ def searchForTrailerFromTMDB(title, year):
     statusCode, infostring = Utils.getJSON(full_url)
 
     for movie in infostring[u'results']:
-        xbmc.log("searchForTrailerFromTMDB-result: " +
-                 json.dumps(movie, indent=3), xbmc.LOGNOTICE)
+        Debug.myLog("searchForTrailerFromTMDB-result: " +
+                    json.dumps(movie, indent=3), xbmc.LOGNOTICE)
         release_date = movie[u'release_date']
-        xbmc.log(str(release_date), xbmc.LOGNOTICE)
-        if (release_date == ''):
+        Debug.myLog(str(release_date), xbmc.LOGNOTICE)
+        if (release_date == u''):
             break
 
         tmdb_release_date = time.strptime(release_date, '%Y-%m-%d')
@@ -2757,42 +3468,70 @@ def searchForTrailerFromTMDB(title, year):
     return trailerId
 
 
+'''
+    Ensure a nice black window behind our player and transparent
+    TrailerDialog. Keeps the Kodi screen from showing up from time
+    to time (between trailers, etc.).
+'''
+
+
 class BlankWindow(xbmcgui.WindowXML):
 
     def onInit(self):
         pass
 
 
-class TrailerWindow(xbmcgui.Window):  # (xbmcgui.WindowXMLDialog):
+'''
+    A transparent window (all WindowDialogs are transparent) to contain
+    our listeners and Title display. 
+'''
+
+
+class TrailerDialog(xbmcgui.WindowDialog):  # (xbmcgui.WindowXMLDialog):
 
     trailer = None
     source = None
 
     @staticmethod
     def setNumberOfTrailersToPlay(numberOfTrailersToPlay):
-        TrailerWindow._numberOfTrailersToPlay = numberOfTrailersToPlay
+        TrailerDialog._numberOfTrailersToPlay = numberOfTrailersToPlay
 
     # [optional] this function is only needed of you are passing optional data to your window
     def __init__(self, *args, **kwargs):
         # get the optional data and add it to a variable you can use elsewhere
         # in your script
-        Debug.myLog("In TrailerWindow.__init__", xbmc.LOGDEBUG)
+        Debug.myLog("In TrailerDialog.__init__", xbmc.LOGDEBUG)
         self._numberOfTrailersToPlay = kwargs[u'numberOfTrailersToPlay']
+        self._control = None
 
     def doIt(self, numberOfTrailersToPlay):
-        xbmc.log('In doIt', xbmc.LOGDEBUG)
+        METHOD_NAME = type(self).__name__ + u'.doIt'
+        Debug.myLog('In doIt', xbmc.LOGDEBUG)
         self._numberOfTrailersToPlay = numberOfTrailersToPlay
+        self.infoDialog = None
+        self._infoDialogClosed = False
+        self._timer = None
 
         windowstring = Utils.getKodiJSON(
             '{"jsonrpc":"2.0","method":"GUI.GetProperties",\
             "params":{"properties":["currentwindow"]},"id":1}')
-        xbmc.log('Trailer_Window_id = ' +
-                 str(windowstring[u'result'][u'currentwindow'][u'id']), xbmc.LOGNOTICE)
+        Debug.myLog('Trailer_Window_id = ' +
+                    str(windowstring[u'result'][u'currentwindow'][u'id']), xbmc.LOGNOTICE)
         global info
 
         Debug.myLog(
-            'randomtrailers.TrailerWindow.onInit about to get TrailerManager.iterator',
+            'randomtrailers.TrailerDialog.doIt about to get TrailerManager.iterator',
             xbmc.LOGDEBUG)
+
+        _1080P = 0X0  # 1920 X 1080
+        _720p = 0X1  # 1280 X 720
+        windowHeight = self.getHeight()
+        windowWidth = self.getWidth()
+        Debug.myLog(u'Window Dimensions: ' + str(windowHeight) +
+                    u' H  x ' + str(windowWidth) + u' W', xbmc.LOGDEBUG)
+
+        self.getTitleControl(u'').setVisible(False)
+        self.setFocus(self.getTitleControl())
 
         limitTrailersToPlay = False
         if self._numberOfTrailersToPlay == 0:
@@ -2803,64 +3542,99 @@ class TrailerWindow(xbmcgui.Window):  # (xbmcgui.WindowXMLDialog):
         trailer = next(trailerIterator)
         try:
             while trailer is not None and not Utils.isShutdownRequested():
-                Debug.myLog('randomtrailers.TrailerWindow.onInit got trailer to play: ' +
+                Debug.myLog('randomtrailers.TrailerDialog.onInit got trailer to play: ' +
                             trailer.get(Constants.MOVIE_TRAILER), xbmc.LOGDEBUG)
 
-                TrailerWindow.trailer = trailer
+                if xbmc.Player().isPlaying():
+                    try:
+                        Trace.log(
+                            METHOD_NAME + u' Player is busy on entry: ' +
+                            xbmc.Player().getPlayingFile(), Trace.TRACE)
+                    except Exception as e:
+                        pass
+
+                TrailerDialog.trailer = trailer
+                while xbmc.Player().isPlaying():
+                    time.sleep(100)
 
                 self.source = trailer.get(Constants.MOVIE_SOURCE)
-                Debug.myLog(u'ShowInfoDetail: ', str(Settings.getShowInfoDetail()) + ' source: ' +
+                Debug.myLog(u'ShowInfoDetail: ', str(Settings.getTimeToDisplayDetailInfo() > 0) + ' source: ' +
                             self.source, xbmc.LOGDEBUG)
-                showInfoWindow = False
-                if Settings.getShowInfoDetail() and self.source != Constants.MOVIE_FOLDER_SOURCE:
-                    Debug.myLog(u'TrailerWindow Show Info', xbmc.LOGDEBUG)
-                    showInfoWindow = True
+                showInfoDialog = False
+                self._abortPlay = False
+                if Settings.getTimeToDisplayDetailInfo() > 0 and self.source != Constants.MOVIE_FOLDER_SOURCE:
+                    Debug.myLog(u'TrailerDialog Show Info', xbmc.LOGDEBUG)
+                    showInfoDialog = True
 
-                if showInfoWindow:
-                    # TODO- prefetch this
-                    xbmc.log(u'About to show Info Dialog', xbmc.LOGDEBUG)
-                    # w = InfoWindow('script-DialogVideoInfo.xml',
-                    #               Constants.ADDON_PATH, 'default', '720p')
-                    xbmc.log(u'About to make Info Dialog modal', xbmc.LOGDEBUG)
-                    # w.doModal()
-                    xbmc.log(u'Made Info Dialog modal', xbmc.LOGDEBUG)
+                if showInfoDialog:
+                    Debug.myLog(u'About to show Info Dialog', xbmc.LOGDEBUG)
 
-                    Debug.myLog(
-                        'randomtrailers.TrailerWindow ShowInfoDetail exitRequested', xbmc.LOGDEBUG)
+                    # InfoDialog will automatically close after
+                    # Settings.getTimeToDisplayDetailInfo() seconds.
+                    # When complete, it will call back to self.onInfoDialogClosed
+                    # which will set self.infoDialogClosed = True
 
+                    self.infoDialog = InfoDialog('script-DialogVideoInfo.xml',
+                                                 Constants.ADDON_PATH, 'default', '720p')
+                    self.infoDialog.doIt(self)
+                    self._infoDialogClosed = False
+
+                    #
+                    # doModal will BLOCK until the infoDialog is dismissed.
+                    # If this is not wanted, have the InfoDialog itself set
+                    # modal, or do in a worker thread. Then manually close
+                    # dialog when we want it dismissed.
+                    #
+
+                    Debug.myLog(u'About to make Info Dialog modal',
+                                xbmc.LOGDEBUG)
+                    self.infoDialog.doModal()
+                    Debug.myLog(u'Made Info Dialog modal', xbmc.LOGDEBUG)
+
+                #
+                # If the InfoDialog finished
                 if not Utils.isShutdownRequested():
                     Debug.myLog(
                         'About to play: ' + trailer.get(Constants.MOVIE_TRAILER), xbmc.LOGDEBUG)
                     xbmc.Player().play(trailer.get(Constants.MOVIE_TRAILER))
-                    xbmc.sleep(5000)
-                    #xbmc.Player().play('/movies/XBMC/Movies/30s/Is My Face Red (1932)-trailer.mp4')
-                    # xbmc.Player().play('plugin://plugin.video.youtube/?action=play_video&videoid=fAIX12F6958')
-                if showInfoWindow:
-                    xbmc.log(u'About to delete Info Dialog', xbmc.LOGDEBUG)
-                    #del w
-                    xbmc.log(u'Deleted Info Dialog', xbmc.LOGDEBUG)
+                    #
+                    # You can have both showInfoDialog (movie details screen
+                    # shown prior to playing trailer) as well as the
+                    # simple ShowTrailerTitle while the trailer is playing.
+                    #
+                    if Settings.getShowTrailerTitle():
+                        Debug.myLog(u'About show Brief Info', xbmc.LOGDEBUG)
+                        title = u'[B]' + \
+                            trailer[Constants.MOVIE_DETAIL_TITLE] + u'[/B]'
 
-                else:
-                    xbmc.log(u'About show Brief Info', xbmc.LOGDEBUG)
-                    self.overlayBriefMovieInfoOverTrailer(
-                        Settings.getHideTrailerTitle(), trailer)
-                    xbmc.log(u'Showed Brief Info', xbmc.LOGDEBUG)
+                        self.getTitleControl().setLabel(title)
+                        self.getTitleControl().setVisible(True)
+                        self.show()
+                        Debug.myLog(u'Showed Brief Info', xbmc.LOGDEBUG)
 
                 # If user exits while playing trailer, for a
                 # movie in the library, then play the movie
                 #
                 # if Utils.isShutdownRequested():
                 #    Debug.myLog(
-                #        'randomtrailers.TrailerWindow exitRequested', xbmc.LOGDEBUG)
+                #        'randomtrailers.TrailerDialog exitRequested', xbmc.LOGDEBUG)
                 #    xbmc.Player().play(trailer[u'file'])
 
-                while xbmc.Player().isPlaying():
-                    xbmc.sleep(250)
+                if not xbmc.Player().isPlaying():
+                    Trace.log(
+                        METHOD_NAME + u' Expected player to be playing', Trace.TRACE)
 
-                if not showInfoWindow:
-                    xbmc.log(u'About to Hide Brief Info', xbmc.LOGDEBUG)
-                    self.overlayBriefMovieInfoOverTrailer(False)
-                    xbmc.log(u'Hid Brief Info', xbmc.LOGDEBUG)
+                while xbmc.Player().isPlaying():
+                    time.sleep(0.250)
+
+                # Should not be needed since infoDialog.doModal should block
+
+                self.closeInfoDialog()
+
+                if Settings.getShowTrailerTitle():
+                    Debug.myLog(u'About to Hide Brief Info', xbmc.LOGDEBUG)
+                    self.getTitleControl().setVisible(False)
+                    Debug.myLog(u'Hid Brief Info', xbmc.LOGDEBUG)
 
                 trailer = next(trailerIterator)
 
@@ -2869,121 +3643,76 @@ class TrailerWindow(xbmcgui.Window):  # (xbmcgui.WindowXMLDialog):
                     if self.numberOfTrailersToPlay < 1:
                         break
         finally:
-            xbmc.log(u'About to close TrailerWindow', xbmc.LOGDEBUG)
-            self.close()
-            xbmc.log(u'Closed TrailerWindow', xbmc.LOGDEBUG)
-            xbmc.log(u'About to stop xbmc.Player', xbmc.LOGDEBUG)
+            Debug.myLog(u'About to close TrailerDialog', xbmc.LOGDEBUG)
+            Debug.myLog(u'About to stop xbmc.Player', xbmc.LOGDEBUG)
             xbmc.Player().stop()
-            xbmc.log(u'Stopped xbmc.Player', xbmc.LOGDEBUG)
+            Debug.myLog(u'Stopped xbmc.Player', xbmc.LOGDEBUG)
 
-    def onInit(self):
-        xbmc.log('In randomtrailers.TrailerWindow.onInit', xbmc.LOGNOTICE)
-        '''
-        windowstring = Utils.getKodiJSON(
-            '{"jsonrpc":"2.0","method":"GUI.GetProperties",\
-            "params":{"properties":["currentwindow"]},"id":1}')
-        xbmc.log('Trailer_Window_id = ' +
-                 str(windowstring[u'result'][u'currentwindow'][u'id']), xbmc.LOGNOTICE)
-        global info
+            if self.w is not None:
+                self.w.close()
+                del self.w
 
-        self.numberOfTrailersToPlay = TrailerWindow._numberOfTrailersToPlay
-        Debug.myLog(
-            'randomtrailers.TrailerWindow.onInit about to get TrailerManager.iterator',
-            xbmc.LOGDEBUG)
-
-        limitTrailersToPlay = False
-        if self.numberOfTrailersToPlay == 0:
-            limitTrailersToPlay = True
-
-        #trailerManager = BaseTrailerManager.getInstance()
-        #trailerIterator = iter(trailerManager)
-        #trailer = next(trailerIterator)
-        trailer = {Constants.MOVIE_TITLE: u'A Title',
-                   Constants.MOVIE_TRAILER: u'bogus path',
-                   Constants.ITUNES_TRAILER_TYPE: u'trailer file',
-                   Constants.MOVIE_SOURCE:
-                   Constants.MOVIE_FOLDER_SOURCE,
-                   Constants.MOVIE_FANART: u'',
-                   Constants.MOVIE_THUMBNAIL: u'',
-                   Constants.MOVIE_FILE: u'',
-                   Constants.MOVIE_YEAR: u''}
-        try:
-            while trailer is not None and not Utils.isShutdownRequested():
-                Debug.myLog('randomtrailers.TrailerWindow.onInit got trailer to play: ' +
-                            trailer.get(Constants.MOVIE_TRAILER), xbmc.LOGDEBUG)
-
-                TrailerWindow.trailer = trailer
-
-                self.source = trailer.get(Constants.MOVIE_SOURCE)
-                Debug.myLog(u'ShowInfoDetail: ', str(Settings.getShowInfoDetail()) + ' source: ' +
-                            self.source, xbmc.LOGDEBUG)
-                showInfoWindow = False
-                if Settings.getShowInfoDetail() and self.source != Constants.MOVIE_FOLDER_SOURCE:
-                    Debug.myLog(u'TrailerWindow Show Info', xbmc.LOGDEBUG)
-                    showInfoWindow = True
-
-                if showInfoWindow:
-                    # TODO- prefetch this
-                    xbmc.log(u'About to show Info Dialog', xbmc.LOGDEBUG)
-                    w = InfoWindow('script-DialogVideoInfo.xml',
-                                   Constants.ADDON_PATH, 'default', '720p')
-                    xbmc.log(u'About to make Info Dialog modal', xbmc.LOGDEBUG)
-                    w.doModal()
-                    xbmc.log(u'Made Info Dialog modal', xbmc.LOGDEBUG)
-
-                    Debug.myLog(
-                        'randomtrailers.TrailerWindow ShowInfoDetail exitRequested', xbmc.LOGDEBUG)
-
-                if not Utils.isShutdownRequested():
-                    # xbmc.Player().play(trailer.get(Constants.MOVIE_TRAILER))
-                    #xbmc.Player().play('/movies/XBMC/Movies/30s/Is My Face Red (1932)-trailer.mp4')
-                    xbmc.Player().play('plugin://plugin.video.youtube/?action=play_video&videoid=fAIX12F6958')
-                if showInfoWindow:
-                    xbmc.log(u'About to delete Info Dialog', xbmc.LOGDEBUG)
-                    del w
-                    xbmc.log(u'Deleted Info Dialog', xbmc.LOGDEBUG)
-
-                else:
-                    xbmc.log(u'About show Brief Info', xbmc.LOGDEBUG)
-                    self.overlayBriefMovieInfoOverTrailer(
-                        Settings.getHideTrailerTitle(), trailer)
-                    xbmc.log(u'Showed Brief Info', xbmc.LOGDEBUG)
-
-                # If user exits while playing trailer, for a
-                # movie in the library, then play the movie
-                #
-                # if Utils.isShutdownRequested():
-                #    Debug.myLog(
-                #        'randomtrailers.TrailerWindow exitRequested', xbmc.LOGDEBUG)
-                #    xbmc.Player().play(trailer[u'file'])
-
-                while xbmc.Player().isPlaying():
-                    xbmc.sleep(250)
-
-                if not showInfoWindow:
-                    xbmc.log(u'About to Hide Brief Info', xbmc.LOGDEBUG)
-                    self.overlayBriefMovieInfoOverTrailer(False)
-                    xbmc.log(u'Hid Brief Info', xbmc.LOGDEBUG)
-
-                #trailer = next(trailerIterator)
-
-                if limitTrailersToPlay:
-                    self.numberOfTrailersToPlay -= 1
-                    if self.numberOfTrailersToPlay < 1:
-                        break
-        finally:
-            xbmc.log(u'About to close TrailerWindow', xbmc.LOGDEBUG)
             self.close()
-            xbmc.log(u'Closed TrailerWindow', xbmc.LOGDEBUG)
-            xbmc.log(u'About to stop xbmc.Player', xbmc.LOGDEBUG)
-            xbmc.Player().stop()
-            xbmc.log(u'Stopped xbmc.Player', xbmc.LOGDEBUG)
+            Debug.myLog(u'Closed TrailerDialog', xbmc.LOGDEBUG)
+
+    def timeOut(self):
+        pass
 
     '''
+        Callback method from InfoDialog to inform us that it has closed, most
+        likely from a timeout. But it could be due to user action.
+    '''
+
+    def onInfoDialogClosed(self, reason=u''):
+        METHOD_NAME = type(InfoDialog).__name__ + u'onInfoDialogClosed'
+        Debug.myLog(METHOD_NAME + u' reason: ' + reason, xbmc.LOGDEBUG)
+        self._infoDialogClosed = True
+        self._abortPlay = True
+        del self.infoDialog
+        self.infoDialog = None
+        Debug.myLog(METHOD_NAME + u' deleted InfoDialog', xbmc.LOGDEBUG)
+
+    '''
+        Called when the trailer has finished playing before the InfoDialog
+        has voluntarily timed out.
+    '''
+
+    def closeInfoDialog(self):
+        METHOD_NAME = type(self).__name__ + u'.closeInfoDialog'
+        try:
+            Debug.myLog(METHOD_NAME, xbmc.LOGDEBUG)
+            if self._infoDialog is not None:
+                self._infoDialog.close()
+        except Exception as e:
+            pass  # perhaps the dialog closed while we are trying to close it
+        finally:
+            self._infoDialog = None
+
+    def onClick(self, controlId):
+        Debug.myLog(u'randomTrailers.TrailerDialog.onClick controlID: ' +
+                    str(controlId), xbmc.LOGDEBUG)
+
+    def onBack(self, actionId):
+        Debug.myLog(u'randomTrailers.TrailerDialog.onBack actionId: ' +
+                    str(actionId), xbmc.LOGDEBUG)
+
+    def onControl(self, control):
+        Debug.myLog(u'randomTrailers.TrailerDialog.onControl controlId: ' +
+                    str(control.getId()), xbmc.LOGDEBUG)
 
     def onAction(self, action):
+        METHOD_NAME = type(InfoDialog).__name__ + u'.onAction'
+        Debug.myLog(METHOD_NAME + u' Action.id: ' +
+                    str(action.getId()) + u' Action.buttonCode: ' + str(action.getButtonCode()), xbmc.LOGNOTICE)
 
-        xbmc.log('In randomtrailers.TrailerWindow.onAction', xbmc.LOGNOTICE)
+        actionMapper = actions.actionMap.Action.getInstance()
+        matches = actionMapper.getKeyIDInfo(action)
+
+        for line in matches:
+            Debug.myLog(line, xbmc.LOGDEBUG)
+
+        actionId = action.getId()
+        actionName = u''
         ACTION_PREVIOUS_MENU = 10
         ACTION_BACK = 92
         ACTION_ENTER = 7
@@ -2995,220 +3724,214 @@ class TrailerWindow(xbmcgui.Window):  # (xbmcgui.WindowXMLDialog):
         ACTION_TAB = 18
         ACTION_M = 122
         ACTION_Q = 34
+        if actionId == ACTION_PREVIOUS_MENU:
+            actionName = u'ACTION_PREVIOUS_MENU'
+        if actionId == ACTION_BACK:
+            actionName = u'ACTION_BACK'
+        if actionId == ACTION_ENTER:
+            actionName = u'ACTION_ENTER'
+        if actionId == ACTION_I:
+            actionName = u'ACTION_I'
+        if actionId == ACTION_LEFT:
+            actionName = u'ACTION_LEFT'
+        if actionId == ACTION_RIGHT:
+            actionName = u'ACTION_RIGHT'
+        if actionId == ACTION_UP:
+            actionName = u'ACTION_UP'
+        if actionId == ACTION_DOWN:
+            actionName = u'ACTION_DOWN'
+        if actionId == ACTION_TAB:
+            actionName = u'ACTION_TAB'
+        if actionId == ACTION_M:
+            actionName = u'ACTION_M'
+        if actionId == ACTION_Q:
+            actionName = u'ACTION_Q'
+
+        Debug.myLog(METHOD_NAME + u' actionId: ' + str(actionId) + u' Name: ' + actionName,
+                    xbmc.LOGDEBUG)
 
         global movie_file
 
-        trailer = TrailerWindow.trailer
+        trailer = TrailerDialog.trailer
 
-        movie_file = ''
-        xbmc.log('trailerAction: ' + str(action), xbmc.LOGNOTICE)
-        xbmc.log(str(action.getId()), xbmc.LOGNOTICE)
-        if action == ACTION_Q:
+        movie_file = u''
+        Debug.myLog(METHOD_NAME + u' trailerAction: ' +
+                    str(action), xbmc.LOGNOTICE)
+        Debug.myLog(str(action.getId()), xbmc.LOGNOTICE)
+        actionId = action.getId()
+        if actionId == xbmcgui.ACTION_QUEUE_ITEM:
+            Debug.myLog(METHOD_NAME + u' ACTION_QUEUE_ITEM', xbmc.LOGDEBUG)
             strCouchPotato = 'plugin://plugin.video.couchpotato_manager/movies/add?title=' + \
                 trailer[Constants.MOVIE_TITLE]
-            xbmc.executebuiltin('XBMC.RunPlugin(' + strCouchPotato + ')')
+            #xbmc.executebuiltin('XBMC.RunPlugin(' + strCouchPotato + ')')
 
-        if action == ACTION_PREVIOUS_MENU or action == ACTION_LEFT or action == ACTION_BACK:
-            xbmc.Player().stop()
-            Utils.setExitRequested()
-            self.close()
+        elif actionId == (xbmcgui.ACTION_PREVIOUS_MENU or actionId == ACTION_LEFT or actionId == ACTION_BACK):
+            Debug.myLog(METHOD_NAME + u' ACTION_PREVIOUS_MENU or ACTION_LEFT ' +
+                        u'ACTION_BACK',  xbmc.LOGDEBUG)
+            # xbmc.Player().stop()
+            # Utils.setExitRequested()
+            # self.close()
 
-        if action == ACTION_RIGHT or action == ACTION_TAB:
-            xbmc.Player().stop()
+        elif actionId == ACTION_RIGHT or actionId == ACTION_TAB:
+            Debug.myLog(METHOD_NAME + u' ACTION_RIGHT or ACTION_TAB ' +
+                        u'ACTION_BACK',  xbmc.LOGDEBUG)
+            # xbmc.Player().stop()
 
-        if action == ACTION_ENTER:
-            Utils.setExitRequested()
-            xbmc.Player().stop()
-            movie_file = trailer.get(u'file', u'')
-            # self.getControl(38011).setVisible(False)
-            self.close()
+        elif actionId == ACTION_ENTER:
+            Debug.myLog(METHOD_NAME + u' ACTION_ENTER',  xbmc.LOGDEBUG)
+            # Utils.setExitRequested()
+            # xbmc.Player().stop()
+            #movie_file = trailer.get(u'file', u'')
+            # self.getTitleControl().setVisible(False)
+            # self.close()
 
-        if action == ACTION_M:
-            self.getControl(38011).setVisible(True)
-            xbmc.sleep(2000)
-            # self.getControl(38011).setVisible(False)
+        elif actionId == ACTION_M:
+            Debug.myLog(METHOD_NAME + u' g ACTION_M',  xbmc.LOGDEBUG)
+            self.getTitleControl().setVisible(True)
+            time.sleep(5)
+            self.getTitleControl().setVisible(False)
 
-        if action == ACTION_I or action == ACTION_UP:
+        elif actionId == ACTION_I or actionId == ACTION_UP:
+            Debug.myLog(METHOD_NAME + u' ACTION_I or ACTION_UP',
+                        xbmc.LOGDEBUG)
             if self.source != Constants.MOVIE_SOURCE:
-                # self.getControl(38011).setVisible(False)
-                # w = InfoWindow('script-DialogVideoInfo.xml',
-                #               Constants.ADDON_PATH, 'default', '720p')
+                self.getTitleControl().setVisible(False)
+                self.w = InfoDialog('script-DialogVideoInfo.xml',
+                                    Constants.ADDON_PATH, 'default', '720p')
                 xbmc.Player().pause()
-                # w.doModal()
+                self.w.doModal()
                 xbmc.Player().pause()
-            # self.getControl(38011).setVisible(Settings.getHideTrailerTitle())
+            self.getTitleControl().setVisible(Settings.getShowTrailerTitle())
         pass
 
-    '''
-        Overlay the playing trailer with basic information about the movie
-    '''
+    def getTitleControl(self, text=u''):
+        Debug.myLog('GetTitleControl', xbmc.LOGDEBUG)
+        if self._control is None:
+            textColor = u'0xFFFFFFFF'  # White
+            shadowColor = u'0x00000000'  # Black
+            disabledColor = u'0x0000000'  # Won't matter, screen will be invisible
+            xPos = 20
+            yPos = 20
+            width = 680
+            height = 20
+            font = u'font13'
+            XBFONT_LEFT = 0x00000000
+            XBFONT_RIGHT = 0x00000001
+            XBFONT_CENTER_X = 0x00000002
+            XBFONT_CENTER_Y = 0x00000004
+            XBFONT_TRUNCATED = 0x00000008
+            XBFONT_JUSTIFIED = 0x00000010
+            alignment = XBFONT_CENTER_Y
+            hasPath = False
+            angle = 0
+            self._control = xbmcgui.ControlLabel(xPos, yPos, width, height,
+                                                 text, font, textColor,
+                                                 disabledColor, alignment,
+                                                 hasPath, angle)
+            self.addControl(self._control)
+            Debug.myLog(u'created Title Control', xbmc.LOGDEBUG)
+
+        return self._control
 
 
-'''
-    def overlayBriefMovieInfoOverTrailer(self, visible, trailer=None):
-        Debug.myLog('About to  change visibility of overlay', xbmc.LOGDEBUG)
-        if visible:
-            movieSource = trailer.get(
-                Constants.MOVIE_SOURCE, u'Unknown Source')
-            movieTitle = trailer.get(
-                Constants.MOVIE_TITLE, u'Unknown Title')
-            trailerType = trailer.get(
-                Constants.ITUNES_TRAILER_TYPE, u'Unknown movie type')
-            movieYear = trailer.get(
-                Constants.MOVIE_YEAR_KEY, u'Unknown year')
-            if movieSource == Constants.MOVIE_FOLDER_SOURCE:
-                self.getControl(38011).setLabel(
-                    u'[B]' + movieTitle + u' - ' + movieSource + u' ' + trailerType + u'[/B]')
-            else:
-                self.getControl(38011).setLabel(
-                    u'[B]' + movieTitle + u' - ' + movieSource + u' ' + trailerType +
-                    movieYear + u'[/B]')
-        self.getControl(38011).setVisible(visible)
-        Debug.myLog('Changed visibility of overlay', xbmc.LOGDEBUG)
-'''
-'''
-class InfoWindow(xbmcgui.WindowXMLDialog):
+class InfoDialog(xbmcgui.WindowXMLDialog):
 
     timeOut = True
 
-    def onInit(self):
+    def onInit(self, *args, **argv):
         try:
-            trailer = TrailerWindow.trailer
+            self._timer = threading.Timer(Settings.getTimeToDisplayDetailInfo(),
+                                          self.onTimeOut, kwargs={u'reason': u'timeout'}).start()
+            trailer = TrailerDialog.trailer
             memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            xbmc.log('In randomtrailers.InfoWindow.onInit memory: ' +
-                     str(memory), xbmc.LOGNOTICE)
+            Debug.myLog('In randomtrailers.InfoDialog.onInit memory: ' +
+                        str(memory), xbmc.LOGNOTICE)
 
-            source = trailer[Constants.MOVIE_SOURCE]
             control = self.getControl(38001)
-            thumbnail = trailer[u'thumbnail']
-            xbmc.log("control: " + str(control) + " thumbnail: " +
-                     str(thumbnail), xbmc.LOGNOTICE)
+            thumbnail = trailer[Constants.MOVIE_THUMBNAIL]
             control.setImage(thumbnail)
-            self.getControl(38003).setImage(trailer["fanart"])
-            title_font = getTitleFont()
-            trailerType = trailer.get(Constants.ITUNES_TRAILER_TYPE, '')
 
-            title_string = trailer["title"] + ' - ' + source + \
-                ' ' + trailerType + ' - ' + str(trailer["year"])
+            self.getControl(38003).setImage(trailer[Constants.MOVIE_FANART])
+
+            title_font = getTitleFont()
+            title_string = trailer[Constants.MOVIE_DETAIL_TITLE]
             title = xbmcgui.ControlLabel(
-                10, 40, 380, 40, title_string, title_font)
+                10, 40, 760, 40, title_string, title_font)
             title = self.addControl(title)
+
             title = self.getControl(38002)
             title.setAnimations(
                 [('windowclose', 'effect=fade end=0 time=1000')])
-            movieDirector = ''
-            movieWriter = ''
-            genres = ''
-            if source == Constants.MOVIE_ITUNES_SOURCE:
-                info = getInfo(trailer[Constants.MOVIE_TITLE], trailer[u'year'])
-                writers = info[u'writer']
-                directors = info[u'director']
-                actors = info[u'cast']
-                plot = info[u'plot']
-                genres = info[u'genre']
-                movieActor = ''
-                actorcount = 0
-                for actor in actors:
-                    actorcount = actorcount + 1
-                    movieActor = movieActor + actor + ", "
-                    if actorcount == 8:
-                        break
-                if not movieActor == '':
-                    movieActor = movieActor[:-2]
-            else:
-                plot = trailer["plot"]
-                writers = trailer["writer"]
-                directors = trailer["director"]
-                actors = trailer["cast"]
-                movieActor = ''
-                actorcount = 0
-                if source == Constants.MOVIE_LIBRARY_SOURCE:
-                    for actor in actors:
-                        actorcount = actorcount + 1
-                        movieActor = movieActor + actor[u'name'] + ", "
-                        if actorcount == 8:
-                            break
-                    if not movieActor == '':
-                        movieActor = movieActor[:-2]
-                else:
-                    movieActor = ''
-                    actorcount = 0
-                    for actor in actors:
-                        actorcount = actorcount + 1
-                        movieActor = movieActor + actor + ", "
-                        if actorcount == 8:
-                            break
-                    if not movieActor == '':
-                        movieActor = movieActor[:-2]
-            for director in directors:
-                movieDirector = movieDirector + director + ", "
-            if not movieDirector == '':
-                movieDirector = movieDirector[:-2]
-            for writer in writers:
-                movieWriter = movieWriter + writer + ", "
-            if not movieWriter == '':
-                movieWriter = movieWriter[:-2]
-            self.getControl(38005).setLabel(movieDirector)
-            self.getControl(38006).setLabel(movieActor)
-            self.getControl(38005).setLabel(movieDirector)
-            self.getControl(38007).setLabel(movieWriter)
+
+            movieDirectors = trailer[Constants.MOVIE_DETAIL_DIRECTORS]
+            self.getControl(38005).setLabel(movieDirectors)
+
+            movieActors = trailer[Constants.MOVIE_DETAIL_ACTORS]
+            self.getControl(38006).setLabel(movieActors)
+
+            movieDirectors = trailer[Constants.MOVIE_DETAIL_DIRECTORS]
+            self.getControl(38005).setLabel(movieDirectors)
+
+            movieWriters = trailer[Constants.MOVIE_DETAIL_WRITERS]
+            self.getControl(38007).setLabel(movieWriters)
+
+            plot = trailer[Constants.MOVIE_PLOT]
             self.getControl(38009).setText(plot)
-            movieStudio = ''
-            if source == Constants.MOVIE_ITUNES_SOURCE:
-                studios = trailer["studio"]
-                movieStudio = studios
-            if source == Constants.MOVIE_LIBRARY_SOURCE or source == Constants.MOVIE_TMDB_SOURCE:
-                studios = trailer["studio"]
-                for studio in studios:
-                    movieStudio = movieStudio + studio + ", "
-                    if not movieStudio == '':
-                        movieStudio = movieStudio[:-2]
-            self.getControl(38010).setLabel(movieStudio)
-            movieGenre = ''
-            if source == Constants.MOVIE_LIBRARY_SOURCE or source == Constants.MOVIE_TMDB_SOURCE:
-                genres = trailer["genre"]
-            for genre in genres:
-                movieGenre = movieGenre + genre + " / "
-            if not movieGenre == '':
-                movieGenre = movieGenre[:-3]
-            runtime = ''
-            if source == Constants.MOVIE_ITUNES_SOURCE:
-                runtime = ''
-            if source == Constants.MOVIE_LIBRARY_SOURCE:
-                runtime = str(trailer["runtime"] / 60)
-            if runtime != '':
-                runtime = runtime + ' Minutes - '
-            self.getControl(38011).setLabel(runtime + movieGenre)
-            rating = Rating.getMPAArating(trailer.get(
-                Constants.MOVIE_MPAA), trailer.get(u'adult'))
 
-            if rating == Rating.RATING_G:
-                imgRating = 'ratings/g.png'
-            elif rating == Rating.RATING_PG:
-                imgRating = 'ratings/pg.png'
+            movieStudios = trailer[Constants.MOVIE_DETAIL_STUDIOS]
+            self.getControl(38010).setLabel(movieStudios)
 
-            elif rating == Rating.RATING_PG_13:
-                imgRating = 'ratings/pg13.png'
+            label = (trailer[Constants.MOVIE_DETAIL_RUNTIME] + u' - ' +
+                     trailer[Constants.MOVIE_DETAIL_GENRES])
+            self.getControl(38011).setLabel(label)
 
-            elif rating == Rating.RATING_R:
-                imgRating = 'ratings/r.png'
-
-            elif rating == Rating.RATING_NC_17:
-                imgRating = 'ratings/nc17.png'
-
-            elif rating == Rating.RATING_NR:
-                imgRating = 'ratings/notrated.png'
-
+            rating = trailer[Constants.MOVIE_DETAIL_RATING]
+            imgRating = trailer[Constants.MOVIE_DETAIL_RATING_IMAGE]
             self.getControl(38013).setImage(imgRating)
 
-            # if InfoWindow.timeOut:
-            if not Utils.isShutdownRequested():
-                xbmc.sleep(Constants.TRAILER_INFO_DISPLAY_SECONDS)
+            # if InfoDialog.timeOut:
+            # if not Utils.isShutdownRequested():
+            #   time.sleep(Settings.getTimeToDisplayDetailInfo())
+
         finally:
-            self.close()
+            pass
+            # self.close()
+
+    def doIt(self, trailerDialogInstance):
+        self._trailerDialogInstance = trailerDialogInstance
+
+    def onTimeOut(self, *args, **kwargs):
+        METHOD = type(self).__name__ + u'.onTimeOut'
+        reason = kwargs.get(u'reason')
+        Trace.log(METHOD + u' reason: ' + reason, Trace.TRACE)
+        self.close()
+
+        self._trailerDialogInstance.onInfoDialogClosed(reason=u'timeout')
+
+    def onClick(self, controlId):
+        Debug.myLog(u'randomTrailers.InfoDialog.onClick controlID: ' +
+                    str(controlId), xbmc.LOGDEBUG)
+
+    def onBack(self, actionId):
+        Debug.myLog(u'randomTrailers.InfoDialog.onBack actionId: ' +
+                    str(actionId), xbmc.LOGDEBUG)
+
+    def onControl(self, control):
+        Debug.myLog(u'randomTrailers.InfoDialog.onControl controlId: ' +
+                    str(control.getId()), xbmc.LOGDEBUG)
 
     def onAction(self, action):
-        xbmc.log('In randomtrailers.InfoWindow.onAction', xbmc.LOGNOTICE)
+        METHOD_NAME = type(InfoDialog).__name__ + u'onAction'
+        Debug.myLog(METHOD_NAME + u' Action.id: ' +
+                    str(action.getId()) + u' Action.buttonCode: ' + str(action.getButtonCode()), xbmc.LOGNOTICE)
+
+        actionMapper = actions.actionMap.Action.getInstance()
+        matches = actionMapper.getKeyIDInfo(action)
+        for line in matches:
+            Debug.myLog(line, xbmc.LOGDEBUG)
+
+        actionId = action.getId()
+        actionName = u''
         ACTION_PREVIOUS_MENU = 10
         ACTION_BACK = 92
         ACTION_ENTER = 7
@@ -3218,101 +3941,133 @@ class InfoWindow(xbmcgui.WindowXMLDialog):
         ACTION_UP = 3
         ACTION_DOWN = 4
         ACTION_TAB = 18
+        ACTION_M = 122
         ACTION_Q = 34
+        if actionId == ACTION_PREVIOUS_MENU:
+            actionName = u'ACTION_PREVIOUS_MENU'
+        if actionId == ACTION_BACK:
+            actionName = u'ACTION_BACK'
+        if actionId == ACTION_ENTER:
+            actionName = u'ACTION_ENTER'
+        if actionId == ACTION_I:
+            actionName = u'ACTION_I'
+        if actionId == ACTION_LEFT:
+            actionName = u'ACTION_LEFT'
+        if actionId == ACTION_RIGHT:
+            actionName = u'ACTION_RIGHT'
+        if actionId == ACTION_UP:
+            actionName = u'ACTION_UP'
+        if actionId == ACTION_DOWN:
+            actionName = u'ACTION_DOWN'
+        if actionId == ACTION_TAB:
+            actionName = u'ACTION_TAB'
+        if actionId == ACTION_M:
+            actionName = u'ACTION_M'
+        if actionId == ACTION_Q:
+            actionName = u'ACTION_Q'
 
-        xbmc.log('onAction trailer ' + str(action), xbmc.LOGNOTICE)
+        Debug.myLog(METHOD_NAME + u' actionId: ' + str(actionId) + u' Name: ' + actionName,
+                    xbmc.LOGDEBUG)
+
+        Debug.myLog('onAction trailer ' + str(action), xbmc.LOGNOTICE)
         global movie_file
-        movie_file = ''
+        movie_file = u''
 
-        if action == ACTION_PREVIOUS_MENU or action == ACTION_LEFT or action == ACTION_BACK:
-            InfoWindow.timeOut = False
-            xbmc.Player().stop()
-            Utils.setExitRequested()
-            self.close()
+        actionId = action.getId()
+        if actionId == ACTION_PREVIOUS_MENU or actionId == ACTION_LEFT or actionId == ACTION_BACK:
+            Debug.myLog(u'randomTrailers.InfoDialog ACTION_PREVIOUS_MENU or ' +
+                        u'ACTION_LEFT or ACTION_BACK', xbmc.LOGDEBUG)
+            #InfoDialog.timeOut = False
+            # xbmc.Player().stop()
+            # Utils.setExitRequested()
+            # self.close()
 
-        if action == ACTION_Q:
+        if actionId == ACTION_Q:
+            Debug.myLog(u'randomTrailers.InfoDialog ACTION_Q',
+                        xbmc.LOGDEBUG)
             strCouchPotato = 'plugin://plugin.video.couchpotato_manager/movies/add?title=' + \
-                TrailerWindow.trailer[Constants.MOVIE_TITLE]
-            xbmc.executebuiltin('XBMC.RunPlugin(' + strCouchPotato + ')')
+                TrailerDialog.trailer[Constants.MOVIE_TITLE]
+            #xbmc.executebuiltin('XBMC.RunPlugin(' + strCouchPotato + ')')
 
-        if action == ACTION_I or action == ACTION_DOWN:
-            self.close()
+        if actionId == ACTION_I or actionId == ACTION_DOWN:
+            Debug.myLog(u'randomTrailers.InfoDialog ACTION_I or ACTION_DOWN',
+                        xbmc.LOGDEBUG)
+            # self.close()
 
-        if action == ACTION_RIGHT or action == ACTION_TAB:
-            xbmc.Player().stop()
-            self.close()
+        if actionId == ACTION_RIGHT or actionId == ACTION_TAB:
+            Debug.myLog(u'randomTrailers.InfoDialog ACTION_RIGHT or ACTION_TAB',
+                        xbmc.LOGDEBUG)
+            # xbmc.Player().stop()
+            # self.close()
 
-        if action == ACTION_ENTER:
-            movie_file = TrailerWindow.trailer["file"]
-            xbmc.Player().stop()
-            Utils.setExitRequested()
-            self.close()
-'''
+        if actionId == ACTION_ENTER:
+            Debug.myLog(u'randomTrailers.InfoDialog ACTION_ENTER',
+                        xbmc.LOGDEBUG)
+            movie_file = TrailerDialog.trailer[Constants.MOVIE_FILE]
+            # xbmc.Player().stop()
+            # Utils.setExitRequested()
+            # self.close()
 
 
 def playTrailers():
     memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    xbmc.log(u'In randomtrailers.playTrailers memory: ' +
-             str(memory), xbmc.LOGNOTICE)
+    Debug.myLog(u'In randomtrailers.playTrailers memory: ' +
+                str(memory), xbmc.LOGNOTICE)
 
     global movie_file
     global numberOfTrailersToPlay
-    movie_file = ''
+    movie_file = u''
     numberOfTrailersToPlay = Settings.getNumberOfTrailersToPlay()
     GROUP_TRAILERS = False
-    if Constants.ADDON.getSetting('group_trailers') == u'true':
+    if Constants.ADDON.getSetting(u'group_trailers') == u'true':
         GROUP_TRAILERS = True
-    GROUP_NUMBER = int(Constants.ADDON.getSetting('group_number'))
+    GROUP_NUMBER = int(Constants.ADDON.getSetting(u'group_number'))
     trailersInGroup = GROUP_NUMBER
     GROUP_DELAY = Settings.getGroupDelay()
     suppressOpenCurtain = True  # Already played at startup
-    while not Utils.isShutdownRequested():
-        if not suppressOpenCurtain and Settings.getShowCurtains():
-            xbmc.log(u'Playing OpenCurtain', xbmc.LOGDEBUG)
-            xbmc.Player().play(Settings.getOpenCurtainPath())
-            while xbmc.Player().isPlaying():
-                xbmc.sleep(250)
-            xbmc.log(u'Played OpenCurtain', xbmc.LOGDEBUG)
-
-        suppressOpenCurtain = False  # Open curtain before each group
+    try:
         while not Utils.isShutdownRequested():
-            Utils.throwExceptionIfShutdownRequested()
+            if not suppressOpenCurtain and Settings.getShowCurtains():
+                Debug.myLog(u'Playing OpenCurtain', xbmc.LOGDEBUG)
+                xbmc.Player().play(Settings.getOpenCurtainPath())
+                Debug.myLog(u'Played OpenCurtain', xbmc.LOGDEBUG)
 
-            if GROUP_TRAILERS:
-                trailersInGroup = trailersInGroup - 1
+            suppressOpenCurtain = False  # Open curtain before each group
+            while not Utils.isShutdownRequested():
+                Utils.throwExceptionIfShutdownRequested()
 
-            Debug.myLog('About to instantiate TrailerWindow', xbmc.LOGDEBUG)
-            # myTrailerWindow = TrailerWindow(
-            #    u'script-trailerwindow.xml', Constants.ADDON_PATH, u'default',
-            #    numberOfTrailersToPlay=numberOfTrailersToPlay)
-            # myTrailerWindow.doModal()
+                if GROUP_TRAILERS:
+                    trailersInGroup = trailersInGroup - 1
 
-            Debug.myLog('Created and showed BlankWindow', xbmc.LOGDEBUG)
-            myTrailerWindow = TrailerWindow(
-                numberOfTrailersToPlay=numberOfTrailersToPlay)
-            myTrailerWindow.doIt(numberOfTrailersToPlay)
+                Debug.myLog('Created and showed BlankWindow', xbmc.LOGDEBUG)
+                myTrailerDialog = TrailerDialog(
+                    numberOfTrailersToPlay=numberOfTrailersToPlay)
+                myTrailerDialog.doIt(numberOfTrailersToPlay)
 
-            del myTrailerWindow
-            if GROUP_TRAILERS and trailersInGroup == 0:
-                trailersInGroup = GROUP_NUMBER
-                i = GROUP_DELAY
-                while i > 0 and not Utils.isShutdownRequested():
-                    xbmc.sleep(500)
-                    i = i - 500
+                del myTrailerDialog
+                if GROUP_TRAILERS and trailersInGroup == 0:
+                    trailersInGroup = GROUP_NUMBER
+                    i = GROUP_DELAY
+                    while i > 0 and not Utils.isShutdownRequested():
+                        time.sleep(0.500)
+                        i = i - 500
 
-        if not Utils.isShutdownRequested():
-            if Settings.getShowCurtains():
-                xbmc.log(u'Playing CloseCurtain', xbmc.LOGDEBUG)
-                xbmc.Player().play(Settings.getCloseCurtainPath())
-                while xbmc.Player().isPlaying():
-                    xbmc.sleep(250)
-                xbmc.log(u'Played CloseCurtain', xbmc.LOGDEBUG)
+            if not Utils.isShutdownRequested():
+                if Settings.getShowCurtains():
+                    Debug.myLog(u'Playing CloseCurtain', xbmc.LOGDEBUG)
+                    xbmc.Player().play(Settings.getCloseCurtainPath())
+                    while xbmc.Player().isPlaying():
+                        time.sleep(0.25)
+                    Debug.myLog(u'Played CloseCurtain', xbmc.LOGDEBUG)
 
-        Utils.setExitRequested()
+            Utils.setExitRequested()
+    finally:
+        if myTrailerDialog is not None:
+            del myTrailerDialog
 
 
 def check_for_xsqueeze():
-    xbmc.log(u'In randomtrailers.check_for_xsqueeze', xbmc.LOGNOTICE)
+    Debug.myLog(u'In randomtrailers.check_for_xsqueeze', xbmc.LOGNOTICE)
     KEYMAPDESTFILE = os.path.join(xbmc.translatePath(
         u'special://userdata/keymaps'), "xsqueeze.xml")
     if os.path.isfile(KEYMAPDESTFILE):
@@ -3327,13 +4082,18 @@ def check_for_xsqueeze():
 # Don't start if Kodi is busy playing something
 
 
+bs = None
 try:
 
     if not xbmc.Player().isPlaying() and not check_for_xsqueeze():
         Debug.myLog(u'In randomtrailers.main', xbmc.LOGNOTICE)
-        xbmc.log(u'Python path: ' + str(sys.path), xbmc.LOGDEBUG)
-        watchdogThread = WatchDog()
-        watchdogThread.start()
+        Debug.myLog(u'Python path: ' + str(sys.path), xbmc.LOGDEBUG)
+        Trace.configure()
+        Trace.enable(Trace.STATS, Trace.TRACE)
+        WatchDog.create()
+        WatchDog.createReaper()
+        Playlist.configure()
+
         trailerManager = BaseTrailerManager.getInstance()
 
         currentDialogId = xbmcgui.getCurrentWindowDialogId()
@@ -3341,11 +4101,11 @@ try:
         Debug.myLog('CurrentDialogId, CurrentWindowId: ' + str(currentDialogId) +
                     u' ' + str(currentWindowId), xbmc.LOGDEBUG)
 
-        # bs = BlankWindow(u'script-BlankWindow.xml',
-        #                 Constants.ADDON_PATH, u'default',)
-        xbmc.log(u'Activating BlankWindow', xbmc.LOGDEBUG)
-        # bs.show()
-        xbmc.log(u'Activated BlankWindow', xbmc.LOGDEBUG)
+        bs = BlankWindow(u'script-BlankWindow.xml',
+                         Constants.ADDON_PATH, u'default',)
+        Debug.myLog(u'Activating BlankWindow', xbmc.LOGDEBUG)
+        bs.show()
+        Debug.myLog(u'Activated BlankWindow', xbmc.LOGDEBUG)
 
         if Settings.getAdjustVolume():
             muted = xbmc.getCondVisibility("Player.Muted")
@@ -3356,7 +4116,7 @@ try:
                     u'XBMC.SetVolume(' + str(Settings.getVolume()) + ')')
         if Settings.getShowCurtains():
             xbmc.Player().play(Settings.getOpenCurtainPath())
-            xbmc.sleep(500)
+            time.sleep(0.500)
 
         # See if user wants to restrict trailers to a
         # genre
@@ -3389,10 +4149,9 @@ try:
         # Finish curtain playing before proceeding
         if Settings.getShowCurtains():
             while xbmc.Player().isPlaying():
-                xbmc.sleep(250)
+                time.sleep(0.250)
 
         playTrailers()
-        #del bs
         if Settings.getAdjustVolume():
             muted = xbmc.getCondVisibility("Player.Muted")
             if muted and Settings.getVolume() == 0:
@@ -3400,14 +4159,19 @@ try:
             else:
                 xbmc.executebuiltin(
                     'XBMC.SetVolume(' + str(currentVolume) + ')')
-    else:
-        xbmc.log('Random Trailers: ' +
-                 'Exiting Random Trailers Screen Saver Something is playing!!!!!!', xbmc.LOGNOTICE)
-except AbortException:
-    xbmc.log('Random Trailers: ' +
-             'Exiting Random Trailers Screen Saver due to Kodi Abort!', xbmc.LOGNOTICE)
-except Exception:
-    Debug.logException()
 
-if Utils.isAbortRequested():
+        Playlist.shutdown()
+    else:
+        Debug.myLog('Random Trailers: ' +
+                    'Exiting Random Trailers Screen Saver Something is playing!!!!!!', xbmc.LOGNOTICE)
+except AbortException:
+    Debug.myLog('Random Trailers: ' +
+                'Exiting Random Trailers Screen Saver due to Kodi Abort!', xbmc.LOGNOTICE)
+except BaseException as e:
+    Debug.logException(e)
+
+finally:
+    Playlist.shutdown()
     xbmc.Player().stop()
+    if bs is not None:
+        del bs

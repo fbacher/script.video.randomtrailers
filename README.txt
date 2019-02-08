@@ -12,3 +12,21 @@ as well as best practices.
 
 4) To improve functionality and performance.
 
+Work Items:
+
+ * Support for non-English languages (text processing)
+ * Messages for non-English
+ * Non-English movies
+ * Investigate non-US movie attributes (genres, ratings, etc.)
+ 
+ * Better define filtering capabilities (genre(s), dates, etc.)
+ * Consider generating/reading playlists
+ * Consider randomizing over a larger universe of on-line movies rather than
+   a fixed number of pages
+   
+ * Create common reusable core-engine plugin for script and screensaver versions
+ * Migrate and test with Python 3
+ * Bring to Kodi coding standards
+ * Create test bed
+ * Internal and external documentation
+ * Get code review
