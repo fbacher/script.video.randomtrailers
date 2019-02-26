@@ -1,0 +1,19 @@
+﻿﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<window type="window"> 
+ <zorder>99998</zorder>
+
+    <controls>
+        <control type="label" id="38011">
+            <description>Movie Name</description>
+            <posx>20</posx>
+            <posy>20</posy>
+            <width>680</width>
+            <height>20</height>
+            <align>left</align>
+            <font>font13</font>
+            <aligny>center</aligny>
+            <textcolor>FFFFFFFF</textcolor>
+            <shadowcolor>black</shadowcolor>
+        </control>  
+    </controls>
+</window>
