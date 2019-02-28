@@ -120,7 +120,8 @@ class Logger:
     def exit(self):
         self.debug(u'Exiting')
 
-    def logException(self, e=None):
+    @staticmethod
+    def logException(e=None):
 
         exec_type, exec_value, exec_traceback = sys.exc_info()
         stringBuffer =\
@@ -131,7 +132,7 @@ class Logger:
             xbmc.log(u'No lines in traceback execType: ' +
                      str(exec_type), xbmc.LOGDEBUG)
 
-            self.dumpStack()
+            Logger.dumpStack()
 
         else:
             for line in lines:
@@ -139,7 +140,8 @@ class Logger:
 
             xbmc.log(stringBuffer.encode(u'utf-8'), xbmc.LOGERROR)
 
-    def dumpStack(self, msg=u''):
+    @staticmethod
+    def dumpStack(msg=u''):
         traceBack = traceback.format_stack(limit=15)
         xbmc.log(msg, xbmc.LOGERROR)
         for line in traceBack:
@@ -200,18 +202,42 @@ class Trace:
             Trace.enable(Trace.STATS)
 
     @staticmethod
-    def log(msg, *flags):
+    def log(*args, **kwargs):  # log_level=xbmc.LOGDEBUG, trace=[]):
         if Trace._logger is None:
             Trace._logger = Logger()
 
         found = False
         prefix = u''
         separator = u''
-        for flag in flags:
-            if flag in Trace._traceCatagories:
-                found = True
-                prefix += separator + flag
-                separator = u', '
+
+        trace = kwargs.pop(u'trace', None)
+        if trace is None:
+            Trace._logger.error(u'Missing argument: trace=')
+            Logger.dumpStack()
+            return
+
+        if isinstance(trace, list):
+            for flag in trace:
+                if flag in Trace._traceCatagories:
+                    prefix += separator + flag
+                    separator = u', '
+        else:
+            if trace in Trace._traceCatagories:
+                prefix = trace
+
+        if prefix == u'':
+            return
+
+        msg = u''
+        separator = u''
+        for text in args:
+            msg = msg + separator + u'%s' % (text)
+            separator = u', '
+
+        log_line = u'[%s] %s' % (prefix, msg)
+        log_level = kwargs.pop(u'log_level', xbmc.LOGDEBUG)
+
+        xbmc.log(log_line.encode(u'utf-8'), log_level)
 
         if found:
             prefix = prefix + u': '

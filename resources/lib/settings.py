@@ -87,6 +87,14 @@ class Settings:
         return Constants.ADDON.getSetting(u'do_library') == u'true'
 
     @staticmethod
+    def getIncludeLibraryRemoteTrailers():
+        return Constants.ADDON.getSetting(u'do_library_remote_trailers') == u'true'
+
+    @staticmethod
+    def getIncludeLibraryNoTrailerInfo():
+        return Constants.ADDON.getSetting(u'do_library_no_trailer_info') == u'true'
+
+    @staticmethod
     def getIncludeTrailerFolders():
         return Constants.ADDON.getSetting(u'do_folder') == u'true'
 
@@ -226,7 +234,7 @@ class Settings:
 
     @staticmethod
     def getRottonTomatoesApiKey():
-        ROTTON_TOMATOES_API_KEY = u'99dgtphe3c29y85m2g8dmdmt'
+        ROTTON_TOMATOES_API_KEY = 'ynyq3vsaps7u8rb9nk98rcru'
         return ROTTON_TOMATOES_API_KEY
 
     '''
@@ -253,7 +261,7 @@ class Settings:
 
     @staticmethod
     def getMaxTopActors():
-        return 6
+        return int(Constants.ADDON.getSetting(u'max_top_actors'))
 
     '''
         Time in seconds to display detailed movie info prior
@@ -263,11 +271,15 @@ class Settings:
     @staticmethod
     def getTimeToDisplayDetailInfo():
         timeToDisplayDetailInfo = Constants.ADDON.getSetting(
-            u'InfoDialogTime')
+            u'timeToDisplayDetailInfo')
         if timeToDisplayDetailInfo is None or str(timeToDisplayDetailInfo) == u'':
             timeToDisplayDetailInfo = 0
 
         return int(timeToDisplayDetailInfo)
+
+    @staticmethod
+    def getMaxTrailerLength():
+        return int(Constants.ADDON.getSetting(u'max_trailer_length'))
 
     @staticmethod
     def isTraceEnabled():

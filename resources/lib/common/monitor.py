@@ -56,17 +56,32 @@ class Monitor(xbmc.Monitor):
 
     def __init__(self):
         super(Monitor, self).__init__(args=(), kwargs=None)
+        self._logger = Logger(self.__class__.__name__)
+
         self.startupCompleteEvent = threading.Event()
         self.shutDownEvent = threading.Event()
 
-        self._thread = threading.Thread(
-            target=self._waitForShutdownThread, name='Monitor')
-        self._logger = Logger(self.__class__.__name__)
+        self._shutdownThread = threading.Thread(
+            target=self._waitForShutdownThread, name='Monitor.waitForShutdown')
 
-        self._thread.start()
+        self._abortThread = threading.Thread(
+            target=self._waitForAbortThread, name='Monitor.waitForAbort')
+        self._shutdownThread.start()
+        self._abortThread.start()
+
+    def shutdownThread(self):
+        finished = True
+        while not finished:
+            finished = True
+            if self._abortThread.isAlive():
+                finished = False
+                self._abortThread.join(0.1)
+            if self._shutdownThread.isAlive():
+                finished = False
+                self._shutdownThread.join(0.1)
 
     @staticmethod
-    def getSingletonInstance():
+    def getInstance():
         if Monitor._singleton is None:
             Monitor._singleton = Monitor()
 
@@ -74,20 +89,23 @@ class Monitor(xbmc.Monitor):
 
     def _waitForShutdownThread(self):
         localLogger = self._logger.getMethodLogger(u'_waitForShutdownThread')
-        Trace.log(localLogger.getMsgPrefix(), Trace.TRACE)
+        #Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
         self.shutDownEvent.wait()
         # Force wakeup
         self.startupCompleteEvent.set()
 
-        localLogger.notice(u'SHUTDOWN', Trace.TRACE)
+        Trace.log(localLogger.getMsgPrefix(), u'SHUTDOWN', trace=Trace.TRACE)
 
     def _waitForAbortThread(self):
         localLogger = self._logger.getMethodLogger(u'_waitForAbortThread')
-        while not self.waitForAbort(0.1):
-            pass
+        while not self.waitForAbort(1):
+            if self.shutDownEvent.isSet():
+                break
 
         self.shutDownEvent.set()
-        localLogger.debug(u'shutDownEvent is set')
+        if self._shutdownThread.isAlive():
+            self._shutdownThread.join(0.25)
+        localLogger.exit()
 
     def onSettingsChanged(self):
         # type: () -> None
@@ -219,7 +237,14 @@ class Monitor(xbmc.Monitor):
 
         New function added. 
         """
-        return super(Monitor, self).waitForAbort(timeout)
+        if timeout is None:
+            abort = super(Monitor, self).waitForAbort()
+        else:
+            abort = super(Monitor, self).waitForAbort(timeout)
+        if abort:
+            localLogger = self._logger.getMethodLogger(u'waitForAbort')
+            Trace.log(localLogger.getMsgPrefix(),
+                      u'SYSTEM ABORT received', trace=Trace.TRACE)
 
     def abortRequested(self):
         # type: () -> bool
@@ -236,15 +261,21 @@ class Monitor(xbmc.Monitor):
         localLogger = self._logger.getMethodLogger(u'shutDownRequested')
         self.shutDownEvent.set()
         localLogger.debug(u'shutDownEvent set')
+        if self._abortThread.isAlive():
+            self._abortThread.join(0.1)
 
     def isShutdownRequested(self):
         return self.shutDownEvent.isSet()
 
     def waitForShutdown(self, timeout=None):
-        localLogger = self._logger.getMethodLogger(u'waitForShutdown')
-        result = self.shutDownEvent.wait(timeout)
-        localLogger.debug(u'waitForShutdown:', result)
-        return result
+        #localLogger = self._logger.getMethodLogger(u'waitForShutdown')
+        shutdown = self.shutDownEvent.wait(timeout)
+        #localLogger.debug(u'waitForShutdown:', result)
+        if shutdown:
+            localLogger = self._logger.getMethodLogger(u'waitForShutdown')
+            Trace.log(localLogger.getMsgPrefix(),
+                      u'Application SHUTDOWN received', trace=Trace.TRACE)
+        return shutdown
 
     def setStartupComplete(self):
         localLogger = self._logger.getMethodLogger(u'setStartupComplete')
@@ -259,10 +290,10 @@ class Monitor(xbmc.Monitor):
 
     @staticmethod
     def throwExceptionIfAbortRequested(timeout=0):
-        if Monitor.getSingletonInstance().waitForAbort(timeout):
+        if Monitor.getInstance().waitForAbort(timeout):
             raise AbortException()
 
     @staticmethod
     def throwExceptionIfShutdownRequested(timeout=0):
-        if Monitor.getSingletonInstance().waitForShutdown(timeout):
+        if Monitor.getInstance().waitForShutdown(timeout):
             raise ShutdownException()

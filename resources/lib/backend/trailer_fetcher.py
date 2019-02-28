@@ -29,7 +29,7 @@ from common.rt_utils import Playlist
 from common.exceptions import AbortException, ShutdownException
 from common.rt_utils import WatchDog
 from settings import Settings
-from common.rt_utils import Trace
+from common.logger import Trace, Logger
 
 from backend.rating import Rating
 from backend.genre import Genre
@@ -63,7 +63,9 @@ class TrailerFetcher(threading.Thread):
     _trailerFetchers = []
 
     def __init__(self, threadNamePrefix=u'', threadNameSuffix=u''):
-        Debug.myLog(u'TrailerFetcher.__init__', xbmc.LOGDEBUG)
+        self._logger = Logger(self.__class__.__name__)
+        localLogger = self._logger.getMethodLogger(u'__init__')
+        localLogger.enter()
         threadName = threadNamePrefix + type(self).__name__ + threadNameSuffix
         super(TrailerFetcher, self).__init__(name=threadName)
 
@@ -97,10 +99,10 @@ class TrailerFetcher(threading.Thread):
 
     def runWorker(self):
         while not self._trailerManager._trailersDiscovered.isSet():
-            Monitor.getSingletonInstance().throwExceptionIfShutdownRequested(timeout=0.5)
+            Monitor.getInstance().throwExceptionIfShutdownRequested(timeout=0.5)
 
         while True:
-            Monitor.getSingletonInstance().throwExceptionIfShutdownRequested()
+            Monitor.getInstance().throwExceptionIfShutdownRequested()
 
             Debug.myLog(
                 u'TrailerFetcher.run waiting to fetch', xbmc.LOGDEBUG)
@@ -110,10 +112,8 @@ class TrailerFetcher(threading.Thread):
             self.fetchTrailerToPlay(trailer)
 
     def fetchTrailerToPlay(self, trailer):
-        METHOD_NAME = type(self).__name__ + u'.fetchTrailerToPlay'
-        Debug.myLog(METHOD_NAME + u' ' +
-                    trailer[Movie.TITLE],
-                    xbmc.LOGNOTICE)
+        localLogger = self._logger.getMethodLogger(u'fetchTrailerToPlay')
+        localLogger.debug(trailer[Movie.TITLE])
         self._startFetchTime = datetime.datetime.now()
 
         if trailer[Movie.TRAILER] == Movie.TMDB_SOURCE:
@@ -128,7 +128,7 @@ class TrailerFetcher(threading.Thread):
             # set to Movie.TMDB_SOURCE
             #
             status, populatedTrailer = self.getTmdbTrailer(trailer[u'id'])
-            Monitor.getSingletonInstance().throwExceptionIfShutdownRequested()
+            Monitor.getInstance().throwExceptionIfShutdownRequested()
 
             if status == Constants.TOO_MANY_TMDB_REQUESTS:
                 pass
@@ -150,7 +150,7 @@ class TrailerFetcher(threading.Thread):
                         # found
 
                         status, newTrailerData = self.getTmdbTrailer(trailerId)
-                        Monitor.getSingletonInstance().throwExceptionIfShutdownRequested()
+                        Monitor.getInstance().throwExceptionIfShutdownRequested()
 
                         if status == Constants.TOO_MANY_TMDB_REQUESTS or newTrailerData is None:
                             # Need to try again later
@@ -180,8 +180,7 @@ class TrailerFetcher(threading.Thread):
                     url = u''
                     Debug.logException(e)
                 '''
-        Debug.myLog('Exiting randomtrailers.TrailerFetcher.fetchTrailerToPlay movie: ' +
-                    trailer.get(Movie.TITLE), xbmc.LOGNOTICE)
+        localLogger.debug('Exiting movie:',  trailer.get(Movie.TITLE))
 
         # If no trailer possible then remove it from further consideration
 
@@ -192,7 +191,7 @@ class TrailerFetcher(threading.Thread):
         keepNewTrailer = True
         trailerManager = self._trailerManager.getBaseInstance()
 
-        Monitor.getSingletonInstance().throwExceptionIfShutdownRequested()
+        Monitor.getInstance().throwExceptionIfShutdownRequested()
         with trailerManager._aggregateTrailersByNameDateLock:
             if trailer[Movie.TRAILER] == u'':
                 keepNewTrailer = False
@@ -200,8 +199,8 @@ class TrailerFetcher(threading.Thread):
                 keepNewTrailer = False
                 trailerInDictionary = trailerManager._aggregateTrailersByNameDate[movieId]
 
-                Debug.myLog(u'Duplicate Movie id: ' + movieId + u' found in: ' +
-                            trailerInDictionary[Movie.SOURCE], xbmc.LOGDEBUG)
+                localLogger.debug(u'Duplicate Movie id: ' + movieId + u' found in: ' +
+                                  trailerInDictionary[Movie.SOURCE])
 
                 # Always prefer the local trailer
                 source = trailer[Movie.SOURCE]
@@ -224,18 +223,18 @@ class TrailerFetcher(threading.Thread):
                 self._trailerManager.removeDiscoveredTrailer(trailer)
 
         if keepNewTrailer:
-            self._trailerManager.addToReadyToPlayQueue(
-                self.getDetailInfo(trailer))
+            fullyPopulatedTrailer = self.getDetailInfo(trailer)
+            self._trailerManager.addToReadyToPlayQueue(fullyPopulatedTrailer)
 
         self._stopFetchTime = datetime.datetime.now()
         self._stopAddReadyToPlayTime = datetime.datetime.now()
         discoveryTime = self._stopFetchTime - self._startFetchTime
         queueTime = self._stopAddReadyToPlayTime - self._stopFetchTime
-        Trace.log(METHOD_NAME + u' took: ' + str(discoveryTime.seconds) +
+        Trace.log(localLogger.getMsgPrefix(), u'took: ' + str(discoveryTime.seconds) +
                   u' QueueTime: ' + str(queueTime.seconds) +
                   u' movie: ' +
                   trailer.get(Movie.TITLE) + u' Kept: '
-                  + str(keepNewTrailer), Trace.STATS)
+                  + str(keepNewTrailer), trace=Trace.STATS)
     '''
         Given the movieId from TMDB, query TMDB for trailer details and manufacture
         a trailer entry based on the results. The trailer itself will be a Youtube
@@ -490,6 +489,9 @@ class TrailerFetcher(threading.Thread):
 
     def getPlot(self, trailer, info, source):
         plot = u''
+        if Movie.PLOT not in trailer or trailer[Movie.PLOT] == u'':
+            trailer[Movie.PLOT] = info.get(Movie.PLOT, u'')
+
         if source == Movie.ITUNES_SOURCE:
             plot = info.get(Movie.PLOT, u'')
         else:
@@ -499,11 +501,10 @@ class TrailerFetcher(threading.Thread):
 
     def getRuntime(self, trailer, info, source):
         runtime = u''
-        if source == Movie.ITUNES_SOURCE:
-            runtime = str(info.get(Movie.RUNTIME, u''))
-            if len(runtime) > 0:
-                runtime = runtime + u' Minutes'
-        elif source == Movie.LIBRARY_SOURCE:
+        if Movie.RUNTIME not in trailer or trailer[Movie.RUNTIME] == 0:
+            trailer[Movie.RUNTIME] = info.get(Movie.RUNTIME, 0)
+
+        if source == Movie.LIBRARY_SOURCE or source == Movie.ITUNES_SOURCE:
             if isinstance(trailer.get(Movie.RUNTIME), int):
                 runtime = str(
                     trailer[Movie.RUNTIME] / 60) + u' Minutes'
@@ -568,7 +569,10 @@ def getInfo(title, year):
             runtime = u''
             genre = []
             plot = infostring[u'overview']
-            runtime = infostring[u'runtime']
+            runtime = infostring.get(u'runtime', u'0')
+            if runtime is None or runtime == u'':
+                runtime = u'0'
+            runtime = int(runtime) * 60
             genres = infostring[u'genres']
             for g in genres:
                 genre.append(g[u'name'])

@@ -19,6 +19,7 @@ from common.exceptions import AbortException, ShutdownException
 from common.rt_utils import WatchDog
 from common.rt_utils import Trace
 from common.logger import Logger, logEntryExit
+from common.messages import Messages
 from player.advanced_player import AdvancedPlayer
 from action_map import Action
 from settings import Settings
@@ -141,7 +142,8 @@ logger = Logger(u'random_trailer_ui')
 
 
 def getTitleFont():
-    Debug.myLog('In randomtrailer.getTitleFont', xbmc.LOGNOTICE)
+    localLogger = logger.getMethodLogger(u'getTitleFont')
+    localLogger.debug(u'In randomtrailer.getTitleFont')
     title_font = 'font13'
     base_size = 20
     multiplier = 1
@@ -183,7 +185,8 @@ def getTitleFont():
 
 
 def promptForGenre():
-    Debug.myLog('In randomtrailer.promptForGenre', xbmc.LOGNOTICE)
+    localLogger = logger.getMethodLogger(u'promptForGenre')
+    localLogger.debug(u'In randomtrailer.promptForGenre')
     selectedGenre = u''
 
     # ask user whether they want to select a genre
@@ -195,8 +198,8 @@ def promptForGenre():
         sortedGenres = MovieUtils.getGenresInLibrary()
         selectedIndex = xbmcgui.Dialog().select(
             Constants.ADDON.getLocalizedString(32100), sortedGenres, autoclose=False)
-        Debug.myLog(u'got back from promptForGenre selectedIndex: ' +
-                    str(selectedIndex), xbmc.LOGDEBUG)
+        localLogger.debug(u'got back from promptForGenre selectedIndex:',
+                          selectedIndex)
         # check whether user cancelled selection
         if selectedIndex != -1:
             # get the user's chosen genre
@@ -257,7 +260,7 @@ class BaseWindow():
             Playlist.getPlaylist(playlistFile).recordPlayedTrailer(trailer)
 
     def exitRandomTrailers(self):
-        Monitor.getSingletonInstance().shutDownRequested()
+        Monitor.getInstance().shutDownRequested()
 
     def notifyUser(self, msg):
         # TODO: Supply code
@@ -270,8 +273,14 @@ class BaseWindow():
         localLogger.debug(u'Playing movie at user request:',
                           trailer[Movie.TITLE])
 
+    def getTitleString(self, trailer):
+        title = u'[B]' + trailer[Movie.DETAIL_TITLE] + u'[/B]'
+        title2 = trailer[Movie.DETAIL_TITLE]
+        return title
 
 # (xbmcgui.WindowXMLDialog):
+
+
 class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
 
     # [optional] this function is only needed of you are passing optional data to your window
@@ -287,6 +296,7 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
         self._control = None
         self._source = None
         self._trailer = None
+        self._messages = Messages.getInstance()
         self._viewedPlaylist = Playlist.getPlaylist(
             Playlist.VIEWED_PLAYLIST_FILE)
         self._infoDialogController = InfoDialogController(
@@ -318,20 +328,19 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
         _720p = 0X1  # 1280 X 720
         windowHeight = self.getHeight()
         windowWidth = self.getWidth()
-        Debug.myLog(u'Window Dimensions: ' + str(windowHeight) +
-                    u' H  x ' + str(windowWidth) + u' W', xbmc.LOGDEBUG)
+        localLogger.debug(u'Window Dimensions: ' + str(windowHeight) +
+                          u' H  x ' + str(windowWidth) + u' W')
 
-        self.getTitleControl(u'').setVisible(False)
-        self.setFocus(self.getTitleControl())
-        limitTrailersToPlay = False
+        self.setBriefInfoVisibility(False)
+        limitTrailersToPlay = True
         if self._numberOfTrailersToPlay == 0:
-            limitTrailersToPlay = True
+            limitTrailersToPlay = False
 
         trailerManager = BaseTrailerManager.getInstance()
         trailerIterator = iter(trailerManager)
         self._trailer = next(trailerIterator)
         try:
-            while self._trailer is not None and not Monitor.getSingletonInstance().isShutdownRequested():
+            while self._trailer is not None and not Monitor.getInstance().isShutdownRequested():
                 localLogger.debug(u' got trailer to play: ' +
                                   self._trailer.get(Movie.TRAILER))
                 if self._infoDialog is not None:
@@ -341,7 +350,7 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
                     try:
                         Trace.log(
                             localLogger.getMsgPrefix() + u' Player is busy on entry: ' +
-                            xbmc.Player().getPlayingFile(), Trace.TRACE)
+                            xbmc.Player().getPlayingFile(), trace=Trace.TRACE)
                     except Exception as e:
                         pass
 
@@ -351,43 +360,25 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
                 self.show()
 
                 self._source = self._trailer.get(Movie.SOURCE)
-                localLogger.debug(' ShowInfoDetail: ', str(Settings.getTimeToDisplayDetailInfo() > 0) + ' source: ' +
-                                  self._source)
                 showInfoDialog = False
                 self._viewedPlaylist.recordPlayedTrailer(self._trailer)
 
                 if Settings.getTimeToDisplayDetailInfo() > 0 and self._source != Movie.FOLDER_SOURCE:
-                    localLogger.debug(u' Show InfoDialog enabled')
                     showInfoDialog = True
 
-                if showInfoDialog:
-                    localLogger.debug(u'About to show Info Dialog')
-                    self.showDetailedInfo()
+                self.showMovieInfo(showDetailInfo=showInfoDialog,
+                                   showBriefInfo=Settings.getShowTrailerTitle())
 
-                if not Monitor.getSingletonInstance().isShutdownRequested():
+                if not Monitor.getInstance().isShutdownRequested():
                     localLogger.debug(u' About to play: ' +
                                       self._trailer.get(Movie.TRAILER))
-                    self._player.play(self._trailer.get(Movie.TRAILER))
-                    #
-                    # You can have both showInfoDialog (movie details screen
-                    # shown prior to playing trailer) as well as the
-                    # simple ShowTrailerTitle while the trailer is playing.
-                    #
-                    if Settings.getShowTrailerTitle():
-                        localLogger.debug(u'About show Brief Info')
-                        title = u'[B]' + \
-                            self._trailer[Movie.DETAIL_TITLE] + u'[/B]'
-
-                        self.getTitleControl().setLabel(title)
-                        self.getTitleControl().setVisible(True)
-                        self.setFocus(self.getTitleControl())
-                        self.show()
-                        localLogger.debug(u'Showed Brief Info')
+                    self._player.play(self._trailer.get(
+                        Movie.TRAILER).encode(u'utf-8'))
 
                 # If user exits while playing trailer, for a
                 # movie in the library, then play the movie
                 #
-                # if Monitor.getSingletonInstance().isShutdownRequested():
+                # if Monitor.getInstance().isShutdownRequested():
                 #    Debug.myLog(
                 #        'randomtrailers.TrailerDialog exitRequested', xbmc.LOGDEBUG)
                 #    self._player.play(trailer[u'file'])
@@ -395,18 +386,34 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
                 if not self._player.waitForIsPlayingVideo(timeout=5.0):
                     # Timed out
                     localLogger.debug(u'Timed out Waiting for Player.')
-                else:
-                    self._player.waitForIsNotPlayingVideo()
+
+                try:
+                    if showInfoDialog:
+                        self._player.pausePlay()
+
+                    trailerTotalTime = self._player.getTotalTime()
+                    maxPlayTime = Settings.getMaxTrailerLength()
+                    if trailerTotalTime > maxPlayTime:
+                        Monitor.getInstance().waitForShutdown(timeout=maxPlayTime)
+                        self.getTitleControl().setLabel(self._messages.getMsg(
+                            Messages.TRAILER_EXCEEDS_MAX_PLAY_TIME))
+                        self.setBriefInfoVisibility(True)
+                        Monitor.getInstance().waitForShutdown(timeout=5)
+                        self._player.stop()
+                        self.setBriefInfoVisibility(False)
+                except:
+                    pass
+                self._player.waitForIsNotPlayingVideo()
 
                 if Settings.getShowTrailerTitle():
                     localLogger.debug(u'About to Hide Brief Info')
-                    self.getTitleControl().setVisible(False)
+                    self.setBriefInfoVisibility(False)
 
                 self._trailer = next(trailerIterator)
 
                 if limitTrailersToPlay:
                     self._numberOfTrailersToPlay -= 1
-                    if self.numberOfTrailersToPlay < 1:
+                    if self._numberOfTrailersToPlay < 1:
                         break
         except (AbortException, ShutdownException):
             pass
@@ -422,6 +429,11 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
             localLogger.debug(u'Closed TrailerDialog')
             self.shutdown()
 
+    def doModal(self):
+        localLogger = self._logger.getMethodLogger(u'doModal')
+        localLogger.enter()
+        super(TrailerDialog, self).doModal()
+
     def timeOut(self):
         pass
 
@@ -433,16 +445,14 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
     def onInfoDialogClosed(self, reason=u''):
         localLogger = self._logger.getMethodLogger(u'onInfoDialogClosed')
         localLogger.debug(TRACE_STRING + u'reason: ' + reason)
-        self._infoDialogClosed = True
-        if Settings.getShowTrailerTitle():
-            localLogger.debug(u'About show Brief Info')
-            self.getTitleControl().setVisible(True)
-            self.setFocus(self.getTitleControl())
-            self.show()
-            localLogger.debug(u'Showed Brief Info')
+        if not Monitor.getInstance().isShutdownRequested():
+            self._infoDialogClosed = True
+            self._player.resumePlay()
+            if Settings.getShowTrailerTitle():
+                localLogger.debug(u'About to show Brief Info')
+                self.setBriefInfoVisibility(True)
 
-        self._player.resumePlay()
-        localLogger.debug(TRACE_STRING + u'deleted InfoDialog')
+            localLogger.debug(TRACE_STRING + u'InfoDialog closed')
 
     def getFocus(self):
         localLogger = self._logger.getMethodLogger(u'getFocus')
@@ -485,13 +495,13 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
 
     def onClick(self, controlId):
         Trace.log(u'randomTrailers.TrailerDialog.onClick controlID: ' +
-                  str(controlId), Trace.TRACE)
+                  str(controlId), trace=Trace.TRACE)
 
     def onBack(self, actionId):
         localLogger = self._logger.getMethodLogger(u'onBack')
 
         Trace.log(localLogger.getMsgPrefix() + u' actionId: ' +
-                  str(actionId), Trace.TRACE)
+                  str(actionId), trace=Trace.TRACE)
 
     def onFocus(self, controlId):
         localLogger = self._logger.getMethodLogger(u'onFocus')
@@ -509,11 +519,11 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
         localLogger = self._logger.getMethodLogger(u'onControl')
 
         Trace.log(localLogger.getMsgPrefix() + u' controlId: ' +
-                  str(control.getId()), Trace.TRACE)
+                  str(control.getId()), trace=Trace.TRACE)
 
     def onShowInfo(self):
         localLogger = self._logger.getMethodLogger(u'onShowInfo')
-        Trace.log(localLogger.getMsgPrefix(), Trace.TRACE)
+        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
         localLogger.debug(TRACE_STRING)
 
         # xbmc.executebuiltin('Dialog.Close(seekbar,true)')  # Doesn't work :)
@@ -547,13 +557,13 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
 
         Trace.log(localLogger.getMsgPrefix() + u' Action.id: ' +
                   str(action.getId()) + u' Action.buttonCode: ' +
-                  str(action.getButtonCode()), Trace.TRACE)
+                  str(action.getButtonCode()), trace=Trace.TRACE)
 
         actionMapper = Action.getInstance()
         matches = actionMapper.getKeyIDInfo(action)
 
         for line in matches:
-            Debug.myLog(line, xbmc.LOGDEBUG)
+            localLogger.debug(line)
 
         actionId = action.getId()
         buttonCode = action.getButtonCode()
@@ -612,18 +622,42 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
                 actionId == xbmcgui.REMOTE_0):
             self.addToPlaylist(actionId)
 
+    def showMovieInfo(self, showDetailInfo=False, showBriefInfo=False):
+        if showDetailInfo:
+            self.setBriefInfoVisibility(False)
+            self.showDetailedInfo()
+        #
+        # You can have both showInfoDialog (movie details screen
+        # shown prior to playing trailer) as well as the
+        # simple ShowTrailerTitle while the trailer is playing.
+        #
+        if showBriefInfo:
+            title = self.getTitleString(self._trailer)
+            self.getTitleControl().setLabel(title)
+            if not showDetailInfo:
+                self.setBriefInfoVisibility(True)
+            else:
+                # Show it after detailInfo is dismissed
+                pass
+
+    def setBriefInfoVisibility(self, visible):
+        self.getTitleControl().setVisible(visible)
+        if visible:
+            self.setFocus(self.getTitleControl())
+            self.show()
+
     @logEntryExit
     def showDetailedInfo(self, fromUserRequest=False):
         localLogger = self._logger.getMethodLogger(u'showDetailedInfo')
 
         if self._infoDialog is None and self._source != Movie.SOURCE:
             localLogger.debug(TRACE_STRING + u'about to showDetailedInfo')
-            self.getTitleControl().setVisible(False)
             displaySeconds = Settings.getTimeToDisplayDetailInfo()
             if fromUserRequest:
                 displaySeconds = 0
+            else:
+                self._player.pausePlay()
 
-            self._player.pausePlay()
             self._infoDialogController.show(self._trailer, displaySeconds)
 
     def getTitleControl(self, text=u''):
@@ -658,6 +692,7 @@ class TrailerDialog(xbmcgui.WindowDialog, BaseWindow):
     def shutdown(self):
         localLogger = self._logger.getMethodLogger(u'shutdown')
         localLogger.enter()
+        self._infoDialogController.setTimeTimeToExit()
         self.close()
         self._player.setCallBacks(onShowInfo=None)
         self._player = None
@@ -686,18 +721,36 @@ class InfoDialogController(threading.Thread):
                                       Constants.ADDON_PATH, u'Default', u'720p',
                                       controller=self)
         self._timer = None
+        self._timeToExit = False
+
         self.start()
 
     def run(self):
-        localLogger = self._logger.getMethodLogger(u'run')
+        try:
+            localLogger = self._logger.getMethodLogger(u'run')
 
-        while not Monitor.getSingletonInstance().isShutdownRequested():
-            localLogger.debug(u'waiting')
-            self._showTrailerEvent.wait()
-            localLogger.debug(u'About to show')
-            self._showTrailerEvent.clear()
-            self._infoDialog.setTrailer(self._trailer)
-            self._infoDialog.doModal()
+            while not self.isTimeToExit():
+                localLogger.debug(u'waiting')
+                self._showTrailerEvent.wait()
+                if self.isTimeToExit():
+                    break
+
+                localLogger.debug(u'About to show')
+                self._showTrailerEvent.clear()
+                self._infoDialog.setTrailer(self._trailer)
+                self._infoDialog.doModal()
+        except (AbortException, ShutdownException):
+            pass
+        except Exception:
+            Logger.logException()
+
+    def isTimeToExit(self):
+        if Monitor.getInstance().isShutdownRequested():
+            return True
+        return self._timeToExit
+
+    def setTimeTimeToExit(self):
+        self._timeToExit = True
 
     def show(self, trailer, displaySeconds=0):
         localLogger = self._logger.getMethodLogger(u'show')
@@ -711,7 +764,7 @@ class InfoDialogController(threading.Thread):
             displaySeconds = 365 * 24 * 60 * 60
 
         self._timer = None
-        if not Monitor.getSingletonInstance().isShutdownRequested():
+        if not Monitor.getInstance().isShutdownRequested():
             self._timer = threading.Timer(displaySeconds,
                                           self.dismiss, kwargs={u'reason': u'timeout'})
             self._timer.setName(u'InfoDialogTimer')
@@ -724,18 +777,22 @@ class InfoDialogController(threading.Thread):
             self._timer.cancel()
         if self._infoDialog is not None:
             self._infoDialog.close()
-        self._trailerDialog.onInfoDialogClosed(reason=reason)
+        if self._trailerDialog is not None:
+            self._trailerDialog.onInfoDialogClosed(reason=reason)
 
     # Not to be called from InfoDialogController thread
     def shutdownThread(self):
         localLogger = self._logger.getMethodLogger(u'shutdown')
         localLogger.enter()
         try:
+            self.setTimeTimeToExit()
             self.dismiss(u'SHUTDOWN')
-            self._infoDialog.close()
-            del self._infoDialog
-            self._infoDialog = None
-            self._showTrailerEvent.set()
+            if self._infoDialog is not None:
+                self._infoDialog.close()
+                del self._infoDialog
+                self._infoDialog = None
+            if self._showTrailerEvent is not None:
+                self._showTrailerEvent.set()
             if self._timer is not None:
                 self._timer.cancel()
         except:
@@ -749,14 +806,14 @@ class InfoDialog(xbmcgui.WindowXMLDialog, BaseWindow):
         self._logger = Logger(self.__class__.__name__)
         localLogger = self._logger.getMethodLogger(u'__init__')
         localLogger.enter()
+        self._titleControl = None
+        self._trailer = None
+
         self._controller = kwargs.get(u'controller', None)
 
     def onInit(self):
-        self.show()
-
-    def show(self):
         try:
-            Monitor.getSingletonInstance().throwExceptionIfShutdownRequested()
+            Monitor.getInstance().throwExceptionIfShutdownRequested()
 
             localLogger = self._logger.getMethodLogger(u'onInit')
             localLogger.enter()
@@ -769,10 +826,16 @@ class InfoDialog(xbmcgui.WindowXMLDialog, BaseWindow):
             self.getControl(38003).setImage(self._trailer[Movie.FANART])
 
             title_font = getTitleFont()
-            title_string = self._trailer[Movie.DETAIL_TITLE]
-            title = xbmcgui.ControlLabel(
-                10, 40, 760, 40, title_string, title_font)
-            title = self.addControl(title)
+            titleString = u'title not set'
+            if self._trailer is not None:
+                titleString = self.getTitleString(self._trailer)
+            if self._titleControl is None:
+                self._titleControl = xbmcgui.ControlLabel(
+                    x=10, y=40, width=760, height=40, label=titleString,
+                    font=title_font)
+                self.addControl(self._titleControl)
+            else:
+                self._titleControl.setLabel(titleString)
 
             title = self.getControl(38002)
             title.setAnimations(
@@ -805,19 +868,36 @@ class InfoDialog(xbmcgui.WindowXMLDialog, BaseWindow):
             localLogger.exit()
             localLogger.debug(TRACE_STRING + u'exiting')
 
-            self.setFocusId(38001)
-
             # if InfoDialog.timeOut:
-            # if not Monitor.getSingletonInstance().isShutdownRequested():
+            # if not Monitor.getInstance().isShutdownRequested():
             #   time.sleep(Settings.getTimeToDisplayDetailInfo())
 
+        except (AbortException, ShutdownException):
+            pass
         except:
             localLogger.logException()
         finally:
             pass
 
+    def doModal(self):
+        localLogger = self._logger.getMethodLogger(u'doModal')
+        localLogger.enter()
+        super(InfoDialog, self).doModal()
+
     def setTrailer(self, trailer):
+        localLogger = self._logger.getMethodLogger(u'setTrailer')
+        localLogger.enter()
+        localLogger.debug(TRACE_STRING)
         self._trailer = trailer
+        try:
+            if self._titleControl is None:
+                localLogger.debug(u'titleControl not set')
+        except (AbortException, ShutdownException):
+            pass
+        except:
+            localLogger.logException()
+        finally:
+            pass
 
     def dismiss(self, reason=None):
         self._controller.dismiss(reason)
@@ -957,14 +1037,14 @@ def playTrailers():
     _player = AdvancedPlayer()
     suppressOpenCurtain = True  # Already played at startup
     try:
-        while not Monitor.getSingletonInstance().isShutdownRequested():
+        while not Monitor.getInstance().isShutdownRequested():
             if not suppressOpenCurtain and Settings.getShowCurtains():
                 localLogger.debug(u'Playing OpenCurtain')
                 _player.play(Settings.getOpenCurtainPath())
 
             suppressOpenCurtain = False  # Open curtain before each group
-            while not Monitor.getSingletonInstance().isShutdownRequested():
-                Monitor.getSingletonInstance().throwExceptionIfShutdownRequested()
+            while not Monitor.getInstance().isShutdownRequested():
+                Monitor.getInstance().throwExceptionIfShutdownRequested()
 
                 if GROUP_TRAILERS:
                     trailersInGroup = trailersInGroup - 1
@@ -977,13 +1057,16 @@ def playTrailers():
 
                 del myTrailerDialog
                 myTrailerDialog = None
-                if GROUP_TRAILERS and trailersInGroup == 0:
+                if not GROUP_TRAILERS:
+                    break
+
+                if trailersInGroup == 0:
                     trailersInGroup = GROUP_NUMBER
                     i = GROUP_DELAY
-                    while i > 0 and not Monitor.getSingletonInstance().waitForShutdown(0.500):
+                    while i > 0 and not Monitor.getInstance().waitForShutdown(0.500):
                         i = i - 500
 
-            if not Monitor.getSingletonInstance().isShutdownRequested():
+            if not Monitor.getInstance().isShutdownRequested():
                 if Settings.getShowCurtains():
                     localLogger.debug(u'Playing CloseCurtain')
                     _player.play(Settings.getCloseCurtainPath())

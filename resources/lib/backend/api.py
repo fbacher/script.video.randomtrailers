@@ -80,7 +80,7 @@ def LoadTrailers(selectedGenre):
         TmdbTrailerManager.getInstance().discoverBasicInformation(selectedGenre)
 
     xbmc.sleep(1000)
-    Monitor.getSingletonInstance().setStartupComplete()
+    Monitor.getInstance().setStartupComplete()
 
 
 def getGenresInLibrary():

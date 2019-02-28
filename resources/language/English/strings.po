@@ -235,6 +235,7 @@ msgctxt "#32051"
 msgid "All"
 msgstr ""
 
+# Msg 32052 is not in use
 msgctxt "#32052"
 msgid "New DVD Releases"
 msgstr ""

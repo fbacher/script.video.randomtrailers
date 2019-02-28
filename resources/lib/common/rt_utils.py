@@ -70,16 +70,6 @@ class Utils:
              All iTunes results are JSON UTF-8
              
     '''
-    _tmdbRequestCount = 0  # Limit is tmdbRequestLmit every 10 seconds
-    _iTunesRequestCount = 0  # Limit is 20/minute
-
-    # Reported in header from every request response to tmdb
-    _tmdbRemainingRequests = 0  # header.get(u'X-RateLimit-Remaining')
-    _tmdbRequestLmit = 0  # header.get('X-RateLimit-Limit')  # Was 40
-
-    # Limit will be lifted at this time, in epoch seconds
-
-    _tmdbRequestLimitResetTime = 0  # header.get('X-RateLimit-Reset')
 
     # In order to track the rate of requests over a minute, we have to
     # track the timestamp of each request made in the last minute.
@@ -89,15 +79,13 @@ class Utils:
 
     TMDB_REQUEST_INDEX = 0
     ITUNES_REQUEST_INDEX = 1
+    ROTTEN_TOMATOES_REQUEST_INDEX = 2
     _requestWindow = []
     _requestWindow.append(datetime.timedelta(seconds=10))  # 10 seconds TMDB
     _requestWindow.append(datetime.timedelta(minutes=1))  # 1 minute iTunes
-    _requestLimit = []
-    _requestLimit.append(44)
-    _requestLimit.append(20)
-    _requestsOverTime = []
-    _requestsOverTime.append([])
-    _requestsOverTime.append([])
+    _requestWindow.append(datetime.timedelta(minutes=1)
+                          )  # TODO: supply correct info
+    _logger = Logger(u'Utils')
 
     # Each entry in the above _requestsOverTime* lists is
     # a list with the timestamp and running request count:
@@ -119,7 +107,8 @@ class Utils:
         # front of the list (the oldest entry), toss out every entry that
         # is older than our wait window.
         #
-        requests = Utils._requestsOverTime[destination]
+        destinationData = Utils.DestinationData.getData(destination)
+        requests = destinationData._requestsOverTime
         now = datetime.datetime.now()
         windowExpirationTime = now - Utils._requestWindow[destination]
         lastRequestCount = 0
@@ -143,23 +132,27 @@ class Utils:
         # Have we hit the maximum number of requests over this
         # time period?
 
-        delay = 0
+        delay = datetime.timedelta(0)
         if len(requests) > 0:
             startingRequestCount = oldestEntry[Utils.REQUEST_COUNT]
-            if lastRequestCount - startingRequestCount < Utils._requestLimit[destination]:
-                delay = 0  # Now, we should be ok
+            if lastRequestCount - startingRequestCount < destinationData._requestLimit:
+                delay = datetime.timedelta(0)  # Now, we should be ok
             else:
                 alreadyWaited = now - oldestEntry[Utils.TIME_STAMP]
                 delay = Utils._requestWindow[destination] - alreadyWaited
-                if delay < 0:
-                    Debug.myLog(
-                        u'Logic error: timer delay should be > 0', xbmc.LOGERROR)
 
-        return delay
+                if delay < datetime.timedelta(0):
+                    localLogger = Utils._logger.getMethodLogger(
+                        u'getDelayTime')
+                    localLogger.error(
+                        u'Logic error: timer delay should be > 0')
+
+        return delay.total_seconds()
 
     @staticmethod
     def recordRequestTimestamp(destination, failed=False):
-        requests = Utils._requestsOverTime[destination]
+        destinationData = Utils.DestinationData.getData(destination)
+        requests = destinationData._requestsOverTime
         now = datetime.datetime.now()
 
         lastRequestCount = 0
@@ -168,7 +161,7 @@ class Utils:
             lastRequestCount = requests[lastIndex][Utils.REQUEST_COUNT]
 
         if failed:
-            lastRequestCount += Utils._requestLimit[destination]
+            lastRequestCount += destinationData._requestLimit
         else:
             lastRequestCount += 1
 
@@ -178,19 +171,72 @@ class Utils:
         requests.append(newEntry)
 
     @staticmethod
-    def getJSON(url, forcedTMDBSleep=False, headers={}, params={}, timeout=0.5):
-        METHOD_NAME = u'Utils. getJSON'
-        talkingToTMDB = False
-        talkingToiTunes = False
+    def dumpDelayInfo(destination):
+        localLogger = Utils._logger.getMethodLogger(u'dumpDelayInfo')
+        destinationData = Utils.DestinationData.getData(destination)
+        requests = destinationData._requestsOverTime
+        for request in requests:
+            timeStamp = request[Utils.TIME_STAMP]
+            requestCount = request[Utils.REQUEST_COUNT]
+
+            localLogger.debug(u'timestamp:', timeStamp,
+                              u'count:', requestCount)
+
+    class DestinationData:
+        _destinationData = []
+
+        def __init__(self):
+            self._requestCount = 0  # Limit is tmdbRequestLmit every 10 seconds
+
+            # Reported in header from every request response to tmdb
+            self._remainingRequests = 0  # header.get(u'X-RateLimit-Remaining')
+            self._rateLimit = 0  # header.get('X-RateLimit-Limit')  # Was 40
+
+            # Limit will be lifted at this time, in epoch seconds
+
+            self._requestLimitResetTime = 0  # header.get('X-RateLimit-Reset')
+            self._requestsOverTime = []
+
+        @staticmethod
+        def initialize():
+            tmdbData = Utils.DestinationData()
+            tmdbData._requestLimit = 44
+            Utils.DestinationData._destinationData.append(tmdbData)
+            iTunesData = Utils.DestinationData()
+            Utils.DestinationData._destinationData.append(iTunesData)
+            iTunesData._requestLimit = 20
+
+            # TODO: supply correct info
+
+            rottonTomatoesData = Utils.DestinationData()
+            Utils.DestinationData._destinationData.append(rottonTomatoesData)
+            rottonTomatoesData._requestLimit = 20
+
+        @staticmethod
+        def getData(destination):
+            if len(Utils.DestinationData._destinationData) == 0:
+                Utils.DestinationData.initialize()
+
+            return Utils.DestinationData._destinationData[destination]
+
+    # Headers needs to be native string (not unicode on v2)
+    @staticmethod
+    def getJSON(url, secondAttempt=False, dumpResults=False, headers={}, params={}, timeout=2.0):
+        localLogger = Utils._logger.getMethodLogger(u'getJSON')
+
         destinationString = u''
         if u'themoviedb' in url:
-            talkingToTMDB = True
             destinationString = u'TMDB'
             requestIndex = Utils.TMDB_REQUEST_INDEX
+            site = u'TMDB'
         elif backend_constants.APPLE_URL_PREFIX in url:
-            talkingToiTunes = True
             destinationString = u'iTunes'
             requestIndex = Utils.ITUNES_REQUEST_INDEX
+            site = u'iTunes'
+        elif backend_constants.ROTTEN_TOMATOES_URL_PREFIX in url:
+            destinationString = u'RottonTomatoes'
+            requestIndex = Utils.ROTTEN_TOMATOES_REQUEST_INDEX
+            site = u'Tomatoes'
 
         timeDelay = Utils.getDelayTime(requestIndex)
 
@@ -201,46 +247,37 @@ class Utils:
 
         if timeDelay > 0:
             Trace.log(u' Waiting for JSON request to ' + destinationString +
-                      u' for ' + str(timeDelay) + u' seconds', Trace.STATS)
-        Monitor.getSingletonInstance().throwExceptionIfShutdownRequested(timeDelay)
-        site = u'TMDB'
-        if talkingToiTunes:
-            site = u'iTunes'
+                      u' for ' + str(timeDelay) + u' seconds', trace=Trace.STATS)
+        Monitor.getInstance().throwExceptionIfShutdownRequested(timeDelay)
 
-        if talkingToTMDB:
+        destinationData = Utils.DestinationData.getData(requestIndex)
+        secondsUntilReset = destinationData._requestLimitResetTime - \
+            int(time.time())
+        destinationData._requestCount += 1
+        requestsToURL = destinationData._requestCount
 
-            secondsUntilReset = Utils._tmdbRequestLimitResetTime - \
-                int(time.time())
-            if (Utils._tmdbRemainingRequests < 10) and (secondsUntilReset < 2):
-                Debug.myLog(
-                    u'Sleeping two seconds to avoid TMBD traffic limit.', xbmc.LOGINFO)
-                Monitor.getSingletonInstance().throwExceptionIfShutdownRequested(2.0)
+        if (destinationData._remainingRequests < 10) and (secondsUntilReset < 2):
+            localLogger.info(
+                u'Sleeping two seconds to avoid traffic limit.')
+            Monitor.getInstance().throwExceptionIfShutdownRequested(2.0)
 
-            Utils._tmdbRequestCount += 1
-            requestsToURL = Utils._tmdbRequestCount
-        if talkingToiTunes:
-            Utils._iTunesRequestCount += 1
-            requestsToURL = Utils._iTunesRequestCount
-
+        requestFailed = True
         try:
             response = requests.get(
-                url, headers=headers, params=params, timeout=timeout)
-
+                url.encode(u'utf-8'), headers=headers, params=params, timeout=timeout)
+            requestFailed = False  # We could change our minds
         except Exception as e:
             # Retry once
-            Trace.log(METHOD_NAME + u' request to ' + destinationString + u' FAILED' +
-                      u' total requests: ' + str(requestsToURL),
-                      Trace.STATS)
-            if not forcedTMDBSleep:
-                statusCode, jsonText = Utils.getJSON(
-                    url, forcedTMDBSleep=True, headers=headers)
-            else:
-                Debug.logException(e)
+            # TODO: Move this after full analysis, not nested
+
+            localLogger.logException(e)
+            Trace.log(localLogger.getMsgPrefix(), u'request to', destinationString,
+                      u'FAILED total requests:', requestsToURL, trace=Trace.STATS)
+            Utils.dumpDelayInfo(requestIndex)
+            if secondAttempt:
                 statusCode = -1
                 jsonText = u''
             return statusCode, jsonText
-        finally:
-            Utils.recordRequestTimestamp(requestIndex)
 
         try:
             statusCode = u''
@@ -251,60 +288,52 @@ class Utils:
             jsonText = response.json()
             returnedHeader = response.headers
         except Exception as e:
-            Debug.myLog(METHOD_NAME + u' Unable to parse jsonText from site: ' + site +
-                        u' jsonText: ' + jsonText, xbmc.LOGERROR)
-            Debug.myLog(METHOD_NAME + u' response text:  ' +
-                        text, xbmc.LOGERROR)
-            Debug.myLog(METHOD_NAME + u' returned header: ' + str(returnedHeader),
-                        xbmc.LOGERROR)
-            Debug.logException(e)
+            requestFailed = True
+            localLogger.error(u'Unable to parse jsonText from site: ' + site +
+                              u' jsonText: ' + jsonText)
+            localLogger.error(u' response text:  ' + text)
+            localLogger.error(u' returned header: ' + str(returnedHeader))
+            localLogger.logException(e)
+            Utils.dumpDelayInfo(requestIndex)
 
-        Debug.myLog(u'Headers from : ' + site + u' ' + str(returnedHeader),
-                    xbmc.LOGDEBUG)
+        localLogger.debug(u'Headers from : ' + site +
+                          u' ' + str(returnedHeader))
 
         # TODO- delete or control by setting or logger
 
-        if True:  # talkingToTMDB:
-            tmp = returnedHeader.get(u'X-RateLimit-Remaining')
+        secondsUntilReset = destinationData._requestLimitResetTime - \
+            int(time.time())
+        destinationData._requestCount += 1
+        requestsToURL = destinationData._requestCount
+
+        tmp = returnedHeader.get(u'X-RateLimit-Remaining')
+        if tmp is not None:
+            destinationData._remainingRequests = int(tmp)
+
+        tmp = returnedHeader.get('X-RateLimit-Limit')
+        if tmp is not None:
+            destinationData._rateLimit = int(tmp)
+
+        # Limit will be lifted at this time, in epoch seconds
+        tmp = returnedHeader.get('X-RateLimit-Reset')
+        if tmp is not None:
+            destinationData._requestLimitResetTime = int(tmp)
+        else:
+            # Some calls don't return X-RateLimit-Reset, in those cases there
+            # should be Retry-After indicating how many more seconds to wait
+            # before traffic can resume
+
+            retryAfterValue = 0
+            tmp = returnedHeader.get(u'Retry-After')
+            msg = u''
             if tmp is not None:
-                Utils._tmdbRemainingRequests = int(tmp)
-                if talkingToiTunes:
-                    Trace.log(u'Got X-RateLimit-Remaining from iTunes: ' +
-                              tmp, Trace.STATS)
+                retryAfterValue = int(time.time()) + int(tmp)
+                destinationData._requestLimitResetTime = retryAfterValue
+                requestFailed = True
 
-            tmp = returnedHeader.get('X-RateLimit-Limit')
-            if tmp is not None:
-                Utils._tmdbRequestLmit = int(tmp)
-                if talkingToiTunes:
-                    Trace.log(u'Got X-RateLimit-Limit from iTunes: ' +
-                              tmp, Trace.STATS)
-
-            # Limit will be lifted at this time, in epoch seconds
-            tmp = returnedHeader.get('X-RateLimit-Reset')
-            if tmp is not None:
-                Utils._tmdbRequestLimitResetTime = int(tmp)
-                if talkingToiTunes:
-                    Trace.log(
-                        'Got X-RateLimit-Reset from iTunes: ' + tmp, Trace.STATS)
-            else:
-                # Some calls don't return X-RateLimit-Reset, in those cases there
-                # should be Retry-After indicating how many more seconds to wait
-                # before traffic can resume
-
-                retryAfterValue = 0
-                tmp = returnedHeader.get(u'Retry-After')
-                msg = u''
-                if tmp is not None:
-                    if talkingToiTunes:
-                        Trace.log('Got Retry-After from iTunes: ' + tmp,
-                                  Trace.STATS)
-                    retryAfterValue = int(tmp)
-                    Utils._tmdbRequestLimitResetTime = int(
-                        time.time()) + retryAfterValue
-                    msg = u'Retry-After ' + str(retryAfterValue) + ' present.'
-
-                Debug.myLog(
-                    u'TMDB response header missing X-RateLimit info.' + msg, xbmc.LOGDEBUG)
+            if requestIndex == Utils.TMDB_REQUEST_INDEX:
+                localLogger.debug(
+                    u'TMDB response header missing X-RateLimit info.', msg)
 
         try:
             status = jsonText.get(u'status_code')
@@ -318,30 +347,37 @@ class Utils:
         # Debug.myLog(u'getJSON jsonText: ' + jsonText.__class__.__name__ +
         #            u' ' + json.dumps(jsonText), xbmc.LOGDEBUG)
 
-        if statusCode == Constants.TOO_MANY_TMDB_REQUESTS:  # Too many requests,
-            Debug.myLog(u'Request rate to TMDB exceeds limits ('
-                        + str(Utils._tmdbRequestLmit) +
-                        u' every 10 seconds). Consider getting API Key. This session\'s requests: '
-                        + str(Utils._tmdbRequestCount), xbmc.LOGINFO)
-            Trace.log(METHOD_NAME + u' request failed source: ' + destinationString +
-                      u' total requests: ' + str(requestsToURL), Trace.STATS)
+        if ((statusCode == Constants.TOO_MANY_TMDB_REQUESTS)
+                and (requestIndex == Utils.TMDB_REQUEST_INDEX)):  # Too many requests,
+            localLogger.info(u'Request rate to TMDB exceeds limits ('
+                             + str(destinationData._requestLimit) +
+                             u' every 10 seconds). Consider getting API Key. This session\'s requests: '
+                             + str(destinationData._requestCount))
+            Trace.log(localLogger.getMsgPrefix(), u' request failed source:',
+                      destinationString, u'total requests:', requestsToURL, trace=Trace.STATS)
+
+        Utils.recordRequestTimestamp(requestIndex, failed=requestFailed)
+        if requestFailed:
             #
             # Retry only once
             #
 
-            failed = True
-            if not forcedTMDBSleep:
+            if not secondAttempt:
                 try:
-                    statusCode, jsonText = Utils.getJSON(url, forcedTMDBSleep=True,
+                    statusCode, jsonText = Utils.getJSON(url, secondAttempt=True,
                                                          headers=headers, params=params,
-                                                         timeout=0.25)
-                    failed = False
+                                                         timeout=0.50)
+                    requestFailed = True
                 finally:
-                    Utils.recordRequestTimestamp(requestIndex, failed=failed)
+                    Utils.recordRequestTimestamp(
+                        requestIndex, failed=requestFailed)
 
         # else:
         #    Debug.myLog(u'requests: ' + str(Constants.tmdbRequestCount))
 
+        if dumpResults:
+            localLogger.debug(u'JASON DUMP:')
+            localLogger.debug(json.dumps(jsonText, indent=3, sort_keys=True))
         return statusCode, jsonText
 
     @staticmethod
@@ -412,11 +448,11 @@ class WatchDog(threading.Thread):
         localLogger = self._logger.getMethodLogger(
             u'reapDeadThreads')
         localLogger.enter()
-        Monitor.getSingletonInstance().waitForStartupComplete()
+        Monitor.getInstance().waitForStartupComplete()
         #
         # During normal operation, check for threads to harvest every 5
         # minutes, but during shutdown, check continuously
-        while not Monitor.getSingletonInstance().waitForShutdown(3000):
+        while not Monitor.getInstance().waitForShutdown(3000):
             try:
                 self.joinWithCompletedThreads(0.01, reaperThread=True)
             except Exception as e:
@@ -426,7 +462,7 @@ class WatchDog(threading.Thread):
     def waitForDeathSignal(self):
         localLogger = self._logger.getMethodLogger(
             u'waitForDeathSignal')
-        Monitor.getSingletonInstance().waitForShutdown()
+        Monitor.getInstance().waitForShutdown()
 
         self._abortTime = datetime.datetime.now()
         localLogger.debug(u'WatchDog: Shutting Down!')
@@ -444,7 +480,12 @@ class WatchDog(threading.Thread):
         WatchDog._reaperThread.join(2.5)
         if WatchDog._reaperThread.isAlive():
             WatchDog._deathIsNigh.set()  # Force exit
-            WatchDog._reaperThread.join()
+            #
+            # TODO: don't handle Monitor as special
+            #
+            Monitor.getInstance().shutdownThread()
+            if WatchDog._reaperThread.isAlive():
+                WatchDog._reaperThread.join()
             WatchDog._reaperThread = None
 
         localLogger.debug(u'Joined with reaperThread')
@@ -467,7 +508,7 @@ class WatchDog(threading.Thread):
                         break
 
                     if aThread.isAlive():
-                        if Monitor.getSingletonInstance().isShutdownRequested():
+                        if Monitor.getInstance().isShutdownRequested():
                             localLogger.debug(u'Watchdog joining with ' +
                                               aThread.getName())
                         aThread.join(delay)
@@ -482,13 +523,13 @@ class WatchDog(threading.Thread):
 
         if reaperThread or reaped > 0:
             Trace.log(str(reaped) + u' threads REAPed: ' +
-                      str(remaining) + u' threads remaining', Trace.TRACE)
+                      str(remaining) + u' threads remaining', trace=Trace.TRACE)
         return remaining
 
     @staticmethod
     def shutdown():
         localLogger = WatchDog._logger.getMethodLogger(u'shutdown')
-        Monitor.getSingletonInstance().shutDownRequested()
+        Monitor.getInstance().shutDownRequested()
         Debug.dumpAllThreads()
 
         WatchDog._completedShutdownPhase1.wait()
@@ -517,12 +558,16 @@ class Playlist:
     _playlists = {}
 
     def __init__(self, *args, **kwargs):
+        self._logger = Logger(self.__class__.__name__)
+        localLogger = self._logger.getMethodLogger(u'__init__')
+
         if len(args) == 0:
-            Debug.myLog(
-                u' Playlist constructor requires an argument', xbmc.LOGERROR)
+            localLogger.error(
+                u' Playlist constructor requires an argument')
             return None
 
         playlistName = args[0]
+        self._playlistName = playlistName
         append = kwargs.get(u'append', True)
         self.playlistName = playlistName
         path = Settings.getAddon().DATA_PATH + u'/' + playlistName
@@ -534,11 +579,12 @@ class Playlist:
 
     @staticmethod
     def getPlaylist(playlistName, append=True):
+        playlist = None
         with Playlist._playlistLock:
             if Playlist._playlists.get(playlistName) is None:
                 Playlist._playlists[playlistName] = Playlist(
                     playlistName, append=append)
-                playlist = Playlist._playlists.get(playlistName)
+            playlist = Playlist._playlists.get(playlistName)
         return playlist
 
     def recordPlayedTrailer(self, trailer):
@@ -561,7 +607,7 @@ class Playlist:
     def close(self):
         self._file.close()
         with Playlist._playlistLock:
-            Playlist._playlists.remove(self)
+            del Playlist._playlists[self._playlistName]
 
     @staticmethod
     def shutdown():

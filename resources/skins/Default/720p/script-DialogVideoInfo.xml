@@ -15,7 +15,7 @@
               <width>1080</width>
               <height>720</height>
              <aspectratio>stretch</aspectratio>
-             <texture background="true">black-back.png</texture>
+             <texture background="true">solid-back.png</texture>
          </control>
 
 			<!-- POSTER/COVER -->
@@ -112,7 +112,7 @@
                     <width>442</width>
                     <height>241</height>
                     <aspectratio>stretch</aspectratio>
-                    <texture background="true">black-back.png</texture>
+                    <texture background="true">solid-back.png</texture>
                 </control>      -->
 				<control type="label">
 					<description>Director</description>
@@ -185,7 +185,7 @@
                     <width>880</width>
                     <height>314</height>
                     <aspectratio>stretch</aspectratio>
-                    <texture background="true">black-back.png</texture>
+                    <texture background="true">solid-back.png</texture>
                 </control> -->
                 <control type="textbox" id="38009">
                     <description>Plot</description>

@@ -268,7 +268,7 @@ List.Sort
     FOLDER_SOURCE = u'folder'
     LIBRARY_SOURCE = u'library'
     ITUNES_SOURCE = u'iTunes'
-    TMDB_SOURCE = u'tmdb'
+    TMDB_SOURCE = u'TMDb'
 
     DISCOVERY_STATE = u'trailerDiscoveryState'
     NOT_FULLY_DISCOVERED = u'notFullyDiscovered'
