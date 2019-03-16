@@ -19,6 +19,8 @@ from six.moves.urllib.parse import urlparse
 
 from common.rt_constants import Constants
 from common.rt_constants import Movie
+from common.logger import Logger
+from common.exceptions import AbortException, ShutdownException
 
 import sys
 import datetime
@@ -84,6 +86,8 @@ class Debug:
 
                 msg += newP
                 saveMsg = msg
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
         except Exception as e:
             Debug.logException(e)
             text = u'Blew up creating message for Logging printing log fragment: '
@@ -120,6 +124,12 @@ class Debug:
                 Debug.myLog('{0} : {1}'.format(k, v), xbmc.LOGDEBUG)
 
     @staticmethod
+    def dumpJSON(text=u'', data=None):
+        Logger(u'Debug.dumpJSON').debug(text, json.dumps(data, ensure_ascii=False,
+                                                         encoding='unicode', indent=4,
+                                                         sort_keys=True), xbmc.LOGINFO)
+
+    @staticmethod
     def dumpStack(msg=u''):
         traceBack = traceback.format_stack(limit=15)
         xbmc.log(msg, xbmc.LOGERROR)
@@ -152,20 +162,43 @@ class Debug:
         Debug.myLog('introspection: ', x, xbmc.LOGDEBUG)
 
     @staticmethod
-    def compareMovies(trailer, newTrailer):
+    def compareMovies(trailer, newTrailer, maxValueLength=60):
+        keysOfPrimaryInterest = [Movie.TRAILER,
+                                 Movie.SOURCE, Movie.TITLE,
+                                 Movie.YEAR, Movie.TYPE]
+        keysOfInterest = [Movie.TRAILER,
+                          Movie.SOURCE, Movie.TITLE,
+                          Movie.FANART, Movie.PLOT,
+                          Movie.FILE, Movie.THUMBNAIL,
+                          Movie.YEAR, Movie.TYPE]
         for key in trailer:
-            if newTrailer.get(key) is None:
+            if key in keysOfInterest and newTrailer.get(key) is None:
+                value = str(trailer.get(key))
+                if len(value) > maxValueLength:
+                    value = value[:maxValueLength]
                 Debug.myLog(u'CompareMovies- key: ' + key + u' is missing from new. Value: ',
-                            trailer.get(key), xbmc.LOGINFO)
+                            value, xbmc.LOGINFO)
 
-            elif trailer.get(key) is not None and trailer.get(key) != newTrailer.get(key):
-                Debug.myLog(u'Values for: ' + key + u' different: ', trailer.get(key),
-                            u' new: ', newTrailer.get(key), xbmc.LOGINFO)
+        for key in trailer:
+            if key in keysOfPrimaryInterest and (trailer.get(key) is not None
+                                                 and trailer.get(key) != newTrailer.get(key)):
+
+                value = str(trailer.get(key))
+                if len(value) > maxValueLength:
+                    value = value[:maxValueLength]
+                newValue = str(newTrailer.get(key))
+                if len(newValue) > maxValueLength:
+                    newValue = newValue[:maxValueLength]
+                Debug.myLog(u'Values for: ' + key + u' different: ', value,
+                            u' new: ', newValue, xbmc.LOGINFO)
 
         for key in newTrailer:
-            if trailer.get(key) is None:
+            if key in keysOfInterest and trailer.get(key) is None:
+                value = str(newTrailer.get(key))
+                if len(value) > maxValueLength:
+                    value = value[:maxValueLength]
                 Debug.myLog(u'CompareMovies- key: ' + key + u' is missing from old. Value: ',
-                            newTrailer.get(key), xbmc.LOGINFO)
+                            value, xbmc.LOGINFO)
 
     @staticmethod
     def validateBasicMovieProperties(movie):

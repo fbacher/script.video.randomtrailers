@@ -143,6 +143,7 @@ class AdvancedPlayer(xbmc.Player):
 
     def enableAdvancedMonitoring(self):
         localLogger = self._logger.getMethodLogger(u'open')
+        localLogger.enter()
         self._closed = False
         self.monitor()
 
@@ -156,6 +157,7 @@ class AdvancedPlayer(xbmc.Player):
 
     def reset(self):
         localLogger = self._logger.getMethodLogger(u'reset')
+        localLogger.enter()
         self.video = None
         self.started = False
         self.playerObject = None
@@ -185,7 +187,7 @@ class AdvancedPlayer(xbmc.Player):
         else:
             playState = PlayerState.STATE_STOPPED
         localLogger.debug(u'playState: ' + playState)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
         return playState
 
     def isVideoFullscreen(self):
@@ -236,7 +238,7 @@ class AdvancedPlayer(xbmc.Player):
         localLogger.enter()
         super(AdvancedPlayer, self).play(item, listitem, windowed, startpos)
         self.enableAdvancedMonitoring()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
         localLogger.exit()
 
     # Defined in xbmc.Player
@@ -247,26 +249,29 @@ class AdvancedPlayer(xbmc.Player):
         localLogger = self._logger.getMethodLogger(u'stop')
         localLogger.enter()
         super(AdvancedPlayer, self).stop()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def pause(self):
         """ 
         Toggle play/pause state
         """
+
         localLogger = self._logger.getMethodLogger(u'pause')
         localLogger.enter()
         super(AdvancedPlayer, self).pause()
         self._dumpState()  # TODO: remove
 
     def pausePlay(self):
+        localLogger = self._logger.getMethodLogger(u'pausePlay')
+        localLogger.enter()
         if self.playState == PlayerState.STATE_PLAYING:
             self._dumpState()  # TODO: remove
             self.pause()
 
     def resumePlay(self):
         localLogger = self._logger.getMethodLogger(u'resumePlay')
-
+        localLogger.enter()
         if self.playState == PlayerState.STATE_PAUSED:
             self._dumpState()  # TODO: remove
             self.pause()
@@ -279,7 +284,7 @@ class AdvancedPlayer(xbmc.Player):
         localLogger = self._logger.getMethodLogger(u'playnext')
         localLogger.enter()
         super(AdvancedPlayer, self).playnext()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def playprevious(self):
@@ -289,7 +294,7 @@ class AdvancedPlayer(xbmc.Player):
         localLogger = self._logger.getMethodLogger(u'playprevious')
         localLogger.enter()
         super(AdvancedPlayer, self).playprevious()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def playselected(self, selected):
@@ -302,7 +307,7 @@ class AdvancedPlayer(xbmc.Player):
         localLogger = self._logger.getMethodLogger(u'playselected')
         localLogger.enter()
         super(AdvancedPlayer, self).playselected(selected)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def isPlaying(self):
@@ -343,9 +348,9 @@ class AdvancedPlayer(xbmc.Player):
 
         :return: True if Kodi is playing an audio file. 
         """
-        localLogger = self._logger.getMethodLogger(u'isPlayingAudio')
+        #localLogger = self._logger.getMethodLogger(u'isPlayingAudio')
         playingAudio = bool(super(AdvancedPlayer, self).isPlayingAudio())
-        localLogger.debug(str(playingAudio))
+        # localLogger.debug(str(playingAudio))
         return playingAudio
 
     # Defined in xbmc.Player
@@ -368,9 +373,9 @@ class AdvancedPlayer(xbmc.Player):
 
         :return: True if kodi is playing a radio data system (RDS). 
         """
-        localLogger = self._logger.getMethodLogger(u'isPlayingRDS')
+        #localLogger = self._logger.getMethodLogger(u'isPlayingRDS')
         playingRDS = bool(super(AdvancedPlayer, self).isPlayingRDS())
-        localLogger.debug(str(playingRDS))
+        # localLogger.debug(str(playingRDS))
         return playingRDS
 
     def isPaused(self):
@@ -388,9 +393,9 @@ class AdvancedPlayer(xbmc.Player):
 
         New function added. 
         """
-        localLogger = self._logger.getMethodLogger(u'isExternalPlayer')
+        #localLogger = self._logger.getMethodLogger(u'isExternalPlayer')
         externalPlayer = bool(super(AdvancedPlayer, self).isExternalPlayer())
-        localLogger.debug(str(externalPlayer))
+        # localLogger.debug(str(externalPlayer))
         return externalPlayer
 
     def isFinished(self):
@@ -410,11 +415,16 @@ class AdvancedPlayer(xbmc.Player):
         :return: Playing filename
         :raises Exception: If player is not playing a file. 
         """
-        localLogger = self._logger.getMethodLogger(u'getPlayingFile')
-        localLogger.enter()
-        playingFile = super(AdvancedPlayer, self).getPlayingFile()
-        localLogger.debug(u'playingFile: ' + playingFile)
-        return playingFile
+        playingFile = u''
+        try:
+            localLogger = self._logger.getMethodLogger(u'getPlayingFile')
+            localLogger.enter()
+            playingFile = super(AdvancedPlayer, self).getPlayingFile()
+            localLogger.debug(u'playingFile: ' + playingFile)
+        except Exception as e:
+            pass
+        finally:
+            return playingFile
 
     def _dumpState(self):
         localLogger = self._logger.getMethodLogger(u'_dumpState')
@@ -448,10 +458,15 @@ class AdvancedPlayer(xbmc.Player):
         :return: Current time as fractional seconds
         :raises Exception: If player is not playing a file. 
         """
-        #localLogger = self._logger.getMethodLogger(u'getTime')
-        # localLogger.enter()
-        time = super(AdvancedPlayer, self).getTime()
-        #localLogger.debug(u'time: ' + str(time))
+        time = 0
+        try:
+            #localLogger = self._logger.getMethodLogger(u'getTime')
+            # localLogger.enter()
+            time = super(AdvancedPlayer, self).getTime()
+            #localLogger.debug(u'time: ' + str(time))
+        except:
+            pass
+
         return time
 
     # Defined in xbmc.Player
@@ -466,11 +481,16 @@ class AdvancedPlayer(xbmc.Player):
         :param seekTime: Time to seek as fractional seconds 
         :raises Exception: If player is not playing a file. 
         """
-        localLogger = self._logger.getMethodLogger(u'seekTime')
-        localLogger.enter()
-        seekTime = super(AdvancedPlayer, self).seekTime(seekTime)
-        localLogger.debug(u'seekTime: ' + str(seekTime))
-        return seekTime
+        seekTime = 0
+        try:
+            localLogger = self._logger.getMethodLogger(u'seekTime')
+            localLogger.enter()
+            seekTime = super(AdvancedPlayer, self).seekTime(seekTime)
+            localLogger.debug(u'seekTime: ' + str(seekTime))
+        except:
+            pass
+        finally:
+            return seekTime
 
     # Defined in xbmc.Player
     def setSubtitles(self, subtitleFile):
@@ -589,7 +609,10 @@ class AdvancedPlayer(xbmc.Player):
         :raises Exception: If player is not playing a file or current file
             is not a rds file.
         """
-        return super(AdvancedPlayer, self).getRadioRDSInfoTag()
+        try:
+            return super(AdvancedPlayer, self).getRadioRDSInfoTag()
+        except:
+            return None
 
     # Defined in xbmc.Player
     def getTotalTime(self):
@@ -603,7 +626,10 @@ class AdvancedPlayer(xbmc.Player):
         :return: Total time of the current playing media
         :raises Exception: If player is not playing a file. 
         """
-        return super(AdvancedPlayer, self).getTotalTime()
+        try:
+            return super(AdvancedPlayer, self).getTotalTime()
+        except:
+            return 0
 
     # Defined in xbmc.Player
     def getAvailableAudioStreams(self):
@@ -679,8 +705,8 @@ class AdvancedPlayer(xbmc.Player):
     def onPrePlayStarted(self):
         localLogger = self._logger.getMethodLogger(u'onPrePlayStarted')
         localLogger.enter()
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        localLogger.trace(trace=Trace.TRACE)
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def onPlayBackStarted(self):
@@ -697,7 +723,7 @@ class AdvancedPlayer(xbmc.Player):
 
         localLogger = self._logger.getMethodLogger(u'onPlayBackStarted')
         localLogger.debug(u'You probably want to use onAVStarted instead')
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Playesr
     def onAVStarted(self):
@@ -708,10 +734,9 @@ class AdvancedPlayer(xbmc.Player):
             New function added. 
         '''
         localLogger = self._logger.getMethodLogger(u'onAVStarted')
-        Trace.log(localLogger.getMsgPrefix() + u' ' +
-                  self.getPlayingTitle(), trace=Trace.TRACE)
+        localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
 
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
         self._onAVStarted = True
         '''
         infoTag = self.getVideoInfoTag()
@@ -772,7 +797,7 @@ class AdvancedPlayer(xbmc.Player):
         localLogger.exit()
         return True
 
-    def waitForIsNotPlayingVideo(self, timeout=None):
+    def waitForIsNotPlayingVideo(self, timeout=None, trace=None):
         '''
         This is a mess.
 
@@ -786,7 +811,8 @@ class AdvancedPlayer(xbmc.Player):
         the actual dialog opening/closing. Not good
         '''
         localLogger = self._logger.getMethodLogger(u'waitForIsNotPlayingVideo')
-        localLogger.enter()
+        localLogger.enter(trace=trace)
+
         try:
             if timeout is None:
                 timeout = 0
@@ -822,9 +848,8 @@ class AdvancedPlayer(xbmc.Player):
         '''
         localLogger = self._logger.getMethodLogger(u'onAVChange')
         self._onAVChange = True
-        Trace.log(localLogger.getMsgPrefix() + u' ' +
-                  self.getPlayingTitle(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
+        # self._dumpState()  # TODO: remove
 
         # self.displayInfo()
 
@@ -838,7 +863,7 @@ class AdvancedPlayer(xbmc.Player):
         self._playerState = PlayerState.STATE_STOPPED
 
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
         if not self._started:
             self.onPlayBackFailed()
 
@@ -847,7 +872,7 @@ class AdvancedPlayer(xbmc.Player):
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_STOPPED
 
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def onPlayBackStopped(self):
@@ -858,7 +883,7 @@ class AdvancedPlayer(xbmc.Player):
         self._playBackStopped = True
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_STOPPED
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def onPlayBackError(self):
@@ -869,7 +894,7 @@ class AdvancedPlayer(xbmc.Player):
         self._onPlayBackError = True
         Trace.log(localLogger.getMsgPrefix, trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_STOPPED
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Playser
     def onPlayBackPaused(self):
@@ -879,9 +904,8 @@ class AdvancedPlayer(xbmc.Player):
         localLogger = self._logger.getMethodLogger(u'onPlayBackPaused')
 
         self._playerState = PlayerState.STATE_PAUSED
-        Trace.log(localLogger.getMsgPrefix() + u' ' +
-                  self.getPlayingTitle(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Playser
     def onPlayBackResumed(self):
@@ -890,11 +914,10 @@ class AdvancedPlayer(xbmc.Player):
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackResumed')
 
-        Trace.log(localLogger.getMsgPrefix() + u' ' +
-                  self.getPlayingTitle(), trace=Trace.TRACE)
+        localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_PLAYING
 
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
         # self.displayInfo()
 
@@ -905,7 +928,7 @@ class AdvancedPlayer(xbmc.Player):
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackSeek')
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def onPlayBackSeekChapter(self, chapter):
@@ -931,14 +954,13 @@ class AdvancedPlayer(xbmc.Player):
         Will be called when user queues the next item. 
         '''
         localLogger = self._logger.getMethodLogger(u'onQueueNextItem')
-        Trace.log(localLogger.getMsgPrefix() + u' ' +
-                  self.getPlayingTitle(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
+        # self._dumpState()  # TODO: remove
 
     def onVideoWindowOpened(self):
         localLogger = self._logger.getMethodLogger(u'onVideoWindowOpened')
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
         self._playerWindowOpen = True
         # self.getDialog().show()
 
@@ -947,12 +969,12 @@ class AdvancedPlayer(xbmc.Player):
         localLogger.enter()
         self._playerWindowOpen = False
         self.hideOSD()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     def showOSD(self, from_seek=False):
         localLogger = self._logger.getMethodLogger(u'showOSD')
         localLogger.enter()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
         # if self.dialog:
         #    self.updateOffset()
@@ -962,7 +984,7 @@ class AdvancedPlayer(xbmc.Player):
     def hideOSD(self, delete=False):
         localLogger = self._logger.getMethodLogger(u'hideOSD')
         localLogger.enter()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
         # if self.dialog:
         #    self.dialog.hideOSD()
@@ -975,12 +997,12 @@ class AdvancedPlayer(xbmc.Player):
     def onVideoOSD(self):
         localLogger = self._logger.getMethodLogger(u'onVideoOSD')
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     def onShowInfo(self):
         localLogger = self._logger.getMethodLogger(u'onShowInfo')
         Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
         if self._callBackOnShowInfo is not None:
             self._callBackOnShowInfo.onShowInfo()
@@ -991,12 +1013,12 @@ class AdvancedPlayer(xbmc.Player):
     def onSeekOSD(self):
         localLogger = self._logger.getMethodLogger(u'onSeekOSD')
         localLogger.enter()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
     def killPlayingTrailer(self):
         localLogger = self._logger.getMethodLogger(u'killPlayingTrailer')
         localLogger.enter()
-        self._dumpState()  # TODO: remove
+        # self._dumpState()  # TODO: remove
 
         '''
         if (not self._isFinished):
@@ -1041,8 +1063,10 @@ class AdvancedPlayer(xbmc.Player):
                     self._preplayMonitor()
 
             localLogger.debug('Player: Closed')
-        except:
-            Debug.logException()
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception as e:
+            localLogger.logException(e)
         finally:
             pass
 
@@ -1061,8 +1085,10 @@ class AdvancedPlayer(xbmc.Player):
                 self.onPlayBackFailed()
 
             localLogger.exit()
-        except:
-            Debug.logException()
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception as e:
+            localLogger.logException(e)
 
     def _videoMonitor(self):
         try:
@@ -1112,8 +1138,10 @@ class AdvancedPlayer(xbmc.Player):
                 self.onVideoWindowClosed()
 
             localLogger.exit()
-        except:
-            Debug.logException()
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception as e:
+            localLogger.logException(e)
 
     def _audioMonitor(self):
         try:
@@ -1132,8 +1160,10 @@ class AdvancedPlayer(xbmc.Player):
                     self.tick()
 
             localLogger.exit()
-        except:
-            Debug.logException()
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception as e:
+            localLogger.logException(e)
 
     def shutdownThread(self):
         localLogger = self._logger.getMethodLogger(u'shutdownThread')

@@ -1,9 +1,8 @@
 ﻿﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <window type="window"> 
  <zorder>99998</zorder>
-
     <controls>
-        <control type="label" id="38011">
+       <!-- <control type="label" id="38020">
             <description>Movie Name</description>
             <posx>20</posx>
             <posy>20</posy>
@@ -14,6 +13,15 @@
             <aligny>center</aligny>
             <textcolor>FFFFFFFF</textcolor>
             <shadowcolor>black</shadowcolor>
-        </control>  
+        </control>  -->
+        <control type="videowindow">
+            <description>Private Video Window to avoid default navigation action processing</description>
+            <left>0</left>
+            <top>0</top>
+            <right>100%</right>
+            <bottom>100%</bottom>
+            <visible>true</visible>
+        </control>
     </controls>
+
 </window>

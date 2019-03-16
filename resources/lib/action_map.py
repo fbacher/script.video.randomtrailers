@@ -387,33 +387,36 @@ class Action:
                           u'keyButtonMap': keyButtonMap,
                           u'remoteMap': remoteMap
                           }
-        reverseActionMap = dict()
+        self.reverseActionMap = dict()
         for key in actionMap:
             value = actionMap.get(key)
-            if value in reverseActionMap:
+            if value in self.reverseActionMap:
                 xbmc.log(u'duplicate value in actionMap: ' +
                          str(value), xbmc.LOGDEBUG)
-            reverseActionMap[value] = key
+            self.reverseActionMap[value] = key
 
-        reverseKeyButtonMap = dict()
+        self.reverseKeyButtonMap = dict()
         for key in keyButtonMap:
             value = keyButtonMap.get(key)
-            if value in reverseKeyButtonMap:
+            if value in self.reverseKeyButtonMap:
                 xbmc.log(u'duplicate value in keyButtonMap: ' +
                          str(value), xbmc.LOGDEBUG)
-            reverseKeyButtonMap[value] = key
+            self.reverseKeyButtonMap[value] = key
 
-        reverseRemoteMap = dict()
+        self.buttonNameForCode = dict()
+        self.buttonNameForCode[61513] = u'key_I'
+
+        self.reverseRemoteMap = dict()
         for key in remoteMap:
             value = remoteMap.get(key)
-            if value in reverseRemoteMap:
+            if value in self.reverseRemoteMap:
                 xbmc.log(u'duplicate value in remoteMap: ' +
-                         str(value) + u' ' + reverseRemoteMap.get(value), xbmc.LOGDEBUG)
-            reverseRemoteMap[value] = key
+                         str(value) + u' ' + self.reverseRemoteMap.get(value), xbmc.LOGDEBUG)
+            self.reverseRemoteMap[value] = key
 
-        self.reverseMapsByNameMap = {u'actionMap': reverseActionMap,
-                                     u'keyButtonMap': reverseKeyButtonMap,
-                                     u'remoteMap':  reverseRemoteMap}
+        self.reverseMapsByNameMap = {u'actionMap': self.reverseActionMap,
+                                     u'keyButtonMap': self.reverseKeyButtonMap,
+                                     u'remoteMap':  self.reverseRemoteMap}
         self.mapNames = [u'actionMap', u'keyButtonMap', u'remoteMap']
 
     _singletonInstance = None
@@ -436,6 +439,24 @@ class Action:
                               mapName + u' : ' + keyName)
 
         if len(result) == 0:
-            result.append(keyName + u' not Found')
+            result.append(u'Keyname for ' + str(actionId) + u' not Found')
 
         return result
+
+    def getRemoteKeyIDInfo(self, action):
+        actionId = action.getId()
+        return self.reverseRemoteMap.get(actionId, u'')
+
+    def getRemoteKeyButtonInfo(self, action):
+        actionId = action.getId()
+        return self.reverseKeyButtonMap.get(actionId, u'')
+
+    def getActionIDInfo(self, action):
+        actionId = action.getId()
+        return self.reverseActionMap.get(actionId, u'')
+
+    def getButtonCodeId(self, action):
+        buttonCode = action.getButtonCode()
+        buttonName = self.buttonNameForCode.get(
+            buttonCode, u'key_' + str(buttonCode))
+        return buttonName

@@ -29,5 +29,7 @@ from settings import Settings
 from backend.api import *
 import sys
 import random_trailers_ui
+import windowed_player_test
 
 random_trailers_ui.myMain()
+# windowed_player_test.myMain()

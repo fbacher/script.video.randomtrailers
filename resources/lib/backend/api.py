@@ -56,28 +56,30 @@ import string
 '''
 
 
-def LoadTrailers(selectedGenre):
+def LoadTrailers():
     # Find trailers for movies in library
 
     Debug.myLog(u'getIncludeLibraryTrailers', xbmc.LOGDEBUG)
+    enabledGenres = Genre.getInstance().getEnabledGenres()
 
     if Settings.getIncludeLibraryTrailers():
         Debug.myLog(u'LibTrailers True', xbmc.LOGDEBUG)
         libInstance = LibraryTrailerManager.getInstance()
-        libInstance.discoverBasicInformation(selectedGenre)
+        libInstance.discoverBasicInformation(enabledGenres)
     else:
         Debug.myLog(u'LibTrailers False', xbmc.LOGDEBUG)
 
     # Manufacture trailer entries for folders which contain trailer
     # files. Note that files are assumed to be videos.
     if Settings.getIncludeTrailerFolders():
-        FolderTrailerManager.getInstance().discoverBasicInformation(u'')
+        FolderTrailerManager.getInstance().discoverBasicInformation(enabledGenres)
 
     if Settings.getIncludeItunesTrailers():
-        ItunesTrailerManager.getInstance().discoverBasicInformation(u'')  # genre broken
+        ItunesTrailerManager.getInstance().discoverBasicInformation(
+            enabledGenres)  # genre broken
 
     if Settings.getIncludeTMDBTrailers():
-        TmdbTrailerManager.getInstance().discoverBasicInformation(selectedGenre)
+        TmdbTrailerManager.getInstance().discoverBasicInformation(enabledGenres)
 
     xbmc.sleep(1000)
     Monitor.getInstance().setStartupComplete()

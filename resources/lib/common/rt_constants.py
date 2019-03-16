@@ -50,6 +50,7 @@ class Constants:
     TRAILER_INFO_DISPLAY_MILLISECONDS = 6000
     SECONDS_BEFORE_RESHUFFLE = 1 * 60
     PLAY_LIST_LOOKBACK_WINDOW_SIZE = 10
+    MAX_PLAY_TIME_WARNING_TIME = 5  # seconds
 
     @staticmethod
     def staticInit():
@@ -62,6 +63,19 @@ class Constants:
 
 
 Constants.staticInit()
+
+
+class RemoteTrailerPreference:
+    NEWEST = 0
+    OLDEST = 1
+    HIGHEST_RATED = 2
+    LOWEST_RATED = 3
+    MOST_VOTES = 4
+    LEAST_VOTES = 5
+
+    AVERAGE_VOTE_DONT_CARE = 0
+    AVERAGE_VOTE_GREATER_OR_EQUAL = 1
+    AVERAGE_VOTE_LESS_OR_EQUAL = 2
 
 
 class Movie:
@@ -215,6 +229,7 @@ List.Sort
 
     '''
     TITLE = u'title'
+    ORIGINAL_TITLE = u'originaltitle'
     TRAILER = u'trailer'
     YEAR_KEY = u'year'
     LAST_PLAYED = u'lastplayed'
@@ -232,6 +247,8 @@ List.Sort
     MOVIEID = u'movieid'
     LABEL = u'label'
     RUNTIME = u'runtime'
+    TAG = u'tag'
+    UNIQUE_ID = u'uniqueid'
 
     # From iTunes
     # From Tmdb
@@ -243,6 +260,7 @@ List.Sort
     LOCATION = u'location'
     RATING = u'rating'
     ACTORS = u'actors'
+    VOTES = u'votes'
 
     # Properties invented by this plugin:
 
@@ -260,6 +278,7 @@ List.Sort
     DETAIL_STUDIOS = u'rts.studios'
     DETAIL_TITLE = u'rts.title'
     DETAIL_WRITERS = u'rts.writers'
+    DETAIL_TAGS = u'rts.tags'
 
     # Reference to corresponding movie dict entry
     DETAIL_ENTRY = u'rts.movie.entry'
@@ -274,15 +293,110 @@ List.Sort
     NOT_FULLY_DISCOVERED = u'notFullyDiscovered'
     TRAILER_DISCOVERY_IN_PROGRESS = u'discoveryInProgress'
     DISCOVERY_COMPLETE = u'discoveryComplete'
+    DISCOVERY_READY_TO_DISPLAY = u'discoveryReadyToDisplay'
     TRAILER_PLAYED = u'trailerPlayed'
     TRAILER_PLAY_ORDER_KEY = u'trailerPlayOrder'
+
+    # Some values for UNIQUE_ID field:
+    UNIQUE_ID_TMDB = u'tmdb'
+    UNIQUE_ID_UNKNOWN = U'unknown'
+    UNIQUE_ID_imdb = u'imdb'
 
 
 class iTunes:
     # Applies to trailer type
     #"Coming Soon|Just Added|Popular|Exclusive|All"
-    COMMING_SOON = 0
+    COMING_SOON = 0
     JUST_ADDED = 1
     POPULAR = 2
     EXCLUSIVE = 3
     ALL = 4
+
+    COMING_SOON_URL = u'/trailers/home/feeds/studios.json'
+    JUST_ADDED_URL = u'/trailers/home/feeds/just_added.json'
+    POPULAR_URL = u'/trailers/home/feeds/most_pop.json'
+    EXCLUSIVE_URL = u'/trailers/home/feeds/exclusive.json'
+    ALL_URL = u'/trailers/home/feeds/studios.json'
+
+    _trailerForTypeMap = {COMING_SOON: COMING_SOON_URL,
+                          JUST_ADDED: JUST_ADDED_URL,
+                          POPULAR: POPULAR_URL,
+                          EXCLUSIVE: EXCLUSIVE_URL,
+                          ALL: ALL_URL}
+
+    @staticmethod
+    def getURLForTrailerType(trailerType):
+        url = iTunes._trailerForTypeMap.get(trailerType, None)
+        return url
+
+
+class TMDB:
+    # Applies to trailer type
+    #"Coming Soon|Just Added|Popular|Exclusive|All"
+    COMING_SOON = 0
+    JUST_ADDED = 1
+    POPULAR = 2
+    EXCLUSIVE = 3
+    ALL = 4
+
+    COMING_SOON_URL = u'/trailers/home/feeds/studios.json'
+    JUST_ADDED_URL = u'/trailers/home/feeds/just_added.json'
+    POPULAR_URL = u'/trailers/home/feeds/most_pop.json'
+    EXCLUSIVE_URL = u'/trailers/home/feeds/exclusive.json'
+    ALL_URL = u'/trailers/home/feeds/studios.json'
+
+    _trailerForTypeMap = {COMING_SOON: COMING_SOON_URL,
+                          JUST_ADDED: JUST_ADDED_URL,
+                          POPULAR: POPULAR_URL,
+                          EXCLUSIVE: EXCLUSIVE_URL,
+                          ALL: ALL_URL}
+
+    @staticmethod
+    def getURLForTrailerType(trailerType):
+        url = iTunes._trailerForTypeMap.get(trailerType, None)
+        return url
+
+
+class GenreConstants:
+
+    # Ids used in settings.xml
+    ACTION = u'g_action'
+    ALEGORY = u'g_alegory'  # NOT USED
+    ANTHOLOGY = u'ganthology'  # not used
+    ADVENTURE = u'g_adventure'
+    ANIMATION = u'g_animation'
+    BIOGRAPHY = u'g_biography'
+    CHILDRENS = u'g_childrens'  # not used
+    COMEDY = u'g_comedy'
+    CRIME = u'g_crime'
+    DARK_COMEDY = u'g_black_comedy'
+    DOCUMENTARY = u'g_docu'
+    DRAMA = u'g_drama'
+    EPIC = u'g_epic'
+    EXPERIMENTAL = u'g_experimental'  # not used
+    FAMILY = u'g_family'
+    FANTASY = u'g_fantasy'
+    FILM_NOIR = u'g_film_noir'
+    FOREIGN = u'g_foreign'  # not used
+    GAME_SHOW = u'g_game_show'  # not used
+    HISTORY = u'g_history'
+    HORROR = u'g_horror'
+    MELODRAMA = u'g_melodrama'
+    MUSIC = u'g_music'
+    MUSICAL = u'g_musical'
+    MUSICAL_COMEDY = u'g_musical_comedy'
+    MYSTERY = u'g_mystery'
+    PERFORMANCE = u'g_performance'  # not used
+    PRE_CODE = u'g_pre_code'
+    ROMANCE = u'g_romance'
+    ROMANTIC_COMEDY = u'g_romantic_comedy'
+    SATIRE = u'g_satire'
+    SCI_FI = u'g_scifi'
+    SCREWBALL_COMEDY = u'g_screwball'
+    SWASHBUCKLER = u'g_swashbuckler'
+    THRILLER = u'g_thriller'
+    TV_MOVIE = u'g_tv_movie'
+    VARIETY = u'g_variety'  # Not used
+    WAR = u'g_war'
+    WAR_DOCUMENTARY = u'g_war_documentary'
+    WESTERN = u'g_western'

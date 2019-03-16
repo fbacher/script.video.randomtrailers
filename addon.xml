@@ -10,9 +10,10 @@
     <import addon="script.module.xbmcswift2" version="2.4.0"/>
     <import addon="script.module.pydevd" version="4.4.0"/> 
     <import addon="script.module.kodi65" version="1.2.1"/>
+    <import addon="script.module.kodi-six" />
   </requires>
   <extension point="xbmc.python.script"	library="resources/lib/random_trailers_main.py"> 
-    <provides>video</provides>    
+    <provides>video</provides> 
   </extension>
   <extension point="xbmc.service"                library="resources/lib/service.py" start="login" />
   <extension point="xbmc.ui.screensaver" library="resources/lib/screensaver.py"/>

@@ -14,9 +14,8 @@ from kodi65 import utils
 from functools import wraps
 from common.rt_constants import Constants
 from common.rt_constants import Movie
-from common.exceptions import AbortException
+from common.exceptions import AbortException, ShutdownException
 from action_map import Action
-from settings import Settings
 import sys
 import datetime
 import io
@@ -47,14 +46,35 @@ import action_map
 class Logger:
 
     _addonName = u''
+    _logger = None
+    _traceGroups = {}
 
     @staticmethod
     def setAddonName(name):
         Logger._addonName = name
 
-    def __init__(self, className=u''):
-        self._className = className
-        self._methodName = u''
+    def __init__(self, className=u'', traceGroupName=None, trace=[],
+                 traceDefault=[]):
+        try:
+            self._className = className
+            self._methodName = u''
+            self._traceCategories = set()
+            self._defaultTraceCategories = set()
+
+            self._traceCategories.update(trace)
+            self._defaultTraceCategories.update(traceDefault)
+
+            if traceGroupName is not None:
+                if traceGroupName in Logger._traceGroups:
+                    msg = (u'Trace group: ' + traceGroupName +
+                           u' already exists, will not persist this instance')
+                    xbmc.log(msg.encode(u'utf-8'), xbmc.LOGERROR)
+                else:
+                    Logger._traceGroups[traceGroupName] = self
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception:
+            Logger.logException()
 
     def getMethodLogger(self, methodName=u''):
         methodLogger = Logger(self._className)
@@ -67,78 +87,138 @@ class Logger:
         prefix = u''
         segments = [Logger._addonName, self._className, self._methodName]
         for segment in segments:
-            prefix = prefix + separator + segment
-            if len(prefix) > 0:
-                separator = u'.'
+            if len(segment) != 0:
+                prefix = prefix + separator + segment
+                if len(prefix) > 0:
+                    separator = u'.'
         return prefix
 
-    def log(self, text, *args, **kwargs):
-        kwargs.setdefault(u'prefix', None)
-        kwargs.setdefault(u'log_level', xbmc.LOGDEBUG)
-        kwargs.setdefault(u'separator', u' ')
-        prefix = kwargs[u'prefix']
-        log_level = kwargs[u'log_level']
-        separator = kwargs[u'separator']
-        if not prefix:
-            prefix = self.getMsgPrefix()
+    def trace(self, *args, **kwargs):  # log_level=xbmc.LOGDEBUG, trace=[]):
+        try:
+            kwargs.setdefault(u'log_level', xbmc.LOGDEBUG)
+            kwargs.setdefault(u'separator', u' ')
+            kwargs.setdefault(u'prefix', self.getMsgPrefix())
 
-        log_line = u'[%s] %s' % (prefix, text)
+            trace = kwargs.get(u'trace', None)
 
-        for text in args:
-            log_line = log_line + separator + u'%s' % (text)
+            if trace is None:
+                self.error(u'Missing argument: trace=')
+                Logger.dumpStack()
+                return
 
-        xbmc.log(log_line.encode(u'utf-8'), log_level)
+            foundSelectedTraceFlag = False
+            if isinstance(trace, list):
+                for flag in trace:
+                    if flag in Trace._traceCatagories:
+                        foundSelectedTraceFlag = True
+                        break
+            else:
+                if trace in Trace._traceCatagories:
+                    foundSelectedTraceFlag = True
+
+            if not foundSelectedTraceFlag:
+                return
+
+            self.log(*args, **kwargs)
+
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception:
+            Logger.logException()
+
+    def log(self, *args, **kwargs):
+        try:
+            kwargs.setdefault(u'log_level', xbmc.LOGDEBUG)
+            kwargs.setdefault(u'separator', u' ')
+            kwargs.setdefault(u'prefix', self.getMsgPrefix())
+            prefix = kwargs[u'prefix']
+            log_level = kwargs[u'log_level']
+            separator = kwargs[u'separator']
+            trace = kwargs.pop(u'trace', None)
+
+            if trace is not None:
+                sep = u''
+                traceFlags = u''
+                if isinstance(trace, list):
+                    for flag in trace:
+                        if flag in Trace._traceCatagories:
+                            traceFlags += sep + flag
+                            sep = separator
+                else:
+                    if trace in Trace._traceCatagories:
+                        traceFlags = trace
+
+                prefix += separator + traceFlags
+
+            log_line = u''
+            for arg in args:
+                log_line = log_line + separator + u'%s' % (arg)
+
+            log_line = u'[%s] %s' % (prefix, log_line)
+
+            xbmc.log(log_line.encode(u'utf-8'), log_level)
+
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception:
+            Logger.logException()
 
     def debug(self, text, *args, **kwargs):
-        kwargs.setdefault(u'prefix', None)
         kwargs[u'log_level'] = xbmc.LOGDEBUG
         self.log(text, *args, **kwargs)
 
     def info(self, text, *args, **kwargs):
-        kwargs.setdefault(u'prefix', None)
         kwargs[u'log_level'] = xbmc.LOGDEBUG
         self.log(text, *args, **kwargs)
 
     def notice(self, text, *args, **kwargs):
-        kwargs.setdefault(u'prefix', None)
         kwargs[u'log_level'] = xbmc.LOGDEBUG
         self.log(text, *args, **kwargs)
 
     def warning(self, text, *args, **kwargs):
-        kwargs.setdefault(u'prefix', None)
         kwargs[u'log_level'] = xbmc.LOGDEBUG
         self.log(text, *args, **kwargs)
 
     def error(self, text, *args, **kwargs):
-        kwargs.setdefault(u'prefix', None)
         kwargs[u'log_level'] = xbmc.LOGDEBUG
         self.log(text, *args, **kwargs)
 
-    def enter(self):
-        self.debug(u'Entering')
+    def enter(self, *args, **kwargs):
+        self.debug(u'Entering', *args, **kwargs)
 
-    def exit(self):
-        self.debug(u'Exiting')
+    def exit(self, *args, **kwargs):
+        self.debug(u'Exiting', *args, **kwargs)
 
     @staticmethod
-    def logException(e=None):
+    def logException(e=None, msg=None):
 
-        exec_type, exec_value, exec_traceback = sys.exc_info()
-        stringBuffer =\
-            u'LEAK: TraceBack Traceback traceback stacktrace Stacktrace StackTrace:\n'
-        lines = traceback.format_exception(
-            exec_type, exec_value, exec_traceback)
-        if len(lines) == 0:
-            xbmc.log(u'No lines in traceback execType: ' +
-                     str(exec_type), xbmc.LOGDEBUG)
+        try:
+            exec_type, exec_value, exec_traceback = sys.exc_info()
+            stringBuffer =\
+                u'LEAK: TraceBack Traceback traceback stacktrace Stacktrace StackTrace:\n'
 
-            Logger.dumpStack()
+            lines = []
+            if msg is not None:
+                lines.append(msg)
 
-        else:
-            for line in lines:
-                stringBuffer += line + u'\n'
+            lines.extend(traceback.format_exception(
+                exec_type, exec_value, exec_traceback))
+            if len(lines) == 0:
+                xbmc.log(u'No lines in traceback execType: ' +
+                         str(exec_type), xbmc.LOGDEBUG)
 
-            xbmc.log(stringBuffer.encode(u'utf-8'), xbmc.LOGERROR)
+                Logger.dumpStack()
+
+            else:
+                for line in lines:
+                    stringBuffer += str(line) + u'\n'
+
+                xbmc.log(stringBuffer.encode(u'utf-8'), xbmc.LOGERROR)
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception:
+            msg = u'Logger.logException raised exception during processing'
+            xbmc.log(msg.encode(u'utf-8'), xbmc.LOGERROR)
 
     @staticmethod
     def dumpStack(msg=u''):
@@ -189,60 +269,84 @@ class Trace:
     STATS_UI = u'STATS_UI'
     TRACE_DISCOVERY = u'TRACE_DISCOVERY'
     STATS_DISCOVERY = u'STATS_DISCOVERY'
+    TRACE_MONITOR = u'TRACE_MONITOR'
+    TRACE_JSON = u'TRACE_JSON'
+    TRACE_SCREENSAVER = u'TRACE_SCREENSAVER'
+    TRACE_UI_CONTROLLER = u'TRACE_UI_CONTROLLER'
+
+    _traceAll = [TRACE, STATS, TRACE_UI, STATS_UI, TRACE_DISCOVERY,
+                 STATS_DISCOVERY, TRACE_MONITOR, TRACE_JSON, TRACE_SCREENSAVER,
+                 TRACE_UI_CONTROLLER]
 
     _traceCatagories = set()
+    _traceGroups = {}
     _logger = None
 
-    @staticmethod
-    def configure():
-        if Settings.isTraceEnabled():
-            Trace.enable(Trace.TRACE)
+    def __init__(self, groupName=u'default', trace=[], traceDefault=[]):
+        if Trace._logger is None:
+            Trace._logger = Logger(self.__class__.__name__)
+        localLogger = Trace._logger.getMethodLogger(u'__init__')
 
-        if Settings.isTraceStatsEnabled():
-            Trace.enable(Trace.STATS)
+        self._traceCategories = set()
+        self._defaultTraceCategories = set()
+
+        self._traceCategories.update(trace)
+        self._defaultTraceCategories.update(traceDefault)
+        if groupName in Trace._traceGroups:
+            localLogger.error(u'Trace group:', groupName,
+                              u'already exists, will not persist this instance')
+        else:
+            Trace._traceGroups[groupName] = self
+
+    @staticmethod
+    def getDefaultInstance(trace=u'TRACE', traceDefault=[]):
+        if Trace._logger is None:
+            Trace._logger = Trace(groupName=u'default',
+                                  trace=trace, traceDefault=traceDefault)
+        return Trace._logger
 
     @staticmethod
     def log(*args, **kwargs):  # log_level=xbmc.LOGDEBUG, trace=[]):
-        if Trace._logger is None:
-            Trace._logger = Logger()
+        try:
+            if Trace._logger is None:
+                Trace._logger = Logger()
 
-        found = False
-        prefix = u''
-        separator = u''
+            prefix = u''
+            separator = u''
 
-        trace = kwargs.pop(u'trace', None)
-        if trace is None:
-            Trace._logger.error(u'Missing argument: trace=')
-            Logger.dumpStack()
-            return
+            trace = kwargs.pop(u'trace', None)
+            if trace is None:
+                Trace._logger.error(u'Missing argument: trace=')
+                Logger.dumpStack()
+                return
 
-        if isinstance(trace, list):
-            for flag in trace:
-                if flag in Trace._traceCatagories:
-                    prefix += separator + flag
-                    separator = u', '
-        else:
-            if trace in Trace._traceCatagories:
-                prefix = trace
+            if isinstance(trace, list):
+                for flag in trace:
+                    if flag in Trace._traceCatagories:
+                        prefix += separator + flag
+                        separator = u' '
+            else:
+                if trace in Trace._traceCatagories:
+                    prefix = trace
 
-        if prefix == u'':
-            return
+            if prefix == u'':
+                return
 
-        msg = u''
-        separator = u''
-        for text in args:
-            msg = msg + separator + u'%s' % (text)
-            separator = u', '
+            msg = u''
+            separator = u''
+            for text in args:
+                msg = msg + separator + u'%s' % (text)
+                separator = u' '
 
-        log_line = u'[%s] %s' % (prefix, msg)
-        log_level = kwargs.pop(u'log_level', xbmc.LOGDEBUG)
+            log_line = u'[%s] %s' % (prefix, msg)
+            log_level = kwargs.pop(u'log_level', xbmc.LOGDEBUG)
 
-        xbmc.log(log_line.encode(u'utf-8'), log_level)
+            xbmc.log(log_line.encode(u'utf-8'), log_level)
 
-        if found:
-            prefix = prefix + u': '
-            Trace._logger.log(msg,
-                              prefix=prefix, log_level=xbmc.LOGDEBUG)
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception:
+            Logger.logException()
 
     @staticmethod
     def logError(msg, *flags):
@@ -250,9 +354,23 @@ class Trace:
         Trace._logger.log(msg, prefix=u'', log_level=xbmc.LOGERROR)
 
     @staticmethod
+    def setDefaultTraceCategories(*flags):
+        for flag in flags:
+            Trace._defaultTraceCategories.add(flag)
+
+    @staticmethod
+    def clearDefaultTraceCategories():
+        Trace._defaultTraceCategories.clear()
+
+    @staticmethod
     def enable(*flags):
         for flag in flags:
             Trace._traceCatagories.add(flag)
+
+    @staticmethod
+    def enableAll():
+        for flag in Trace._traceAll:
+            Trace.enable(flag)
 
     @staticmethod
     def disable(*flags):

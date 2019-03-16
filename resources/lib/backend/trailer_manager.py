@@ -15,20 +15,23 @@ from builtins import unicode
 from multiprocessing.pool import ThreadPool
 
 
-from common.rt_constants import Constants
-from common.rt_constants import Movie
-from common.rt_constants import iTunes
+from common.rt_constants import Constants, Movie, iTunes, RemoteTrailerPreference
 from common.rt_utils import Utils, Playlist
 from common.debug_utils import Debug
 from common.exceptions import AbortException, ShutdownException
+from common.messages import Messages
 from common.monitor import Monitor
 from common.rt_utils import WatchDog
 from common.logger import Trace, Logger
 
 from backend.trailer_fetcher import TrailerFetcher
 from backend.rating import Rating
+from backend.genre import Genre
+from backend.movie_utils import MovieUtils
 from backend import backend_constants
+from backend.itunes import ITunes
 from settings import Settings
+from common.tmdb_settings import TmdbSettings
 
 import sys
 import datetime
@@ -102,8 +105,10 @@ class BaseTrailerManager(TrailerManagerInterface):
                     BaseTrailerManager.getInstance().addManager(singleton)
                     singleton._trailerFetcher = TrailerFetcher()
                     singleton._trailerFetcher.startFetchers(singleton)
-            except Exception:
-                Logger.logException()
+            except (AbortException, ShutdownException):
+                raise sys.exc_info()
+            except Exception as e:
+                Logger.logException(e)
 
         return cls._singletonInstance
 
@@ -155,8 +160,9 @@ class BaseTrailerManager(TrailerManagerInterface):
             self._trailersToFetchQueueLock = threading.Condition()
             self._readyToPlayQueue = queue.Queue(maxsize=3)
             self._actorMap = {}  # Actor, movies
+            self._allowedGenres = []
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         pass
 
     def getManagers(self):
@@ -165,15 +171,16 @@ class BaseTrailerManager(TrailerManagerInterface):
     def addManager(self, manager):
         self._trailerManagers.append(manager)
 
-    def setGenre(self, genre):
-        self.allowedGenre = genre
+    def setGenres(self, genres):
+        self._allowedGenres = []
+        self._allowedGenres.extend(genres)
 
     def finishedDiscovery(self):
         localLogger = self._logger.getMethodLogger(u'finishedDiscovery')
         localLogger.debug(u'before self._lock')
 
         with self._lock:
-            localLogger(u'got self._lock')
+            localLogger.debug(u'got self._lock')
             self.shuffleDiscoveredTrailers(markUnplayed=False)
             self._discoveryComplete = True
             self._lock.notify
@@ -296,9 +303,9 @@ class BaseTrailerManager(TrailerManagerInterface):
 
     def __next__(self):
         localLogger = self._logger.getMethodLogger(u'__next__')
-        Trace.log(localLogger.getMsgPrefix(), u'trailersAvail:',
-                  BaseTrailerManager.getInstance()._trailersAvailableToPlay.isSet(),
-                  trace=Trace.TRACE)
+        localLogger.trace(u'trailersAvail:',
+                          BaseTrailerManager.getInstance()._trailersAvailableToPlay.isSet(),
+                          trace=Trace.TRACE)
 
         while not BaseTrailerManager.getInstance()._trailersAvailableToPlay.isSet():
             Monitor.getInstance().throwExceptionIfShutdownRequested(timeout=0.25)
@@ -319,12 +326,12 @@ class BaseTrailerManager(TrailerManagerInterface):
 
         managers = BaseTrailerManager._singletonInstance.getManagers()
         for manager in managers:
-            localLogger.debug('Manager: ' + manager.__class__.__name__ + ' size: '
-                              + str(manager.getNumberOfTrailers()))
+            localLogger.debug('Manager:', manager.__class__.__name__, 'size:',
+                              manager.getNumberOfTrailers())
             totalNumberOfTrailers += manager.getNumberOfTrailers()
 
-        localLogger.debug('BaseTrailerManager.next numTrailers: ' +
-                          str(totalNumberOfTrailers))
+        localLogger.debug('BaseTrailerManager.next numTrailers:',
+                          totalNumberOfTrailers)
 
         # Now, randomly pick manager to get a trailer from based upon
         # the number of trailers in each.
@@ -367,8 +374,8 @@ class BaseTrailerManager(TrailerManagerInterface):
         secondMethodAttempts = None
 
         if trailer is None:
-            Trace.log(localLogger.getMsgPrefix(),
-                      u' trailer not found by preferred method', trace=Trace.TRACE)
+            localLogger.trace(u' trailer not found by preferred method',
+                              trace=Trace.TRACE)
 
             # Alternative method is to pick a random manager to start with and
             # then find one that has a trailer. Otherwise, camp out.
@@ -412,21 +419,21 @@ class BaseTrailerManager(TrailerManagerInterface):
         if trailer is None:
             self._next_failures += 1
 
-        Trace.log(localLogger.getMsgPrefix(), u' elapsedTime: ' + str(duration.seconds) + u' seconds' +
-                  u' FirstMethod- elapsedTime: ' +
-                  str(durationOfFirstAttempt.seconds)
-                  + u' attempts: ' + str(attempts), trace=Trace.STATS)
+        localLogger.trace(u' elapsedTime:', duration.seconds, u'seconds',
+                          u'FirstMethod- elapsedTime:',
+                          str(durationOfFirstAttempt.seconds),
+                          u'attempts:', attempts, trace=Trace.STATS)
         if secondMethodAttempts is not None:
             self._next_attempts += secondMethodAttempts
             self._next_second_attempts += secondMethodAttempts
             secondDuration = datetime.datetime.now() - secondAttemptStartTime
             self._next_second_total_Duration += secondDuration.seconds
-            Trace.log(localLogger.getMsgPrefix(), u' SecondMethod- attempts: ' +
-                      str(secondMethodAttempts) + u' elpasedTime: ' +
-                      str(secondDuration.seconds), trace=Trace.STATS)
+            localLogger.trace(u'SecondMethod- attempts:',
+                              secondMethodAttempts, u'elpasedTime:',
+                              secondDuration.seconds, trace=Trace.STATS)
 
-        Trace.log(localLogger.getMsgPrefix(), u' Playing: ' +
-                  trailer[Movie.DETAIL_TITLE], trace=Trace.TRACE)
+        localLogger.trace(u'Playing:', trailer[Movie.DETAIL_TITLE],
+                          trace=Trace.TRACE)
         return trailer
 
     '''
@@ -511,21 +518,20 @@ class BaseTrailerManager(TrailerManagerInterface):
                                       str(attempts) + u' elapsed: ' + str(elapsed.seconds))
 
                 if self._trailersToFetchQueue.full():
-                    Trace.log(localLogger.getMsgPrefix(),
-                              u' _trailersToFetchQueue full', trace=Trace.TRACE)
+                    localLogger.trace(
+                        u'_trailersToFetchQueue full', trace=Trace.TRACE)
                     finished = True
                     iterationSuccessful = True
-                    fetchQueueFull = True
                 elif self._discoveryComplete and len(self._discoveredTrailers) == 0:
-                    Trace.log(localLogger.getMsgPrefix(),
-                              u' Discovery Complete and nothing found.', trace=Trace.TRACE)
+                    localLogger.trace(u'Discovery Complete and nothing found.',
+                                      trace=Trace.TRACE)
                     finished = True
                     iterationSuccessful = True
-                    discoveryFoundNothing = True
                 elif self._discoveryComplete and self._discoveredTrailersQueue.empty():
-                    Trace.logError(localLogger.getMsgPrefix(),
-                                   u'_ discoveryComplete,_discoveredTrailersQueue empty',
-                                   trace=Trace.TRACE)
+                    localLogger.error(
+                        u'discoveryComplete,_discoveredTrailersQueue empty')
+                    localLogger.trace(u'discoveryComplete,_discoveredTrailersQueue empty',
+                                      trace=Trace.TRACE)
                     shuffle = True
                     discoveryCompleteQueueEmpty += 1
                     #
@@ -535,8 +541,9 @@ class BaseTrailerManager(TrailerManagerInterface):
                       and not self._trailersToFetchQueue.empty):
                     discoveredAndFetchQueuesEmpty += 1
                     # Use what we have
-                    Trace.log(localLogger.getMsgPrefix(), u'Discovery incomplete._discoveredTrailersQueue',
-                              u'empty and _trailersToFetchQueue not empty', trace=Trace.TRACE)
+                    localLogger.trace(u'Discovery incomplete._discoveredTrailersQueue',
+                                      u'empty and _trailersToFetchQueue not empty',
+                                      trace=Trace.TRACE)
                     finished = True
                 elif not self._trailersToFetchQueue.empty():
                     # Fetch queue is not empty, nor full. Discovery
@@ -556,13 +563,13 @@ class BaseTrailerManager(TrailerManagerInterface):
                         try:
                             self._trailersToFetchQueue.put(
                                 trailer, timeout=1)
-                            Trace.log(localLogger.getMsgPrefix(), u' Put in _trailersToFetchQueue qsize: ' +
-                                      str(self._trailersToFetchQueue.qsize()) + u' ' +
-                                      trailer.get(Movie.TITLE), trace=Trace.TRACE)
+                            localLogger.trace(u'Put in _trailersToFetchQueue qsize:',
+                                              self._trailersToFetchQueue.qsize(),
+                                              trailer.get(Movie.TITLE), trace=Trace.TRACE)
                             iterationSuccessful = True
                         except queue.Full:
-                            Trace.log(localLogger.getMsgPrefix(),
-                                      u' _trailersToFetchQueue.put failed', trace=Trace.TRACE)
+                            localLogger.trace(u'_trailersToFetchQueue.put failed',
+                                              trace=Trace.TRACE)
                         #
                         # It is not a crisis if the put fails. Since the
                         # fetch queue does have at least one entry, we are ok
@@ -577,8 +584,9 @@ class BaseTrailerManager(TrailerManagerInterface):
                     # wait until we get an item, or discovery complete
 
                     discoveryIncompleteFetchQueueEmpty += 1
-                    Trace.log(localLogger.getMsgPrefix(), u' Discovery incomplete, ' +
-                              u'_trailersToFetchQueue empty, will wait', trace=Trace.TRACE)
+                    localLogger.trace(u'Discovery incomplete,',
+                                      u'_trailersToFetchQueue empty, will wait',
+                                      trace=Trace.TRACE)
 
                 if not iterationSuccessful:
                     if shuffle:  # Because we were empty
@@ -615,8 +623,10 @@ class BaseTrailerManager(TrailerManagerInterface):
                 localLogger.debug(u' Queue has: ' + str(self._trailersToFetchQueue.qsize())
                                   + u' Put in _trailersToFetchQueue: ' +
                                   movieTitle)
+            except (AbortException, ShutdownException):
+                raise sys.exc_info()
             except Exception as e:
-                Debug.logException(e)
+                localLogger.logException(e)
                 # TODO Continue?
 
             if self._trailersToFetchQueue.full():
@@ -647,8 +657,8 @@ class BaseTrailerManager(TrailerManagerInterface):
         getAttempts = 0
         putAttempts = 0
 
-        Trace.log(localLogger.getMsgPrefix(), u' took ' +
-                  str(duration.seconds) + u' seconds', trace=Trace.STATS)
+        localLogger.trace(u' took',
+                          duration.seconds, u'seconds', trace=Trace.STATS)
 
     def getFromFetchQueue(self):
         localLogger = self._logger.getMethodLogger(u'getFromFetchQueue')
@@ -689,9 +699,9 @@ class LibraryTrailerManager(BaseTrailerManager):
     def getInstance(cls):
         return super(LibraryTrailerManager, cls).getInstance()
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         localLogger = self._logger.getMethodLogger(u'discoverBasicInformation')
-        self.setGenre(genre)
+        self.setGenres(genres)
         self.start()
 
         localLogger.debug(u': started')
@@ -705,13 +715,55 @@ class LibraryTrailerManager(BaseTrailerManager):
             self.runWorker()
             self.finishedDiscovery()
         except (AbortException, ShutdownException):
-            return  # Shut down thread
-        except Exception:
-            Debug.logException()
+            raise sys.exc_info()
+        except Exception as e:
+            localLogger.logException(e)
 
         duration = datetime.datetime.now() - startTime
-        Trace.log(localLogger.getMsgPrefix(), u' Time to discover: ' +
-                  str(duration.seconds) + u' seconds', trace=Trace.STATS)
+        localLogger.trace(u'Time to discover:',
+                          duration.seconds, u'seconds', trace=Trace.STATS)
+
+    def createQuery(self, genres, tags):
+        localLogger = self._logger.getMethodLogger(u'createQuery')
+
+        formattedGenreList = [u'"%s"' % genre for genre in genres]
+        formattedGenreList = u', '.join(formattedGenreList)
+        formattedTagList = [u'"%s"' % tag for tag in tags]
+        formattedTagList = u', '.join(formattedTagList)
+
+        queryPrefix = u'{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
+                    "params": {\
+                    "properties": \
+                        ["title", "lastplayed", "studio", "cast", "plot", "writer", \
+                        "director", "fanart", "runtime", "mpaa", "thumbnail", "file", \
+                        "year", "genre", "tag", "trailer", "uniqueid"]'
+        querySuffix = u'}, "id": 1}'
+        queryFilterPrefix = u''
+        queryFilterOr = u''
+        tagFilter = u''
+        genreFilter = u''
+
+        if len(genres) > 0 or len(tags) > 0:
+            queryFilterPrefix = u', "filter": '
+
+        if len(genres) > 0:
+            genreFilter = u'{"field": "genre", "operator": "contains", "value": [%s]}' % formattedGenreList
+
+        if len(tags) > 0:
+            tagFilter = u'{"field": "tag", "operator": "contains", "value": [%s]}' % formattedTagList
+
+        if len(genres) > 0 and len(tags) > 0:
+            queryFilterOr = u'{"or": [%s, %s]}' % (genreFilter, tagFilter)
+            query = queryPrefix + queryFilterPrefix + \
+                queryFilterOr + querySuffix
+        else:
+            query = queryPrefix + queryFilterPrefix + genreFilter + \
+                tagFilter + querySuffix
+
+        localLogger.debug(u'query', u'genres:', genres, u'tags:',
+                          tags, query)
+
+        return query
 
     def runWorker(self):
         localLogger = self._logger.getMethodLogger(u'runWorker')
@@ -744,41 +796,17 @@ class LibraryTrailerManager(BaseTrailerManager):
         #    extra processing because they don't have local trailers, then
         #    the fetcher can get overwhelmed.
         #
-
-        #
         #   Initial Discovery of all movies in Kodi:
 
-        if self.allowedGenre == u'':
-            #        query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "lastplayed", "studio", "cast", "plot", "writer", "director", "fanart", "runtime", "mpaa", "adult", "thumbnail", "file", "year", "genre", "trailer"]}, "id": 1}'
-            query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
-                    "params": {\
-                    "properties": \
-                        ["title", "lastplayed", "studio", "cast", "plot", "writer", \
-                        "director", "fanart", "runtime", "mpaa", "thumbnail", "file", \
-                        "year", "genre", "trailer"]\
-                        }, \
-                         "id": 1}'
-
-        else:
-            #        query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": {"properties": ["title", "lastplayed", "studio", "cast", "plot", "writer", "director", "fanart", "runtime", "mpaa", "adult", "thumbnail", "file", "year", "genre", "trailer"], "filter": {"field": "genre", "operator": "contains", "value": "%s"}}, "id": 1}'
-            query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
-             "params": \
-             {"properties": \
-             ["title", "lastplayed", "studio", "cast",  "plot", "writer",\
-              "director", "fanart", "runtime", "mpaa", "thumbnail", "file",\
-             "year", "genre", "trailer"],\
-              "filter": {"field": "genre", "operator": "contains", "value": "%s"}\
-              },\
-               "id": 1}'
-
-            query = query % self.allowedGenre
+        genres = Genre.getInstance().getGenres(Genre.LOCAL_DATABASE)
+        tags = Genre.getInstance().getTags(Genre.LOCAL_DATABASE)
+        query = self.createQuery(genres, tags)
 
         if Monitor.getInstance().isShutdownRequested():
             return
 
-        queryResult = Utils.getKodiJSON(query)
+        queryResult = Utils.getKodiJSON(query, dumpResults=False)
 
-        # localLogger.debug('movies: ', json.dumps(movieString, indent=3))
         moviesSkipped = 0
         moviesFound = 0
         moviesWithLocalTrailers = 0
@@ -791,48 +819,52 @@ class LibraryTrailerManager(BaseTrailerManager):
         for movie in movies:
             Monitor.getInstance().throwExceptionIfShutdownRequested()
 
-            localLogger.debug('Kodi library movie: ' +
-                              json.dumps(movie))
-            moviesFound += 1
-            if Settings.getHideWatchedMovies() and Movie.LAST_PLAYED in movie:
-                if getDaysSinceLastPlayed(movie[Movie.LAST_PLAYED],
-                                          movie[Movie.TITLE]) > 0:
-                    moviesSkipped += 1
-                    continue
+            try:
+                moviesFound += 1
+                if Settings.getHideWatchedMovies() and Movie.LAST_PLAYED in movie:
+                    if getDaysSinceLastPlayed(movie[Movie.LAST_PLAYED],
+                                              movie[Movie.TITLE]) > 0:
+                        moviesSkipped += 1
+                        continue
 
-            # Normalize rating
+                # Normalize rating
 
-            localLogger.debug(u': mpaa: ' + movie[Movie.MPAA] +
-                              u' movie: ' + movie[Movie.TITLE])
-            rating = Rating.getMPAArating(
-                movie.get(Movie.MPAA), movie.get(u'adult'))
-            movie[Movie.SOURCE] = Movie.LIBRARY_SOURCE
-            movie.setdefault(Movie.TRAILER, u'')
-            movie[Movie.TYPE] = u''
+                localLogger.debug(u': mpaa: ' + movie[Movie.MPAA] +
+                                  u' movie: ' + movie[Movie.TITLE])
+                rating = Rating.getMPAArating(
+                    movie.get(Movie.MPAA), movie.get(u'adult'))
+                movie[Movie.SOURCE] = Movie.LIBRARY_SOURCE
+                movie.setdefault(Movie.TRAILER, u'')
+                movie[Movie.TYPE] = u''
 
-            Debug.validateBasicMovieProperties(movie)
+                Debug.validateBasicMovieProperties(movie)
 
-            self.collectActors(movie)
+                MovieUtils.getInstance().collectData(movie)
 
-            # Basic discovery is complete at this point. Now send
-            # all of the movies without any trailer information to
-            # LibraryNoTrailerInfoManager while
-            # those with trailer URLs to LibraryURLManager
+                # Basic discovery is complete at this point. Now send
+                # all of the movies without any trailer information to
+                # LibraryNoTrailerInfoManager while
+                # those with trailer URLs to LibraryURLManager
 
-            libraryURLManager = LibraryURLManager.getInstance()
-            libraryNoTrailerInfoManager = LibraryNoTrailerInfoManager.getInstance()
+                libraryURLManager = LibraryURLManager.getInstance()
+                libraryNoTrailerInfoManager = LibraryNoTrailerInfoManager.getInstance()
 
-            if Rating.checkRating(rating):
-                trailer = movie[Movie.TRAILER]
-                if trailer == u'':
-                    moviesWithoutTrailerInfo += 1
-                    libraryNoTrailerInfoManager.addToDiscoveredTrailers(movie)
-                elif trailer.startswith(u'plugin://') or trailer.startswith(u'http'):
-                    moviesWithTrailerURLs += 1
-                    libraryURLManager.addToDiscoverdTrailers(movie)
-                else:
-                    moviesWithLocalTrailers += 1
-                    self.addToDiscoveredTrailers(movie)
+                if Rating.checkRating(rating):
+                    trailer = movie[Movie.TRAILER]
+                    if trailer == u'':
+                        moviesWithoutTrailerInfo += 1
+                        libraryNoTrailerInfoManager.addToDiscoveredTrailers(
+                            movie)
+                    elif trailer.startswith(u'plugin://') or trailer.startswith(u'http'):
+                        moviesWithTrailerURLs += 1
+                        libraryURLManager.addToDiscoverdTrailers(movie)
+                    else:
+                        moviesWithLocalTrailers += 1
+                        self.addToDiscoveredTrailers(movie)
+            except (AbortException, ShutdownException) as e:
+                raise sys.exc_info()
+            except Exception:
+                localLogger.logException()
 
         Trace.log(u'Local movies found in library: ' +
                   str(moviesFound), trace=Trace.STATS)
@@ -845,48 +877,7 @@ class LibraryTrailerManager(BaseTrailerManager):
         Trace.log(u'Movies with no trailer information: ' +
                   str(moviesWithoutTrailerInfo), trace=Trace.STATS)
 
-        self.reportActors()
-
-    def collectActors(self, movie):
-        actors = movie.get(Movie.CAST, [])
-        movieName = movie[Movie.TITLE]
-        movieYear = movie[Movie.YEAR]
-        movieId = movieName + u' (' + str(movieYear) + u')'
-
-        actorCount = 0
-        for actorEntry in actors:
-            if u'name' in actorEntry:
-                actorCount += 1
-                actor = actorEntry[u'name']
-                if self._actorMap.get(actor) == None:
-                    self._actorMap[actor] = []
-                self._actorMap[actor].append(movieId)
-            if actorCount == Settings.getMaxTopActors():
-                break
-
-    def reportActors(self):
-        # First sort by number of movies that each actor is
-        # in
-
-        a = sorted(self._actorMap, key=lambda key: len(
-            self._actorMap[key]), reverse=True)
-        # a = sorted(self._actorMap, key=len(
-        #    self._actorMap.__getitem__), reverse=True)
-        playlist = Playlist.getPlaylist(
-            u'ActorFrequency.playlist', append=False)
-
-        for actor in a:
-            moviesIn = self._actorMap[actor]
-            buffer = actor + u' : ' + str(len(moviesIn))
-            for movie in sorted(moviesIn):
-                if len(buffer) > 100:
-                    playlist.writeLine(buffer)
-                    buffer = u'       '
-                buffer = buffer + u' ' + movie
-
-            playlist.writeLine(buffer)
-
-        playlist.close()
+        MovieUtils.getInstance().reportData()
 
 
 class LibraryURLManager(BaseTrailerManager):
@@ -910,7 +901,7 @@ class LibraryURLManager(BaseTrailerManager):
     def getInstance(cls):
         return super(LibraryURLManager, cls).getInstance()
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         localLogger = self._logger.getMethodLogger(u'discoverBasicInformation')
         localLogger.debug(u' dummy method')
 
@@ -932,6 +923,9 @@ class LibraryNoTrailerInfoManager(BaseTrailerManager):
 
     def __init__(self):
         threadName = type(self).__name__
+        self._validateNumberOfTrailers = 0
+        self._reportedTrailers = 0
+
         super(LibraryNoTrailerInfoManager, self).__init__(group=None, target=None,
                                                           name=threadName,
                                                           args=(), kwargs=None, verbose=None)
@@ -940,13 +934,31 @@ class LibraryNoTrailerInfoManager(BaseTrailerManager):
     def getInstance(cls):
         return super(LibraryNoTrailerInfoManager, cls).getInstance()
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         localLogger = self._logger.getMethodLogger(u'discoverBasicInformation')
         localLogger.debug(u' dummy method')
 
     def run(self):
         localLogger = self._logger.getMethodLogger(u'run')
         localLogger.debug(u' dummy thread, Join Me!')
+
+    def getNumberOfTrailers(self):
+        if self._validateNumberOfTrailers == 0:
+            trailersFound = 0
+            for trailer in self._discoveredTrailers:
+                discoveryState = trailer[Movie.DISCOVERY_STATE]
+                if (discoveryState == Movie.DISCOVERY_COMPLETE
+                        or discoveryState == Movie.DISCOVERY_READY_TO_DISPLAY):
+                    trailersFound += 1
+            self._reportedTrailers = min(
+                (20 + (trailersFound * 1.2)), len(self._discoveredTrailers))
+            self._validateNumberOfTrailers = 21
+            self._reportedTrailers = int(self._reportedTrailers)
+
+        self._validateNumberOfTrailers -= 1
+        self._reportedTrailers = min(
+            self._reportedTrailers, len(self._discoveredTrailers))
+        return self._reportedTrailers
 
 
 class FolderTrailerManager(BaseTrailerManager):
@@ -970,9 +982,9 @@ class FolderTrailerManager(BaseTrailerManager):
     def getInstance(cls):
         return super(FolderTrailerManager, cls).getInstance()
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         localLogger = self._logger.getMethodLogger(u'discoverBasicInformation')
-        self.setGenre(genre)
+        self.setGenres(genres)
         self.start()
         self._trailerFetcher.startFetchers(self)
         localLogger.debug(u': started')
@@ -990,8 +1002,8 @@ class FolderTrailerManager(BaseTrailerManager):
             Debug.logException()
 
         duration = datetime.datetime.now() - startTime
-        Trace.log(localLogger.getMsgPrefix(), u' Time to discover: ' +
-                  str(duration.seconds) + u' seconds', trace=Trace.STATS)
+        localLogger.trace(u'Time to discover:', duration.seconds, u'seconds',
+                          trace=Trace.STATS)
 
     def discoverBasicInformationWorker(self, path):
         localLogger = self._logger.getMethodLogger(
@@ -1055,9 +1067,9 @@ class ItunesTrailerManager(BaseTrailerManager):
     def getInstance(cls):
         return super(ItunesTrailerManager, cls).getInstance()
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         localLogger = self._logger.getMethodLogger(u'discoverBasicInformation')
-        self.setGenre(genre)
+        self.setGenres(genres)
         self.start()
         self._trailerFetcher.startFetchers(self)
 
@@ -1074,39 +1086,25 @@ class ItunesTrailerManager(BaseTrailerManager):
             Debug.logException()
 
         duration = datetime.datetime.now() - startTime
-        Trace.log(localLogger.getMsgPrefix(), u' Time to discover: ' +
-                  str(duration.seconds) + u' seconds', trace=Trace.STATS)
+        localLogger.trace(u'Time to discover:', duration.seconds, u'seconds',
+                          trace=Trace.STATS)
 
     def runWorker(self):
         localLogger = self._logger.getMethodLogger(u'runWorker')
         Monitor.getInstance().throwExceptionIfShutdownRequested()
 
         showOnlyiTunesTrailersOfThisType = Settings.getIncludeItunesTrailerType()
-        localLogger.debug('trailer_type: ' +
+        localLogger.debug('iTunesTrailer_type: ' +
                           str(showOnlyiTunesTrailersOfThisType), xbmc.LOGINFO)
-        if showOnlyiTunesTrailersOfThisType > 4:
-            localLogger.debug(u'Invalid iTunes Trailer Type: ' +
-                              str(showOnlyiTunesTrailersOfThisType), xbmc.LOGERROR)
-            return
 
-        if showOnlyiTunesTrailersOfThisType == iTunes.COMMING_SOON:
-            jsonURL = u'/trailers/home/feeds/studios.json'
-        elif showOnlyiTunesTrailersOfThisType == iTunes.JUST_ADDED:
-            jsonURL = u'/trailers/home/feeds/just_added.json'
-        elif showOnlyiTunesTrailersOfThisType == iTunes.POPULAR:
-            jsonURL = u'/trailers/home/feeds/most_pop.json'
-        elif showOnlyiTunesTrailersOfThisType == iTunes.EXCLUSIVE:
-            jsonURL = u'/trailers/home/feeds/exclusive.json'
-        elif showOnlyiTunesTrailersOfThisType == iTunes.ALL:
-            jsonURL = u'/trailers/home/feeds/studios.json'
+        jsonURL = iTunes.getURLForTrailerType(showOnlyiTunesTrailersOfThisType)
 
         jsonURL = backend_constants.APPLE_URL_PREFIX + jsonURL
         localLogger.debug(u'iTunes jsonURL: ' + jsonURL)
         statusCode, parsedContent = Utils.getJSON(jsonURL)
         Utils.RandomGenerator.shuffle(parsedContent)
-        localLogger.debug(u'parsedContent: ', json.dumps(parsedContent, ensure_ascii=False,
-                                                         encoding='unicode', indent=4,
-                                                         sort_keys=True), xbmc.LOGINFO)
+        Debug.dumpJSON(text=u'parsedContent', data=parsedContent)
+
         '''
         title":"Alita: Battle Angel",
         "releasedate":"Thu, 14 Feb 2019 00:00:00 -0800",
@@ -1152,10 +1150,10 @@ class ItunesTrailerManager(BaseTrailerManager):
             localLogger.debug(u'value: ', iTunesMovie, xbmc.LOGINFO)
 
             title = iTunesMovie.get(
-                Movie.TITLE, u'Missing title from iTunes')
+                Movie.TITLE, Messages.getInstance().getMsg(Messages.MISSING_TITLE))
             localLogger.debug('title: ', title, xbmc.LOGINFO)
 
-            releaseDateString = iTunesMovie.get('releasedate', u'')
+            releaseDateString = iTunesMovie.get(u'releasedate', u'')
             # localLogger.debug('releaseDateString: ',
             #            releaseDateString, xbmc.LOGINFO)
             if releaseDateString != u'':
@@ -1225,9 +1223,7 @@ class ItunesTrailerManager(BaseTrailerManager):
                  {"postdate":"Mon, 23 Jul 2018 00:00:00 -0700","url":"/trailers/fox/alita-battle-angel/","type":"Trailer 2","exclusive":false,"hd":true},
                  {"postdate":"Fri, 08 Dec 2017 00:00:00 -0800","url":"/trailers/fox/alita-battle-angel/","type":"Trailer","exclusive":false,"hd":true}]
             '''
-            excludeTypesSet = {"- JP Sub", "Interview", "- UK", "- BR Sub", "- FR", "- IT", "- AU", "- MX", "- MX Sub", "- BR", "- RU", "- DE",
-                               "- ES", "- FR Sub", "- KR Sub", "- Russian", "- French", "- Spanish", "- German", "- Latin American Spanish", "- Italian"}
-
+            excludeTypesSet = ITunes.getExcludedTypes()
             iTunesTrailersList = iTunesMovie.get('trailers', [])
 
             # localLogger.debug('iTunesTrailersList: ',
@@ -1245,8 +1241,6 @@ class ItunesTrailerManager(BaseTrailerManager):
                 url = iTunesTrailer.get('url', u'')
 
                 localLogger.debug('url: ', url, xbmc.LOGINFO)
-                # RE_URL_INFO = re.compile('trailers\/([^\/]+)\/([^\/]+)')
-                # RE_URL_INFO.
 
                 trailerType = iTunesTrailer.get('type', u'')
 
@@ -1262,15 +1256,15 @@ class ItunesTrailerManager(BaseTrailerManager):
                 elif not Settings.getIncludeFeaturettes() and (trailerType == u'Featurette'):
                     localLogger.debug('Rejecting due to Featurette')
                     keepTrailer = False
-                elif ((Settings.getIncludeItunesTrailerType() == iTunes.COMMING_SOON) and
+                elif ((Settings.getIncludeItunesTrailerType() == iTunes.COMING_SOON) and
                       (releaseDate < datetime.date.today())):
                     localLogger.debug(
-                        'Rejecting due to COMMING_SOON and already released')
+                        'Rejecting due to COMING_SOON and already released')
                     keepTrailer = False
-                elif self.allowedGenre != u'' and self.allowedGenre not in genres:
+                elif set(self._allowedGenres).isdisjoint(set(genres)):
                     keepTrailer = False
-                    localLogger.debug('Rejecting due to genre: ' +
-                                      self.allowedGenre)
+                    localLogger.debug('Rejecting due to genre:',
+                                      self._allowedGenres)
                 elif not Rating.checkRating(rating):
                     keepTrailer = False
                     localLogger.debug('Rejecting due to rating: ' +
@@ -1290,64 +1284,15 @@ class ItunesTrailerManager(BaseTrailerManager):
                         trailerCount = matches[0]
 
                     suffix = u'-trailer-' + trailerCount + u'_i320.m4v'
-                    # trailerURL = backend_constants.APPLE_URL_PREFIX + url + "includes/" + \
-                    #    trailerType.replace('-', '').replace(' ',
-                    #                                         '').lower() + "/large.html"
                     trailerStudio = urlPathElements[2]
                     trailerURL = u'https://movietrailers.apple.com' + u'/movies/' + \
                         trailerStudio + u'/' + trailerMovieName + u'/' + trailerMovieName + suffix
 
-# Working URL:
+# Working URLs:
 # https://movietrailers.apple.com/movies/wb/the-lego-movie-2-the-second-part/the-lego-movie-2-clip-palace-of-infinite-relection_i320.m4v
 # https://movietrailers.apple.com/movies/independent/the-final-wish/the-final-wish-trailer-1_i320.m4v
 # https://movietrailers.apple.com/movies/wb/shazam/shazam-teaser-1-usca_i320.m4v
- # u'/trailers/independent/the-final-wish/
 
-                    # https://movietrailers.apple.com/movies/universal/a-dogs-journey/a-dogs-journey-trailer-1_i320.m4v
-                    # https://movietrailers.apple.com/trailers/independent/the-final-wish/the-final-wish-trailer-1_i320.m4v
-                    #trailer[Movie.TRAILER] = u'https://movietrailers.apple.com/movies/independent/the-standoff-at-sparrow-creek/the-standoff-at-sparrow-creek-trailer-1_i320.m4v'
-
-                    # url = u'http://trailers.apple.com/trailers/fox/alita-battle-angel/includes/trailer3/large.html'
-                    # url = u'http://trailers.apple.com/trailers/independent/an-affair-to-die-for/includes/trailer/large.html'
-
-                    # match = re.compile('"url":"(.+?)","type":"(.+?)"',
-                    #       re.DOTALL).findall(entry)
-                    # for url, type in match:
-
-                    # trailerURL = url2
-
-                    '''                                         
-                    RE_URL_INFO = Regex('trailers\/([^\/]+)\/([^\/]+)')
-                    
-                    for clip in json_obj['clips']:
-
-                        clip_type = String.Quote(clip['title'])
-
-                        try:
-                            oc.add(URLService.MetadataObjectForURL(MOVIE_URL % (studio, movie_title, clip_type)))
-                            except:
-                                pass
-                                           data = {}
-            data[u'api_key'] = Settings.getTmdbApiKey()
-            data[u'sort_by'] = 'popularity.desc'
-            data[u'certification_country'] = 'us'
-            data[u'certification.lte'] = rating_limit
-            url = 'http://api.themoviedb.org/3/discover/movie'
-            
-            MOVIE_URL = 'http://movietrailers.apple.com/trailers/%s/%s/#%s'
-            url = MOVIE_URL
-            data = {}
-            data[u'studio'] = studio
-            data[u'movie-title'] = movieTitle
-            data[u'clip_type'] = clipType
-            
-            encoded_args = urlparse(data)
-            url = url + encoded_args
-            
-            > from urllib.parse import urlencode
->>> encoded_args = urlencode({'arg': 'value'})
->>> url = 'http://httpbin.org/post?' + encoded_args
-                    '''
                     movie = {Movie.TITLE: title,
                              Movie.TRAILER: trailerURL,
                              Movie.FILE: u'',
@@ -1368,7 +1313,6 @@ class ItunesTrailerManager(BaseTrailerManager):
                     Debug.validateBasicMovieProperties(movie)
                     self.addToDiscoveredTrailers(movie)
 
-        # self.getItunesTrailersOld()
         return
 
 
@@ -1392,9 +1336,9 @@ class TmdbTrailerManager(BaseTrailerManager):
     def getInstance(cls):
         return super(TmdbTrailerManager, cls).getInstance()
 
-    def discoverBasicInformation(self, genre):
+    def discoverBasicInformation(self, genres):
         localLogger = self._logger.getMethodLogger(u'discoverBasicInformation')
-        self.setGenre(genre)
+        self.setGenres(genres)
         self.start()
         self._trailerFetcher.startFetchers(self)
 
@@ -1412,44 +1356,28 @@ class TmdbTrailerManager(BaseTrailerManager):
             Debug.logException()
 
         duration = datetime.datetime.now() - startTime
-        Trace.log(localLogger.getMsgPrefix(), u' Time to discover: ' +
-                  str(duration.seconds) + u' seconds', trace=Trace.STATS)
+        localLogger.trace(u'Time to discover:', duration.seconds, u' seconds',
+                          trace=Trace.STATS)
 
     def runWorker(self):
         localLogger = self._logger.getMethodLogger(u'runWorker')
 
-        SELECT_FROM_UNIVERSE_OF_TMDB_TRAILERS = True
         Monitor.getInstance().throwExceptionIfShutdownRequested()
 
-        tmdbSource = Settings.getTmdbSourceSetting()
-        if tmdbSource == '0':
-            source = 'popular'
-        elif tmdbSource == '1':
-            source = 'top_rated'
-        elif tmdbSource == '2':
-            source = 'upcoming'
-        elif tmdbSource == '3':
-            source = 'now_playing'
-        elif tmdbSource == '4':
-            source = 'all'
+        source = TmdbSettings.getInstance().getSourceStringForSourceSetting()
+        rating_limit = TmdbSettings.getInstance().getRatingLimitStringFromSetting()
 
-        # TODO: Verify that these rating strings are correct and
-        #     complete for Tmdb
-        rating_limit = Constants.ADDON.getSetting(u'rating_limit')
-        if rating_limit == '0':
-            rating_limit = 'NC-17'
-        elif rating_limit == '1':
-            rating_limit = 'G'
-        elif rating_limit == '2':
-            rating_limit = 'PG'
-        elif rating_limit == '3':
-            rating_limit = 'PG-13'
-        elif rating_limit == '4':
-            rating_limit = 'R'
-        elif rating_limit == '5':
-            rating_limit = 'NC-17'
+        localLogger.debug(u' source: ' + source)
 
-        localLogger.debug(u' source; ' + source)
+        includeAdult = u'false'
+        if Settings.getIncludeAdult():
+            includeAdult = u'true'
+
+        genres = Genre.getInstance().getGenres(Genre.TMDB_DATABASE)
+        tags = Genre.getInstance().getTags(Genre.TMDB_DATABASE)
+
+        remoteTrailerPreference = Settings.getTMDBTrailerPreference()
+        voteComparison, voteValue = Settings.getAvgVotePreference()
 
         # ========================
         #
@@ -1463,7 +1391,8 @@ class TmdbTrailerManager(BaseTrailerManager):
         totalPages = 0
         page = 1
         MAX_PAGES = 11
-        if source == 'all':
+
+        if source == u'all':
 
             # Get all of the movies from 11 random pages available
             # containing popular movie information
@@ -1474,17 +1403,52 @@ class TmdbTrailerManager(BaseTrailerManager):
                 data = {}
                 data[u'api_key'] = Settings.getTmdbApiKey()
                 # We don't need a sort do we?
-                data[u'sort_by'] = 'popularity.desc'
+                # Since we are getting the first few
+                # (hundred or so) flicks returned by this search,
+                # sorting can heavily influence what we get.
+                #
+                # Options are:
+                #
+                # Note, you must add the suffix .asc or .desc to each
+                # of the items below, according to your ascending/descending
+                # preference.
+                #
+                # popularity release_date, revenue, primary_release_date,
+                # original_title, vote_average, vote_count
+                #
+                # The default is popularity.desc
+
+                data[u'sort_by'] = remoteTrailerPreference
+                data[u'include_video'] = u'true'
+                data[u'include_adult'] = includeAdult
+                if voteComparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
+                    if voteComparison != RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
+                        data[u'vote_average.gte'] = str(voteValue)
+                    else:
+                        data[u'vote_average.lte'] = str(voteValue)
+
+                data[u'with_genres'] = genres
+                data[u'with_keywords'] = tags
+                #
+                # TMDB accepts iso-639-1 but adding an iso-3166- suffix
+                # would be better (en_US)
+                data[u'language'] = Settings.getLang_iso_639_1()
+                # Country codes are: iso_3166_1
+                #
+                # TODO: Limitation
+                #
+                # Not sure what to do here. Kodi does not supply country codes
+                # To implement, would also need to know certification rules for
+                # different countries, codes, history of codes... groan
+                #
                 data[u'certification_country'] = 'us'
                 data[u'certification.lte'] = rating_limit
                 data[u'page'] = page
-                # TODO: include_adult boolean
-                # language
-                # string
-                # Specify a language to query translatable fields with.
-                # minLength: 2
-                # pattern: ([a-z]{2})-([A-Z]{2})
-                # default: en-US
+                # TODO:
+                # Can get original_language here, but must use
+                # TrailerFetcher.getTmdbTrailer to get
+                # spoken languages
+
                 '''
                     
                     Specify a ISO 3166-1 code to filter release dates. Must be uppercase.
@@ -1695,8 +1659,8 @@ class TmdbTrailerManager(BaseTrailerManager):
                     self.addToDiscoveredTrailers(trailerEntry)
                     localLogger.debug(u' ALL title: ' +
                                       trailerEntry[Movie.TITLE])
-
-                if SELECT_FROM_UNIVERSE_OF_TMDB_TRAILERS and totalPages <= MAX_PAGES:
+                if (TmdbSettings.getInstance().getIncludeOldMovieTrailers()
+                        and totalPages <= MAX_PAGES):
                     page = Utils.RandomGenerator.randint(2, totalPages)
                 else:
                     page += 1
@@ -1766,10 +1730,37 @@ class TmdbTrailerManager(BaseTrailerManager):
                 data = {}
                 data[u'api_key'] = Settings.getTmdbApiKey()
                 data[u'page'] = page
-                data[u'language'] = Settings.getLanguage()
+                data[u'language'] = Settings.getLang_iso_639_1()
+
+                # TODO: Should sort/rating options be used with selection
+                #       of 'popular' movies?
+                data[u'sort_by'] = remoteTrailerPreference
+                data[u'include_video'] = u'true'
+                data[u'include_adult'] = includeAdult
+                if voteComparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
+                    if voteComparison != RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
+                        data[u'vote_average.gte'] = str(voteValue)
+                    else:
+                        data[u'vote_average.lte'] = str(voteValue)
+
+                data[u'with_genres'] = genres
+                data[u'with_keywords'] = tags
+                # Country codes are: iso_3166_1. Kodi does not supply them
+                # Further, learning and handling all of the world's rating
+                # systems (including history of them for old movies) seems
+                # a challenging task
+
+                data[u'certification_country'] = 'us'
+                data[u'certification.lte'] = rating_limit
+                data[u'page'] = page
+
+                # Can get original_language here, but must use
+                # TrailerFetcher.getTmdbTrailer to get
+                # spoken languages
+
                 url = 'https://api.themoviedb.org/3/movie/' + source
                 statusCode, infostring = Utils.getJSON(
-                    url, params=data, dumpResults=True)
+                    url, params=data, dumpResults=False)
 
                 # The returned results has title, description, release date, rating.
                 # Does not have actors, etc.
@@ -1811,7 +1802,7 @@ class TmdbTrailerManager(BaseTrailerManager):
                                       trailerEntry[Movie.TITLE])
                     self.addToDiscoveredTrailers(trailerEntry)
 
-                if SELECT_FROM_UNIVERSE_OF_TMDB_TRAILERS and totalPages <= MAX_PAGES:
+                if TmdbSettings.getInstance().getIncludeOldMovieTrailers() and totalPages <= MAX_PAGES:
                     page = Utils.RandomGenerator.randint(1, totalPages)
                 else:
                     page += 1
@@ -1840,10 +1831,11 @@ def getDaysSinceLastPlayed(lastPlayedField, movieName):
             pd = datetime.datetime.fromtimestamp(pd)
             lastPlay = datetime.datetime.now() - pd
             daysSincePlayed = lastPlay.days
+    except (AbortException, ShutdownException):
+        raise sys.exc_info()
     except Exception as e:
         localLogger.debug(u'Invalid lastPlayed field for ' + movieName + ' : ' +
                           lastPlayedField)
-        traceBack = traceback.format_exc()
-        localLogger.debug(traceBack)
+        localLogger.logException(e)
         raise e
     return daysSincePlayed

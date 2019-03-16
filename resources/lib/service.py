@@ -15,17 +15,14 @@ from builtins import unicode
 from multiprocessing.pool import ThreadPool
 from kodi65 import addon
 from kodi65 import utils
-from six.moves.urllib.parse import urlparse
 
 from common.rt_constants import Constants
-from common.rt_constants import Movie
 from common.logger import Logger, Trace, logEntry, logExit, logEntryExit
-from common.debug_utils import Debug
 from common.exceptions import AbortException, ShutdownException
 from common.monitor import Monitor
-import common.kodi_thread as kodi_thread
 from settings import Settings
-from backend import backend_constants
+import random_trailers_ui
+
 
 import sys
 import datetime
@@ -42,6 +39,7 @@ import time
 import traceback
 import urllib
 #from kodi_six import xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
+
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -50,7 +48,96 @@ import xbmcplugin
 import xbmcaddon
 import xbmcdrm
 import string
+'''
+    Rough outline:
+        Start separate threads to discover basic information about all selected
+        video sources:
+            1- library
+            2- trailer folders
+            3- iTunes
+            4- TMDB
+            5- (future) IMDB
+        Each of the above store the discovered info into separate queues.
+        The main function here is to discover the identity of all candidates
+        for playing so that a balanced mix of trailers is available for playing
+        and random selection. It is important to do this quickly. Additional
+        information discovery is performed later, in background threads or
+        just before playing the video.
 
+        Immediately after starting the discovery threads, the player
+        thread is started. The player thread:
+            * Loops playing videos until stopped
+            * On each iteration it gets movie a to play from
+              TrailerManager's ReadyToPlay queue
+            * Listens for events:stop & exit, pause, play, playMovie, showInfo,
+              Skip to next trailer, etc.
+
+        TrailerManager holds various queues and lists:
+            * Queues for each video source (library, iTunes, etc.) for
+                the initial discovery from above
+            * Queues for discovering additional information
+            * DiscoveredTrailers, a list of all videos after filtering (genre,
+                rating, etc). This list grows during initial discovery
+            * A small queue (about 5 elements) for each video source so that
+                required additional information can be discovered just before
+                playing the video. The queues provide enough of a buffer so
+                that playing will not be interrupted waiting on discovery
+            * The ReadyToPlayQueue which is a small queue containing fully
+                discovered trailers and awaiting play. WAs trailers are played
+                it is refilled from the small final discovery queues above
+
+
+'''
+
+REMOTE_DBG = True
+
+# append pydev remote debugger
+if REMOTE_DBG:
+    # Make pydev debugger works for auto reload.
+    # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+    try:
+        _logger = Logger(u'service.RemoteDebug.init')
+
+        _logger.debug(u'Trying to attach to debugger')
+        _logger.debug(u'Python path: ' + unicode(sys.path))
+        # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
+        # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
+        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
+        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
+
+        '''
+            If the server (your python process) has the structure
+                /user/projects/my_project/src/package/module1.py
+    
+            and the client has:
+                c:\my_project\src\package\module1.py
+    
+            the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
+                PATHS_FROM_ECLIPSE_TO_PYTHON = [(r'c:\my_project\src', r'/user/projects/my_project/src')
+            # with the addon script.module.pydevd, only use `import pydevd`
+            # import pysrc.pydevd as pydevd
+        '''
+        sys.path.append(u'/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
+                        )
+        import pydevd
+        # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
+        # console
+        try:
+            pydevd.settrace('localhost', stdoutToServer=True,
+                            stderrToServer=True)
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except Exception as e:
+            xbmc.log(
+                u' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
+
+    except ImportError:
+        msg = u'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
+        xbmc.log(msg, xbmc.LOGDEBUG)
+        sys.stderr.write(msg)
+        sys.exit(1)
+    except BaseException:
+        Logger.logException(u'Waiting on Debug connection')
 
 logger = Logger(u'service')
 
@@ -58,13 +145,15 @@ logger = Logger(u'service')
 def isTrailerScreensaver():
     pguisettings = xbmc.translatePath(os.path.join(
         u'special://userdata', 'guisettings.xml')).decode(u'utf-8')
-    logger.debug(pguisettings)
+    _logger = Logger(u'Service.isTrailerScreensaver')
+
+    _logger.debug(pguisettings)
     name = '<mode>script.video.randomtrailers</mode>'
     if name in file(pguisettings, "r").read():
-        logger.debug(u'found script.video.randomtrailers in guisettings.html')
+        _logger.debug(u'found script.video.randomtrailers in guisettings.html')
         return True
     else:
-        logger.debug(
+        _logger.debug(
             u'did not find script.video.randomtrailers in guisettings.html')
         return False
 
@@ -80,7 +169,6 @@ class MyMonitor(Monitor):
         self._shutDownEvent = threading.Event()
         self._thread = threading.Thread(
             target=self._waitForAbortThread, name='Service Monitor')
-        self._logger = Logger(self.__class__.__name__)
 
         self._thread.start()
 
@@ -92,14 +180,18 @@ class MyMonitor(Monitor):
         return MyMonitor._singleton
 
     def onScreensaverActivated(self):
+        localLogger = self._logger.getMethodLogger(u'onScreensaverActivated')
+        localLogger.debug(u'In onScreenserverActivated')
+
         if isTrailerScreensaver():
+            self._logger.debug(
+                u'In onScreenserverActivated isTrailerScreenSaver')
             xbmc.executebuiltin(
                 'xbmc.RunScript("script.video.randomtrailers","no_genre")')
 
     def _waitForAbortThread(self):
         localLogger = self._logger.getMethodLogger(
             u'_waitForAbortThread')
-        #Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
         self.waitForAbort()
         self.shutDownEvent.set()
         localLogger.debug(u'ABORT', trace=Trace.TRACE)
@@ -114,10 +206,12 @@ class MyMonitor(Monitor):
 
 try:
     logger.enter()
+    random_trailers_ui.myMain(screensaver=True)
+
     logger.debug(u'randomtrailers.service waiting for shutdown')
     MyMonitor.getInstance().waitForShutdown()
     logger.debug(u'randomtrailers.service stopping Player')
     xbmc.Player().stop
     logger.exit()
-except:
-    logger.logException()
+except Exception as e:
+    logger.logException(e)
