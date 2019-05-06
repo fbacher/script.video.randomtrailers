@@ -1,53 +1,30 @@
+# -*- coding: utf-8 -*-
+
 # monitors onScreensaverActivated event and checks guisettings.xml for plugin.video.randomtrailers.
 # if found it will launch plugin.video.randomtrailers which will show trailers.
 # this gets around Kodi killing a screensaver 5 seconds after
 # onScreensaverDeactivate
 
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import range
-from builtins import unicode
-from multiprocessing.pool import ThreadPool
-from kodi65 import addon
-from kodi65 import utils
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-from common.rt_constants import Constants
-from common.logger import Logger, Trace, logEntry, logExit, logEntryExit
+from future import standard_library
+standard_library.install_aliases()  # noqa: E402
+
+from builtins import str
+from builtins import unicode
+
+from common.logger import Logger, Trace
 from common.exceptions import AbortException, ShutdownException
 from common.monitor import Monitor
-from settings import Settings
-import random_trailers_ui
-
 
 import sys
-import datetime
-import io
-import json
 import os
-import queue
-import random
-import re
-import requests
-import resource
 import threading
-import time
-import traceback
-import urllib
-#from kodi_six import xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
+from kodi_six import xbmc, xbmcgui
 
-import xbmc
-import xbmcaddon
-import xbmcgui
-import xbmcvfs
-import xbmcplugin
-import xbmcaddon
-import xbmcdrm
-import string
+# import xbmc
+# import xbmcgui
+
 '''
     Rough outline:
         Start separate threads to discover basic information about all selected
@@ -143,6 +120,8 @@ logger = Logger(u'service')
 
 
 def isTrailerScreensaver():
+    return True
+
     pguisettings = xbmc.translatePath(os.path.join(
         u'special://userdata', 'guisettings.xml')).decode(u'utf-8')
     _logger = Logger(u'Service.isTrailerScreensaver')
@@ -187,7 +166,7 @@ class MyMonitor(Monitor):
             self._logger.debug(
                 u'In onScreenserverActivated isTrailerScreenSaver')
             xbmc.executebuiltin(
-                'xbmc.RunScript("script.video.randomtrailers","no_genre")')
+                'xbmc.RunScript("script.video.randomtrailers","screensaver")')
 
     def _waitForAbortThread(self):
         localLogger = self._logger.getMethodLogger(
@@ -206,7 +185,17 @@ class MyMonitor(Monitor):
 
 try:
     logger.enter()
-    random_trailers_ui.myMain(screensaver=True)
+    currentDialogId = xbmcgui.getCurrentWindowDialogId()
+    currentWindowId = xbmcgui.getCurrentWindowId()
+    localLogger = logger.getMethodLogger(u'service')
+
+    if __name__ == '__main__':
+        localLogger.debug(u'I am __main__')
+
+    localLogger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(currentDialogId) +
+                      u' ' + str(currentWindowId))
+
+    shutDownEvent = threading.Event()
 
     logger.debug(u'randomtrailers.service waiting for shutdown')
     MyMonitor.getInstance().waitForShutdown()

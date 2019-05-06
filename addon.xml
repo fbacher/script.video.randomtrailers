@@ -7,18 +7,24 @@
     <import addon="xbmc.python"					version="2.26.0"/>
     <import addon="xbmc.addon"					version="18.0.701"/>
     <import addon="script.module.simplejson"	version="3.3.0"/>
-    <import addon="script.module.xbmcswift2" version="2.4.0"/>
-    <import addon="script.module.pydevd" version="4.4.0"/> 
-    <import addon="script.module.kodi65" version="1.2.1"/>
-    <import addon="script.module.kodi-six" />
+    <import addon="script.module.xbmcswift2"    version="2.4.0"/>
+    <import addon="script.module.pydevd"        version="4.4.0"/> 
+    <import addon="script.module.kodi65"        version="1.2.1"/>
+    <import addon="script.module.kodi-six"      version="0.0.3"/>
+    <import addon="script.service.randomtrailers.backend" version="2.0.1-alpha"/>
+    <import addon="script.module.addon.signals" version="0.0.3"/>
+    <import addon="script.service.randomtrailers.backend" version="2.0.1-alpha" />
   </requires>
+  
   <extension point="xbmc.python.script"	library="resources/lib/random_trailers_main.py"> 
     <provides>video</provides> 
   </extension>
-  <extension point="xbmc.service"                library="resources/lib/service.py" start="login" />
-  <extension point="xbmc.ui.screensaver" library="resources/lib/screensaver.py"/>
+  <!-- <extension point="xbmc.service"                library="resources/lib/service.py" start="login" /> -->
+  <extension point="xbmc.ui.screensaver" library="resources/lib/screensaver.py"/> 
+  <!-- <extension point="xbmc.service" library="resources/lib/screensaver.py" start="login"/> -->
    
   <extension point="xbmc.addon.metadata">
+    <reuselanguageinvoker>false</reuselanguageinvoker>
     <platform>all</platform>
     <summary lang="en">Plays Random Trailers from Multiple Sources</summary>
     <description lang="en">Plays random movie trailers from a variety of sources:[CR]-The Users Movie Library[CR]-Apple iTunes[CR]-YouTube(via themoviedb.org)[CR]-A user specified folder[CR]

@@ -1,42 +1,16 @@
-'''
+# -*- coding: utf-8 -*-
+''' 
 Created on Feb 6, 2019
 
 @author: fbacher
 '''
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
+from __future__ import print_function, division, absolute_import, unicode_literals
+
 from future import standard_library
-standard_library.install_aliases()
+standard_library.install_aliases()  # noqa: E402
+
 from builtins import str
-from builtins import range
-from builtins import unicode
-from multiprocessing.pool import ThreadPool
-import sys
-import datetime
-import io
-import json
-import os
-import queue
-import random
-import re
-import requests
-import resource
-import threading
-import time
-import traceback
-import urllib
-#from kodi_six import xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
-import xbmc
-import xbmcaddon
-import xbmcgui
-import xbmcvfs
-import xbmcplugin
-import xbmcaddon
-#import xbmcwsgi
-import xbmcdrm
-import string
+from kodi_six import xbmc
 
 
 class Action:

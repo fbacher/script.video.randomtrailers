@@ -6,20 +6,38 @@
         <posx>0</posx>
         <posy>0</posy>
     </coordinates>
-    <!-- <backgroundcolor>0x01010100</backgroundcolor> -->
     <controls>
+        <control type="group" id="38000">
+        <control type="group">
+        <description>viewport</description>
+            <posx>0</posx>
+            <posy>0</posy>
+            <right>100%</right>
+            <bottom>100%</bottom>
+            <visible>true</visible>
+        <control type="videowindow">
+            <description>Private Video Window to avoid default navigation action processing</description>
+            <left>0</left>
+            <top>0</top>
+            <right>100%</right>
+            <bottom>100%</bottom>
+            <visible>true</visible>
+        </control>
+        </control>
+        <control type="group">
         <control type="image">
               <description>background</description>
               <posx>0</posx>
               <posy>0</posy>
-              <width>1080</width>
+              <width>1280</width>
               <height>720</height>
              <aspectratio>stretch</aspectratio>
              <texture background="true">solid-back.png</texture>
          </control>
-
+        </control>
 			<!-- POSTER/COVER -->
 		 <control type="group">
+		      <description> Draw three horizontal lines</description>
 				<posx>880</posx>
 				<posy>20</posy> -->
 				<control type="image" id="38001">
@@ -236,5 +254,6 @@
 				<width>115</width>
 				<aspectratio>keep</aspectratio>
 			</control>
+		</control>
     </controls>
 </window>

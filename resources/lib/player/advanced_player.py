@@ -1,57 +1,17 @@
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import range
-from builtins import unicode
-from multiprocessing.pool import ThreadPool
-from xml.dom import minidom
-from kodi65 import addon
-from kodi65 import utils
-from common.rt_constants import Constants
-from common.rt_constants import Movie
-from common.rt_utils import Utils
-from common.debug_utils import Debug
-from common.rt_utils import Playlist
-from common.exceptions import AbortException
-from common.rt_utils import WatchDog
-from common.logger import Trace
-from action_map import Action
-from settings import Settings
-from backend.api import *
-import sys
-import datetime
-import io
-import json
-import os
-import queue
-import random
-import re
-import requests
-import resource
-import threading
-import time
-import traceback
-import urllib
-#from kodi_six import xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
-import xbmc
-import xbmcaddon
-import xbmcgui
-import xbmcvfs
-import xbmcplugin
-import xbmcaddon
-#import xbmcwsgi
-import xbmcdrm
-import string
-import action_map
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, division, print_function, unicode_literals
 
+from future import standard_library
+standard_library.install_aliases()  # noqa: E402
+
+from builtins import str
+from kodi_six import xbmc
+
+from common.exceptions import AbortException, ShutdownException
+from common.logger import Logger, Trace
+from common.monitor import Monitor
+import sys
 import threading
-from common.rt_utils import Trace
-from common.logger import Logger
-from common.rt_utils import Monitor
 
 
 class PlayerState:
@@ -142,7 +102,7 @@ class AdvancedPlayer(xbmc.Player):
         self._callBackOnShowInfo = onShowInfo
 
     def enableAdvancedMonitoring(self):
-        localLogger = self._logger.getMethodLogger(u'open')
+        localLogger = self._logger.getMethodLogger(u'enableAdvancedMonitoring')
         localLogger.enter()
         self._closed = False
         self.monitor()
@@ -150,7 +110,7 @@ class AdvancedPlayer(xbmc.Player):
     def disableAdvancedMonitoring(self, shutdown=False):
         self._closed = True
         try:
-            if self._monitorThread is not None and self.monitorThread.isAlive():
+            if self._monitorThread is not None and self._monitorThread.isAlive():
                 self._monitorThread.join(0.1)
         finally:
             self._monitorThread = None
@@ -206,8 +166,7 @@ class AdvancedPlayer(xbmc.Player):
 
     # Defined in xbmc.Player
     def play(self, item="", listitem=None, windowed=False, startpos=-1):
-        # type: (Union[str_type, PlayList], 'xbmcgui.ListItem', bool, int) ->
-        # None
+        # type: (Union[str_type, PlayList], 'xbmcgui.ListItem', bool, int) ->None
         """
         Play a item.
 
@@ -683,13 +642,18 @@ class AdvancedPlayer(xbmc.Player):
         localLogger = self._logger.getMethodLogger(u'getPlayingTitle')
         try:
             playingFile = super(AdvancedPlayer, self).getPlayingFile()
+        except (Exception) as e:
+            playingFile = u'unknown'
+        try:
             infoTag = self.getVideoInfoTag()
             title = infoTag.getTitle()
-            localLogger.debug(title + u' file: ' + playingFile)
+        except (Exception) as e:
+            title = "Exception- Nothing Playing?"
+
+            localLogger.debug(u'title:', title, u'file:', playingFile)
 
         except Exception as e:
-            xbmc.log("AdvancedPlayer.getPlayingTitle Exception caught: " + str(e))
-            title = "Exception- Nothing Playing?"
+            localLogger.logException(e)
             self._isFinished = True
 
         return title
@@ -697,7 +661,7 @@ class AdvancedPlayer(xbmc.Player):
     def killPlayer(self):
         localLogger = self._logger.getMethodLogger(u'killPlayer')
         localLogger.enter()
-        if (not self._isFinished):
+        if not self._isFinished:
             xbmc.executebuiltin('xbmc.PlayerControl(Stop)')
 
         self._isFinished = True
@@ -862,14 +826,14 @@ class AdvancedPlayer(xbmc.Player):
         self._onPlayBackEnded = True
         self._playerState = PlayerState.STATE_STOPPED
 
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         # self._dumpState()  # TODO: remove
         if not self._started:
             self.onPlayBackFailed()
 
     def onPlayBackFailed(self):
         localLogger = self._logger.getMethodLogger(u'onPlayBackFailed')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_STOPPED
 
         # self._dumpState()  # TODO: remove
@@ -881,7 +845,7 @@ class AdvancedPlayer(xbmc.Player):
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackStopped')
         self._playBackStopped = True
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_STOPPED
         # self._dumpState()  # TODO: remove
 
@@ -892,7 +856,7 @@ class AdvancedPlayer(xbmc.Player):
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackError')
         self._onPlayBackError = True
-        Trace.log(localLogger.getMsgPrefix, trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         self._playerState = PlayerState.STATE_STOPPED
         # self._dumpState()  # TODO: remove
 
@@ -927,7 +891,7 @@ class AdvancedPlayer(xbmc.Player):
         Will be called when user seeks to a time.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackSeek')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
@@ -936,7 +900,7 @@ class AdvancedPlayer(xbmc.Player):
         Will be called when user performs a chapter seek.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackSeekChapter')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
 
     # Defined in xmbc.Player
     def onPlayBackSpeedChanged(self, speed):
@@ -946,7 +910,7 @@ class AdvancedPlayer(xbmc.Player):
         Note:  Negative speed means player is rewinding, 1 is normal playback speed. 
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackSpeedChanged')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
 
     # Defined in xbmc.Player
     def onQueueNextItem(self):
@@ -959,7 +923,7 @@ class AdvancedPlayer(xbmc.Player):
 
     def onVideoWindowOpened(self):
         localLogger = self._logger.getMethodLogger(u'onVideoWindowOpened')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         # self._dumpState()  # TODO: remove
         self._playerWindowOpen = True
         # self.getDialog().show()
@@ -996,12 +960,12 @@ class AdvancedPlayer(xbmc.Player):
 
     def onVideoOSD(self):
         localLogger = self._logger.getMethodLogger(u'onVideoOSD')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         # self._dumpState()  # TODO: remove
 
     def onShowInfo(self):
         localLogger = self._logger.getMethodLogger(u'onShowInfo')
-        Trace.log(localLogger.getMsgPrefix(), trace=Trace.TRACE)
+        localLogger.trace(trace=Trace.TRACE)
         # self._dumpState()  # TODO: remove
 
         if self._callBackOnShowInfo is not None:
@@ -1168,11 +1132,3 @@ class AdvancedPlayer(xbmc.Player):
     def shutdownThread(self):
         localLogger = self._logger.getMethodLogger(u'shutdownThread')
         localLogger.enter()
-
-#PLAYER = AdvancedPlayer().init()
-
-
-# def shutdown():
-#    global PLAYER
-#    PLAYER.close(shutdown=True)
-#    del PLAYER
