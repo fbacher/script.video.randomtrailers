@@ -8,9 +8,12 @@ Created on Apr 17, 2019
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from common.constants import Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
@@ -23,7 +26,7 @@ import threading
 from kodi_six import xbmc, xbmcgui
 
 
-class ReasonEvent():
+class ReasonEvent(object):
     '''
         Provides a threading.Event with an attached reason
     '''
@@ -54,7 +57,7 @@ class ReasonEvent():
         self._event.wait(timeout)
 
 
-class ScreensaverState():
+class ScreensaverState(object):
     ACTIVATED = u'screensaver activated'
     DEACTIVATED = u'screensaver de-activated'
 
@@ -80,7 +83,7 @@ class ScreenSaverException(Exception):
     pass
 
 
-class ScreensaverManager:
+class ScreensaverManager(object):
     '''
         Catches events and relays to listeners
     '''
@@ -255,11 +258,11 @@ class ScreensaverManager:
         '''
             Block until this plugin is active as a screen saver
 
-            Note that when a plugin is not running as a 
+            Note that when a plugin is not running as a
             screen saver, then it will not exit until Kodi
             shuts down.
 
-            Raises an AbortException or ShutdownException 
+            Raises an AbortException or ShutdownException
             when those conditions exist.
         '''
         self._screensaverActiveEvent.wait(timeout)
@@ -270,11 +273,11 @@ class ScreensaverManager:
         '''
             Block until this plugin is active as a screen saver
 
-            Note that when a plugin is not running as a 
+            Note that when a plugin is not running as a
             screen saver, then it will not exit until Kodi
             shuts down.
 
-            Raises an AbortException or ShutdownException 
+            Raises an AbortException or ShutdownException
             when those conditions exist.
         '''
         self._screensaverInactiveEvent.wait(timeout=timeout)
@@ -332,11 +335,11 @@ class ScreensaverManager:
             Logger.logException(e)
 
 
-class BaseWindow():
+class BaseWindow(object):
 
     '''
         A transparent window (all WindowDialogs are transparent) to contain
-        our listeners and Title display. 
+        our listeners and Title display.
     '''
 
     def __init__(self):

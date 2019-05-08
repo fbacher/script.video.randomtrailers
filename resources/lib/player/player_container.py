@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Feb 12, 2019
+
+@author: Frank Feuerbacher
+"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from common.logger import Logger
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
 
 
-class PlayerContainer():
+class PlayerContainer(object):
     _instance = None
     @staticmethod
     def getInstance():

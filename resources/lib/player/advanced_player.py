@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-from builtins import str
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from kodi_six import xbmc
 
 from common.exceptions import AbortException, ShutdownException
@@ -14,7 +16,7 @@ import sys
 import threading
 
 
-class PlayerState:
+class PlayerState(object):
     STATE_STOPPED = u'stopped'
     STATE_PLAYING = u'playing'
     STATE_PAUSED = u'paused'
@@ -23,7 +25,7 @@ class PlayerState:
 class AdvancedPlayer(xbmc.Player):
 
     '''
-    isPlaying | onAVStarted, 
+    isPlaying | onAVStarted,
     isPlaying- False
     play Entering
     isFullScreen- False
@@ -170,7 +172,7 @@ class AdvancedPlayer(xbmc.Player):
         """
         Play a item.
 
-        :param item: [opt] string - filename, url or playlist 
+        :param item: [opt] string - filename, url or playlist
         :param listitem: [opt] listitem - used with setInfo() to set different
             infolabels.
         :param windowed: [opt] bool - true=play video windowed,
@@ -195,7 +197,7 @@ class AdvancedPlayer(xbmc.Player):
 
         localLogger = self._logger.getMethodLogger(u'play')
         localLogger.enter()
-        super(AdvancedPlayer, self).play(item, listitem, windowed, startpos)
+        super().play(item, listitem, windowed, startpos)
         self.enableAdvancedMonitoring()
         # self._dumpState()  # TODO: remove
         localLogger.exit()
@@ -203,22 +205,22 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def stop(self):
         """
-        Stop playing. 
+        Stop playing.
         """
         localLogger = self._logger.getMethodLogger(u'stop')
         localLogger.enter()
-        super(AdvancedPlayer, self).stop()
+        super().stop()
         # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def pause(self):
-        """ 
+        """
         Toggle play/pause state
         """
 
         localLogger = self._logger.getMethodLogger(u'pause')
         localLogger.enter()
-        super(AdvancedPlayer, self).pause()
+        super().pause()
         self._dumpState()  # TODO: remove
 
     def pausePlay(self):
@@ -238,45 +240,45 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def playnext(self):
         """
-        Play next item in playlist. 
+        Play next item in playlist.
         """
         localLogger = self._logger.getMethodLogger(u'playnext')
         localLogger.enter()
-        super(AdvancedPlayer, self).playnext()
+        super().playnext()
         # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def playprevious(self):
         """
-        Play previous item in playlist. 
+        Play previous item in playlist.
         """
         localLogger = self._logger.getMethodLogger(u'playprevious')
         localLogger.enter()
-        super(AdvancedPlayer, self).playprevious()
+        super().playprevious()
         # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def playselected(self, selected):
         # type: (int) -> None
         """
-        Play a certain item from the current playlist. 
+        Play a certain item from the current playlist.
 
-        :param selected: Integer - Item to select 
+        :param selected: Integer - Item to select
         """
         localLogger = self._logger.getMethodLogger(u'playselected')
         localLogger.enter()
-        super(AdvancedPlayer, self).playselected(selected)
+        super().playselected(selected)
         # self._dumpState()  # TODO: remove
 
     # Defined in xbmc.Player
     def isPlaying(self):
         """
-        Is Kodi is playing something. 
+        Is Kodi is playing something.
 
-        :return: True if Kodi is playing a file. 
+        :return: True if Kodi is playing a file.
         """
         #localLogger = self._logger.getMethodLogger(u'isPlaying')
-        self._isPlaying = bool(super(AdvancedPlayer, self).isPlaying())
+        self._isPlaying = bool(super().isPlaying())
         #localLogger.debug(u': ' + str(self._isPlaying))
 
         return self._isPlaying
@@ -303,24 +305,24 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def isPlayingAudio(self):
         """
-        Is Kodi playing audio. 
+        Is Kodi playing audio.
 
-        :return: True if Kodi is playing an audio file. 
+        :return: True if Kodi is playing an audio file.
         """
         #localLogger = self._logger.getMethodLogger(u'isPlayingAudio')
-        playingAudio = bool(super(AdvancedPlayer, self).isPlayingAudio())
+        playingAudio = bool(super().isPlayingAudio())
         # localLogger.debug(str(playingAudio))
         return playingAudio
 
     # Defined in xbmc.Player
     def isPlayingVideo(self):
         """
-        Is Kodi playing video. 
+        Is Kodi playing video.
 
-        :return: True if Kodi is playing a video. 
+        :return: True if Kodi is playing a video.
         """
         #localLogger = self._logger.getMethodLogger(u'isPlayingVideo')
-        isPlaying = bool(super(AdvancedPlayer, self).isPlayingVideo())
+        isPlaying = bool(super().isPlayingVideo())
         #localLogger.debug(u': ' + str(isPlaying))
 
         return isPlaying
@@ -328,12 +330,12 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def isPlayingRDS(self):
         """
-        Check for playing radio data system (RDS). 
+        Check for playing radio data system (RDS).
 
-        :return: True if kodi is playing a radio data system (RDS). 
+        :return: True if kodi is playing a radio data system (RDS).
         """
         #localLogger = self._logger.getMethodLogger(u'isPlayingRDS')
-        playingRDS = bool(super(AdvancedPlayer, self).isPlayingRDS())
+        playingRDS = bool(super().isPlayingRDS())
         # localLogger.debug(str(playingRDS))
         return playingRDS
 
@@ -346,14 +348,14 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def isExternalPlayer(self):
         """
-        Is Kodi using an external player. 
+        Is Kodi using an external player.
 
         :return: True if kodi is playing using an external player.
 
-        New function added. 
+        New function added.
         """
         #localLogger = self._logger.getMethodLogger(u'isExternalPlayer')
-        externalPlayer = bool(super(AdvancedPlayer, self).isExternalPlayer())
+        externalPlayer = bool(super().isExternalPlayer())
         # localLogger.debug(str(externalPlayer))
         return externalPlayer
 
@@ -366,19 +368,19 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def getPlayingFile(self):
         """
-        Returns the current playing file as a string. 
+        Returns the current playing file as a string.
 
         For LiveTV, returns a ``pvr://`` url which is not translatable to
         an OS specific file or external url.
 
         :return: Playing filename
-        :raises Exception: If player is not playing a file. 
+        :raises Exception: If player is not playing a file.
         """
         playingFile = u''
         try:
             localLogger = self._logger.getMethodLogger(u'getPlayingFile')
             localLogger.enter()
-            playingFile = super(AdvancedPlayer, self).getPlayingFile()
+            playingFile = super().getPlayingFile()
             localLogger.debug(u'playingFile: ' + playingFile)
         except Exception as e:
             pass
@@ -410,18 +412,18 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def getTime(self):
         """
-        Get playing time. 
+        Get playing time.
 
         Returns the current time of the current playing media as fractional seconds.
 
         :return: Current time as fractional seconds
-        :raises Exception: If player is not playing a file. 
+        :raises Exception: If player is not playing a file.
         """
         time = 0
         try:
             #localLogger = self._logger.getMethodLogger(u'getTime')
             # localLogger.enter()
-            time = super(AdvancedPlayer, self).getTime()
+            time = super().getTime()
             #localLogger.debug(u'time: ' + str(time))
         except:
             pass
@@ -431,20 +433,20 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def seekTime(self, seekTime):
         """
-        Seek time. 
+        Seek time.
 
         Seeks the specified amount of time as fractional seconds. The time
         specified is relative to the beginning of the currently
         playing media file.
 
-        :param seekTime: Time to seek as fractional seconds 
-        :raises Exception: If player is not playing a file. 
+        :param seekTime: Time to seek as fractional seconds
+        :raises Exception: If player is not playing a file.
         """
         seekTime = 0
         try:
             localLogger = self._logger.getMethodLogger(u'seekTime')
             localLogger.enter()
-            seekTime = super(AdvancedPlayer, self).seekTime(seekTime)
+            seekTime = super().seekTime(seekTime)
             localLogger.debug(u'seekTime: ' + str(seekTime))
         except:
             pass
@@ -454,17 +456,17 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def setSubtitles(self, subtitleFile):
         """
-        Set subtitle file and enable subtitles. 
+        Set subtitle file and enable subtitles.
 
         :param subtitleFile: File to use as source of subtitles
         """
-        return super(AdvancedPlayer, self).setSubtitles(subtitleFile)
+        return super().setSubtitles(subtitleFile)
 
     # Defined in xbmc.Player
     def showSubtitles(self, bVisible):
         # type: (bool) -> None
         """
-        Enable / disable subtitles. 
+        Enable / disable subtitles.
 
         :param visible: [boolean] True for visible subtitles.
 
@@ -472,33 +474,33 @@ class AdvancedPlayer(xbmc.Player):
 
             xbmc.Player().showSubtitles(True)
         """
-        return super(AdvancedPlayer, self).showSubtitles(bVisible)
+        return super().showSubtitles(bVisible)
 
     # Defined in xbmc.Player
     def getSubtitles(self):
         # type: () -> str
         """
-        Get subtitle stream name. 
+        Get subtitle stream name.
 
-        :return: Stream name 
+        :return: Stream name
         """
-        return super(AdvancedPlayer, self).getSubtitles()
+        return super().getSubtitles()
 
     # Defined in xbmc.Player
     def getAvailableSubtitleStreams(self):
         # type: () -> List[str]
         """
-        Get Subtitle stream names. 
+        Get Subtitle stream names.
 
-        :return: List of subtitle streams as name 
+        :return: List of subtitle streams as name
         """
-        return super(AdvancedPlayer, self).getAvailableSubtitleStreams()
+        return super().getAvailableSubtitleStreams()
 
     # Defined in xbmc.Player
     def setSubtitleStream(self, iStream):
         # type: (int) -> None
         """
-        Set Subtitle Stream. 
+        Set Subtitle Stream.
 
         :param iStream: [int] Subtitle stream to select for play
 
@@ -506,13 +508,13 @@ class AdvancedPlayer(xbmc.Player):
 
             xbmc.Player().setSubtitleStream(1)
         """
-        return super(AdvancedPlayer, self).setSubtitleStream(iStream)
+        return super().setSubtitleStream(iStream)
 
     # Defined in xbmc.Player
     def updateInfoTag(self, item):
         # type: ('xbmcgui.ListItem') -> None
         """
-        Update info labels for currently playing item. 
+        Update info labels for currently playing item.
 
         :param item: ListItem with new info
         :raises Exception: If player is not playing a file
@@ -526,13 +528,13 @@ class AdvancedPlayer(xbmc.Player):
             item.setInfo('music', {'title' : 'foo', 'artist' : 'bar'})
             xbmc.Player().updateInfoTag(item)
         """
-        super(AdvancedPlayer, self).updateInfoTag(item)
+        super().updateInfoTag(item)
 
     # Defined in xbmc.Player
     def getVideoInfoTag(self):
         # type: () -> InfoTagVideo
         """
-        To get video info tag. 
+        To get video info tag.
 
         Returns the VideoInfoTag of the current playing Movie.
 
@@ -540,13 +542,13 @@ class AdvancedPlayer(xbmc.Player):
         :raises Exception: If player is not playing a file or current file
             is not a movie file.
         """
-        return super(AdvancedPlayer, self).getVideoInfoTag()
+        return super().getVideoInfoTag()
 
     # Defined in xbmc.Player
     def getMusicInfoTag(self):
         # type: () -> InfoTagMusic
         """
-        To get music info tag. 
+        To get music info tag.
 
         Returns the MusicInfoTag of the current playing 'Song'.
 
@@ -554,13 +556,13 @@ class AdvancedPlayer(xbmc.Player):
         :raises Exception: If player is not playing a file or current file
             is not a music file.
         """
-        return super(AdvancedPlayer, self).getMusicInfoTag()
+        return super().getMusicInfoTag()
 
     # Defined in xbmc.Player
     def getRadioRDSInfoTag(self):
         # type: () -> InfoTagRadioRDS
         """
-        To get Radio RDS info tag 
+        To get Radio RDS info tag
 
         Returns the RadioRDSInfoTag of the current playing 'Radio Song if. present'.
 
@@ -569,7 +571,7 @@ class AdvancedPlayer(xbmc.Player):
             is not a rds file.
         """
         try:
-            return super(AdvancedPlayer, self).getRadioRDSInfoTag()
+            return super().getRadioRDSInfoTag()
         except:
             return None
 
@@ -577,16 +579,16 @@ class AdvancedPlayer(xbmc.Player):
     def getTotalTime(self):
         # type: () -> float
         """
-        To get total playing time. 
+        To get total playing time.
 
         Returns the total time of the current playing media in seconds.
         This is only accurate to the full second.
 
         :return: Total time of the current playing media
-        :raises Exception: If player is not playing a file. 
+        :raises Exception: If player is not playing a file.
         """
         try:
-            return super(AdvancedPlayer, self).getTotalTime()
+            return super().getTotalTime()
         except:
             return 0
 
@@ -594,17 +596,17 @@ class AdvancedPlayer(xbmc.Player):
     def getAvailableAudioStreams(self):
         # type: () -> List[str]
         """
-        Get Audio stream names 
+        Get Audio stream names
 
-        :return: List of audio streams as name 
+        :return: List of audio streams as name
         """
-        return super(AdvancedPlayer, self).getAvailableAudioStreams()
+        return super().getAvailableAudioStreams()
 
     # Defined in xbmc.Player
     def setAudioStream(self, iStream):
         # type: (int) -> None
         """
-        Set Audio Stream. 
+        Set Audio Stream.
 
         :param iStream: [int] Audio stream to select for play
 
@@ -612,23 +614,23 @@ class AdvancedPlayer(xbmc.Player):
 
             xbmc.Player().setAudioStream(1)
         """
-        return super(AdvancedPlayer, self).setAudioStream(iStream)
+        return super().setAudioStream(iStream)
 
     # Defined in xbmc.Player
     def getAvailableVideoStreams(self):
         # type: () -> List[str]
         """
-        Get Video stream names 
+        Get Video stream names
 
-        :return: List of video streams as name 
+        :return: List of video streams as name
         """
-        return super(AdvancedPlayer, self).getAvailableVideoStreams()
+        return super().getAvailableVideoStreams()
 
     # Defined in xbmc.Player
     def setVideoStream(self, iStream):
         # type: (int) -> None
         """
-        Set Video Stream. 
+        Set Video Stream.
 
         :param iStream: [int] Video stream to select for play
 
@@ -636,12 +638,12 @@ class AdvancedPlayer(xbmc.Player):
 
             xbmc.Player().setVideoStream(1)
         """
-        return super(AdvancedPlayer, self).setVideoStream(iStream)
+        return super().setVideoStream(iStream)
 
     def getPlayingTitle(self):
         localLogger = self._logger.getMethodLogger(u'getPlayingTitle')
         try:
-            playingFile = super(AdvancedPlayer, self).getPlayingFile()
+            playingFile = super().getPlayingFile()
         except (Exception) as e:
             playingFile = u'unknown'
         try:
@@ -681,8 +683,8 @@ class AdvancedPlayer(xbmc.Player):
         this point.
 
         v18 Python API changes:
-        Use onAVStarted() instead if you need to detect if Kodi is actually playing 
-        a media file (i.e, if a stream is available) 
+        Use onAVStarted() instead if you need to detect if Kodi is actually playing
+        a media file (i.e, if a stream is available)
         '''
 
         localLogger = self._logger.getMethodLogger(u'onPlayBackStarted')
@@ -695,7 +697,7 @@ class AdvancedPlayer(xbmc.Player):
         Will be called when Kodi has a video or audiostream.
 
         v18 Python API changes:
-            New function added. 
+            New function added.
         '''
         localLogger = self._logger.getMethodLogger(u'onAVStarted')
         localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
@@ -808,7 +810,7 @@ class AdvancedPlayer(xbmc.Player):
             happens when the stream changes.
 
             v18 Python API changes:
-            New function added. 
+            New function added.
         '''
         localLogger = self._logger.getMethodLogger(u'onAVChange')
         self._onAVChange = True
@@ -820,7 +822,7 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def onPlayBackEnded(self):
         '''
-            Will be called when Kodi stops playing a file. 
+            Will be called when Kodi stops playing a file.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackEnded')
         self._onPlayBackEnded = True
@@ -841,7 +843,7 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def onPlayBackStopped(self):
         '''
-        Will be called when user stops Kodi playing a file. 
+        Will be called when user stops Kodi playing a file.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackStopped')
         self._playBackStopped = True
@@ -863,7 +865,7 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Playser
     def onPlayBackPaused(self):
         '''
-            Will be called when user pauses a playing file. 
+            Will be called when user pauses a playing file.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackPaused')
 
@@ -874,7 +876,7 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Playser
     def onPlayBackResumed(self):
         '''
-            Will be called when user resumes a paused file. 
+            Will be called when user resumes a paused file.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackResumed')
 
@@ -907,7 +909,7 @@ class AdvancedPlayer(xbmc.Player):
         '''
         Will be called when players speed changes (eg. user FF/RW).
 
-        Note:  Negative speed means player is rewinding, 1 is normal playback speed. 
+        Note:  Negative speed means player is rewinding, 1 is normal playback speed.
         '''
         localLogger = self._logger.getMethodLogger(u'onPlayBackSpeedChanged')
         localLogger.trace(trace=Trace.TRACE)
@@ -915,7 +917,7 @@ class AdvancedPlayer(xbmc.Player):
     # Defined in xbmc.Player
     def onQueueNextItem(self):
         '''
-        Will be called when user queues the next item. 
+        Will be called when user queues the next item.
         '''
         localLogger = self._logger.getMethodLogger(u'onQueueNextItem')
         localLogger.trace(self.getPlayingTitle(), trace=Trace.TRACE)
@@ -969,7 +971,7 @@ class AdvancedPlayer(xbmc.Player):
         # self._dumpState()  # TODO: remove
 
         if self._callBackOnShowInfo is not None:
-            self._callBackOnShowInfo.onShowInfo()
+            self._callBackOnShowInfo
 
     def tick(self):
         pass
@@ -987,7 +989,7 @@ class AdvancedPlayer(xbmc.Player):
         '''
         if (not self._isFinished):
             try:
-                super(AdvancedPlayer, self).playnext()
+                super().playnext()
             except Exception as e:
                 xbmc.log("AdvancedPlayer.killPlayingTrailer Exception caught: " + str(e))
         '''

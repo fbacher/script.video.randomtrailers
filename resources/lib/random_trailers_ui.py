@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Feb 12, 2019
 
+@author: Frank Feuerbacher
+"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-from builtins import str
-from builtins import unicode
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from xml.dom import minidom
 from common.constants import Constants, Movie
 from common.playlist import Playlist
@@ -118,12 +123,12 @@ class BlankWindow(xbmcgui.WindowXML):
     def close(self):
         localLogger = logger.getMethodLogger(u'BlankWindow.close')
         localLogger.enter()
-        super(BlankWindow, self).close()
+        super().close()
 
     def show(self):
         localLogger = logger.getMethodLogger(u'BlankWindow.show')
         localLogger.enter()
-        super(BlankWindow, self).show()
+        super().show()
 
 
 def playTrailers(blackBackground, runningAsScreensaver=False):
@@ -229,7 +234,7 @@ def playTrailers(blackBackground, runningAsScreensaver=False):
 
 class StartUI(threading.Thread):
     def __init__(self, screensaver=False):
-        super(StartUI, self).__init__(name=u'startUI')
+        super().__init__(name=u'startUI')
         self._logger = Logger(self.__class__.__name__)
         localLogger = self._logger.getMethodLogger(u'__init__')
         localLogger.enter()
@@ -309,8 +314,8 @@ class StartUI(threading.Thread):
                                                                   {Movie.TITLE: u'openCurtain',
                                                                    Movie.TRAILER: Settings.getOpenCurtainPath()})
 
-                # Finish curtain playing before proceeding
-                if Settings.getShowCurtains():
+                    # Finish curtain playing before proceeding
+
                     self._playerContainer.getPlayer().waitForIsPlayingVideo(3)
                     self._playerContainer.getPlayer().waitForIsNotPlayingVideo()
                 playTrailers(blackBackground,

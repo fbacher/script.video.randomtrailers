@@ -3,16 +3,17 @@
 '''
 Created on Feb 12, 2019
 
-@author: fbacher
+@author: Frank Feuerbacher
 '''
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-from builtins import str
-from builtins import unicode
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from kodi_six import xbmc, xbmcgui
 
 from kodi65 import addon
@@ -21,7 +22,7 @@ from common.constants import Constants
 from common.exceptions import AbortException, ShutdownException
 from common.watchdog import WatchDog
 from common.settings import Settings
-from common.back_end_bridge import BackEndBridge
+from common.front_end_bridge import FrontendBridge
 from common.logger import Logger, Trace
 
 import sys
@@ -84,12 +85,12 @@ if REMOTE_DBG:
 RECEIVER = None
 
 
-class MainThreadLoop:
+class MainThreadLoop(object):
     '''
         Kodi's Monitor class has some quirks in it that strongly favor creating
         it from the main thread as well as callng xbmc.sleep/xbmc.waitForAbort.
         The main issue is that a Monitor event can not be received until
-        xbmc.sleep/xbmc.waitForAbort is called FROM THE SAME THREAD THAT THE 
+        xbmc.sleep/xbmc.waitForAbort is called FROM THE SAME THREAD THAT THE
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
         other plugins may be blocked as well. For this reason, the main thread
         should not be blocked for too long.
@@ -104,7 +105,7 @@ class MainThreadLoop:
         self._monitor = Monitor.getInstance()
         Trace.enableAll()
         WatchDog.create()
-        self._back_end_bridge = None
+        self._front_end_bridge = None
         self._screen_saver_manager = None
         self._advanced_player = None
         self._is_screensaver = is_screensaver
@@ -131,18 +132,11 @@ class MainThreadLoop:
         localLogger.debug(u'CurrentDialogId, CurrentWindowId:', currentDialogId,
                           currentWindowId)
 
-        self._back_end_bridge = BackEndBridge.getInstance(
-            Constants.FRONTEND_SERVICE)
-        self._back_end_bridge.initialize(Constants.FRONTEND_SERVICE)
-
-        # See if user wants to restrict trailers to a
-        # genre
-
+        self._front_end_bridge = FrontendBridge.getInstance()
         if not self._is_screensaver and Settings.promptForSettings():
             self.configureSettings()
 
-        BackEndBridge.getInstance(
-            Constants.FRONTEND_SERVICE).notifySettingsChanged()
+        self._front_end_bridge .notifySettingsChanged()
         self._startUI = random_trailers_ui.StartUI(self._is_screensaver)
         self._startUI.start()
         self._monitor.setStartupComplete()

@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-
-class PlayerState:
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
+class PlayerState(object):
     STATE_STOPPED = u'stopped'
     STATE_PLAYING = u'playing'
     STATE_PAUSED = u'paused'
 
 
-class DummyPlayer():
+class DummyPlayer(object):
 
     def __init__(self):
         return

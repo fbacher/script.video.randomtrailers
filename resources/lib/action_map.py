@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
-''' 
+'''
 Created on Feb 6, 2019
 
-@author: fbacher
+@author: Frank Feuerbacher
 '''
-from __future__ import print_function, division, absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-from builtins import str
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from kodi_six import xbmc
 
 
-class Action:
+class Action(object):
     # Values came from xbmcgui
 
     def __init__(self):

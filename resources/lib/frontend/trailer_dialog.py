@@ -8,17 +8,19 @@ Created on Apr 17, 2019
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-from builtins import str
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
 from common.logger import Logger, Trace, logEntryExit
 from common.messages import Messages
 from common.monitor import Monitor
-from common.back_end_bridge import BackEndBridge
+from common.front_end_bridge import FrontendBridge
 from action_map import Action
 from common.settings import Settings
 from player.player_container import PlayerContainer
@@ -35,7 +37,7 @@ from kodi_six import xbmc, xbmcgui
 # TODO: Put this in separate file
 
 
-class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
+class TrailerDialog(xbmcgui.WindowXMLDialog):
     '''
         Note that the underlying 'script-trailer-window.xml' has a "videowindow"
         control. This causes the player to ignore many of the normal keymap actions.
@@ -44,14 +46,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
     PLAYER_GROUP_CONTROL = 38000
 
     def __init__(self, *args, **kwargs):
-        super(TrailerDialog, self).__init__(*args, **kwargs)
+        super(TrailerDialog, self).__init__(*args)
         self._logger = Logger(self.__class__.__name__)
         localLogger = self._logger.getMethodLogger(u'__init__')
         localLogger.enter()
         self._exitDialog = False
         self._playerContainer = PlayerContainer.getInstance()
 
-        self.getPlayer().setCallBacks(onShowInfo=self)
+        self.getPlayer().setCallBacks(onShowInfo=self.showDetailedInfo)
         self._numberOfTrailersToPlay = kwargs[u'numberOfTrailersToPlay']
         self._screensaverManager = ScreensaverManager.getInstance()
         self._screensaverManager.registerScreensaverListener(self)
@@ -122,29 +124,28 @@ class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
         if self._numberOfTrailersToPlay == 0:
             limitTrailersToPlay = False
         try:
-            self._back_end_bridge = BackEndBridge.getInstance(
-                Constants.FRONTEND_SERVICE)
+            self.frontEndBridge = FrontendBridge.getInstance()
 
             # Main trailer playing loop
 
             while not Monitor.getInstance().isShutdownRequested():
-                status, self._trailer = self._back_end_bridge.getNextTrailer()
+                status, self._trailer = self.frontEndBridge.getNextTrailer()
                 # localLogger.debug(u'Got status:', status,
                 #                  u'trailer:', self._trailer)
 
                 # Are there no trailers to play now, and in the future?
 
-                if status == BackEndBridge.OK and self._trailer is None:
+                if status == FrontendBridge.OK and self._trailer is None:
                     break
 
-                elif status == BackEndBridge.IDLE:
+                elif status == FrontendBridge.IDLE:
                     localLogger.error(u'Should not get state IDLE')
                     break
 
-                if status == BackEndBridge.TIMED_OUT:
+                if status == FrontendBridge.TIMED_OUT:
                     continue
 
-                if status == BackEndBridge.BUSY:
+                if status == FrontendBridge.BUSY:
                     continue
 
                 localLogger.debug(u'got trailer to play: ' +
@@ -417,7 +418,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
         # and now it is being reactivated.
 
         self.unBlockPlayingTrailers()
-        super(TrailerDialog, self).doModal()
+        super().doModal()
         localLogger.exit()
         return self._exitDialog
 
@@ -426,14 +427,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
         localLogger.trace(trace=Trace.TRACE_SCREENSAVER)
         self._screensaverManager.setAddonActive(True)
 
-        super(TrailerDialog, self).show()
+        super().show()
 
     def close(self):
         localLogger = self._logger.getMethodLogger(u'close')
         localLogger.trace(trace=Trace.TRACE_SCREENSAVER)
         self._screensaverManager.setAddonActive(False)
 
-        super(TrailerDialog, self).close()
+        super().close()
 
     def blockPlayingTrailers(self):
         '''
@@ -616,7 +617,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
             REMOTE_0 .. REMOTE_9 -> Record playing movie info to
                         userdata/addon_data/script.video.randomtrailers/<playlist<n>
 
-            ACTION_QUEUE_ITEM -> Add movie to Couch Potato 
+            ACTION_QUEUE_ITEM -> Add movie to Couch Potato
         '''
 
         localLogger = self._logger.getMethodLogger(u'onAction')
@@ -753,6 +754,68 @@ class TrailerDialog(xbmcgui.WindowXMLDialog, BaseWindow):
             localLogger.exit()
 
         return self._control
+
+    def addToPlaylist(self, playListId, trailer):
+        localLogger = self._logger.getMethodLogger(u'addToPlayList')
+        _playlistMap = {xbmcgui.REMOTE_1:
+                            Playlist.PLAYLIST_PREFIX + u'1' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_2:
+                            Playlist.PLAYLIST_PREFIX + u'2' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_3:
+                            Playlist.PLAYLIST_PREFIX + u'3' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_4:
+                            Playlist.PLAYLIST_PREFIX + u'4' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_5:
+                            Playlist.PLAYLIST_PREFIX + u'5' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_6:
+                            Playlist.PLAYLIST_PREFIX + u'6' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_7:
+                            Playlist.PLAYLIST_PREFIX + u'7' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_8:
+                            Playlist.PLAYLIST_PREFIX + u'8' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_9:
+                            Playlist.PLAYLIST_PREFIX + u'9' + Playlist.PLAYLIST_SUFFIX,
+                        xbmcgui.REMOTE_0:
+                            Playlist.PLAYLIST_PREFIX + u'10' + Playlist.PLAYLIST_SUFFIX}
+        playlistFile = _playlistMap.get(playListId, None)
+        if playlistFile is None:
+            localLogger.error(
+                u'Invalid playlistId, ignoring request to write to playlist.')
+        else:
+            Playlist.getPlaylist(playlistFile).recordPlayedTrailer(trailer)
+
+    def notifyUser(self, msg):
+        # TODO: Supply code
+        localLogger = self._logger.getMethodLogger(u'notifyUser')
+        localLogger.debug(msg)
+
+    def playMovie(self, trailer):
+        # TODO: Supply code
+        localLogger = self._logger.getMethodLogger(u'playMovie')
+        localLogger.debug(u'Playing movie at user request:',
+                          trailer[Movie.TITLE])
+
+        self.exitRandomTrailers()
+        listItem = xbmcgui.ListItem(label=trailer[Movie.TITLE],
+                                    thumbnailImage=trailer[Movie.THUMBNAIL],
+                                    path=trailer[Movie.FILE])
+        listItem.setInfo(type=u'video',
+                         infoLabels={u'genre': trailer[Movie.GENRE],
+                                     u'path': trailer[Movie.FILE],
+                                     u'plot': trailer[Movie.PLOT]})
+        listItem.setProperty(u'isPlayable', u'true')
+
+        xbmc.Player.play(trailer[Movie.FILE].encode(u'utf-8'), listitem=listItem,
+                         windowed=False)
+        # "PlayMedia(media[,isdir][,1],[playoffset=xx])"
+        # command = 'XBMC.NotifyAll({0}.SIGNAL,{1},{2})'.format(source_id, signal,_encodeData(data))
+        # xbmc.executebuiltin(command)
+
+    def getTitleString(self, trailer):
+        title = u'[B]' + trailer[Movie.DETAIL_TITLE] + u'[/B]'
+        title2 = trailer[Movie.DETAIL_TITLE]
+        return title
+
 
     def shutdown(self):
         localLogger = self._logger.getMethodLogger(u'shutdown')

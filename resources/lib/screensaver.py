@@ -1,20 +1,26 @@
 # -*- coding: utf-8 -*-
+"""
+Created on Feb 12, 2019
 
+@author: Frank Feuerbacher
+"""
 # dummy screensaver will set screen to black and go fullscreen if windowed
 
 
-from __future__ import print_function, division, absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()  # noqa: E402
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
 
-from builtins import unicode
+from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException, ShutdownException
 from common.logger import Logger, Trace
 from common.watchdog import WatchDog
-from common.back_end_bridge import BackEndBridge
+from common.screensaver_bridge import ScreensaverBridge
 from kodi_six import xbmc, xbmcgui, xbmcaddon
 
 import sys
@@ -92,10 +98,8 @@ try:
         localLogger.debug(u'CurrentDialogId, CurrentWindowId:', currentDialogId,
                           currentWindowId)
 
-        back_end_bridge = BackEndBridge.getInstance(
-            Constants.FRONTEND_SERVICE)
-        back_end_bridge.initialize(Constants.FRONTEND_SERVICE)
-        messageReceived = back_end_bridge.requestActivateScreensaver()
+        screenSaverBridge = ScreensaverBridge.getInstance()
+        messageReceived = screenSaverBridge.requestActivateScreensaver()
 
         if not messageReceived:
             localLogger.debug(u'About to start randomtrailers')
@@ -108,8 +112,8 @@ try:
             localLogger.debug(u'Got back from starting randomtrailers')
 
         WatchDog.shutdown()
-        back_end_bridge.delete_instance()
-        del back_end_bridge
+        screenSaverBridge.delete_instance()
+        del screenSaverBridge
 
 except (AbortException, ShutdownException):
     pass
