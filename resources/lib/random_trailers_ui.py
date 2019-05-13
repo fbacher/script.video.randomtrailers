@@ -11,7 +11,8 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
-from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from xml.dom import minidom
 from common.constants import Constants, Movie
 from common.playlist import Playlist
@@ -352,7 +353,13 @@ class StartUI(threading.Thread):
 
         finally:
             localLogger.debug(u'Stopping xbmc.Player')
-            xbmc.Player().stop()
+            #
+            # Player is set to a dummy in the event that it is no longer in
+            # Random Trailers control
+
+            if self._playerContainer is not None:
+                self._playerContainer.getPlayer().stop()
+
             localLogger.debug(u'Deleting black screen')
             if blackBackground is not None:
                 blackBackground.close()

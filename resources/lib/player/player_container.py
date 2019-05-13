@@ -11,7 +11,8 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
-from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.logger import Logger
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer

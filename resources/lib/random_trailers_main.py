@@ -13,7 +13,7 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
-from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
+
 from kodi_six import xbmc, xbmcgui
 
 from kodi65 import addon
@@ -24,6 +24,8 @@ from common.watchdog import WatchDog
 from common.settings import Settings
 from common.front_end_bridge import FrontendBridge
 from common.logger import Logger, Trace
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 
 import sys
 import random_trailers_ui

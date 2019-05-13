@@ -16,8 +16,8 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
-from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
-
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.logger import Logger, Trace
 from common.exceptions import AbortException, ShutdownException
 from common.monitor import Monitor
@@ -27,8 +27,6 @@ import os
 import threading
 from kodi_six import xbmc, xbmcgui
 
-# import xbmc
-# import xbmcgui
 
 '''
     Rough outline:

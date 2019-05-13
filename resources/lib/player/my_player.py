@@ -6,12 +6,13 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
-from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
 from kodi_six import xbmcgui, utils
 
 from player.advanced_player import AdvancedPlayer
 from common.logger import Logger
 from common.constants import Movie
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.utils import Utils
 from common.monitor import Monitor
 import os
@@ -133,11 +134,16 @@ class MyPlayer(AdvancedPlayer):
     def dumpData(self, context):
         localLogger = self._logger.getMethodLogger(
             u'dumpData')
-
-        infoTagVideo = self.getVideoInfoTag()
-        localLogger.debug(u'context:', context, u'title:', infoTagVideo.getTitle(),
-                          u'genre:', infoTagVideo.getGenre(),
-                          u'trailer:', infoTagVideo.getTrailer())
+        try:
+            if self.isPlayingVideo():
+                infoTagVideo = self.getVideoInfoTag()
+                localLogger.debug(u'context:', context, u'title:', infoTagVideo.getTitle(),
+                              u'genre:', infoTagVideo.getGenre(),
+                              u'trailer:', infoTagVideo.getTrailer())
+            else:
+                localLogger.debug(u'Not playing video')
+        except (Exception) as e:
+            localLogger.logException(e)
 
     def isActivated(self):
         return self._isActivated

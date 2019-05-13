@@ -13,7 +13,8 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
-from typing import Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
@@ -86,6 +87,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._abort = False
         self._dummyControl = None
         self._showInfoUIThread = None
+        self._do_not_shutdown_player = False
 
     def onInit(self):
         localLogger = self._logger.getMethodLogger(u'onInit')
@@ -256,7 +258,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         finally:
             localLogger.debug(u'About to close TrailerDialog')
             localLogger.debug(u'About to stop xbmc.Player')
-            if self.getPlayer() is not None:
+            if self.getPlayer() is not None and not self._do_not_shutdown_player:
                 self.getPlayer().stop()
 
             self.cancelLongPlayingTrailerKiller()
@@ -485,6 +487,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         if not self.getPlayer().isActivated():
             self.getPlayer().setCallBacks(onShowInfo=None)
             self.getPlayer().disableAdvancedMonitoring()
+            self._do_not_shutdown_player = True
 
         # Just in case we are paused
         self.getPlayer().resumePlay()
@@ -796,6 +799,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                           trailer[Movie.TITLE])
 
         self.exitRandomTrailers()
+        """
         listItem = xbmcgui.ListItem(label=trailer[Movie.TITLE],
                                     thumbnailImage=trailer[Movie.THUMBNAIL],
                                     path=trailer[Movie.FILE])
@@ -804,9 +808,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                      u'path': trailer[Movie.FILE],
                                      u'plot': trailer[Movie.PLOT]})
         listItem.setProperty(u'isPlayable', u'true')
+        """
+        command = ("PlayMedia(%s)" % (trailer[Movie.FILE]))
 
-        xbmc.Player.play(trailer[Movie.FILE].encode(u'utf-8'), listitem=listItem,
-                         windowed=False)
+        xbmc.executebuiltin(command)
+
         # "PlayMedia(media[,isdir][,1],[playoffset=xx])"
         # command = 'XBMC.NotifyAll({0}.SIGNAL,{1},{2})'.format(source_id, signal,_encodeData(data))
         # xbmc.executebuiltin(command)
