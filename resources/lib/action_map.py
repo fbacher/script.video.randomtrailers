@@ -1,45 +1,22 @@
+# -*- coding: utf-8 -*-
 '''
 Created on Feb 6, 2019
 
-@author: fbacher
+@author: Frank Feuerbacher
 '''
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
-from __future__ import unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import range
-from builtins import unicode
-from multiprocessing.pool import ThreadPool
-import sys
-import datetime
-import io
-import json
-import os
-import queue
-import random
-import re
-import requests
-import resource
-import threading
-import time
-import traceback
-import urllib
-#from kodi_six import xbmc, xbmcaddon, xbmcgui, xbmcplugin, xbmcvfs
-import xbmc
-import xbmcaddon
-import xbmcgui
-import xbmcvfs
-import xbmcplugin
-import xbmcaddon
-#import xbmcwsgi
-import xbmcdrm
-import string
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+from future.builtins import (
+    bytes, dict, int, list, object, range, str,
+    ascii, chr, hex, input, next, oct, open,
+    pow, round, super, filter, map, zip)
+
+from kodi_six import xbmc
 
 
-class Action:
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
+class Action(object):
     # Values came from xbmcgui
 
     def __init__(self):

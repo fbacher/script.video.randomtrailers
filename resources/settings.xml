@@ -1,111 +1,184 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <settings>
-  <category label="32016">
-    <setting label="32026" type="lsep"/>
-    <setting id="rating_limit" type="enum" label="32040" default="0" values="None|G|PG|PG-13|R|NC-17" />
-    <setting id="do_notyetrated" type="bool" enable = "!eq(-1,0)" label="32041" default="false" />
-    <setting id="do_nr" type="bool" enable = "!eq(-2,0)" label="32042" default="false" />
-    <setting id="include_adult" type="bool" label="Include Adult Films" default="true"/>
-    <setting label="Playing Options" type="lsep"/>
-    <setting id="numberOfTrailersToPlay" type="number" label="32000" default="10" />
-    <setting id="group_trailers" type="bool" label="32053" default="false" />
-    <setting id="group_number" type="number" enable="eq(-1,true)" label="32054" default="5" />
-    <setting id="group_delay" type="number" enable="eq(-2,true)" label="32055" default="10" />
-    <setting id="do_animation" type="bool" label="32001" default="true" />
-    <setting id="show_title" type="bool" label="32008" default="true"/>
-    <setting id="timeToDisplayDetailInfo" type="number" label="Seconds to display InfoDialog" default="20" />
-    <setting id="do_volume" type="bool" label="32006" default="false" />
-    <setting id="volume" label="32011" type="number" enable = "eq(-1,true)" default="100" />
-  </category>
-  <category label="32015">
-    <setting label="32012" type="lsep"/>
-    <setting id="do_library" type="bool" label="32021" default="true" />
-    <setting id="do_library_remote_trailers" type="bool" enable="eq(-1,true)" label="Include movies with remote trailers" default="true" />
-    <setting id="do_library_no_trailer_info" type="bool"  enable="eq(-2,true)" label="Include movies with no trailer info" default="false" />
-    <setting id="hide_watched" type="bool" enable = "eq(-3,true)" label="32004" default="false" />
-    <setting id="watched_days" type="number" enable="eq(-4,true)" label="32005" default="365" />
-    <setting id="allow_foreign_languages" type="bool" label="Allow foreign languages" default="false" />
-    <setting id="vote_filter" type="enum" label="Filter based on average rating" default="0" values="None|Greater or Equal|Less or Equal" />
-    <setting id="vote_value" type="number" enable="eq(-1,true)" label="Rating to compare against (0-10)" default="6" />
-   </category>
-  <category label="Genres">
-    <setting label="Only show trailers for movies in the following Genres/Sub-Genres" type="lsep"/>
-    <setting id="do_genre" type="bool" label="32002" default="false" />  
-    <setting id="g_action" type="bool"  enable="eq(-1,true)" label="32028" default="true"/>   
-    <setting id="g_adventure" type="bool" enable="eq(-2,true)" label="Adventure" default="true" />
-    <setting id="g_animation" type="bool" enable="eq(-3,true)" label="Animation" default="true" />
-    <setting id="g_biography" type="bool" enable="eq(-4,true)" label="Biography" default="true"/>
-    <setting id="g_black_comedy" type="bool" enable="eq(-5,true)" label="Dark Comedy" default="true"/>
-    <setting id="g_comedy" type="bool"  enable="eq(-6,true)" label="32029" default="true"/>
-    <setting id="g_crime" type="bool" enable="eq(-7,true)" label="Crime" default="true"/>
-    <setting id="g_docu" type="bool"  enable="eq(-8,true)" label="32030" default="true"/>
-    <setting id="g_drama" type="bool"  enable="eq(-9,true)" label="32031" default="true"/>
-    <setting id="g_epic" type="bool" enable="eq(-10,true)" label="Epic" default="true"/>
-    <setting id="g_family" type="bool"  enable="eq(-11,true)" label="32032" default="true"/>
-    <setting id="g_fantasy" type="bool"  enable="eq(-12,true)" label="32033" default="true"/>
-    <setting id="g_film_noir" type="bool" enable="eq(-13,true)" label="Film Noir" default="true"/>
-    <setting id="g_foreign" type="bool"  enable="eq(-14,true)" label="32034" default="true"/>
-    <setting id="g_history" type="bool" enable="eq(-15,true)" label="History" default="true"/>    
-    <setting id="g_horror" type="bool"  enable="eq(-16,true)" label="32035" default="true"/>
-    <setting id="g_melodrama" type="bool" enable="eq(-17,true)" label="Melodrama" default="true"/>
-    <setting id="g_music" type="bool" enable="eq(-18,true)" label="Music" default="true" />    
-    <setting id="g_musical" type="bool"  enable="eq(-19,true)" label="32036" default="true"/>
-    <setting id="g_mystery" type="bool" enable="eq(-20,true)" label="Mystery" default="true"/>
-    <setting id="g_pre_code" type="bool" enable="eq(-21,true)" label="Pre-Code" default="true"/>
-    <setting id="g_romance" type="bool"  enable="eq(-22,true)" label="32037" default="true"/>
-    <setting id="g_satire" type="bool" enable="eq(-23,true)" label="Satire" default="true"/>
-    <setting id="g_scifi" type="bool"  enable="eq(-24,true)" label="32038" default="true"/>
-    <setting id="g_screwball" type="bool" enable="eq(-25,true)" label="Screwball Comedy" default="true"/>
-    <setting id="g_swashbuckler" type="bool" enable="eq(-26,true)" label="Swashbuckler" default="true"/>
-    <setting id="g_thriller" type="bool"  enable="eq(-27,true)" label="32039" default="true"/>
-    <setting id="g_tv_movie" type="bool" enable="eq(-28,true)" label="TV Movie" default="true"/>
-    <setting id="g_war" type="bool" enable="eq(-29,true)" label="War" default="true"/>
-    <setting id="g_war_documentary" type="bool" enable="eq(-30,true)" label="War Documentary" default="true"/>
-    <setting id="g_western" type="bool" enable="eq(-31,true)" label="Western" default="true"/>
-   </category>
-  <category label="Remote Trailers">
-    <setting label="When trailers are downloaded..." type="lsep"/>
-    <setting id="do_clips" type="bool" label="32018" default="true" />
-    <setting id="do_featurettes" type="bool" label="32019" default="true" />
-    <setting id="do_teasers" type="bool" label="Include Teasers" default="true" />
-    <setting id="do_remote_trailers" type="bool" label="Include Trailers" default="true" />
-    
-   </category>
-  <category label="32045">
-    <setting label="32046" type ="lsep" />
-    <setting id="do_tmdb" type="bool" label="32044" default="true" />
-    <setting id="tmdb_source" label="32043" type="enum" enable="eq(-1,true)" default="0" lvalues="32047|32048|32049|32050|32051" /> 
-                                                                     <!--  Popular | Top Rated | Upcoming | Now Playing | All --> 
-  </category>
-  <category label="32025">
-    <setting label="32013" type="lsep"/>
-    <setting id="do_itunes" type="bool" label="32023" default="true" />
-    <setting id="itunes_trailer_type" type="enum" enable="eq(-1,true)" label="32043" values="Coming Soon|Just Added|Popular|Exclusive|All" default="4" />
-    <setting id="quality" type="enum" enable ="eq(-2,true)" label="32014" values="480p|720p|1080p" default="0"/>
-    <setting label="32102" type="lsep"/>
-  </category>
-  <category label="32024">
-    <setting label="32009" type="lsep"/>
-    <setting id="do_folder" type="bool" label="32022" default="false" />
-    <setting id="path" type="folder" enable="eq(-1,true)" label="32010" default="" />
-  </category>
-  <category label="Playlists/Reports">
-  </category>
-  <category label="Advanced">
-    <setting label="miscellaneous" type="lsep"/>
-    <setting id="enable_screensaver" type="bool" label="Enable Screen Saver" default="false"/>
-    <setting id="screensaver_activate_after_idle" type="number" enable="eq(-1,true)" label="Activate Screensaver after idle seconds" default="60"/>
-    <setting id="prompt_for_settings" type="bool" label="Prompt to configure settings" default="false"/>
-    <setting id="max_top_actors" type="number" label="Number of top billed actors to include" default="6" />    
-    <setting id="max_trailer_length" type="number" label="Maximum Trailer Length (seconds)" default="600"/>
-    <setting id="do_fullscreen" type="bool" label="32007" default="false" />
-    <setting label="Debug Options" type="lsep"/>    
-    <setting id="do_debug" type="bool" label="Enable Debug" default="false" />
-    <setting id="do_trace" type="bool" label="Enable Debug Trace" default="false" />
-    <setting id="do_trace_stats" type="bool" label="Enable Debug Trace" default="false" />   
-    <setting label="Shared API Key impacts performance" type="lsep"/>
-    <setting id="tmdb_api_key" type="text" label="Personal API key for TMDB, The Movie Database. See themoviedatabase.org for more information" default=""/>
-  </category>
-</settings>
+    <category label="32016">
+        <setting label="32026" type="lsep"/>
+        <setting id="rating_limit" type="enum" label="32040" default="0" values="None|G|PG|PG-13|R|NC-17"/>
+        <setting id="do_notyetrated" type="bool" enable="!eq(-1,0)" label="32041" default="false"/>
+        <setting id="do_nr" type="bool" enable="!eq(-2,0)" label="32042" default="false"/>
+        <setting id="include_adult" type="bool" label="Include Adult Films" default="true"/>
+        <setting label="Playing Options" type="lsep"/>
+        <setting id="numberOfTrailersToPlay" type="number" label="32000" default="10"/>
+        <setting id="group_trailers" type="bool" label="32053" default="false"/>
+        <setting id="trailers_per_group" type="number" enable="eq(-1,true)" label="32054" default="5"/>
+        <setting id="group_delay" type="number" enable="eq(-2,true)" label="32055" default="10"/>
+        <setting id="do_animation" type="bool" label="32001" default="true"/>
+        <setting id="show_title" type="bool" label="32008" default="true"/>
+        <setting id="timeToDisplayDetailInfo" type="number" label="Seconds to display InfoDialog" default="20"/>
+        <setting id="do_volume" type="bool" label="32006" default="false"/>
+        <setting id="volume" label="32011" type="number" enable="eq(-1,true)" default="100"/>
+        <setting id="normalize_volume_of_local_trailers" type="bool" label="Normalize Volume of Local Trailers"
+                 default="false"/>
 
+    </category>
+    <category label="32015">
+        <setting label="32012" type="lsep"/>
+        <setting id="do_library" type="bool" label="32021" default="true"/>
+        <setting id="do_library_remote_trailers" type="bool" enable="eq(-1,true)"
+                 label="Include movies with remote trailers" default="true"/>
+        <setting id="do_library_no_trailer_info" type="bool" enable="eq(-2,true)"
+                 label="Include movies with no trailer info" default="false"/>
+        <setting id="hide_watched" type="bool" enable="eq(-3,true)" label="32004" default="false"/>
+        <setting id="watched_days" type="number" enable="eq(-4,true)" label="32005" default="365"/>
+        <setting id="allow_foreign_languages" type="bool" label="Allow foreign languages" default="false"/>
+        <setting id="include_old_movie_trailers" type="bool" label="Also download trailers for old movies"
+                 default="false"/>
+        <setting id="vote_filter" type="enum" label="Filter based on average rating" default="0"
+                 values="None|Greater or Equal|Less or Equal"/>
+        <setting id="vote_value" type="number" enable="eq(-1,true)" label="Rating to compare against (0-10)"
+                 default="6"/>
+        <setting id="enable_select_by_year_range" type="bool" label="Filter by year range"/>
+        <setting id="year_range_minimum" type="number" enable="eq(-1,true)" label="Minimum year"/>
+        <setting id="year_range_maximum" type="number" enable="eq(-2,true)" label="Maximum year"/>
+    </category>
+    <category label="Genres">
+        <setting label="Only show trailers for movies in the following Genres/Sub-Genres" type="lsep"/>
+        <setting id="do_genre" type="bool" label="32002" default="false"/>
+        <setting id="g_action" type="bool" enable="eq(-1,true)" label="32028" default="true"/>
+        <setting id="g_adventure" type="bool" enable="eq(-2,true)" label="Adventure" default="true"/>
+        <setting id="g_animation" type="bool" enable="eq(-3,true)" label="Animation" default="true"/>
+        <setting id="g_biography" type="bool" enable="eq(-4,true)" label="Biography" default="true"/>
+        <setting id="g_black_comedy" type="bool" enable="eq(-5,true)" label="Dark Comedy" default="true"/>
+        <setting id="g_comedy" type="bool" enable="eq(-6,true)" label="32029" default="true"/>
+        <setting id="g_crime" type="bool" enable="eq(-7,true)" label="Crime" default="true"/>
+        <setting id="g_docu" type="bool" enable="eq(-8,true)" label="32030" default="true"/>
+        <setting id="g_drama" type="bool" enable="eq(-9,true)" label="32031" default="true"/>
+        <setting id="g_epic" type="bool" enable="eq(-10,true)" label="Epic" default="true"/>
+        <setting id="g_family" type="bool" enable="eq(-11,true)" label="32032" default="true"/>
+        <setting id="g_fantasy" type="bool" enable="eq(-12,true)" label="32033" default="true"/>
+        <setting id="g_film_noir" type="bool" enable="eq(-13,true)" label="Film Noir" default="true"/>
+        <setting id="g_foreign" type="bool" enable="eq(-14,true)" label="32034" default="true"/>
+        <setting id="g_history" type="bool" enable="eq(-15,true)" label="History" default="true"/>
+        <setting id="g_horror" type="bool" enable="eq(-16,true)" label="32035" default="true"/>
+        <setting id="g_melodrama" type="bool" enable="eq(-17,true)" label="Melodrama" default="true"/>
+        <setting id="g_music" type="bool" enable="eq(-18,true)" label="Music" default="true"/>
+        <setting id="g_musical" type="bool" enable="eq(-19,true)" label="32036" default="true"/>
+        <setting id="g_mystery" type="bool" enable="eq(-20,true)" label="Mystery" default="true"/>
+        <setting id="g_pre_code" type="bool" enable="eq(-21,true)" label="Pre-Code" default="true"/>
+        <setting id="g_romance" type="bool" enable="eq(-22,true)" label="32037" default="true"/>
+        <setting id="g_satire" type="bool" enable="eq(-23,true)" label="Satire" default="true"/>
+        <setting id="g_scifi" type="bool" enable="eq(-24,true)" label="32038" default="true"/>
+        <setting id="g_screwball" type="bool" enable="eq(-25,true)" label="Screwball Comedy" default="true"/>
+        <setting id="g_swashbuckler" type="bool" enable="eq(-26,true)" label="Swashbuckler" default="true"/>
+        <setting id="g_thriller" type="bool" enable="eq(-27,true)" label="32039" default="true"/>
+        <setting id="g_tv_movie" type="bool" enable="eq(-28,true)" label="TV Movie" default="true"/>
+        <setting id="g_war" type="bool" enable="eq(-29,true)" label="War" default="true"/>
+        <setting id="g_war_documentary" type="bool" enable="eq(-30,true)" label="War Documentary" default="true"/>
+        <setting id="g_western" type="bool" enable="eq(-31,true)" label="Western" default="true"/>
+    </category>
+    <category label="Remote Trailers">
+        <setting label="When trailers are downloaded..." type="lsep"/>
+        <setting id="normalize_volume_of_downloaded_trailers" type="bool" label="Normalize Volume" default="false"/>
+
+        <setting id="do_clips" type="bool" label="32018" default="true"/>
+        <setting id="do_featurettes" type="bool" label="32019" default="true"/>
+        <setting id="do_teasers" type="bool" label="Include Teasers" default="true"/>
+        <setting id="do_remote_trailers" type="bool" label="Include Trailers" default="true"/>
+
+    </category>
+    <category label="32045">
+        <setting label="32046" type="lsep"/>
+        <setting id="do_tmdb" type="bool" label="32044" default="true"/>
+        <setting id="tmdb_trailer_type" label="32043" type="enum" enable="eq(-1,true)" default="0"
+                 lvalues="32047|32048|32049|32050|32051"/>
+        <!--  Popular | Top Rated | Upcoming | Now Playing | All -->
+        <setting id="tmdb_sort_order" type="enum" label="Prefer Trailers with" default="0"
+                 values="Newest | Oldest| Highest Rated | Lowest Rated | Most Votes | Least Votes"/>
+        <setting id="tmdb_number_of_max_trailers" type="number" label="Maximum Number of trailers" default="500"/>
+
+    </category>
+    <category label="32025">
+        <setting label="32013" type="lsep"/>
+        <setting id="do_itunes" type="bool" label="32023" default="true"/>
+        <setting id="itunes_trailer_type" type="enum" enable="eq(-1,true)" label="32043"
+                 values="Coming Soon|Just Added|Popular|Exclusive|All" default="4"/>
+        <setting id="quality" type="enum" enable="eq(-2,true)" label="32014" values="480p|720p|1080p" default="0"/>
+        <setting label="32102" type="lsep"/>
+    </category>
+    <category label="32024">
+        <setting label="32009" type="lsep"/>
+        <setting id="do_folder" type="bool" label="32022" default="false"/>
+        <setting id="path" type="folder" enable="eq(-1,true)" label="32010" default=""/>
+    </category>
+
+    <category label="Playlists/Reports">
+    </category>
+
+    <category label="Cache">
+        <setting id="use_tmdb_cache" type="bool" label="Cache TMDB query results" default="true"/>
+        <setting id="remote_db_cache_path" label="TMDB cache path" enable="eq(-1,true)" type="folder" source=""
+                 option="writeable"
+                 default="special://userdata/addon_data/script.video.randomtrailers/cache"/>
+        <setting id="use_trailer_cache" type="bool" label="Cache downloaded trailers" default="true"/>
+        <setting id="trailer_cache_path" type="folder" label="Trailer cache path" source=""
+                 option="writeable" enable="eq(-1,true)"
+                 default="special://userdata/addon_data/script.video.randomtrailers/cache"/>
+        <setting id="trailer_entry_expiration_days" type="number" label="Maximum days to keep cached trailers"
+                 default="30"/>
+        <setting id="tmdb_cache_entry_expiration_days" type="number" label="Maximum days to keep downloaded TMDB data"
+                 default="30"/>
+
+        <setting label="Downloaded Trailer Cache" type="lsep"/>
+        <setting id="limit_cached_trailers" type="bool" label="Limit Trailer Disk Usage" default="false"/>
+        <setting id="limit_number_of_cached_trailers" enable="eq(-1,true)" type="bool" label="Limit Number of Trailers"
+                 default="false"/>
+        <setting id="max_number_of_cached_trailers" type="number" enable="eq(-1,true)"
+                 label="Maximum Number of Trailers" default="1000"/>
+        <setting id="limit_size_of_cached_trailers" enable="eq(-3,true)" type="bool" label="Limit Size of Trailer Cache"
+                 default="false"/>
+        <setting id="max_size_of_cached_trailers" type="number" enable="eq(-1,true)"
+                 label="Maximum Size of Trailer Cache (MB)" default="1024"/>
+        <setting id="limit_ratio_of_cached_trailers" enable="eq(-5,true)" type="bool"
+                 label="Limit Filesystem % for Trailer Cache" default="false"/>
+        <setting id="max_ratio_of_cached_trailers" type="number" enable="eq(-1,true)"
+                 label="Maximum % of Filesystem for Trailer Cache" default="25"/>
+
+        <setting label="Downloaded Data Cache" type="lsep"/>
+        <setting id="limit_cached_json" type="bool" label="Limit Data Disk Usage" default="false"/>
+        <setting id="limit_number_of_cached_json_files" enable="eq(-1,true)" type="bool"
+                 label="Limit Number of Data Files" default="false"/>
+        <setting id="max_number_of_cached_json_files" type="number" enable="eq(-1,true)"
+                 label="Maximum Number of Data Files" default="1000"/>
+        <setting id="limit_size_of_cached_json_disk" enable="eq(-3,true)" type="bool" label="Limit Size of Data Cache"
+                 default="false"/>
+        <setting id="max_size_of_cached_json_disk" type="number" enable="eq(-1,true)"
+                 label="Maximum Size of Data Cache (MB)" default="50"/>
+        <setting id="limit_ratio_of_cached_json_disk" enable="eq(-5,true)" type="bool"
+                 label="Limit Filesystem % for Data Cache" default="false"/>
+        <setting id="max_ratio_of_cached_json_disk" type="number" enable="eq(-1,true)"
+                 label="Maximum % of Filesystem for Data Cache" default="5"/>
+    </category>
+
+    <category label="Advanced">
+        <setting label="miscellaneous" type="lsep"/>
+        <setting id="enable_screensaver" type="bool" label="Enable Screen Saver" default="false"/>
+        <setting id="screensaver_activate_after_idle" type="number" enable="eq(-1,true)"
+                 label="Activate Screensaver after idle seconds" default="60"/>
+        <setting id="prompt_for_settings" type="bool" label="Prompt to configure settings" default="false"/>
+        <setting id="max_top_actors" type="number" label="Number of top billed actors to include" default="6"/>
+        <setting id="max_trailer_length" type="number" label="Maximum Trailer Length (seconds)" default="600"/>
+        <setting id="do_fullscreen" type="bool" label="32007" default="false"/>
+        <setting label="Debug Options" type="lsep"/>
+        <setting id="do_debug" type="bool" label="Enable Debug" default="false"/>
+        <setting id="do_trace" type="bool" label="Enable Debug Trace" default="false"/>
+        <setting id="do_trace_stats" type="bool" label="Enable Debug Stats" default="false"/>
+        <setting label="Shared API Key impacts performance" type="lsep"/>
+        <setting id="tmdb_api_key" type="text"
+                 label="Personal API key for TMDB, The Movie Database. See themoviedatabase.org for more information"
+                 default=""/>
+        <setting id="updateTmdbId" type="bool" label="Update TMDB ID in database" default="true"/>
+        <setting id="movies_without_trailers_bias" type="number" label="Come up with good label" default="1.2"/>
+        <setting id="throttle_movies_without_trailers" type="bool" label="Limit searching for missing library trailers"
+                 default="false"/>
+    </category>
+</settings>
 
