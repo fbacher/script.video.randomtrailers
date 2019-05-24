@@ -24,63 +24,9 @@ class PlayerState(object):
 
 
 class AdvancedPlayer(xbmc.Player):
+    """
 
-    '''
-    isPlaying | onAVStarted,
-    isPlaying- False
-    play Entering
-    isFullScreen- False
-    isPlayingAudio False
-    isPlayingVideo False
-    isPlayingRDS False
-    isExternalPlayer False
-    isFinished False
-    play Exiting
-    isPlaying False
-    monitor Player: Idling
-    isPlaying- False
-    ...
-    isPlaying- True
-    monitor pre-play
-    onPrePlayStarted
-    isFullScreen False
-    isPlaying True
-    isPlayingVideo- False
-    ...
-    isPlayingVideo- True
-    onSeekOSD
-    isFullScreen True
-    onVideoWindowOpened
-    isPlaying True
-    play Entering
-    onPlayBackStarted
-    onAVChange
-    onAVChange
-    onAVChange
-    onSeekOSD
-    onAVChange
-    onAVStarted
-    onPlayBackResumed
-    onPlayBackStarted
-    onAVChange
-    onAVChange
-    onAVChange
-    onAVStarted
-    -- Sometimes onPlayBackFailed, onPlayBackEnded, isFulllscreen: false, onPlayBackStarted, onAVChange, onAVStarted, -> isFullScreen True, onVideoWindowOpened, onAVChange
-
-    onVideoWindowClosed
-    hideOSD
-    isFullScreen True
-    isPlaying False
-    isPlayingVideo False
-    isFinished False   BUG
-    onVideoWindowClosed
-    idling
-
-    Observe that we don't always get onPlayBackEnded & friends, but isPlaying goes to False
-
-
-    '''
+    """
 
     def __init__(self):
         self._isPlaying = False
@@ -765,6 +711,7 @@ class AdvancedPlayer(xbmc.Player):
         return True
 
     def waitForIsNotPlayingVideo(self, timeout=None, trace=None):
+        # type: (float, TextType) -> None
         '''
         This is a mess.
 
@@ -925,6 +872,15 @@ class AdvancedPlayer(xbmc.Player):
         # self._dumpState()  # TODO: remove
 
     def onVideoWindowOpened(self):
+        # type: () -> None
+        """
+            Event indicating that the Video Window has been opened.
+
+            Note: This event is NOT sent if the Player is started in non-windowed
+            mode.
+
+        :return: None
+        """
         localLogger = self._logger.getMethodLogger(u'onVideoWindowOpened')
         localLogger.trace(trace=Trace.TRACE)
         # self._dumpState()  # TODO: remove
@@ -932,6 +888,14 @@ class AdvancedPlayer(xbmc.Player):
         # self.getDialog().show()
 
     def onVideoWindowClosed(self):
+        # type: () ->None
+        """
+            Event indicating that the Video Window has been closed.
+
+            Note: This event is NOT sent if the Player is started in non-windowed
+            mode.
+        :return: None
+        """
         localLogger = self._logger.getMethodLogger(u'onVideoWindowClosed')
         localLogger.enter()
         self._playerWindowOpen = False

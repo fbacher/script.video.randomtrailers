@@ -13,7 +13,7 @@ from common.logger import Logger
 from common.constants import Movie
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
                                                  TextType, DEVELOPMENT, RESOURCE_LIB)
-from common.utils import Utils
+from common.disk_utils import DiskUtils
 from common.monitor import Monitor
 import os
 
@@ -56,7 +56,8 @@ class MyPlayer(AdvancedPlayer):
 
         self.play(item=path, listitem=listitem)
 
-    def play(self, item="", listitem=None, windowed=False, startpos=-1):
+    def play(self, item="", listitem=None, windowed=False
+             , startpos=-1):
         super().play(item, listitem, windowed, startpos)
 
     def setPlayingTitle(self, title):
@@ -64,7 +65,7 @@ class MyPlayer(AdvancedPlayer):
 
     def setPlayingFilePath(self, filePath):
         filePath = utils.py2_decode(filePath)
-        self._isURL = Utils.isURL(filePath)
+        self._isURL = DiskUtils.isURL(filePath)
         self._expectedFilePath = filePath
 
     def onAVStarted(self):
@@ -77,7 +78,7 @@ class MyPlayer(AdvancedPlayer):
             if genre != u'randomtrailers':
                 playingFile = super().getPlayingFile()
                 playingFile = utils.py2_decode(playingFile)
-                if self._isURL and Utils.isURL(playingFile):
+                if self._isURL and DiskUtils.isURL(playingFile):
                     localLogger.debug(u'URLs used. Consider pass')
                 else:
                     # Do not use this player anymore until

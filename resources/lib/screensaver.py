@@ -27,7 +27,7 @@ from kodi_six import xbmc, xbmcgui, xbmcaddon
 import sys
 
 logger = Logger(u'screensaver')
-logger.setAddonName(u'screensaver')
+logger.setAddonName(u'script.video.randomtrailers.screensaver')
 
 REMOTE_DBG = True
 

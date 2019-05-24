@@ -49,7 +49,7 @@ from kodi_six import xbmc, xbmcgui
             * Loops playing videos until stopped
             * On each iteration it gets movie a to play from
               TrailerManager's ReadyToPlay queue
-            * Listens for events:stop & exit, pause, play, playMovie, showInfo,
+            * Listens for events:stop & exit, pause, play, queueMovie, showInfo,
               Skip to next trailer, etc.
 
         TrailerManager holds various queues and lists:

@@ -6,6 +6,7 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
+from common.monitor import Monitor
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
                                                  TextType, DEVELOPMENT, RESOURCE_LIB)
 class PlayerState(object):
@@ -164,9 +165,14 @@ class DummyPlayer(object):
         return
 
     def waitForIsPlayingVideo(self, timeout=None):
+
+        kodiMonitor = Monitor.getInstance()
+        kodiMonitor.throwExceptionIfShutdownRequested()
         return False
 
     def waitForIsNotPlayingVideo(self, timeout=None, trace=None):
+        kodiMonitor = Monitor.getInstance()
+        kodiMonitor.throwExceptionIfShutdownRequested()
         return True
 
     def onAVChange(self):

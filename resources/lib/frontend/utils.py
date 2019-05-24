@@ -14,7 +14,7 @@ from future.builtins import (
     pow, round, super, filter, map, zip)
 
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
+                                      TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.constants import Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
@@ -35,9 +35,7 @@ class ReasonEvent(object):
     CLEARED = u'Cleared'
     KODI_ABORT = u'Kodi Abort'
     SHUTDOWN = u'Shutdown'
-    APPLICATION_EXIT = u'Application Exit'
-    SCREENSAVER_ACTIVATED = u'Screensaver activated'
-    SCREENSAVER_DEACTIVATED = u'Screensaver de-activated'
+    RUN_STATE_CHANGE = u'Run State Changed'
 
     def __init__(self):
         self._event = threading.Event()
@@ -102,19 +100,19 @@ class ScreensaverManager(object):
         self._is_screen_saver = None
         self._screensaverActiveEvent = threading.Event()
         self._monitor = Monitor.getInstance()
-        self._monitor.registerScreensaverListener(self)
+        # self._monitor.registerScreensaverListener(self)
         self._monitor.registerShutdownListener(self)
         self._monitor.registerAbortListener(self)
 
         # TODO: - Need own thread subclasses to catch unhandled exceptions
         # and to catch abortException & ShutdownException
 
-        self._checkForIdle = threading.Event()
-        self._checkForIdle.set()
-        self._isAddonActive = True
-        self._idleMonitor = threading.Thread(
-            target=self.restartScreensaverOnIdle, name=u'Screensaver on Idle')
-        self._idleMonitor.start()
+        #self._checkForIdle = threading.Event()
+        # self._checkForIdle.set()
+        #self._isAddonActive = True
+        # self._idleMonitor = threading.Thread(
+        #     target=self.restartScreensaverOnIdle, name=u'Screensaver on Idle')
+        # self._idleMonitor.start()
 
     @staticmethod
     def getInstance():
@@ -124,16 +122,21 @@ class ScreensaverManager(object):
             u'getInstance')
         localLogger.trace(u'enter', trace=Trace.TRACE_SCREENSAVER)
         return ScreensaverManager._instance
-
+    """
     def registerScreensaverListener(self, listener):
         self._screenSaverListeners.append(listener)
 
     def unRegisterScreensaverListener(self, listener):
         self._screenSaverListeners.remove(listener)
 
-    # Kodi is not calling these in our situation.
-
     def onScreensaverActivated(self):
+        # type: () ->None
+        "" "
+            Called by Monitor when any(?) registered screensaver
+            is activated by Kodi
+
+        :return:
+        "" "
         localLogger = self._logger.getMethodLogger(u'onScreensaverActivated')
         localLogger.trace(trace=Trace.TRACE_SCREENSAVER)
 
@@ -145,6 +148,13 @@ class ScreensaverManager(object):
         self.informScreensaverListeners(activated=True)
 
     def onScreensaverDeactivated(self):
+        # type:() ->None
+        " ""
+            Called by Monitor when any(?) registered screensaver
+            is de-activated by Kodi
+
+        :return:
+        "" " 
         localLogger = self._logger.getMethodLogger(u'onScreensaverDeactivated')
         localLogger.trace(trace=Trace.TRACE_SCREENSAVER)
 
@@ -157,9 +167,10 @@ class ScreensaverManager(object):
         self._checkForIdle.set()
         self._screensaverStateChanged.set()
         if not PlayerContainer.getInstance().getPlayer().isActivated():
-            PlayerContainer.getInstance.useDummyPlayer()
+            PlayerContainer.getInstance().useDummyPlayer()
 
         self.informScreensaverListeners(activated=False)
+    """
 
     def onShutdownEvent(self):
         localLogger = self._logger.getMethodLogger(u'onShutdownEvent')
@@ -167,7 +178,6 @@ class ScreensaverManager(object):
 
         # Make sure that restartScreensaverOnIdle thread can exit
 
-        self._checkForIdle.set()
         self._screensaverStateChanged.set()
 
         # Set these events so that the code will fall-through
@@ -231,13 +241,13 @@ class ScreensaverManager(object):
     def isLaunchedAsScreensaver(self):
         return self._is_screen_saver
 
-    def wakeup(self, is_screen_saver):
+    # def wakeup(self, is_screen_saver):
 
         # May be transitioning to a screensaver, or perhaps
         # this invocation was not as a screensaver, but we already are one
 
-        if not self._is_screen_saver:
-            self._is_screen_saver = is_screen_saver
+        # if not self._is_screen_saver:
+        #    self._is_screen_saver = is_screen_saver
 
         # TODO: resolve how screensaver mode is handled. Is script re-launced
         # each time, or is it made dormant and re-awakened?
@@ -247,13 +257,13 @@ class ScreensaverManager(object):
         # if self._is_screen_saver:
         #    self._checkForIdle.set()
         # else:
-        self._checkForIdle.clear()
+        # self._checkForIdle.clear()
 
-    def isAddonActive(self):
-        return self._isAddonActive
+    # def isAddonActive(self):
+    #    return self._isAddonActive
 
-    def setAddonActive(self, isActive):
-        self._isAddonActive = isActive
+    # def setAddonActive(self, isActive):
+    #    self._isAddonActive = isActive
 
     def waitForScreensaverActive(self, timeout=None):
         '''
@@ -285,6 +295,7 @@ class ScreensaverManager(object):
         self._monitor.throwExceptionIfAbortRequested(timeout=0)
         self._monitor.throwExceptionIfShutdownRequested(delay=0)
 
+    '''
     def restartScreensaverOnIdle(self):
         try:
             localLogger = self._logger.getMethodLogger(
@@ -334,6 +345,7 @@ class ScreensaverManager(object):
             pass
         except (Exception) as e:
             Logger.logException(e)
+    '''
 
 
 class BaseWindow(object):
@@ -382,7 +394,7 @@ class BaseWindow(object):
 
     def playMovie(self, trailer):
         # TODO: Supply code
-        localLogger = self._logger.getMethodLogger(u'playMovie')
+        localLogger = self._logger.getMethodLogger(u'queueMovie')
         localLogger.debug(u'Playing movie at user request:',
                           trailer[Movie.TITLE])
 

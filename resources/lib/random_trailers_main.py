@@ -25,7 +25,7 @@ from common.settings import Settings
 from common.front_end_bridge import FrontendBridge
 from common.logger import Logger, Trace
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
+                                      TextType, DEVELOPMENT, RESOURCE_LIB)
 
 import sys
 import random_trailers_ui
@@ -171,7 +171,8 @@ class MainThreadLoop(object):
         except (Exception) as e:
             localLogger.logException(e)
         finally:
-            if Monitor.getInstance().isShutdownRequested():
+            monitor = Monitor.getInstance()
+            if monitor is not None and monitor.isShutdownRequested():
                 localLogger.debug(
                     u'*********************** SHUTDOWN MAIN **************')
             WatchDog.shutdown()
@@ -221,12 +222,14 @@ def bootstrap():
         mainLoop = MainThreadLoop(is_screensaver)
         mainLoop.startup()
 
-        localLogger.debug(u'Exiting plugin')
+        # Logger can be unusable during shutdown
+
+        xbmc.log(u'Exiting plugin', xbmc.LOGDEBUG)
 
     except (AbortException, ShutdownException) as e:
         pass
     except (Exception) as e:
-        localLogger.logException(e)
+        Logger.logException(e)
     finally:
         if REMOTE_DBG:
             try:
