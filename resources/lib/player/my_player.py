@@ -12,139 +12,200 @@ from player.advanced_player import AdvancedPlayer
 from common.logger import Logger
 from common.constants import Movie
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
+                                                 TextType, MovieType, DEVELOPMENT, RESOURCE_LIB)
 from common.disk_utils import DiskUtils
 from common.monitor import Monitor
 import os
 
 
+# noinspection Annotator
 class MyPlayer(AdvancedPlayer):
+    """
 
+    """
     def __init__(self):
+        # type: () -> None
+        """
+
+        """
         super().__init__()
         self._logger = Logger(self.__class__.__name__)
-        self._expectedTitle = None
-        self._expectedFilePath = None
-        self._isURL = False
-        self._isActivated = True
+        self._expected_title = None
+        self._expected_file_path = None
+        self._is_url = False
+        self._is_activated = True
 
-    def playTrailer(self, path, trailer):
-        localLogger = self._logger.getMethodLogger(u'playTrailer')
+    def play_trailer(self, path, trailer):
+        # type: (TextType, MovieType) -> None
+        """
+
+        :param path:
+        :param trailer:
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(u'play_trailer')
 
         title = trailer[Movie.TITLE]
-        filePath = trailer.get(Movie.NORMALIZED_TRAILER, None)
-        if filePath is None:
-            filePath = trailer[Movie.TRAILER]
-        filePath = utils.py2_decode(filePath)
-        fileName = os.path.basename(filePath)
-        passedFileName = utils.py2_decode(os.path.basename(path))
-        if fileName != passedFileName:
-            localLogger.debug(u'passed file name:', passedFileName,
-                              u'trailer fileName:', fileName,)
+        file_path = trailer.get(Movie.NORMALIZED_TRAILER, None)
+        if file_path is None:
+            file_path = trailer[Movie.TRAILER]
+        file_path = utils.py2_decode(file_path)
+        file_name = os.path.basename(file_path)
+        passed_file_name = utils.py2_decode(os.path.basename(path))
+        if file_name != passed_file_name:
+            local_logger.debug(u'passed file name:', passed_file_name,
+                              u'trailer file_name:', file_name,)
 
         listitem = xbmcgui.ListItem(title)
         listitem.setInfo(
             u'video', {u'title': title, u'genre': u'randomtrailers',
             u'Genre': u'randomtrailers',
-                       u'trailer': passedFileName, u'path': utils.py2_decode(path),
+                       u'trailer': passed_file_name, u'path': utils.py2_decode(path),
                        u'mediatype': u'video', u'tag': u'randomtrailers'})
-        listitem.setPath(filePath)
+        listitem.setPath(file_path)
 
-        self.setPlayingTitle(title)
-        self.setPlayingFilePath(filePath)
-        localLogger.debug(u'path:', fileName, u'title:', title)
+        self.set_playing_title(title)
+        self.set_playing_file_path(file_path)
+        local_logger.debug(u'path:', file_name, u'title:', title)
 
         self.play(item=path, listitem=listitem)
 
     def play(self, item="", listitem=None, windowed=False
              , startpos=-1):
+        # type: (TextType, xbmcgui.ListItem, bool, int) -> None
+        """
+
+        :param item:
+        :param listitem:
+        :param windowed:
+        :param startpos:
+        :return:
+        """
         super().play(item, listitem, windowed, startpos)
 
-    def setPlayingTitle(self, title):
-        self._expectedTitle = title
+    def set_playing_title(self, title):
+        # type: (TextType) ->None
+        """
 
-    def setPlayingFilePath(self, filePath):
-        filePath = utils.py2_decode(filePath)
-        self._isURL = DiskUtils.isURL(filePath)
-        self._expectedFilePath = filePath
+        :param title:
+        :return:
+        """
+        self._expected_title = title
+
+    def set_playing_file_path(self, file_path):
+        # type: (TextType) -> None
+        """
+
+        :param file_path:
+        :return:
+        """
+        file_path = utils.py2_decode(file_path)
+        self._is_url = DiskUtils.is_url(file_path)
+        self._expected_file_path = file_path
 
     def onAVStarted(self):
-        localLogger = self._logger.getMethodLogger(u'onAVStarted')
+        # type: () ->None
+        """
 
-        self.dumpData(u'onAVStarted')
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(u'onAVStarted')
+
+        self.dump_data(u'onAVStarted')
 
         try:
             genre = utils.py2_decode(self.getVideoInfoTag().getGenre())
             if genre != u'randomtrailers':
-                playingFile = super().getPlayingFile()
-                playingFile = utils.py2_decode(playingFile)
-                if self._isURL and DiskUtils.isURL(playingFile):
-                    localLogger.debug(u'URLs used. Consider pass')
+                playing_file = super().getPlayingFile()
+                playing_file = utils.py2_decode(playing_file)
+                if self._is_url and DiskUtils.is_url(playing_file):
+                    local_logger.debug(u'URLs used. Consider pass')
                 else:
                     # Do not use this player anymore until
-                    self._isActivated = False
-                    localLogger.debug(u'Genre and URL test failed.',
+                    self._is_activated = False
+                    local_logger.debug(u'Genre and URL test failed.',
                                       u'Genre:', genre,
-                                      u'playingFile:', playingFile,
+                                      u'playing_file:', playing_file,
                                       u'expectedPlayingFile:',
-                                      self._expectedFilePath)
-                    Monitor.getInstance().onScreensaverDeactivated()
+                                      self._expected_file_path)
+                    Monitor.get_instance().onScreensaverDeactivated()
             else:
-                localLogger.debug(u'Genre passed')
+                local_logger.debug(u'Genre passed')
         except (Exception) as e:
             pass
 
 
-    def isPlayingExpectedTitle(self):
-        localLogger = self._logger.getMethodLogger(u'isPlayingExpectedTitle')
+    def is_playing_expected_title(self):
+        # type: () -> bool
+        """
 
-        playingTitle = super().getPlayingTitle()
-        videoInfo = super().getVideoInfoTag()
-        if videoInfo is not None:
-            title2 = utils.py2_decode(videoInfo.getTitle())
-            localLogger.debug(u'title2:', title2, u'title:',
-                              self._expectedTitle)
-        if playingTitle != self._expectedTitle:
-            localLogger.debug(u'Expected to play:', self._expectedTitle, u'Playing:',
-                              playingTitle)
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(u'is_playing_expected_title')
+
+        playing_title = super().getPlayingTitle()
+        video_info = super().getVideoInfoTag()
+        if video_info is not None:
+            title2 = utils.py2_decode(video_info.getTitle())
+            local_logger.debug(u'title2:', title2, u'title:',
+                              self._expected_title)
+        if playing_title != self._expected_title:
+            local_logger.debug(u'Expected to play:', self._expected_title, u'Playing:',
+                              playing_title)
             return False
         else:
             return True
 
-    def isPlayingExpectedFile(self):
-        localLogger = self._logger.getMethodLogger(
-            u'isPlayingExpectedFile')
-        playingFile = super().getPlayingFile()
-        playingFile = utils.py2_decode(playingFile)
-        playingFile = os.path.basename(playingFile)
-        videoInfo = super().getVideoInfoTag()
-        if videoInfo is not None:
-            playingFile2 = videoInfo.getFile()
-            playingFile2 = utils.py2_decode(playingFile2)
-            playingFile2 = os.path.dirname(playingFile2)
-            localLogger.debug(u'expected:', self._expectedFilePath, u'file2:',
-                              playingFile2)
-        if playingFile != os.path.dirname(self._expectedFilePath):
-            localLogger.debug(u'Expected to play:', self._expectedFilePath, u'Playing:',
-                              playingFile)
+    def is_playing_expected_file(self):
+        # type: () -> bool
+        """
+
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(
+            u'is_playing_expected_file')
+        playing_file = super().getPlayingFile()
+        playing_file = utils.py2_decode(playing_file)
+        playing_file = os.path.basename(playing_file)
+        video_info = super().getVideoInfoTag()
+        if video_info is not None:
+            playing_file2 = video_info.getFile()
+            playing_file2 = utils.py2_decode(playing_file2)
+            playing_file2 = os.path.dirname(playing_file2)
+            local_logger.debug(u'expected:', self._expected_file_path, u'file2:',
+                              playing_file2)
+        if playing_file != os.path.dirname(self._expected_file_path):
+            local_logger.debug(u'Expected to play:', self._expected_file_path, u'Playing:',
+                              playing_file)
             return False
         else:
             return True
 
 
-    def dumpData(self, context):
-        localLogger = self._logger.getMethodLogger(
-            u'dumpData')
+    def dump_data(self, context):
+        # type: (TextType) -> None
+        """
+
+        :param context:
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(
+            u'dump_data')
         try:
             if self.isPlayingVideo():
                 infoTagVideo = self.getVideoInfoTag()
-                localLogger.debug(u'context:', context, u'title:', infoTagVideo.getTitle(),
+                local_logger.debug(u'context:', context, u'title:', infoTagVideo.getTitle(),
                               u'genre:', infoTagVideo.getGenre(),
                               u'trailer:', infoTagVideo.getTrailer())
             else:
-                localLogger.debug(u'Not playing video')
+                local_logger.debug(u'Not playing video')
         except (Exception) as e:
-            localLogger.logException(e)
+            local_logger.log_exception(e)
 
     def isActivated(self):
-        return self._isActivated
+        # type: () -> bool
+        """
+
+        :return:
+        """
+        return self._is_activated

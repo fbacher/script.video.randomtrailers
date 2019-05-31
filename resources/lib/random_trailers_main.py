@@ -14,7 +14,7 @@ from future.builtins import (
     pow, round, super, filter, map, zip)
 
 
-from kodi_six import xbmc, xbmcgui
+from kodi_six import xbmc, xbmcgui, utils
 
 from kodi65 import addon
 from common.monitor import Monitor
@@ -28,11 +28,11 @@ from common.development_tools import (Any, Callable, Optional, Iterable, List, D
                                       TextType, DEVELOPMENT, RESOURCE_LIB)
 
 import sys
-import random_trailers_ui
+from frontend import random_trailers_ui
 import queue
 
 logger = Logger(u'random_trailers_main')
-logger.setAddonName(u'script.video.randomtrailers')
+logger.set_addon_name(u'script.video.randomtrailers')
 
 
 REMOTE_DBG = True
@@ -42,9 +42,8 @@ if REMOTE_DBG:
     # Make pydev debugger works for auto reload.
     # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
     try:
-        localLogger = logger.getMethodLogger(u'Debugger startup')
-        localLogger.debug(u'Trying to attach to debugger')
-        localLogger.debug(u'Python path: ' + unicode(sys.path))
+        logger.debug(u'Trying to attach to debugger')
+        logger.debug(u'Python path:', utils.py2_decode(sys.path))
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
         # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
         #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
@@ -82,13 +81,13 @@ if REMOTE_DBG:
         sys.stderr.write(msg)
         sys.exit(1)
     except BaseException:
-        localLogger.logException(u'Waiting on Debug connection')
+        logger.log_exception(msg=u'Waiting on Debug connection')
 
 RECEIVER = None
 
 
 class MainThreadLoop(object):
-    '''
+    """
         Kodi's Monitor class has some quirks in it that strongly favor creating
         it from the main thread as well as callng xbmc.sleep/xbmc.waitForAbort.
         The main issue is that a Monitor event can not be received until
@@ -96,21 +95,26 @@ class MainThreadLoop(object):
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
         other plugins may be blocked as well. For this reason, the main thread
         should not be blocked for too long.
-    '''
+    """
 
     _singleton = None
 
     def __init__(self, is_screensaver):
+        # type: (bool) -> None
+        """
+
+        :param is_screensaver:
+        """
         self._logger = Logger(self.__class__.__name__)
-        localLogger = self._logger.getMethodLogger(u'__init__')
-        localLogger.enter()
-        self._monitor = Monitor.getInstance()
-        Trace.enableAll()
+        local_monitor = self._logger.get_method_logger(u'__init__')
+        local_monitor.enter()
+        self._monitor = Monitor.get_instance()
+        Trace.enable_all()
         WatchDog.create()
         self._front_end_bridge = None
-        self._screen_saver_manager = None
         self._advanced_player = None
         self._is_screensaver = is_screensaver
+        self._start_ui = None
 
         # Calls that need to be performed on the main thread
 
@@ -118,35 +122,51 @@ class MainThreadLoop(object):
         MainThreadLoop._singleton = self
 
     @staticmethod
-    def getInstance(self):
+    def get_instance(self):
+        # type: () -> MainThreadLoop
+        """
+
+        :param self:
+        :return:
+        """
         if MainThreadLoop._singleton is None:
-            logger = Logger(u'MainThreadLoop.getInstance')
-            logger.error(u'Not yet initialized')
+            MainThreadLoop.logger = Logger(u'MainThreadLoop.get_instance')
+            MainThreadLoop.logger.error(u'Not yet initialized')
             return None
 
         return MainThreadLoop._singleton
 
     def startup(self):
-        localLogger = self._logger.getMethodLogger(u'startup')
-        localLogger.enter()
-        currentDialogId = xbmcgui.getCurrentWindowDialogId()
-        currentWindowId = xbmcgui.getCurrentWindowId()
-        localLogger.debug(u'CurrentDialogId, CurrentWindowId:', currentDialogId,
-                          currentWindowId)
+        # type: () -> None
+        """
 
-        self._front_end_bridge = FrontendBridge.getInstance()
-        if not self._is_screensaver and Settings.promptForSettings():
-            self.configureSettings()
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(u'startup')
+        local_logger.enter()
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        current_window_id = xbmcgui.getCurrentWindowId()
+        local_logger.debug(u'CurrentDialogId, CurrentWindowId:', current_dialog_id,
+                          current_window_id)
 
-        self._front_end_bridge .notifySettingsChanged()
-        self._startUI = random_trailers_ui.StartUI(self._is_screensaver)
-        self._startUI.start()
-        self._monitor.setStartupComplete()
-        self.eventProcessingLoop()
+        self._front_end_bridge = FrontendBridge.get_instance()
+        if not self._is_screensaver and Settings.prompt_for_settings():
+            self.configure_settings()
 
-    def eventProcessingLoop(self):
-        localLogger = self._logger.getMethodLogger(u'eventProcessingLoop')
-        localLogger.enter()
+        self._front_end_bridge .notify_settings_changed()
+        self._start_ui = random_trailers_ui.StartUI()
+        self._start_ui.start()
+        self._monitor.set_startup_complete()
+        self.event_processing_loop()
+
+    def event_processing_loop(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(u'event_processing_loop')
+        local_logger.enter()
 
         try:
             # For the first 10 seconds use a short timeout so that initialization
@@ -157,7 +177,7 @@ class MainThreadLoop(object):
 
             i = 0
             timeout = initial_timeout
-            while not self._monitor.waitForShutdown(timeout=timeout):
+            while not self._monitor.wait_for_shutdown(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 1.0
@@ -169,44 +189,64 @@ class MainThreadLoop(object):
                     pass
 
         except (Exception) as e:
-            localLogger.logException(e)
+            local_logger.log_exception(e)
         finally:
-            monitor = Monitor.getInstance()
-            if monitor is not None and monitor.isShutdownRequested():
-                localLogger.debug(
+            monitor = Monitor.get_instance()
+            if monitor is not None and monitor.is_shutdown_requested():
+                local_logger.debug(
                     u'*********************** SHUTDOWN MAIN **************')
             WatchDog.shutdown()
 
-    def runOnMainThread(self, callable_class):
+    def run_on_main_thread(self, callable_class):
+        # type: (Callable) -> None
+        """
+
+        :param callable_class:
+        :return:
+        """
         self._callableTasks.put(callable_class)
 
     def run_task(self, callable_class):
-        localLogger = self._logger.getMethodLogger(u'run_task')
-        localLogger.enter()
+        # type: (Callable) -> None
+        """
+
+        :param callable_class:
+        :return:
+        """
+        local_logger = self._logger.get_method_logger(u'run_task')
+        local_logger.enter()
         try:
             callable_class()
         except (AbortException, ShutdownException) as e:
             pass
         except (Exception) as e:
-            localLogger.logException(e)
+            local_logger.log_exception(e)
 
-    def configureSettings(self):
-        '''
+    def configure_settings(self):
+        # type: () -> None
+        """
             Allow Settings to be modified inside of addon
-        '''
+        """
 
-        localLogger = self._logger.getMethodLogger(u'promptForGenre')
-        localLogger.enter()
+        local_monitor = self._logger.get_method_logger(u'promptForGenre')
+        local_monitor.enter()
         Constants.FRONTEND_ADDON.openSettings()
 
         return
 
 
 def bootstrap():
+    # type: () -> None
+    """
+
+    :return:
+    """
     try:
         logger = Logger(u'random_trailers_main')
-        Logger.setAddonName(addon.ID)
-        localLogger = logger.getMethodLogger(u'bootstrap')
+        Logger.set_addon_name(addon.ID)
+        local_logger = logger.get_method_logger(u'bootstrap')
+
+        # TODO: need quick exit if backend is not running
 
         argc = len(sys.argv) - 1
         is_screensaver = False
@@ -214,22 +254,22 @@ def bootstrap():
             if arg == u'screensaver':
                 is_screensaver = True
 
-        currentDialogId = xbmcgui.getCurrentWindowDialogId()
-        currentWindowId = xbmcgui.getCurrentWindowId()
-        localLogger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(currentDialogId) +
-                          u' ' + str(currentWindowId))
+        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+        current_window_id = xbmcgui.getCurrentWindowId()
+        local_logger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
+                          u' ' + str(current_window_id))
 
-        mainLoop = MainThreadLoop(is_screensaver)
-        mainLoop.startup()
+        main_loop = MainThreadLoop(is_screensaver)
+        main_loop.startup()
 
         # Logger can be unusable during shutdown
 
-        xbmc.log(u'Exiting plugin', xbmc.LOGDEBUG)
+        local_logger.exit(u'Exiting plugin' )
 
     except (AbortException, ShutdownException) as e:
         pass
     except (Exception) as e:
-        Logger.logException(e)
+        Logger.log_exception(e)
     finally:
         if REMOTE_DBG:
             try:

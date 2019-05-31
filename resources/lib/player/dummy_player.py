@@ -20,8 +20,8 @@ class DummyPlayer(object):
     def __init__(self):
         return
 
-    def setCallBacks(self, onVideoWindowOpened=None, onVideoWindowClosed=None,
-                     onShowOSD=None, onShowInfo=None):
+    def setCallBacks(self, on_video_window_opened=None, on_video_window_closed=None,
+                     on_show_osd=None, on_show_info=None):
         return
 
     def enableAdvancedMonitoring(self):
@@ -43,7 +43,7 @@ class DummyPlayer(object):
     def isVideoFullscreen(self):
         return True
 
-    def playTrailer(self, path, trailer):
+    def play_trailer(self, path, trailer):
         return
 
     def play(self, item="", listitem=None, windowed=False, startpos=-1):
@@ -166,13 +166,13 @@ class DummyPlayer(object):
 
     def waitForIsPlayingVideo(self, timeout=None):
 
-        kodiMonitor = Monitor.getInstance()
-        kodiMonitor.throwExceptionIfShutdownRequested()
+        kodi_monitor = Monitor.get_instance()
+        kodi_monitor.throw_exception_if_shutdown_requested()
         return False
 
     def waitForIsNotPlayingVideo(self, timeout=None, trace=None):
-        kodiMonitor = Monitor.getInstance()
-        kodiMonitor.throwExceptionIfShutdownRequested()
+        kodi_monitor = Monitor.get_instance()
+        kodi_monitor.throw_exception_if_shutdown_requested()
         return True
 
     def onAVChange(self):

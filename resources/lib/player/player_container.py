@@ -21,7 +21,7 @@ from player.dummy_player import DummyPlayer
 class PlayerContainer(object):
     _instance = None
     @staticmethod
-    def getInstance():
+    def get_instance():
         if PlayerContainer._instance is None:
             PlayerContainer._instance = PlayerContainer()
         return PlayerContainer._instance
@@ -29,35 +29,35 @@ class PlayerContainer(object):
     def __init__(self):
         self._logger = Logger(self.__class__.__name__)
         self._player = MyPlayer()
-        self._isDummyPlayer = False
-        self._savedPlayer = None
+        self._is_dummy_player = False
+        self._saved_player = None
 
-    def getPlayer(self):
+    def get_player(self):
         return self._player
 
-    def getSavedPlayer(self):
+    def get_saved_player(self):
         player = self._player
         if player is None:
-            player = self._savedPlayer
+            player = self._saved_player
 
         return player
 
     def delete(self):
-        del self._savedPlayer
+        del self._saved_player
         del self._player
 
-    def isDummyPlayer(self):
-        return self._isDummyPlayer
+    def is_dummy_player(self):
+        return self._is_dummy_player
 
-    def useDummyPlayer(self, delete=False):
-        localLogger = self._logger.getMethodLogger(u'useDummyPlayer')
-        localLogger.enter(u'delete:', delete)
+    def use_dummy_player(self, delete=False):
+        local_logger = self._logger.get_method_logger(u'use_dummy_player')
+        local_logger.enter(u'delete:', delete)
 
-        self._savedPlayer = self._player
+        self._saved_player = self._player
         self._player = DummyPlayer()
-        self._isDummyPlayer = True
-        self._savedPlayer.setCallBacks()
-        self._savedPlayer.disableAdvancedMonitoring()
+        self._is_dummy_player = True
+        self._saved_player.setCallBacks()
+        self._saved_player.disableAdvancedMonitoring()
         if delete:
-            del self._savedPlayer
-            self._savedPlayer = None
+            del self._saved_player
+            self._saved_player = None

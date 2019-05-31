@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <window type="window">
-    <zorder>99998</zorder>
+    <zorder>3</zorder>
     <controls>
         <control type="group" id="38020">
             <posx>0</posx>

@@ -399,7 +399,7 @@ class Action(object):
     _singletonInstance = None
 
     @staticmethod
-    def getInstance():
+    def get_instance():
         if Action._singletonInstance is None:
             Action._singletonInstance = Action()
         return Action._singletonInstance

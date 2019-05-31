@@ -25,7 +25,7 @@ from common.monitor import Monitor
 import sys
 import os
 import threading
-from kodi_six import xbmc, xbmcgui
+from kodi_six import xbmc, xbmcgui, utils
 
 
 '''
@@ -49,7 +49,7 @@ from kodi_six import xbmc, xbmcgui
             * Loops playing videos until stopped
             * On each iteration it gets movie a to play from
               TrailerManager's ReadyToPlay queue
-            * Listens for events:stop & exit, pause, play, queueMovie, showInfo,
+            * Listens for events:stop & exit, pause, play, queue_movie, showInfo,
               Skip to next trailer, etc.
 
         TrailerManager holds various queues and lists:
@@ -79,7 +79,7 @@ if REMOTE_DBG:
         _logger = Logger(u'service.RemoteDebug.init')
 
         _logger.debug(u'Trying to attach to debugger')
-        _logger.debug(u'Python path: ' + unicode(sys.path))
+        _logger.debug(u'Python path: ' + utils.py2_decode(sys.path))
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
         # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
         #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
@@ -117,7 +117,7 @@ if REMOTE_DBG:
         sys.stderr.write(msg)
         sys.exit(1)
     except BaseException:
-        Logger.logException(u'Waiting on Debug connection')
+        Logger.log_exception(u'Waiting on Debug connection')
 
 logger = Logger(u'service')
 
@@ -125,30 +125,16 @@ logger = Logger(u'service')
 def isTrailerScreensaver():
     return True
 
-    pguisettings = xbmc.translatePath(os.path.join(
-        u'special://userdata', 'guisettings.xml')).decode(u'utf-8')
-    _logger = Logger(u'Service.isTrailerScreensaver')
-
-    _logger.debug(pguisettings)
-    name = '<mode>script.video.randomtrailers</mode>'
-    if name in file(pguisettings, "r").read():
-        _logger.debug(u'found script.video.randomtrailers in guisettings.html')
-        return True
-    else:
-        _logger.debug(
-            u'did not find script.video.randomtrailers in guisettings.html')
-        return False
-
-
+# noinspection Annotator
 class MyMonitor(Monitor):
 
-    _singletonInstance = None
+    _singleton_instance = None
 
     def __init__(self):
         self._logger = Logger(self.__class__.__name__)
 
         super().__init__()
-        self._shutDownEvent = threading.Event()
+        self._shut_down_event = threading.Event()
         self._thread = threading.Thread(
             target=self._waitForAbortThread, name='Service Monitor')
 
@@ -162,8 +148,8 @@ class MyMonitor(Monitor):
         return MyMonitor._singleton
 
     def onScreensaverActivated(self):
-        localLogger = self._logger.getMethodLogger(u'onScreensaverActivated')
-        localLogger.debug(u'In onScreenserverActivated')
+        local_logger = self._logger.get_method_logger(u'onScreensaverActivated')
+        local_logger.debug(u'In onScreenserverActivated')
 
         if isTrailerScreensaver():
             self._logger.debug(
@@ -172,38 +158,37 @@ class MyMonitor(Monitor):
                 'xbmc.RunScript("script.video.randomtrailers","screensaver")')
 
     def _waitForAbortThread(self):
-        localLogger = self._logger.getMethodLogger(
+        local_logger = self._logger.get_method_logger(
             u'_waitForAbortThread')
         self.waitForAbort()
         self.shutDownEvent.set()
-        localLogger.debug(u'ABORT', trace=Trace.TRACE)
+        local_logger.debug(u'ABORT', trace=Trace.TRACE)
 
-    def waitForShutdownEvent(self):
-        localLogger = self._logger.getMethodLogger(
-            u'waitForShutdownEvent')
+    def wait_for_shutdownEvent(self):
+        local_logger = self._logger.get_method_logger(
+            u'wait_for_shutdownEvent')
         self.shutDownEvent.wait()
-        localLogger.debug(u'SHUTDOWN received')
+        local_logger.debug(u'SHUTDOWN received')
         self._thread.join(0.01)  # Won't join if abort hasn't occurred
 
 
 try:
     logger.enter()
-    currentDialogId = xbmcgui.getCurrentWindowDialogId()
-    currentWindowId = xbmcgui.getCurrentWindowId()
-    localLogger = logger.getMethodLogger(u'service')
+    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+    current_window_id = xbmcgui.getCurrentWindowId()
 
     if __name__ == '__main__':
-        localLogger.debug(u'I am __main__')
+        logger.debug(u'I am __main__')
 
-    localLogger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(currentDialogId) +
-                      u' ' + str(currentWindowId))
+    logger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
+                      u' ' + str(current_window_id))
 
-    shutDownEvent = threading.Event()
+    shutdown_event = threading.Event()
 
     logger.debug(u'randomtrailers.service waiting for shutdown')
-    MyMonitor.getInstance().waitForShutdown()
+    MyMonitor.get_instance().wait_for_shutdown()
     logger.debug(u'randomtrailers.service stopping Player')
     xbmc.Player().stop
     logger.exit()
 except Exception as e:
-    logger.logException(e)
+    logger.log_exception(e)

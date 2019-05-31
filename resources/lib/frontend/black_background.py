@@ -18,7 +18,7 @@ from common.development_tools import (Any, Callable, Optional, Iterable, List, D
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger, Trace, logEntryExit
+from common.logger import Logger, Trace
 from common.messages import Messages
 from common.monitor import Monitor
 from common.front_end_bridge import FrontendBridge
@@ -33,6 +33,7 @@ import threading
 from kodi_six import xbmc, xbmcgui
 
 
+# noinspection Annotator,Annotator
 class BlackBackground(xbmcgui.WindowXML):
     """
         Ensure a nice black window behind our player and transparent
@@ -43,7 +44,7 @@ class BlackBackground(xbmcgui.WindowXML):
     _instance = None
 
     @staticmethod
-    def getInstance():
+    def get_instance():
         # type: () -> BlackBackground
         """
 
@@ -65,7 +66,7 @@ class BlackBackground(xbmcgui.WindowXML):
         self._logger = Logger(self.__class__.__name__)
         BlackBackground._instance = self
         self._windowId = xbmcgui.getCurrentWindowId()
-        self.setVisibility(opaque=True)
+        self.set_visibility(opaque=True)
 
     def onInit(self):
         # type: () -> None
@@ -74,7 +75,7 @@ class BlackBackground(xbmcgui.WindowXML):
         :return:
         """
         # self._windowId = xbmcgui.getCurrentWindowId()
-        # self.setVisibility(opaque=True)
+        # self.set_visibility(opaque=True)
 
     def close(self):
         # type: () -> None
@@ -82,8 +83,8 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        localLogger = self._logger.getMethodLogger(u'BlankWindow.close')
-        localLogger.enter()
+        local_logger = self._logger.get_method_logger(u'BlankWindow.close')
+        local_logger.enter()
         super().close()
 
     def destroy(self):
@@ -96,11 +97,11 @@ class BlackBackground(xbmcgui.WindowXML):
         BlackBackground._instance = None
 
     def show(self):
-        localLogger = self._logger.getMethodLogger(u'BlankWindow.show')
-        localLogger.enter()
+        local_logger = self._logger.get_method_logger(u'BlankWindow.show')
+        local_logger.enter()
         super().show()
 
-    def setVisibility(self, opaque=False):
+    def set_visibility(self, opaque=False):
         # type: (bool) -> None
         """
             Controls the visible elements of TrailerDialog
@@ -114,7 +115,7 @@ class BlackBackground(xbmcgui.WindowXML):
             command = "Skin.Reset(Opaque)"
         xbmc.executebuiltin(command)
 
-    def getWindowId(self):
+    def get_window_id(self):
         # type: () -> TextType
         """
 
