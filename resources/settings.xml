@@ -34,7 +34,7 @@
                  default="false"/>
         <setting id="vote_filter" type="enum" label="Filter based on average rating" default="0"
                  values="None|Greater or Equal|Less or Equal"/>
-        <setting id="vote_value" type="number" enable="eq(-1,true)" label="Rating to compare against (0-10)"
+        <setting id="vote_value" type="number" enable="gt(-1,0)" label="Rating to compare against (0-10)"
                  default="6"/>
         <setting id="enable_select_by_year_range" type="bool" label="Filter by year range"/>
         <setting id="year_range_minimum" type="number" enable="eq(-1,true)" label="Minimum year"/>
