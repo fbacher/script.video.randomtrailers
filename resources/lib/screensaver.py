@@ -14,20 +14,34 @@ from future.builtins import (
     ascii, chr, hex, input, next, oct, open,
     pow, round, super, filter, map, zip)
 
+<<<<<<< HEAD
 #from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
 #                                                 TextType, DEVELOPMENT, RESOURCE_LIB, resource)
+=======
+from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
+                                                 TextType, DEVELOPMENT, RESOURCE_LIB, resource)
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
 from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException, ShutdownException
 from common.logger import Logger, Trace
 from common.watchdog import WatchDog
+<<<<<<< HEAD
 from screensaver.screensaver_bridge import ScreensaverBridge
 from kodi_six import xbmc, xbmcgui, xbmcaddon, utils
+=======
+from common.screensaver_bridge import ScreensaverBridge
+from kodi_six import xbmc, xbmcgui, xbmcaddon
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
 
 import sys
 
 logger = Logger(u'screensaver')
+<<<<<<< HEAD
 logger.set_addon_name(u'script.video.randomtrailers.screensaver')
+=======
+logger.setAddonName(u'script.video.randomtrailers.screensaver')
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
 
 REMOTE_DBG = True
 
@@ -37,7 +51,11 @@ if REMOTE_DBG:
     # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
     try:
         xbmc.log(u'Trying to attach to debugger', xbmc.LOGDEBUG)
+<<<<<<< HEAD
         logger.debug(u'Python path:', utils.py2_decode(sys.path))
+=======
+        logger.debug(u'Python path: ' + unicode(sys.path), xbmc.LOGDEBUG)
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
         # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
         #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
@@ -75,11 +93,21 @@ if REMOTE_DBG:
         sys.stderr.write(msg)
         sys.exit(1)
     except BaseException:
+<<<<<<< HEAD
         logger.log_exception(u'Waiting on Debug connection')
 
 
 addon = xbmcaddon.Addon()
 
+=======
+        logger.logException(u'Waiting on Debug connection')
+
+
+addon = xbmcaddon.Addon()
+
+
+do_fullscreen = addon.getSetting('do_fullscreen')
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
 
 do_fullscreen = addon.getSetting('do_fullscreen')
 
@@ -88,6 +116,7 @@ local_logger = logger.get_method_logger(u'bootstrap')
 try:
 
     if __name__ == '__main__':
+<<<<<<< HEAD
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         current_window_id = xbmcgui.getCurrentWindowId()
         _monitor = Monitor.get_instance()
@@ -103,22 +132,55 @@ try:
 
         if not message_received:
             local_logger.debug(u'About to start randomtrailers')
+=======
+        currentDialogId = xbmcgui.getCurrentWindowDialogId()
+        currentWindowId = xbmcgui.getCurrentWindowId()
+        logger = Logger(u'screeensaver')
+        Logger.setAddonName(u'screensaver')
+        localLogger = logger.getMethodLogger(u'bootstrap')
+        _monitor = Monitor.getInstance()
+        Trace.enableAll()
+        WatchDog.create()
+        _monitor.setStartupComplete()
+
+        localLogger.debug(u'CurrentDialogId, CurrentWindowId:', currentDialogId,
+                          currentWindowId)
+
+        screenSaverBridge = ScreensaverBridge.getInstance()
+        messageReceived = screenSaverBridge.requestActivateScreensaver()
+
+        if not messageReceived:
+            localLogger.debug(u'About to start randomtrailers')
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
             # command = u'RunScript("script.video.randomtrailers", "screensaver")'
             # xbmc.executebuiltin(command)
             cmd = u'{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \
                 "params": {"addonid": "script.video.randomtrailers",\
                 "params": "screensaver" }, "id": 1}'
+<<<<<<< HEAD
             json_text = xbmc.executeJSONRPC(cmd)
             local_logger.debug(u'Got back from starting randomtrailers')
 
         WatchDog.shutdown()
         screen_saver_bridge.delete_instance()
         del screen_saver_bridge
+=======
+            jsonText = xbmc.executeJSONRPC(cmd)
+            localLogger.debug(u'Got back from starting randomtrailers')
+
+        WatchDog.shutdown()
+        screenSaverBridge.delete_instance()
+        del screenSaverBridge
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
 
 except (AbortException, ShutdownException):
     pass
 except (Exception) as e:
+<<<<<<< HEAD
     local_logger.log_exception(e)
+=======
+    localLogger.logException(e)
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
 finally:
     if REMOTE_DBG:
         try:

@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 ﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <window type="window">
    <zorder>2</zorder>
+=======
+﻿﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<window type="window">
+   <zorder>99999</zorder>
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
    <controls>
       <control type="group" id="38000">
          <control type="videowindow">

@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <window type="window">
+<<<<<<< HEAD
     <zorder>3</zorder>
+=======
+    <zorder>99998</zorder>
+>>>>>>> f4a945295c369f68f26fda46ea22b0ac34eb3de7
     <controls>
         <control type="group" id="38020">
             <posx>0</posx>
