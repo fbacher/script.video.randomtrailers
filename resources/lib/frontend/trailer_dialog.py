@@ -19,7 +19,6 @@ import sys
 import threading
 import six
 
-from common.front_end_bridge import FrontendBridge
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
@@ -74,7 +73,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         control. This causes the player to ignore many of the normal keymap actions.
     '''
     DETAIL_GROUP_CONTROL = 38001
-    PLAYER_GROUP_CONTROL = 38000
 
 
     def __init__(self, *args, **kwargs):
@@ -99,7 +97,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             Playlist.VIEWED_PLAYLIST_FILE)
         self._title_control = None
         self._notification_control = None
-        self._notification_timeout = None
+        self._notification_timeout = 0.0
         self._notification_killer = None
         self._thread = None
         self._pause = threading.Event()
@@ -107,8 +105,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # Used mostly as a timer
         self._show_details_event = threading.Event()
         self._wait_event = ReasonEvent()
+        self._ready_to_exit_event = threading.Event()
         monitor = Monitor.get_instance()
-        monitor.register_shutdown_listener(self)
+        monitor.register_shutdown_listener(self.on_shutdown_event)
 
         self._shutdown = False
         self._abort = False
@@ -128,9 +127,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 0, 0, 1, 1, u'')
             self.addControl(self._dummy_control)
             self._dummy_control.setVisible(True)
-
-        # TODO: - Need own thread subclasses to catch unhandled exceptions
-        # and to catch abortException & ShutdownException
 
         if self._thread is None:
             self._thread = threading.Thread(
@@ -213,7 +209,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self._viewed_playlist.close()
             local_logger.debug(u'Closed TrailerDialog')
             self.shutdown()
-            return self._dialog_state
+            return # Exit thread
 
     def play_a_group_of_trailers(self, number_of_trailers_to_play):
         local_logger = self._logger.get_method_logger(u'play_a_group_of_trailers')
@@ -238,7 +234,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         try:
             # Main trailer playing loop
 
-            self._movie_manager.play_curtain_next(MovieManager.OPEN_CURTAIN)
+            if Settings.get_show_curtains():
+                self._movie_manager.play_curtain_next(MovieManager.OPEN_CURTAIN)
 
             while not self.is_random_trailers_play_state():
                 #self._queued_movie = None
@@ -257,12 +254,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     self.notification(msg)
                     continue
 
-                video_is_curtain = (self._trailer[Movie.SOURCE] == u'curtain')
+                    # local_logger.debug(u'Got status:', status,
+                    #                  u'trailer:', self._trailer)
 
-                # local_logger.debug(u'Got status:', status,
-                #                  u'trailer:', self._trailer)
-
-                # Are there no trailers to play now, and in the future?
+                    # Are there no trailers to play now, and in the future?
 
                 if status == MovieStatus.OK and self._trailer is None:
                     self.set_random_trailers_play_state(
@@ -282,9 +277,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     continue
 
                 local_logger.debug(u'got trailer to play: ' +
-                                  self._trailer.get(Movie.TRAILER))
+                                   self._trailer.get(Movie.TRAILER))
+
+                video_is_curtain = (self._trailer[Movie.SOURCE] == u'curtain')
+
                 self.setFocus(self._dummy_control)
 
+                # TODO: fix comment
                 # Screen will be black since both
                 # TrailerDialog.PLAYER_GROUP_CONTROL and
                 # TrailerDialog.DETAIL_GROUP_CONTROL are, by default,
@@ -376,7 +375,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     trailer_total_time = self.get_player().getTotalTime()
                     max_play_time = Settings.get_max_trailer_length()
                     if trailer_total_time > max_play_time:
-                        local_logger.debug(u'Killing long trailer:', self._trailer[Movie.TITLE])
+                        local_logger.debug(u'Killing long trailer:',
+                                           self._trailer[Movie.TITLE], u'limit:',
+                                           max_play_time)
                         self.start_long_trailer_killer(max_play_time)
                 except (AbortException, ShutdownException):
                     raise sys.exc_info()
@@ -421,7 +422,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     Messages.NO_TRAILERS_TO_PLAY))
                 self.set_random_trailers_play_state(
                     DialogState.NO_TRAILERS_TO_PLAY)
-            local_logger.debug(u'out of inner play loop movie:', self._trailer[Movie.TITLE])
+            else:
+                local_logger.debug(u'out of inner play loop movie:', self._trailer[Movie.TITLE])
 
             if Settings.get_show_curtains():
                 self._movie_manager.play_curtain_next(MovieManager.CLOSE_CURTAIN)
@@ -442,7 +444,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             local_logger.log_exception(e)
 
         try:
-            local_logger.debug(u'Checking to see if there is a movie to play:',
+            if self._trailer is not None:
+                local_logger.debug(u'Checking to see if there is a movie to play:',
                                self._trailer[Movie.TITLE])
             if self.is_random_trailers_play_state(DialogState.START_MOVIE_AND_EXIT):
                 local_logger.debug(u'about to play movie:', self._queued_movie)
@@ -506,19 +509,25 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             local_logger.debug(u'message:', message)
 
             #Notification(header,message[,time,image])
-            xbmc.executebuiltin(u'Notification("bozo",' + message + u', 1000)')
+            # xbmc.executebuiltin(u'Notification("bozo",' + message + u', 1000)')
 
-            self.get_notification_control(message)
-            self.set_visibility(notification=True)
-            self._notification_killer = threading.Timer(self._notification_timeout,
-                                                        self.set_visibility,
-                                                        kwargs={u'notification': False})
-            self._notification_killer.setName(u'notification_killer')
-            self._notification_killer.start()
-
+            self.get_notification_control(text=message)
+            self.set_visibility(brief_info=False, notification=True)
+            self._wait_or_exception(timeout=Constants.MAX_PLAY_TIME_WARNING_TIME)
+            self.set_visibility(brief_info=False, notification=False)
         except (Exception) as e:
             local_logger.log_exception(e)
 
+        return
+
+    def _wait_or_exception(self, timeout=0):
+        # type: (float) -> None
+        """
+
+        :param delay:
+        :return:
+        """
+        Monitor.get_instance().throw_exception_if_shutdown_requested(delay=timeout)
         return
 
     @log_entry_exit
@@ -589,16 +598,32 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 info_command = "Skin.Reset(Info)"
             commands.append(info_command)
 
+        if brief_info is not None:
+            if brief_info:
+                info_command = "Skin.SetBool(SummaryLabel)"
+            else:
+                info_command = "Skin.Reset(SummaryLabel)"
+            commands.append(info_command)
+
+        if notification is not None:
+            if notification:
+                info_command = "Skin.SetBool(Information)"
+            else:
+                info_command = "Skin.Reset(Information)"
+            commands.append(info_command)
+
         for command in commands:
             local_logger.debug(command)
             xbmc.executebuiltin(command)
 
         local_logger.debug(u'BriefInfo:', brief_info)
+        '''
         if brief_info is not None:
             self._saved_brief_info_visibility = brief_info
             if not self.get_notification_control().isVisible():
                 self.get_title_control().setVisible(brief_info)
-
+        '''
+        '''
         local_logger.debug(u'notification:', notification)
         if notification is not None:
             if self._notification_killer is not None:
@@ -612,6 +637,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 self.get_notification_control().setVisible(False)
                 if self._saved_brief_info_visibility:
                     self.get_title_control().setVisible(True)
+        '''
 
     def update_detail_view(self):
         local_logger = self._logger.get_method_logger(u'update_detail_view')
@@ -631,6 +657,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             title = self.getControl(38003)
             title.setLabel(title_string)
+
             # title.setAnimations(
             #    [('Hidden', 'effect=fade end=0 time=1000')])
 
@@ -663,7 +690,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         except (AbortException, ShutdownException):
             raise sys.exc_info()
-        except Exception as e:
+        except (Exception) as e:
             local_logger.log_exception(e)
         finally:
             pass
@@ -680,6 +707,19 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         local_logger.exit()
         return self._dialog_state
 
+    def phau_moodal(self):
+            local_logger = self._logger.get_method_logger(u'phau_moodal')
+            local_logger.enter()
+            self.show()
+            self._ready_to_exit_event.wait()
+
+            # In case playing was paused due to screensaver deactivated
+            # and now it is being reactivated.
+
+            # self.unBlockPlayingTrailers()
+            local_logger.exit()
+            return self._dialog_state
+
     def show(self):
         local_logger = self._logger.get_method_logger(u'show')
         local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
@@ -689,6 +729,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         local_logger = self._logger.get_method_logger(u'close')
         local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
         super().close()
+        self._ready_to_exit_event.set()
 
     def set_random_trailers_play_state(self, dialog_state):
         # type: (int) -> None
@@ -782,16 +823,16 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                               trace=Trace.TRACE_UI_CONTROLLER)
 
             if inform_user:
-                self.get_title_control().setLabel(self._messages.get_msg(
+                self.notification(self._messages.get_msg(
                     Messages.TRAILER_EXCEEDS_MAX_PLAY_TIME))
-                self.set_visibility(brief_info=True, notification=False)
+
             self.get_player().stop()
 
             with self._lock:
                 self._long_trailer_killer = None
         except (AbortException, ShutdownException):
             raise sys.exc_info()
-        except Exception as e:
+        except (Exception) as e:
             Logger.log_exception(e)
 
         local_logger.trace(u'exit', trace=Trace.TRACE_SCREENSAVER)
@@ -878,9 +919,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         local_logger = self._logger.get_method_logger(u'onAction')
 
         if action.getId() != 107:
-            local_logger.trace(u'Action.id:', str(action.getId()),
-                              u'Action.button_code:',
-                              str(action.getButtonCode()), trace=Trace.TRACE)
+            local_logger.trace(u'Action.id:', action.getId(),
+                               hex(action.getId()),
+                               u'Action.button_code:',
+                               action.getButtonCode(),
+                               hex(action.getButtonCode()), trace=Trace.TRACE)
 
         # if not self._screensaver_manager.isAddonActive():
         #    local_logger.exit(u'Addon inActive')
@@ -964,6 +1007,21 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             self.hide_detail_info()
             self.set_random_trailers_play_state(DialogState.USER_REQUESTED_EXIT)
+        ##################################################################
+
+        # TODO: Need proper handling of this (and other inputs that we don't
+        # handle. Sigh
+
+        elif (action_id == xbmcgui.ACTION_BUILT_IN_FUNCTION):
+            local_logger.trace(u'ACTION_BUILT_IN_FUNCTION',
+                               trace=Trace.TRACE_SCREENSAVER)
+            local_logger.debug(key, u'Exiting RandomTrailers due to',
+                               u'ACTION_BUILT_IN_FUNCTION')
+
+            # Ensure we are not blocked
+
+            self.hide_detail_info()
+            self.set_random_trailers_play_state(DialogState.USER_REQUESTED_EXIT)
 
         ##################################################################
         elif (action_id == xbmcgui.ACTION_ENTER
@@ -1003,6 +1061,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.add_to_playlist(action_id, self._trailer)
 
     def get_title_control(self, text=u''):
+        title_control =  self.getControl(38021)
+        if text != u'':
+           title_control.setLabel(text)
+        return title_control
+    '''
+        title.setLabel(title_string)
+        
         local_logger = self._logger.get_method_logger(u'get_title_control')
         if self._title_control is None:
             text_color = u'0xFFFFFFFF'  # White
@@ -1030,15 +1095,22 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             local_logger.exit()
 
         return self._title_control
+    '''
 
-    def get_notification_control(self, text=None, timeout=5.0):
-        # type: (TextType, float) -> xbmcgui.ControlLabel
+    def get_notification_control(self, text=None):
+        # type: (TextType) -> xbmcgui.ControlLabel
         """
 
         :param text:
         :return:
         """
         local_logger = self._logger.get_method_logger(u'get_notification_control')
+        title_control =  self.getControl(38023)
+        if text != u'':
+           title_control.setLabel(text)
+        return title_control
+
+    '''
         if self._notification_control is None:
             # text_color = u'0xFFFFFFFF'  # White
             text_color = u'0xFF6666FF'
@@ -1069,6 +1141,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 self._notification_control.setLabel(text)
 
         return self._notification_control
+    '''
 
     _playlist_map = {xbmcgui.REMOTE_1:
                     Playlist.PLAYLIST_PREFIX + u'1' + Playlist.PLAYLIST_SUFFIX,
@@ -1190,10 +1263,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         local_logger.enter()
         self.close()
         delete_player = False
-        if self.is_random_trailers_play_state() >= DialogState.STARTED_PLAYING_MOVIE:
-            delete_player = True
+        try:
+            if self.is_random_trailers_play_state() >= DialogState.STARTED_PLAYING_MOVIE:
+                delete_player = True
 
-        self._player_container.use_dummy_player(delete_player)
+            self._player_container.use_dummy_player(delete_player)
+        except (ShutdownException, AbortException):
+            pass
+
         self._title_control = None
         self._source = None
         self._trailer = None

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <window type="window">
-    <zorder>3</zorder>
+    <zorder>1</zorder>
     <controls>
         <control type="group" id="38020">
             <posx>0</posx>
@@ -13,7 +13,7 @@
                 <width>1280</width>
                 <height>720</height>
                 <aspectratio>stretch</aspectratio>
-                <texture background="true">solid-back.png</texture>
+                <texture background="true">solid-black.png</texture>
             </control>
         </control>
         <control type="group" id="38021">
@@ -27,7 +27,7 @@
                 <width>1280</width>
                 <height>720</height>
                 <aspectratio>stretch</aspectratio>
-                <texture background="true">glassoverlay.png</texture>
+                <texture background="true">glass-overlay.png</texture>
             </control>
         </control>
     </controls>

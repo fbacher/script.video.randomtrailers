@@ -21,7 +21,6 @@ from common.exceptions import AbortException, ShutdownException
 from common.logger import Logger, Trace
 from common.messages import Messages
 from common.monitor import Monitor
-from common.front_end_bridge import FrontendBridge
 from action_map import Action
 from common.settings import Settings
 from player.player_container import PlayerContainer

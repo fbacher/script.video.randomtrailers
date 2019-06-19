@@ -107,22 +107,22 @@ if REMOTE_DBG:
                             stderrToServer=True)
         except (AbortException, ShutdownException):
             raise sys.exc_info()
-        except Exception as e:
+        except (Exception) as e:
             xbmc.log(
                 u' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
-    except ImportError:
+    except (ImportError):
         msg = u'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
-    except BaseException:
+    except (BaseException):
         Logger.log_exception(u'Waiting on Debug connection')
 
 logger = Logger(u'service')
 
 
-def isTrailerScreensaver():
+def is_trailer_screensaver():
     return True
 
 # noinspection Annotator
@@ -141,7 +141,7 @@ class MyMonitor(Monitor):
         self._thread.start()
 
     @staticmethod
-    def getInstance():
+    def get_instance():
         if MyMonitor._singleton is None:
             MyMonitor._singleton = MyMonitor()
 
@@ -151,7 +151,7 @@ class MyMonitor(Monitor):
         local_logger = self._logger.get_method_logger(u'onScreensaverActivated')
         local_logger.debug(u'In onScreenserverActivated')
 
-        if isTrailerScreensaver():
+        if is_trailer_screensaver():
             self._logger.debug(
                 u'In onScreenserverActivated isTrailerScreenSaver')
             xbmc.executebuiltin(
@@ -190,5 +190,5 @@ try:
     logger.debug(u'randomtrailers.service stopping Player')
     xbmc.Player().stop
     logger.exit()
-except Exception as e:
+except (Exception) as e:
     logger.log_exception(e)

@@ -19,7 +19,6 @@ import sys
 import threading
 from collections import deque
 
-from common.front_end_bridge import FrontendBridge
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException

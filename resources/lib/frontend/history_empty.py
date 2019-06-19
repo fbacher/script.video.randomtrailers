@@ -19,7 +19,6 @@ import sys
 import threading
 from collections import deque
 
-from common.front_end_bridge import FrontendBridge
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
@@ -27,7 +26,9 @@ from common.logger import Logger, Trace, log_entry_exit
 from common.messages import Messages
 from common.monitor import Monitor
 
+
 class HistoryEmpty(BaseException):
+
     def __init__(self):
         # type: () -> None
         """

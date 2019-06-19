@@ -132,19 +132,7 @@ def play_trailers():
         my_trailer_dialog = TrailerDialog(u'script-trailerwindow.xml',
                                         Constants.ADDON_PATH, u'Default')
         _exit = my_trailer_dialog.doModal()
-
-        """
-            currentWindow = xbmcgui.getCurrentWindowId()
-            # fullscreenvideo 		12005
-            # ReplaceWindow(u'fullscreenvideo')
-            black_background.set_visibility(opaque=False)
-            windowId = black_background.get_window_id()
-
-            black_background.close()
-            xbmc.executebuiltin(u'ReplaceWindow(' + str(currentWindow) + u')')
-            del black_background
-            xbmc.executebuiltin(u'ReplaceWindow(' + str(currentWindow) + u')')
-         """
+        # _exit = my_trailer_dialog.phau_moodal()
     finally:
         if my_trailer_dialog is not None:
             del my_trailer_dialog
@@ -188,13 +176,13 @@ class StartUI(threading.Thread):
                 break
                 Monitor.get_instance().throw_exception_if_shutdown_requested(delay=60)
 
-        except AbortException:
+        except (AbortException):
             local_monitor.error(
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
-        except ShutdownException:
+        except (ShutdownException):
             local_monitor.error(
                 u'Exiting Random Trailers Screen Saver at addon\'s request')
-        except Exception as e:
+        except (Exception) as e:
             local_monitor.log_exception(e)
 
         finally:
@@ -264,13 +252,13 @@ class StartUI(threading.Thread):
             else:
                 local_monitor.notice(
                     'Exiting Random Trailers Screen Saver Something is playing!!!!!!')
-        except AbortException:
+        except (AbortException):
             local_monitor.error(
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
-        except ShutdownException:
+        except (ShutdownException):
             local_monitor.error(
                 u'Exiting Random Trailers Screen Saver at addon\'s request')
-        except Exception as e:
+        except (Exception) as e:
             local_monitor.log_exception(e)
 
         finally:

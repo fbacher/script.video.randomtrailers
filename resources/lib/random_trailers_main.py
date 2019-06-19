@@ -22,7 +22,7 @@ from common.constants import Constants
 from common.exceptions import AbortException, ShutdownException
 from common.watchdog import WatchDog
 from common.settings import Settings
-from common.front_end_bridge import FrontendBridge
+from frontend.front_end_bridge import FrontendBridge
 from common.logger import Logger, Trace
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
                                       TextType, DEVELOPMENT, RESOURCE_LIB)
@@ -75,12 +75,12 @@ if REMOTE_DBG:
             xbmc.log(
                 u' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
-    except ImportError:
+    except (ImportError):
         msg = u'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
-    except BaseException:
+    except (BaseException):
         logger.log_exception(msg=u'Waiting on Debug connection')
 
 RECEIVER = None
@@ -153,6 +153,8 @@ class MainThreadLoop(object):
         if not self._is_screensaver and Settings.prompt_for_settings():
             self.configure_settings()
 
+        Monitor.get_instance().register_settings_changed_listener(
+            Settings.on_settings_changed)
         self._front_end_bridge .notify_settings_changed()
         self._start_ui = random_trailers_ui.StartUI()
         self._start_ui.start()

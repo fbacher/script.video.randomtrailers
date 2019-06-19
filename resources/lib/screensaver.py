@@ -19,7 +19,7 @@ from future.builtins import (
 from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger, Trace
+from common.logger import Logger, Trace, log_entry
 from common.watchdog import WatchDog
 from screensaver.screensaver_bridge import ScreensaverBridge
 from kodi_six import xbmc, xbmcgui, xbmcaddon, utils

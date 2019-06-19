@@ -334,7 +334,7 @@ class AdvancedPlayer(xbmc.Player):
             local_logger.enter()
             playing_file = super().getPlayingFile()
             local_logger.debug(u'playing_file: ' + playing_file)
-        except Exception as e:
+        except (Exception) as e:
             pass
         finally:
             return playing_file
@@ -606,7 +606,7 @@ class AdvancedPlayer(xbmc.Player):
 
             local_logger.debug(u'title:', title, u'file:', playing_file)
 
-        except Exception as e:
+        except (Exception) as e:
             local_logger.log_exception(e)
             self._is_finished = True
 
@@ -960,7 +960,7 @@ class AdvancedPlayer(xbmc.Player):
         if (not self._is_finished):
             try:
                 super().playnext()
-            except Exception as e:
+            except (Exception) as e:
                 xbmc.log("AdvancedPlayer.kill_playing_trailer Exception caught: " + str(e))
         '''
 
@@ -999,8 +999,8 @@ class AdvancedPlayer(xbmc.Player):
 
             local_logger.debug('Player: Closed')
         except (AbortException, ShutdownException):
-            raise sys.exc_info()
-        except Exception as e:
+            pass # Just exit thread
+        except (Exception) as e:
             local_logger.log_exception(e)
         finally:
             pass
@@ -1022,7 +1022,7 @@ class AdvancedPlayer(xbmc.Player):
             local_logger.exit()
         except (AbortException, ShutdownException):
             raise sys.exc_info()
-        except Exception as e:
+        except (Exception) as e:
             local_logger.log_exception(e)
 
     def _video_monitor(self):
@@ -1075,7 +1075,7 @@ class AdvancedPlayer(xbmc.Player):
             local_logger.exit()
         except (AbortException, ShutdownException):
             raise sys.exc_info()
-        except Exception as e:
+        except (Exception) as e:
             local_logger.log_exception(e)
 
     def _audio_monitor(self):
@@ -1097,7 +1097,7 @@ class AdvancedPlayer(xbmc.Player):
             local_logger.exit()
         except (AbortException, ShutdownException):
             raise sys.exc_info()
-        except Exception as e:
+        except (Exception) as e:
             local_logger.log_exception(e)
 
     def shutdown_thread(self):

@@ -100,8 +100,8 @@ class ScreensaverManager(object):
         self._is_screen_saver = None
         self._screensaverActiveEvent = threading.Event()
         self._monitor = Monitor.get_instance()
-        self._monitor.register_shutdown_listener(self)
-        self._monitor.register_abort_listener(self)
+        self._monitor.register_shutdown_listener(self.on_shutdown_event)
+        self._monitor.register_abort_listener(self.on_abort_event)
 
         # TODO: - Need own thread subclasses to catch unhandled exceptions
         # and to catch abortException & ShutdownException
@@ -129,17 +129,8 @@ class ScreensaverManager(object):
         self._screensaverInactiveEvent.set()
         self._screensaverActiveEvent.set()
 
-    def onAbortEvent(self):
-        local_logger = self._logger.get_method_logger(u'onAbortEvent')
-        local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
-
-        self._screensaverStateChanged.set()
-
-        # Set these events so that the code will fall-through
-        # and check for AbortandShutdown
-
-        self._screensaverInactiveEvent.set()
-        self._screensaverActiveEvent.set()
+    def on_abort_event(self):
+        self.on_shutdown_event()
 
     def inform_screensaver_listeners(self, activated=True):
         local_logger = self._logger.get_method_logger(

@@ -93,7 +93,7 @@
         <!--  Popular | Top Rated | Upcoming | Now Playing | All -->
         <setting id="tmdb_sort_order" type="enum" label="Prefer Trailers with" default="0"
                  values="Newest | Oldest| Highest Rated | Lowest Rated | Most Votes | Least Votes"/>
-        <setting id="tmdb_number_of_max_trailers" type="number" label="Maximum Number of trailers" default="500"/>
+        <setting id="tmdb_max_number_of_trailers" type="number" label="Maximum Number of trailers" default="500"/>
 
     </category>
     <category label="32025">
@@ -101,8 +101,8 @@
         <setting id="do_itunes" type="bool" label="32023" default="true"/>
         <setting id="itunes_trailer_type" type="enum" enable="eq(-1,true)" label="32043"
                  values="Coming Soon|Just Added|Popular|Exclusive|All" default="4"/>
-        <setting id="quality" type="enum" enable="eq(-2,true)" label="32014" values="480p|720p|1080p" default="0"/>
-        <setting label="32102" type="lsep"/>
+        <!-- <setting id="quality" type="enum" enable="eq(-2,true)" label="32014" values="480p|720p|1080p" default="0"/>
+        <setting label="32102" type="lsep"/> -->
     </category>
     <category label="32024">
         <setting label="32009" type="lsep"/>
@@ -122,9 +122,9 @@
         <setting id="trailer_cache_path" type="folder" label="Trailer cache path" source=""
                  option="writeable" enable="eq(-1,true)"
                  default="special://userdata/addon_data/script.video.randomtrailers/cache"/>
-        <setting id="trailer_entry_expiration_days" type="number" label="Maximum days to keep cached trailers"
+        <setting id="trailer_cache_expiration_days" type="number" label="Maximum days to keep cached trailers"
                  default="30"/>
-        <setting id="tmdb_cache_entry_expiration_days" type="number" label="Maximum days to keep downloaded TMDB data"
+        <setting id="json_cache_expiration_days" type="number" label="Maximum days to keep cached movie data"
                  default="30"/>
 
         <setting label="Downloaded Trailer Cache" type="lsep"/>
@@ -137,9 +137,9 @@
                  default="false"/>
         <setting id="max_size_of_cached_trailers" type="number" enable="eq(-1,true)"
                  label="Maximum Size of Trailer Cache (MB)" default="1024"/>
-        <setting id="limit_ratio_of_cached_trailers" enable="eq(-5,true)" type="bool"
+        <setting id="limit_percent_of_cached_trailers" enable="eq(-5,true)" type="bool"
                  label="Limit Filesystem % for Trailer Cache" default="false"/>
-        <setting id="max_ratio_of_cached_trailers" type="number" enable="eq(-1,true)"
+        <setting id="max_percent_of_cached_trailers" type="number" enable="eq(-1,true)"
                  label="Maximum % of Filesystem for Trailer Cache" default="25"/>
 
         <setting label="Downloaded Data Cache" type="lsep"/>
@@ -152,9 +152,9 @@
                  default="false"/>
         <setting id="max_size_of_cached_json_disk" type="number" enable="eq(-1,true)"
                  label="Maximum Size of Data Cache (MB)" default="50"/>
-        <setting id="limit_ratio_of_cached_json_disk" enable="eq(-5,true)" type="bool"
+        <setting id="limit_percent_of_cached_json_disk" enable="eq(-5,true)" type="bool"
                  label="Limit Filesystem % for Data Cache" default="false"/>
-        <setting id="max_ratio_of_cached_json_disk" type="number" enable="eq(-1,true)"
+        <setting id="max_percent_of_cached_json_disk" type="number" enable="eq(-1,true)"
                  label="Maximum % of Filesystem for Data Cache" default="5"/>
     </category>
 

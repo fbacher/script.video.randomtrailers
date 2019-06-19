@@ -28,7 +28,7 @@ from common.exceptions import AbortException, ShutdownException, LogicError
 from common.logger import Logger, Trace, log_entry_exit
 from common.messages import Messages
 from common.monitor import Monitor
-from common.front_end_bridge import FrontendBridge, FrontendBridgeStatus
+from frontend.front_end_bridge import FrontendBridge, FrontendBridgeStatus
 from action_map import Action
 from common.settings import Settings
 from player.player_container import PlayerContainer

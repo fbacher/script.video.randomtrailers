@@ -51,13 +51,7 @@ class ScreensaverBridge(PluginBridge):
         self._logger = Logger(self.__class__.__name__)
         super().__init__()
         self._context = Constants.SCREENSAVER_SERVICE
-
-        try:
-            Monitor.get_instance().register_shutdown_listener(self)
-        except (AbortException, ShutdownException):
-            six.reraise(*sys.exc_info())
-        except (Exception) as e:
-            self._logger.log_exception(e)
+        self._ack_received = None
 
     @staticmethod
     def get_instance():
@@ -97,7 +91,7 @@ class ScreensaverBridge(PluginBridge):
 
             count = 0
             while count < 30 and self._ack_received is None:
-                xbmc.Monitor().wait_for_abort(0.05)
+                Monitor.get_instance().waitForAbort(0.05)
                 count += 1
 
             if not self._ack_received:
