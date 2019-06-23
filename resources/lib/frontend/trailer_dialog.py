@@ -74,6 +74,16 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
     '''
     DETAIL_GROUP_CONTROL = 38001
 
+    DUMMY_TRAILER = {
+        Movie.TITLE : u'',
+        Movie.THUMBNAIL : u'',
+        Movie.FANART: u'',
+        Movie.DETAIL_DIRECTORS: u'',
+        Movie.DETAIL_ACTORS : u'',
+        Movie.PLOT : u'',
+        Movie.DETAIL_STUDIOS : u''
+    }
+
 
     def __init__(self, *args, **kwargs):
         # type: (*Any, **Dict[TextType, TextType]) -> None
@@ -115,6 +125,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._saved_brief_info_visibility = False
         self._movie_manager = MovieManager()
         self._queued_movie = None
+        #
+        # Prevent flash of grid
+        #
+        self.set_visibility(video_window=False, info=False, brief_info=False,
+                            notification=False)
 
     def onInit(self):
         local_logger = self._logger.get_method_logger(u'onInit')
@@ -123,10 +138,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         if self._dummy_control is None:
             self.set_visibility(video_window=False, info=False, brief_info=False,
                                 notification=False)
-            self._dummy_control = xbmcgui.ControlButton(
-                0, 0, 1, 1, u'')
+            self._dummy_control = xbmcgui.ControlButton( 0, 0, 1, 1, u'')
             self.addControl(self._dummy_control)
-            self._dummy_control.setVisible(True)
+            # self._dummy_control.setVisible(True)
 
         if self._thread is None:
             self._thread = threading.Thread(
@@ -168,6 +182,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                    break
 
                 self._player_container.get_player().waitForIsNotPlayingVideo()
+
+                # Pre-seed all fields with empty values so that if display of
+                # detailed movie information occurs prior to download of external
+                # images, etc. This way default values are shown instead of
+                # leftovers from previous movie.
+
+                self._trailer = TrailerDialog.DUMMY_TRAILER
+                self.update_detail_view() # Does not display
 
                 if group_trailers:
                     if total_trailers_to_play > 0:
@@ -281,7 +303,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                 video_is_curtain = (self._trailer[Movie.SOURCE] == u'curtain')
 
-                self.setFocus(self._dummy_control)
+                # self.setFocus(self._dummy_control)
 
                 # TODO: fix comment
                 # Screen will be black since both
@@ -345,7 +367,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                         self._trailer[Movie.TRAILER].encode(u'utf-8'),
                         self._trailer)
                 local_logger.debug(u'started play_trailer:', self._trailer[Movie.TITLE])
-                self.setFocus(self._dummy_control)
+                # self.setFocus(self._dummy_control)
 
                 # Again, we rely on our listeners to interrupt, as
                 # appropriate. Trailer/Movie should be about to be played or playing.
@@ -513,21 +535,26 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             self.get_notification_control(text=message)
             self.set_visibility(brief_info=False, notification=True)
-            self._wait_or_exception(timeout=Constants.MAX_PLAY_TIME_WARNING_TIME)
+            self.wait_or_exception(timeout=Constants.MAX_PLAY_TIME_WARNING_TIME)
             self.set_visibility(brief_info=False, notification=False)
         except (Exception) as e:
             local_logger.log_exception(e)
 
         return
 
-    def _wait_or_exception(self, timeout=0):
+    def wait_or_exception(self, timeout=0):
         # type: (float) -> None
         """
 
         :param delay:
         :return:
         """
-        Monitor.get_instance().throw_exception_if_shutdown_requested(delay=timeout)
+        # During shutdown, Monitor deletes itself, so to avoid a silly error in
+        # the log, avoid calling it.
+
+        monitor = Monitor.get_instance()
+        if monitor is not None:
+            monitor.throw_exception_if_shutdown_requested(delay=timeout)
         return
 
     @log_entry_exit
@@ -584,6 +611,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         """
         local_logger = self._logger.get_method_logger(u'set_visibility')
 
+        self.wait_or_exception(timeout=0)
+
         commands = []
         if video_window is not None:
             if video_window:
@@ -607,9 +636,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         if notification is not None:
             if notification:
-                info_command = "Skin.SetBool(Information)"
+                info_command = "Skin.SetBool(Notification)"
             else:
-                info_command = "Skin.Reset(Information)"
+                info_command = "Skin.Reset(Notification)"
             commands.append(info_command)
 
         for command in commands:
@@ -617,27 +646,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             xbmc.executebuiltin(command)
 
         local_logger.debug(u'BriefInfo:', brief_info)
-        '''
-        if brief_info is not None:
-            self._saved_brief_info_visibility = brief_info
-            if not self.get_notification_control().isVisible():
-                self.get_title_control().setVisible(brief_info)
-        '''
-        '''
-        local_logger.debug(u'notification:', notification)
-        if notification is not None:
-            if self._notification_killer is not None:
-                self._notification_killer.cancel()
-                self._notification_killer = None
-            if notification:
-                if self._saved_brief_info_visibility:
-                    self.get_title_control().setVisible(False)
-                self.get_notification_control().setVisible(True)
-            else:
-                self.get_notification_control().setVisible(False)
-                if self._saved_brief_info_visibility:
-                    self.get_title_control().setVisible(True)
-        '''
 
     def update_detail_view(self):
         local_logger = self._logger.get_method_logger(u'update_detail_view')
@@ -667,9 +675,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             movie_actors = self._trailer[Movie.DETAIL_ACTORS]
             self.getControl(38006).setLabel(movie_actors)
 
-            movie_directors = self._trailer[Movie.DETAIL_DIRECTORS]
-            self.getControl(38005).setLabel(movie_directors)
-
             movie_writers = self._trailer[Movie.DETAIL_WRITERS]
             self.getControl(38007).setLabel(movie_writers)
 
@@ -680,6 +685,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.getControl(38010).setLabel(movie_studios)
 
             label = (self._trailer[Movie.DETAIL_RUNTIME] + u' - ' +
+                     self.bold(self._messages.get_msg(Messages.GENRE_LABEL)) +
                      self._trailer[Movie.DETAIL_GENRES])
             self.getControl(38011).setLabel(label)
 
@@ -918,7 +924,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         local_logger = self._logger.get_method_logger(u'onAction')
 
-        if action.getId() != 107:
+        if action.getId() != 107: # Mouse Move
             local_logger.trace(u'Action.id:', action.getId(),
                                hex(action.getId()),
                                u'Action.button_code:',
@@ -932,8 +938,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         action_mapper = Action.get_instance()
         matches = action_mapper.getKeyIDInfo(action)
 
-        for line in matches:
-            local_logger.debug(line)
+        if action.getId() != 107:  # Mouse Move
+            for line in matches:
+                local_logger.debug(line)
 
         action_id = action.getId()
         button_code = action.getButtonCode()
@@ -958,7 +965,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             key = key + separator + remote_key_id
         if key == u'':
             key = action_button
-        if action.getId() != 107:
+        if action.getId() != 107:  # Mouse Move
             local_logger.debug(u'Key found:', key)
 
         ##################################################################
@@ -1252,6 +1259,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         title = u'[B]' + trailer[Movie.DETAIL_TITLE] + u'[/B]'
         title2 = trailer[Movie.DETAIL_TITLE]
         return title
+
+    def bold(self, text):
+        # type: (TextType) -> TextType
+        """
+
+        :return:
+        """
+        return u'[B]' + text + u'[/B]'
 
     def shutdown(self):
         # type: () -> None
