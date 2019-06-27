@@ -319,7 +319,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                 self._source = self._trailer.get(Movie.SOURCE)
                 show_movie_details = (Settings.get_time_to_display_detail_info() > 0)
-                show_trailer_title = Settings.get_show_trailer_title()
+                show_trailer_title = Settings.get_show_movie_title()
                 if not video_is_curtain:
                     self._viewed_playlist.record_played_trailer(self._trailer)
 
@@ -422,7 +422,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                 self.set_visibility(video_window=False, info=False, brief_info=False,
                                     notification=False)
-                # if Settings.get_show_trailer_title():
+                # if Settings.get_show_movie_title():
                 #    local_logger.debug(u'About to Hide Brief Info')
                 #    self.set_visibility(videoWindow=False, info=None, briefInfo=False)
 
@@ -534,9 +534,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             # xbmc.executebuiltin(u'Notification("bozo",' + message + u', 1000)')
 
             self.get_notification_control(text=message)
-            self.set_visibility(brief_info=False, notification=True)
+            self.set_visibility(notification=True)
             self.wait_or_exception(timeout=Constants.MAX_PLAY_TIME_WARNING_TIME)
-            self.set_visibility(brief_info=False, notification=False)
+            self.set_visibility(notification=False)
         except (Exception) as e:
             local_logger.log_exception(e)
 
@@ -684,9 +684,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             movie_studios = self._trailer[Movie.DETAIL_STUDIOS]
             self.getControl(38010).setLabel(movie_studios)
 
-            label = (self._trailer[Movie.DETAIL_RUNTIME] + u' - ' +
-                     self.bold(self._messages.get_msg(Messages.GENRE_LABEL)) +
-                     self._trailer[Movie.DETAIL_GENRES])
+            label = self._messages.get_formatted_msg(Messages.RUNTIME_GENRE,
+                                                     self._trailer[Movie.DETAIL_RUNTIME],
+                                                     self._trailer[Movie.DETAIL_GENRES])
             self.getControl(38011).setLabel(label)
 
             image_rating = self._trailer[Movie.DETAIL_RATING_IMAGE]

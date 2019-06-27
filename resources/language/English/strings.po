@@ -36,7 +36,7 @@ msgid "Play Opening and Closing Animation"
 msgstr ""
 
 msgctxt "#32002"
-msgid "Filter by Genre (Not Applicable for Screensaver) "
+msgid "Filter by Genre"
 msgstr ""
 
 msgctxt "#32003"
@@ -44,24 +44,24 @@ msgid "Hide Movie Info"
 msgstr ""
 
 msgctxt "#32004"
-msgid "Hide Trailers of Watched Movie"
+msgid "Hide Trailers of Watched Movies"
 msgstr ""
 
 msgctxt "#32005"
-msgid "Number of Days to Hide Trailers"
+msgid "Number of Days to Hide Watched Trailers"
 msgstr ""
 
 msgctxt "#32006"
-msgid "Adjust Volume During Playback"
+msgid "Reduce Volume of All Media"
 msgstr ""
 
 msgctxt "#32007"
-msgid "Force Full Screen"
+msgid "Force Full Screen When Started Automatically"
 msgstr ""
 
 msgctxt "#32008"
-msgid "Hide Movie Title"
-msgstr ""
+msgid "Show Movie Title During Playback"
+msgstr "Pig Show Title During Playback"
 
 msgctxt "#32009"
 msgid "Folder Settings"
@@ -72,7 +72,7 @@ msgid "Path to Trailers"
 msgstr ""
 
 msgctxt "#32011"
-msgid "Volume (0-100)"
+msgid "Volume: (0-100)"
 msgstr ""
 
 msgctxt "#32012"
@@ -204,7 +204,7 @@ msgid "Type of Trailers to Include"
 msgstr ""
 
 msgctxt "#32044"
-msgid "Include Trailers from themoviedb.org (YouTube)"
+msgid "Include Media from themoviedb.org"
 msgstr ""
 
 msgctxt "#32045"

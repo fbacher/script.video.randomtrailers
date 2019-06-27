@@ -74,7 +74,7 @@ from frontend.black_background import BlackBackground
 
 # TODO: Move to ui_utils
 
-logger = Logger(u'random_trailer_ui')
+logger = Logger('random_trailer_ui')
 
 
 def getTitleFont():
@@ -83,16 +83,16 @@ def getTitleFont():
 
     :return:
     """
-    local_monitor = logger.get_method_logger(u'getTitleFont')
-    local_monitor.debug(u'In randomtrailer.getTitleFont')
+    local_monitor = logger.get_method_logger('getTitleFont')
+    local_monitor.debug('In randomtrailer.getTitleFont')
     title_font = 'font13'
     base_size = 20
     multiplier = 1
     skin_dir = xbmc.translatePath("special://skin/")
     list_dir = os.listdir(skin_dir)
     fonts = []
-    fontxml_path = u''
-    font_xml = u''
+    fontxml_path = ''
+    font_xml = ''
     for item in list_dir:
         item = os.path.join(skin_dir, item)
         if os.path.isdir(item):
@@ -106,14 +106,14 @@ def getTitleFont():
         name = font.getElementsByTagName('name')[0].childNodes[0].nodeValue
         size = font.getElementsByTagName('size')[0].childNodes[0].nodeValue
         fonts.append({'name': name, 'size': float(size)})
-    fonts = sorted(fonts, key=lambda k: k[u'size'])
+    fonts = sorted(fonts, key=lambda k: k['size'])
     for f in fonts:
-        if f[u'name'] == 'font13':
-            multiplier = f[u'size'] / base_size
+        if f['name'] == 'font13':
+            multiplier = f['size'] / base_size
             break
     for f in fonts:
-        if f[u'size'] >= 38 * multiplier:
-            title_font = f[u'name']
+        if f['size'] >= 38 * multiplier:
+            title_font = f['name']
             break
     return title_font
 
@@ -125,12 +125,12 @@ def play_trailers():
     :return:
     """
     my_trailer_dialog = None
-    local_monitor = logger.get_method_logger(u'play_trailers')
+    local_monitor = logger.get_method_logger('play_trailers')
     try:
         black_background = BlackBackground.get_instance()
         black_background.show()
-        my_trailer_dialog = TrailerDialog(u'script-trailerwindow.xml',
-                                        Constants.ADDON_PATH, u'Default')
+        my_trailer_dialog = TrailerDialog('script-trailerwindow.xml',
+                                        Constants.ADDON_PATH, 'Default')
         _exit = my_trailer_dialog.doModal()
         # _exit = my_trailer_dialog.phau_moodal()
     finally:
@@ -145,17 +145,18 @@ class StartUI(threading.Thread):
     """
 
     """
-    def __init__(self):
+    def __init__(self, started_as_screesaver):
         # type: () -> None
         """
 
         """
-        super().__init__(name=u'startUI')
+        super().__init__(name='startUI')
         self._logger = Logger(self.__class__.__name__)
-        local_monitor = self._logger.get_method_logger(u'__init__')
+        local_monitor = self._logger.get_method_logger('__init__')
         local_monitor.enter()
 
         self._player_container = None
+        self._started_as_screensaver = started_as_screesaver
         WatchDog.register_thread(self)
 
     # Don't start if Kodi is busy playing something
@@ -166,9 +167,9 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger(u'run')
+        local_monitor = self._logger.get_method_logger('run')
         try:
-            local_monitor.debug(u'ADDON_PATH: ' + Constants.ADDON_PATH)
+            local_monitor.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
             finished = False
             while not finished:
@@ -181,12 +182,12 @@ class StartUI(threading.Thread):
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
         except (ShutdownException):
             local_monitor.error(
-                u'Exiting Random Trailers Screen Saver at addon\'s request')
+                'Exiting Random Trailers Screen Saver at addon\'s request')
         except (Exception) as e:
             local_monitor.log_exception(e)
 
         finally:
-            local_monitor.debug(u'Stopping xbmc.Player')
+            local_monitor.debug('Stopping xbmc.Player')
 
             Monitor.get_instance().shutdown_requested()
             local_monitor.exit()
@@ -197,33 +198,41 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger(u'start_playing_trailers')
+        local_monitor = self._logger.get_method_logger('start_playing_trailers')
         # black_background = None
         try:
-            local_monitor.debug(u'ADDON_PATH: ' + Constants.ADDON_PATH)
+            local_monitor.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
-                local_monitor.debug(u'Python path:', utils.py2_decode(sys.path))
+                local_monitor.debug('Python path:', utils.py2_decode(sys.path))
+
+                if (self._started_as_screensaver and Settings.is_set_fullscreen_when_screensaver()):
+                    if not xbmc.getCondVisibility("System.IsFullscreen"):
+                        xbmc.executebuiltin('xbmc.Action(togglefullscreen)')
 
                 # TODO: Use settings
 
                 current_dialog_id = xbmcgui.getCurrentWindowDialogId()
                 current_window_id = xbmcgui.getCurrentWindowId()
-                local_monitor.debug(u'CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
-                                  u' ' + str(current_window_id))
+                local_monitor.debug('CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
+                                  ' ' + str(current_window_id))
 
+                volume_was_adjusted = False
                 if Settings.get_adjust_volume():
                     muted = xbmc.getCondVisibility(u"Player.Muted")
                     if not muted and Settings.get_volume() == 0:
-                        xbmc.executebuiltin(u'xbmc.Mute()')
+                        xbmc.executebuiltin('xbmc.Mute()')
                     else:
-                        xbmc.executebuiltin(
-                            u'XBMC.SetVolume(' + str(Settings.get_volume()) + ')')
+                        volume = Settings.get_volume()
+                        if volume != 100:
+                            volume_was_adjusted = True
+                            xbmc.executebuiltin(
+                                'XBMC.SetVolume(' + str(volume) + ')')
 
                 self._player_container = PlayerContainer.get_instance()
                 # if Settings.get_show_curtains():
                 #    self._player_container.get_player().play_trailer(Settings.get_open_curtain_path(),
-                #                                                  {Movie.TITLE: u'openCurtain',
+                #                                                  {Movie.TITLE: 'openCurtain',
                 # Movie.TRAILER: Settings.get_open_curtain_path()})
 
                 # Finish curtain playing before proceeding
@@ -231,23 +240,24 @@ class StartUI(threading.Thread):
                 #    self._player_container.get_player().waitForIsPlayingVideo(3)
                 #    self._player_container.get_player().waitForIsNotPlayingVideo()
                 play_trailers()
-                # del self._player_container
-                # self._player_container = None
-                # del black_background
-                # black_background = None
-                if Settings.get_adjust_volume():
-                    muted = xbmc.getCondVisibility(u'Player.Muted')
+
+                # TODO: Need to adjust whenever settings changes
+
+                if volume_was_adjusted:
+                    muted = xbmc.getCondVisibility('Player.Muted')
 
                     if muted and Settings.get_volume() == 0:
                         xbmc.executebuiltin('xbmc.Mute()')
                     else:
-                        current_volume = xbmc.getInfoLabel(u'Player.Volume')
+                        # TODO: Looks fishy, why not set to what it was?
+
+                        current_volume = xbmc.getInfoLabel('Player.Volume')
                         current_volume = int(
-                            (float(current_volume.split(u' ')[0]) + 60.0) / 60.0 * 100.0)
+                            (float(current_volume.split(' ')[0]) + 60.0) / 60.0 * 100.0)
                         xbmc.executebuiltin(
                             'XBMC.SetVolume(' + str(current_volume) + ')')
 
-                local_monitor.debug(u'Shutting down')
+                local_monitor.debug('Shutting down')
                 Playlist.shutdown()
             else:
                 local_monitor.notice(
@@ -257,12 +267,12 @@ class StartUI(threading.Thread):
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
         except (ShutdownException):
             local_monitor.error(
-                u'Exiting Random Trailers Screen Saver at addon\'s request')
+                'Exiting Random Trailers Screen Saver at addon\'s request')
         except (Exception) as e:
             local_monitor.log_exception(e)
 
         finally:
-            local_monitor.debug(u'Stopping xbmc.Player')
+            local_monitor.debug('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
             # Random Trailers control
@@ -271,7 +281,7 @@ class StartUI(threading.Thread):
                     and self._player_container.get_player() is not None):
                 self._player_container.get_player().stop()
 
-            local_monitor.debug(u'Deleting black screen')
+            local_monitor.debug('Deleting black screen')
 
             black_background = BlackBackground.get_instance()
             black_background.close()
@@ -286,10 +296,10 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger(u'check_for_xsqueeze')
+        local_monitor = self._logger.get_method_logger('check_for_xsqueeze')
         local_monitor.enter()
         key_map_dest_file = os.path.join(xbmc.translatePath(
-            u'special://userdata/keymaps'), "xsqueeze.xml")
+            'special://userdata/keymaps'), "xsqueeze.xml")
         if os.path.isfile(key_map_dest_file):
             return True
         else:

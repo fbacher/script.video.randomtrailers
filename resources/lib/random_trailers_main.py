@@ -155,8 +155,7 @@ class MainThreadLoop(object):
 
         Monitor.get_instance().register_settings_changed_listener(
             Settings.on_settings_changed)
-        self._front_end_bridge .notify_settings_changed()
-        self._start_ui = random_trailers_ui.StartUI()
+        self._start_ui = random_trailers_ui.StartUI(self._is_screensaver)
         self._start_ui.start()
         self._monitor.set_startup_complete()
         self.event_processing_loop()

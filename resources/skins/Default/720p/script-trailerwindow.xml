@@ -2,6 +2,7 @@
 <window type="window">
     <zorder>1</zorder>
     <controls>
+        <!-- First are the controls that apply when the Trailer is playing -->
         <control type="group" id="38000">
             <control type="videowindow">
                 <description>Private Video Window to avoid default
@@ -14,18 +15,18 @@
                 <visible>Skin.HasSetting(Video)</visible>
             </control>
         </control>
-        <control type="group" id="38020">
-            <description>Title (Non-Detail)</description>
-            <posx>20</posx>
+        <control type="group">
+            <description>Optional title displayed while trailer is playing</description>
+            <posx>0</posx>
             <posy>20</posy>
-            <width>780</width>
+            <width>1240</width>
             <height>20</height>
             <visible>Skin.HasSetting(SummaryLabel)</visible>
             <control type="image">
                 <description>Shadow Text background</description>
-                <posx>0</posx>
+                <posx>-0</posx>
                 <posy>0</posy>
-                <width>780</width>
+                <width>1280</width>
                 <height>20</height>
                 <visible>true</visible>
                 <aspectratio>stretch</aspectratio>
@@ -33,9 +34,9 @@
             </control>
             <control type="label" id="38021">
                 <description>Title</description>
-                <posx>0</posx>
+                <posx>20</posx>
                 <posy>0</posy>
-                <width>780</width>
+                <width>1240</width>
                 <aligny>center</aligny>
                 <visible>true</visible>
                 <scroll>false</scroll>
@@ -46,17 +47,17 @@
             </control>
         </control>
         <control type="group" id="38022">
-            <description>Notification</description>
+            <description>Notification that may appear while trailer is playing</description>
             <posx>560</posx>
             <posy>690</posy>
-            <width>780</width>
+            <width>720</width>
             <height>30</height>
             <visible>Skin.HasSetting(Notification)</visible>
             <control type="image">
                 <description>Shadow Text background</description>
                 <posx>0</posx>
                 <posy>0</posy>
-                <width>780</width>
+                <width>720</width>
                 <height>30</height>
                 <visible>true</visible>
                 <aspectratio>stretch</aspectratio>
@@ -66,7 +67,7 @@
                 <description>Notification</description>
                 <posx>0</posx>
                 <posy>0</posy>
-                <width>780</width>
+                <width>720</width>
                 <aligny>center</aligny>
                 <alignx>right</alignx>
                 <visible>true</visible>
@@ -77,10 +78,12 @@
                 <textcolor>FFFFFFFF</textcolor>
             </control>
         </control>
+
         <control type="group" id="38001">
             <visible>Skin.HasSetting(Info)</visible>
             <animation effect="fade" start="100" end="0" time="1000">WindowClose</animation>
             <animation effect="fade" start="0" end="100" time="1000">WindowOpen</animation>
+            <!-- Black background for detail info must come first-->
             <control type="group">
                 <posx>0</posx>
                 <posy>0</posy>
@@ -94,17 +97,27 @@
                     <texture background="true">solid-black.png</texture>
                 </control>
             </control>
+            <!-- TITLE -->
+            <control type="label" id="38003">
+                <description>Title</description>
+                <posx>20</posx>
+                <posy>50</posy>
+                <width>1240</width>
+                <font>font13</font>
+                <textcolor>FFFFFFFF</textcolor>
+                <scroll>true</scroll>
+            </control>
             <!-- POSTER/COVER -->
             <control type="group">
                 <description>Main Poster plus three horizontal lines in text area</description>
                 <posx>880</posx>
-                <posy>155</posy>
+                <posy>119</posy>
                 <control type="image" id="38002">
                     <description>Poster. Ratio 2h:3v</description>
                     <posx>0</posx>
                     <posy>1</posy>
                     <width>400</width>
-                    <height>528</height>
+                    <height>600</height>
                     <aspectratio>stretch</aspectratio>
                     <fadetime>200</fadetime>
                     <texture background="true">noposter.png</texture>
@@ -128,21 +141,9 @@
                     <aspectratio>stretch</aspectratio>
                 </control>
             </control>
-
-            <!-- TITLE -->
-            <control type="label" id="38003">
-                <description>Title</description>
-                <posx>20</posx>
-                <posy>70</posy>
-                <width>855</width>
-                <font>font13</font>
-                <textcolor>FFFFFFFF</textcolor>
-                <scroll>true</scroll>
-            </control>
-
             <control type="group">
                 <posx>0</posx>
-                <posy>155</posy>
+                <posy>119</posy>
                 <!-- <width>880</width> -->
 
                 <!-- Horizontal Lines -->
@@ -186,7 +187,7 @@
             <!-- INFO MOVIES -->
             <control type="group">
                 <posx>428</posx>
-                <posy>155</posy>
+                <posy>119</posy>
                 <control type="label">
                     <description>Director</description>
                     <posx>2</posx>
@@ -258,7 +259,7 @@
                     <posx>30</posx>
                     <posy>15</posy>
                     <width>820</width>
-                    <height>140</height>
+                    <height>130</height>
                     <spinposx>500</spinposx>
                     <spinposy>-30</spinposy>
                     <spinwidth>20</spinwidth>
@@ -275,7 +276,7 @@
                 <control type="label" id="38011">
                     <description>Duration/Genre</description>
                     <posx>30</posx>
-                    <posy>80r</posy>
+                    <posy>90r</posy>
                     <width>auto</width>
                     <height>20</height>
                     <font>font13</font>
