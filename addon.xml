@@ -55,10 +55,21 @@
             <fanart>resources/fanart.jpg</fanart>
             <banner></banner>
             <clearlogo></clearlogo>
-            <screenshot></screenshot>
+            <screenshot>resources/screenshots/Movie Details.png</screenshot>
+            <screenshot>resources/screenshots/Trailer With Title.png</screenshot>
+            <screenshot>resources/screenshots/Settings Common 1.png.png</screenshot>
+            <screenshot>resources/screenshots/Settings Remote Trailers.png</screenshot>
+            <screenshot>resources/screenshots/Settings Genre 1.png</screenshot>
+            <screenshot>resources/screenshots/Settings Library.png</screenshot>
+            <screenshot>resources/screenshots/Settings TMDB 1.png</screenshot>
+            <screenshot>resources/screenshots/Settings iTunes.png</screenshot>
+            <screenshot>resources/screenshots/Settings Folder.png</screenshot>
+            <screenshot>resources/screenshots/Settings Cache 1.png</screenshot>
+            <screenshot>resources/screenshots/Settings Advanced.png</screenshot>
+
+
         </assets>
     </extension>
 </addon>
-
 
 

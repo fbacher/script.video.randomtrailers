@@ -5,17 +5,10 @@ Created on Feb 12, 2019
 @author: Frank Feuerbacher
 """
 # dummy screensaver will set screen to black and go fullscreen if windowed
-
-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+from common.imports import *
 
-#from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-#                                                 TextType, DEVELOPMENT, RESOURCE_LIB, resource)
 from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException, ShutdownException

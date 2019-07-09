@@ -6,13 +6,8 @@ Created on Feb 12, 2019
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+from common.imports import *
 
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.logger import Logger
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
@@ -31,6 +26,16 @@ class PlayerContainer(object):
         self._player = MyPlayer()
         self._is_dummy_player = False
         self._saved_player = None
+
+    def register_exit_on_movie_playing(self, listener):
+        # type: (Callable[[Union[Any, None]], Union[Any, None]]) -> None
+        """
+
+        :param listener:
+        :return:
+        """
+
+        self._player.register_exit_on_movie_playing(listener)
 
     def get_player(self):
         return self._player

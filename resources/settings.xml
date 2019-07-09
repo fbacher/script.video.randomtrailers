@@ -18,10 +18,10 @@
         <setting id="show_title" type="bool" label="32008" default="true"/>
         <setting id="timeToDisplayDetailInfo" type="number" label="Seconds to Display Movie Information" default="20"/>
         <setting label="Adjust Volume of Media" type="lsep"/>
-        <setting id="normalize_volume_of_local_trailers" enable="eq(-1,true)" type="bool"
+        <setting id="normalize_volume_of_local_trailers" type="bool"
                  label="Normalize Volume of Local Media"
                  default="false"/>
-        <setting id="normalize_volume_of_downloaded_trailers" enable="eq(-2,true)" type="bool"
+        <setting id="normalize_volume_of_downloaded_trailers" type="bool"
                  label="Normalize Volume of Downloaded Media"
                  default="false"/>
         <setting id="do_volume" type="bool" label="32006" default="false"/>
@@ -131,14 +131,14 @@
         <setting id="tmdb_vote_value" type="number" enable="eq(-5,true) + gt(-1,0)"
                  label="Rating to compare against (0-10)"
                  default="6"/>
-        <setting id="include_old_movie_trailers" type="bool" enable="eq(-7,true)"
+        <setting id="include_old_movie_trailers" type="bool" enable="eq(-6,true)"
                  label="Download trailers for old movies"
                  default="false"/>
-        <setting id="tmdb_enable_select_by_year_range" type="bool" enable="eq(-8,true) + eq(-1,true)"
+        <setting id="tmdb_enable_select_by_year_range" type="bool" enable="eq(-7,true) + eq(-1,true)"
                  label="Filter by year range"/>
-        <setting id="tmdb_year_range_minimum" type="number" enable="eq(-9,true) + eq(-1,true)" label="Minimum year"/>
-        <setting id="tmdb_year_range_maximum" type="number" enable="eq(-10,true) + eq(-2,true)" label="Maximum year"/>
-        <setting id="tmdb_max_number_of_trailers" type="number" enable="eq(-11,true)" label="Maximum Number of trailers"
+        <setting id="tmdb_year_range_minimum" type="number" enable="eq(-8,true) + eq(-1,true)" label="Minimum year"/>
+        <setting id="tmdb_year_range_maximum" type="number" enable="eq(-9,true) + eq(-2,true)" label="Maximum year"/>
+        <setting id="tmdb_max_number_of_trailers" type="number" enable="eq(-10,true)" label="Maximum Number of trailers"
                  default="500"/>
     </category>
     <category label="32025">

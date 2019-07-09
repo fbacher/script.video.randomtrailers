@@ -28,7 +28,7 @@ msgstr ""
 #All %s must remain in string but can change position
 
 msgctxt "#32000"
-msgid "Number Of Trailers to Play (0 for Continous)"
+msgid "Number Of Trailers to Play (0 for Continuous)"
 msgstr ""
 
 msgctxt "#32001"

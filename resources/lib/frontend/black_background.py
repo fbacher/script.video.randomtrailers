@@ -5,16 +5,10 @@ Created on Apr 17, 2019
 
 @author: Frank Feuerbacher
 '''
-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+from common.imports import *
 
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                      TextType, DEVELOPMENT, RESOURCE_LIB)
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
@@ -41,6 +35,7 @@ class BlackBackground(xbmcgui.WindowXML):
     """
 
     _instance = None
+    _destroyed = False
 
     @staticmethod
     def get_instance():
@@ -49,7 +44,7 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        if BlackBackground._instance is None:
+        if BlackBackground._instance is None and not BlackBackground._destroyed:
             BlackBackground._instance = BlackBackground(u'script-BlankWindow.xml',
                                                         Constants.ADDON_PATH, u'Default')
         return BlackBackground._instance
@@ -94,6 +89,7 @@ class BlackBackground(xbmcgui.WindowXML):
         """
         del BlackBackground._instance
         BlackBackground._instance = None
+        BlackBackground._destroyed = True
 
     def show(self):
         local_logger = self._logger.get_method_logger(u'BlankWindow.show')

@@ -1,13 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+from common.imports import *
 
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                                 TextType, DEVELOPMENT, RESOURCE_LIB)
 from kodi_six import xbmc
 
 from common.exceptions import AbortException, ShutdownException
@@ -954,15 +949,6 @@ class AdvancedPlayer(xbmc.Player):
     def kill_playing_trailer(self):
         local_logger = self._logger.get_method_logger(u'kill_playing_trailer')
         local_logger.enter()
-        # self._dump_state()  # TODO: remove
-
-        '''
-        if (not self._is_finished):
-            try:
-                super().playnext()
-            except (Exception) as e:
-                xbmc.log("AdvancedPlayer.kill_playing_trailer Exception caught: " + str(e))
-        '''
 
     def monitor(self):
         Monitor.get_instance().throw_exception_if_shutdown_requested()

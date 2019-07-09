@@ -6,13 +6,8 @@ Created on Feb 12, 2019
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+from common.imports import *
 
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                      TextType, DEVELOPMENT, RESOURCE_LIB)
 import sys
 import os
 import threading
@@ -126,18 +121,29 @@ def play_trailers():
     """
     my_trailer_dialog = None
     local_monitor = logger.get_method_logger('play_trailers')
+    black_background = None
     try:
         black_background = BlackBackground.get_instance()
         black_background.show()
         my_trailer_dialog = TrailerDialog('script-trailerwindow.xml',
-                                        Constants.ADDON_PATH, 'Default')
-        _exit = my_trailer_dialog.doModal()
-        # _exit = my_trailer_dialog.phau_moodal()
+                                          Constants.ADDON_PATH, 'Default')
+        my_trailer_dialog.doModal()
     finally:
         if my_trailer_dialog is not None:
             del my_trailer_dialog
             my_trailer_dialog = None
-            local_monitor.exit()
+        if black_background is not None:
+            black_background.destroy()
+            del black_background
+            black_background = None
+        local_logger = Logger('play_trailers')
+        local_logger.debug('ReplaceWindow(12005)')
+        xbmc.executebuiltin('ReplaceWindow(12005)')
+        local_logger.debug('Action(FullScreen,12005)')
+        # xbmc.executebuiltin('ActivateWindow(12005)')
+        # xbmc.executebuiltin('Action(FullScreen,12005)')
+        local_logger.debug('About to local_monitor.exit()')
+        local_monitor.exit()
 
 
 # noinspection Annotator
@@ -145,6 +151,7 @@ class StartUI(threading.Thread):
     """
 
     """
+
     def __init__(self, started_as_screesaver):
         # type: () -> None
         """
@@ -198,7 +205,8 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger('start_playing_trailers')
+        local_monitor = self._logger.get_method_logger(
+            'start_playing_trailers')
         # black_background = None
         try:
             local_monitor.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
@@ -215,7 +223,7 @@ class StartUI(threading.Thread):
                 current_dialog_id = xbmcgui.getCurrentWindowDialogId()
                 current_window_id = xbmcgui.getCurrentWindowId()
                 local_monitor.debug('CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
-                                  ' ' + str(current_window_id))
+                                    ' ' + str(current_window_id))
 
                 volume_was_adjusted = False
                 if Settings.get_adjust_volume():
@@ -284,9 +292,10 @@ class StartUI(threading.Thread):
             local_monitor.debug('Deleting black screen')
 
             black_background = BlackBackground.get_instance()
-            black_background.close()
-            black_background.destroy()
-            del black_background
+            if black_background is not None:
+                black_background.close()
+                black_background.destroy()
+                del black_background
             black_background = None
             local_monitor.exit()
 

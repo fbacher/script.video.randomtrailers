@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+import threading
+from common.imports import *
 
 from kodi_six import xbmcgui, utils
 
 from player.advanced_player import AdvancedPlayer
 from common.logger import Logger
 from common.constants import Movie
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                                 TextType, MovieType, DEVELOPMENT, RESOURCE_LIB)
 from common.disk_utils import DiskUtils
 from common.monitor import Monitor
 import os
@@ -23,6 +19,7 @@ class MyPlayer(AdvancedPlayer):
     """
 
     """
+
     def __init__(self):
         # type: () -> None
         """
@@ -34,6 +31,8 @@ class MyPlayer(AdvancedPlayer):
         self._expected_file_path = None
         self._is_url = False
         self._is_activated = True
+        self._listener_lock = threading.RLock()
+        self._listeners = []
 
     def play_trailer(self, path, trailer):
         # type: (TextType, MovieType) -> None
@@ -54,12 +53,12 @@ class MyPlayer(AdvancedPlayer):
         passed_file_name = utils.py2_decode(os.path.basename(path))
         if file_name != passed_file_name:
             local_logger.debug(u'passed file name:', passed_file_name,
-                              u'trailer file_name:', file_name,)
+                               u'trailer file_name:', file_name,)
 
         listitem = xbmcgui.ListItem(title)
         listitem.setInfo(
             u'video', {u'title': title, u'genre': u'randomtrailers',
-            u'Genre': u'randomtrailers',
+                       u'Genre': u'randomtrailers',
                        u'trailer': passed_file_name, u'path': utils.py2_decode(path),
                        u'mediatype': u'video', u'tag': u'randomtrailers'})
         listitem.setPath(file_path)
@@ -70,8 +69,7 @@ class MyPlayer(AdvancedPlayer):
 
         self.play(item=path, listitem=listitem)
 
-    def play(self, item="", listitem=None, windowed=False
-             , startpos=-1):
+    def play(self, item="", listitem=None, windowed=False, startpos=-1):
         # type: (TextType, xbmcgui.ListItem, bool, int) -> None
         """
 
@@ -106,81 +104,55 @@ class MyPlayer(AdvancedPlayer):
     def onAVStarted(self):
         # type: () ->None
         """
+            Detect when the player is playing something not initiated by this
+            script. This can be due to a JSON RPC call or similar.Starting the
+            player via keyboard or remote (that does not use JSON RPC)is
+            detected by other means (onAction).
+
+            Compare the movie that the player is playing versus what we expect
+            it to play. If they don't match, then assume that something else
+            launched the movie.
 
         :return:
         """
         local_logger = self._logger.get_method_logger(u'onAVStarted')
-
-        self.dump_data(u'onAVStarted')
-
         try:
+            # All local trailers played by Random Trailers will have a fake genre of
+            # 'randomtrailers'. However, if a trailer is from a remote source
+            # such that youtube plugin does the actual playing, then the
+            # genre will NOT be set to 'randomtrailers'. The use of caching
+            # of remote trailers will eliminate this issue.
+
             genre = utils.py2_decode(self.getVideoInfoTag().getGenre())
+            # local_logger.debug('genre:', genre)
             if genre != u'randomtrailers':
                 playing_file = super().getPlayingFile()
                 playing_file = utils.py2_decode(playing_file)
-                if self._is_url and DiskUtils.is_url(playing_file):
-                    local_logger.debug(u'URLs used. Consider pass')
-                else:
-                    # Do not use this player anymore until
+                if not (self._is_url and DiskUtils.is_url(playing_file)):
                     self._is_activated = False
-                    local_logger.debug(u'Genre and URL test failed.',
-                                      u'Genre:', genre,
-                                      u'playing_file:', playing_file,
-                                      u'expectedPlayingFile:',
-                                      self._expected_file_path)
-                    Monitor.get_instance().onScreensaverDeactivated()
-            else:
-                local_logger.debug(u'Genre passed')
+                    local_logger.debug(
+                        'Player is playing movie:', playing_file)
+                    self.notify_non_random_trailer_video()
         except (Exception) as e:
             pass
 
-
-    def is_playing_expected_title(self):
-        # type: () -> bool
+    def register_exit_on_movie_playing(self, listener):
+        # type: (Callable[[Union[Any, None]], Union[Any, None]]) -> None
         """
-
+            Exit quickly when the player is launched via JSON RPC call, or
+            otherwise.
+        :param listener:
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'is_playing_expected_title')
+        with self._listener_lock:
+            self._listeners.append(listener)
 
-        playing_title = super().getPlayingTitle()
-        video_info = super().getVideoInfoTag()
-        if video_info is not None:
-            title2 = utils.py2_decode(video_info.getTitle())
-            local_logger.debug(u'title2:', title2, u'title:',
-                              self._expected_title)
-        if playing_title != self._expected_title:
-            local_logger.debug(u'Expected to play:', self._expected_title, u'Playing:',
-                              playing_title)
-            return False
-        else:
-            return True
-
-    def is_playing_expected_file(self):
-        # type: () -> bool
-        """
-
-        :return:
-        """
-        local_logger = self._logger.get_method_logger(
-            u'is_playing_expected_file')
-        playing_file = super().getPlayingFile()
-        playing_file = utils.py2_decode(playing_file)
-        playing_file = os.path.basename(playing_file)
-        video_info = super().getVideoInfoTag()
-        if video_info is not None:
-            playing_file2 = video_info.getFile()
-            playing_file2 = utils.py2_decode(playing_file2)
-            playing_file2 = os.path.dirname(playing_file2)
-            local_logger.debug(u'expected:', self._expected_file_path, u'file2:',
-                              playing_file2)
-        if playing_file != os.path.dirname(self._expected_file_path):
-            local_logger.debug(u'Expected to play:', self._expected_file_path, u'Playing:',
-                              playing_file)
-            return False
-        else:
-            return True
-
+    def notify_non_random_trailer_video(self):
+        for listener in self._listeners:
+            try:
+                listener()
+            except (Exception) as e:
+                Logger.log_exception(e)
 
     def dump_data(self, context):
         # type: (TextType) -> None
@@ -193,10 +165,10 @@ class MyPlayer(AdvancedPlayer):
             u'dump_data')
         try:
             if self.isPlayingVideo():
-                infoTagVideo = self.getVideoInfoTag()
-                local_logger.debug(u'context:', context, u'title:', infoTagVideo.getTitle(),
-                              u'genre:', infoTagVideo.getGenre(),
-                              u'trailer:', infoTagVideo.getTrailer())
+                info_tag_video = self.getVideoInfoTag()
+                local_logger.debug(u'context:', context, u'title:', info_tag_video.getTitle(),
+                                   u'genre:', info_tag_video.getGenre(),
+                                   u'trailer:', info_tag_video.getTrailer())
             else:
                 local_logger.debug(u'Not playing video')
         except (Exception) as e:

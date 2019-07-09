@@ -5,16 +5,10 @@ Created on May 25, 2019
 
 @author: Frank Feuerbacher
 '''
-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from future.builtins import (
-    bytes, dict, int, list, object, range, str,
-    ascii, chr, hex, input, next, oct, open,
-    pow, round, super, filter, map, zip)
+from common.imports import *
 
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                      TextType, MovieType, DEVELOPMENT, RESOURCE_LIB)
 import sys
 import threading
 
