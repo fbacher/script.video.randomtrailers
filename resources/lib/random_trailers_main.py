@@ -26,8 +26,8 @@ import sys
 from frontend import random_trailers_ui
 import queue
 
-logger = Logger(u'random_trailers_main')
-logger.set_addon_name(u'script.video.randomtrailers')
+logger = Logger('random_trailers_main')
+logger.set_addon_name('script.video.randomtrailers')
 
 
 REMOTE_DBG = True
@@ -37,12 +37,12 @@ if REMOTE_DBG:
     # Make pydev debugger works for auto reload.
     # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
     try:
-        logger.debug(u'Trying to attach to debugger')
-        logger.debug(u'Python path:', utils.py2_decode(sys.path))
+        logger.debug('Trying to attach to debugger')
+        logger.debug('Python path:', utils.py2_decode(sys.path))
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
-        # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
-        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
-        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
+        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
+        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
+        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
 
         '''
             If the server (your python process) has the structure
@@ -56,7 +56,7 @@ if REMOTE_DBG:
             # with the addon script.module.pydevd, only use `import pydevd`
             # import pysrc.pydevd as pydevd
         '''
-        sys.path.append(u'/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
+        sys.path.append('/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
                         )
         import pydevd
         # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
@@ -68,15 +68,15 @@ if REMOTE_DBG:
             raise sys.exc_info()
         except (Exception) as e:
             xbmc.log(
-                u' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
+                ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
     except (ImportError):
-        msg = u'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
+        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
     except (BaseException):
-        logger.log_exception(msg=u'Waiting on Debug connection')
+        logger.log_exception(msg='Waiting on Debug connection')
 
 RECEIVER = None
 
@@ -101,7 +101,7 @@ class MainThreadLoop(object):
         :param is_screensaver:
         """
         self._logger = Logger(self.__class__.__name__)
-        local_monitor = self._logger.get_method_logger(u'__init__')
+        local_monitor = self._logger.get_method_logger('__init__')
         local_monitor.enter()
         self._monitor = Monitor.get_instance()
         Trace.enable_all()
@@ -125,8 +125,8 @@ class MainThreadLoop(object):
         :return:
         """
         if MainThreadLoop._singleton is None:
-            MainThreadLoop.logger = Logger(u'MainThreadLoop.get_instance')
-            MainThreadLoop.logger.error(u'Not yet initialized')
+            MainThreadLoop.logger = Logger('MainThreadLoop.get_instance')
+            MainThreadLoop.logger.error('Not yet initialized')
             return None
 
         return MainThreadLoop._singleton
@@ -137,11 +137,11 @@ class MainThreadLoop(object):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'startup')
+        local_logger = self._logger.get_method_logger('startup')
         local_logger.enter()
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         current_window_id = xbmcgui.getCurrentWindowId()
-        local_logger.debug(u'CurrentDialogId, CurrentWindowId:', current_dialog_id,
+        local_logger.debug('CurrentDialogId, CurrentWindowId:', current_dialog_id,
                           current_window_id)
 
         self._front_end_bridge = FrontendBridge.get_instance()
@@ -162,7 +162,7 @@ class MainThreadLoop(object):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'event_processing_loop')
+        local_logger = self._logger.get_method_logger('event_processing_loop')
         local_logger.enter()
 
         try:
@@ -191,7 +191,7 @@ class MainThreadLoop(object):
             monitor = Monitor.get_instance()
             if monitor is not None and monitor.is_shutdown_requested():
                 local_logger.debug(
-                    u'*********************** SHUTDOWN MAIN **************')
+                    '*********************** SHUTDOWN MAIN **************')
             WatchDog.shutdown()
 
     def run_on_main_thread(self, callable_class):
@@ -210,7 +210,7 @@ class MainThreadLoop(object):
         :param callable_class:
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'run_task')
+        local_logger = self._logger.get_method_logger('run_task')
         local_logger.enter()
         try:
             callable_class()
@@ -225,7 +225,7 @@ class MainThreadLoop(object):
             Allow Settings to be modified inside of addon
         """
 
-        local_monitor = self._logger.get_method_logger(u'promptForGenre')
+        local_monitor = self._logger.get_method_logger('promptForGenre')
         local_monitor.enter()
         Constants.FRONTEND_ADDON.openSettings()
 
@@ -239,29 +239,29 @@ def bootstrap():
     :return:
     """
     try:
-        logger = Logger(u'random_trailers_main')
+        logger = Logger('random_trailers_main')
         Logger.set_addon_name(addon.ID)
-        local_logger = logger.get_method_logger(u'bootstrap')
+        local_logger = logger.get_method_logger('bootstrap')
 
         # TODO: need quick exit if backend is not running
 
         argc = len(sys.argv) - 1
         is_screensaver = False
         for arg in sys.argv[1:]:
-            if arg == u'screensaver':
+            if arg == 'screensaver':
                 is_screensaver = True
 
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         current_window_id = xbmcgui.getCurrentWindowId()
-        local_logger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
-                          u' ' + str(current_window_id))
+        local_logger.debug('CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
+                          ' ' + str(current_window_id))
 
         main_loop = MainThreadLoop(is_screensaver)
         main_loop.startup()
 
         # Logger can be unusable during shutdown
 
-        local_logger.exit(u'Exiting plugin' )
+        local_logger.exit('Exiting plugin' )
 
     except (AbortException, ShutdownException) as e:
         pass

@@ -6,9 +6,9 @@ from common.imports import *
 from common.monitor import Monitor
 
 class PlayerState(object):
-    STATE_STOPPED = u'stopped'
-    STATE_PLAYING = u'playing'
-    STATE_PAUSED = u'paused'
+    STATE_STOPPED = 'stopped'
+    STATE_PLAYING = 'playing'
+    STATE_PAUSED = 'paused'
 
 
 class DummyPlayer(object):
@@ -37,7 +37,7 @@ class DummyPlayer(object):
 
     @property
     def playState(self):
-        return u'dummyState'
+        return 'dummyState'
 
     def isVideoFullscreen(self):
         return True
@@ -95,7 +95,7 @@ class DummyPlayer(object):
         return True
 
     def getPlayingFile(self):
-        return u''
+        return ''
 
     def _dumpState(self):
         return
@@ -113,7 +113,7 @@ class DummyPlayer(object):
         return
 
     def getSubtitles(self):
-        return u''
+        return ''
 
     def getAvailableSubtitleStreams(self):
         return []
@@ -149,7 +149,7 @@ class DummyPlayer(object):
         return
 
     def getPlayingTitle(self):
-        return u''
+        return ''
 
     def killPlayer(self):
         return

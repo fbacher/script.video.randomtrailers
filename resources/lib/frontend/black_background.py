@@ -45,8 +45,8 @@ class BlackBackground(xbmcgui.WindowXML):
         :return:
         """
         if BlackBackground._instance is None and not BlackBackground._destroyed:
-            BlackBackground._instance = BlackBackground(u'script-BlankWindow.xml',
-                                                        Constants.ADDON_PATH, u'Default')
+            BlackBackground._instance = BlackBackground('script-BlankWindow.xml',
+                                                        Constants.ADDON_PATH, 'Default')
         return BlackBackground._instance
 
     def __init__(self, *args, **kwargs):
@@ -77,7 +77,7 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'BlankWindow.close')
+        local_logger = self._logger.get_method_logger('BlankWindow.close')
         local_logger.enter()
         super().close()
 
@@ -92,7 +92,7 @@ class BlackBackground(xbmcgui.WindowXML):
         BlackBackground._destroyed = True
 
     def show(self):
-        local_logger = self._logger.get_method_logger(u'BlankWindow.show')
+        local_logger = self._logger.get_method_logger('BlankWindow.show')
         local_logger.enter()
         super().show()
 

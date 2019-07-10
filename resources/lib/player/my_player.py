@@ -42,7 +42,7 @@ class MyPlayer(AdvancedPlayer):
         :param trailer:
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'play_trailer')
+        local_logger = self._logger.get_method_logger('play_trailer')
 
         title = trailer[Movie.TITLE]
         file_path = trailer.get(Movie.NORMALIZED_TRAILER, None)
@@ -52,20 +52,20 @@ class MyPlayer(AdvancedPlayer):
         file_name = os.path.basename(file_path)
         passed_file_name = utils.py2_decode(os.path.basename(path))
         if file_name != passed_file_name:
-            local_logger.debug(u'passed file name:', passed_file_name,
-                               u'trailer file_name:', file_name,)
+            local_logger.debug('passed file name:', passed_file_name,
+                               'trailer file_name:', file_name,)
 
         listitem = xbmcgui.ListItem(title)
         listitem.setInfo(
-            u'video', {u'title': title, u'genre': u'randomtrailers',
-                       u'Genre': u'randomtrailers',
-                       u'trailer': passed_file_name, u'path': utils.py2_decode(path),
-                       u'mediatype': u'video', u'tag': u'randomtrailers'})
+            'video', {'title': title, 'genre': 'randomtrailers',
+                       'Genre': 'randomtrailers',
+                       'trailer': passed_file_name, 'path': utils.py2_decode(path),
+                       'mediatype': 'video', 'tag': 'randomtrailers'})
         listitem.setPath(file_path)
 
         self.set_playing_title(title)
         self.set_playing_file_path(file_path)
-        local_logger.debug(u'path:', file_name, u'title:', title)
+        local_logger.debug('path:', file_name, 'title:', title)
 
         self.play(item=path, listitem=listitem)
 
@@ -115,7 +115,7 @@ class MyPlayer(AdvancedPlayer):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'onAVStarted')
+        local_logger = self._logger.get_method_logger('onAVStarted')
         try:
             # All local trailers played by Random Trailers will have a fake genre of
             # 'randomtrailers'. However, if a trailer is from a remote source
@@ -125,7 +125,7 @@ class MyPlayer(AdvancedPlayer):
 
             genre = utils.py2_decode(self.getVideoInfoTag().getGenre())
             # local_logger.debug('genre:', genre)
-            if genre != u'randomtrailers':
+            if genre != 'randomtrailers':
                 playing_file = super().getPlayingFile()
                 playing_file = utils.py2_decode(playing_file)
                 if not (self._is_url and DiskUtils.is_url(playing_file)):
@@ -162,15 +162,15 @@ class MyPlayer(AdvancedPlayer):
         :return:
         """
         local_logger = self._logger.get_method_logger(
-            u'dump_data')
+            'dump_data')
         try:
             if self.isPlayingVideo():
                 info_tag_video = self.getVideoInfoTag()
-                local_logger.debug(u'context:', context, u'title:', info_tag_video.getTitle(),
-                                   u'genre:', info_tag_video.getGenre(),
-                                   u'trailer:', info_tag_video.getTrailer())
+                local_logger.debug('context:', context, 'title:', info_tag_video.getTitle(),
+                                   'genre:', info_tag_video.getGenre(),
+                                   'trailer:', info_tag_video.getTrailer())
             else:
-                local_logger.debug(u'Not playing video')
+                local_logger.debug('Not playing video')
         except (Exception) as e:
             local_logger.log_exception(e)
 

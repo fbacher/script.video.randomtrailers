@@ -19,8 +19,8 @@ from kodi_six import xbmc, xbmcgui, xbmcaddon, utils
 
 import sys
 
-logger = Logger(u'screensaver')
-logger.set_addon_name(u'script.video.randomtrailers.screensaver')
+logger = Logger('screensaver')
+logger.set_addon_name('script.video.randomtrailers.screensaver')
 
 REMOTE_DBG = True
 
@@ -29,12 +29,12 @@ if REMOTE_DBG:
     # Make pydev debugger works for auto reload.
     # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
     try:
-        xbmc.log(u'Trying to attach to debugger', xbmc.LOGDEBUG)
-        logger.debug(u'Python path:', utils.py2_decode(sys.path))
+        xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
+        logger.debug('Python path:', utils.py2_decode(sys.path))
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
-        # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
-        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
-        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
+        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
+        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
+        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
 
         '''
             If the server (your python process) has the structure
@@ -48,7 +48,7 @@ if REMOTE_DBG:
             # with the addon script.module.pydevd, only use `import pydevd`
             # import pysrc.pydevd as pydevd
         '''
-        sys.path.append(u'/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
+        sys.path.append('/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
                         )
         import pydevd
         # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
@@ -60,15 +60,15 @@ if REMOTE_DBG:
             raise sys.exc_info()
         except Exception as e:
             xbmc.log(
-                u' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
+                ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
     except ImportError:
-        msg = u'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
+        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
     except BaseException:
-        logger.log_exception(u'Waiting on Debug connection')
+        logger.log_exception('Waiting on Debug connection')
 
 
 addon = xbmcaddon.Addon()
@@ -76,8 +76,8 @@ addon = xbmcaddon.Addon()
 
 do_fullscreen = addon.getSetting('do_fullscreen')
 
-logger = Logger(u'screeensaver')
-local_logger = logger.get_method_logger(u'bootstrap')
+logger = Logger('screeensaver')
+local_logger = logger.get_method_logger('bootstrap')
 try:
 
     if __name__ == '__main__':
@@ -88,21 +88,21 @@ try:
         WatchDog.create()
         _monitor.set_startup_complete()
 
-        local_logger.debug(u'CurrentDialogId, CurrentWindowId:', current_dialog_id,
+        local_logger.debug('CurrentDialogId, CurrentWindowId:', current_dialog_id,
                            current_window_id)
 
         screen_saver_bridge = ScreensaverBridge.get_instance()
         message_received = screen_saver_bridge.request_activate_screensaver()
 
         if not message_received:
-            local_logger.debug(u'About to start randomtrailers')
-            # command = u'RunScript("script.video.randomtrailers", "screensaver")'
+            local_logger.debug('About to start randomtrailers')
+            # command = 'RunScript("script.video.randomtrailers", "screensaver")'
             # xbmc.executebuiltin(command)
-            cmd = u'{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \
+            cmd = '{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \
                 "params": {"addonid": "script.video.randomtrailers",\
                 "params": "screensaver" }, "id": 1}'
             json_text = xbmc.executeJSONRPC(cmd)
-            local_logger.debug(u'Got back from starting randomtrailers')
+            local_logger.debug('Got back from starting randomtrailers')
 
         WatchDog.shutdown()
         screen_saver_bridge.delete_instance()

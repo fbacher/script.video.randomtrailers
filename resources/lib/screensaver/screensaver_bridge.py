@@ -74,11 +74,11 @@ class ScreensaverBridge(PluginBridge):
             screensaver
         """
         local_logger = self._logger.get_method_logger(
-            u'request_activate_screensaver')
+            'request_activate_screensaver')
         local_logger.enter()
         try:
             self._ack_received = False
-            self.send_signal(u'activate_screensaver', data={},
+            self.send_signal('activate_screensaver', data={},
                             source_id=ScreensaverBridgeStatus.BACKEND_ID)
 
             # Wait for response
@@ -89,7 +89,7 @@ class ScreensaverBridge(PluginBridge):
                 count += 1
 
             if not self._ack_received:
-                local_logger.debug(u'randomtrailers front-end appears inactive')
+                local_logger.debug('randomtrailers front-end appears inactive')
                 return False
             return True
         except (AbortException, ShutdownException):
@@ -104,13 +104,13 @@ class ScreensaverBridge(PluginBridge):
         :param data:
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'receiveAck')
+        local_logger = self._logger.get_method_logger('receiveAck')
         try:
-            what = data.get(u'what', None)
-            local_logger.debug(self._context, u'received ack for:',
+            what = data.get('what', None)
+            local_logger.debug(self._context, 'received ack for:',
                               )
-            if what != u'screensaver':
-                local_logger.error(u'Unexpected response:', what)
+            if what != 'screensaver':
+                local_logger.error('Unexpected response:', what)
             else:
                 self._ack_received = what
 

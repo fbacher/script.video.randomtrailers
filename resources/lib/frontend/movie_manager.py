@@ -33,7 +33,7 @@ from frontend.history_empty import HistoryEmpty
 from frontend.utils import ReasonEvent, BaseWindow, ScreensaverManager, ScreensaverState
 
 class MovieStatus(FrontendBridgeStatus):
-     PREVIOUS_MOVIE = u'PREVIOUS_MOVIE'
+     PREVIOUS_MOVIE = 'PREVIOUS_MOVIE'
 
 
 class MovieManager(object):
@@ -46,7 +46,7 @@ class MovieManager(object):
         """
         """
         self._logger = Logger(self.__class__.__name__)
-        local_logger = self._logger.get_method_logger(u'__init__')
+        local_logger = self._logger.get_method_logger('__init__')
         super().__init__()
         self._movie_history = None
         self._play_open_curtain_next = None
@@ -64,18 +64,18 @@ class MovieManager(object):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'get_next_trailer')
+        local_logger = self._logger.get_method_logger('get_next_trailer')
 
         if self._play_open_curtain_next:
             status = MovieStatus.OK
-            trailer = {Movie.SOURCE: u'curtain',
-                       Movie.TITLE: u'openCurtain',
+            trailer = {Movie.SOURCE: 'curtain',
+                       Movie.TITLE: 'openCurtain',
                        Movie.TRAILER: Settings.get_open_curtain_path()}
             self._play_open_curtain_next = False
         elif self._play_close_curtain_next:
             status = MovieStatus.OK
-            trailer = {Movie.SOURCE: u'curtain',
-                       Movie.TITLE: u'closeCurtain',
+            trailer = {Movie.SOURCE: 'curtain',
+                       Movie.TITLE: 'closeCurtain',
                        Movie.TRAILER: Settings.get_close_curtain_path()}
             self._play_close_curtain_next = False
         elif self._play_previous_trailer:
@@ -97,7 +97,7 @@ class MovieManager(object):
         title = None
         if trailer is not None:
             title = trailer.get(Movie.TITLE)
-        local_logger.exit(u'status:', status, u'trailer', title)
+        local_logger.exit('status:', status, 'trailer', title)
 
         return status, trailer
 
@@ -109,13 +109,13 @@ class MovieManager(object):
         """
 
         # TODO: probably not needed
-        local_logger = self._logger.get_method_logger(u'play_previous_trailer')
+        local_logger = self._logger.get_method_logger('play_previous_trailer')
         local_logger.enter()
         self._play_previous_trailer = True
 
 
     def play_curtain_next(self, curtainType):
-        local_logger = self._logger.get_method_logger(u'play_curtain_next')
+        local_logger = self._logger.get_method_logger('play_curtain_next')
 
         if curtainType == MovieManager.OPEN_CURTAIN:
             self._play_open_curtain_next = True
@@ -124,5 +124,5 @@ class MovieManager(object):
             self._play_open_curtain_next = False
             self._play_close_curtain_next = True
         else:
-            local_logger.debug(u'Must specify OPEN or CLOSE curtain')
+            local_logger.debug('Must specify OPEN or CLOSE curtain')
             raise LogicError()

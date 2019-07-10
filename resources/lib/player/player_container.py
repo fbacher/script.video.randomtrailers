@@ -55,8 +55,8 @@ class PlayerContainer(object):
         return self._is_dummy_player
 
     def use_dummy_player(self, delete=False):
-        local_logger = self._logger.get_method_logger(u'use_dummy_player')
-        local_logger.enter(u'delete:', delete)
+        local_logger = self._logger.get_method_logger('use_dummy_player')
+        local_logger.enter('delete:', delete)
 
         self._saved_player = self._player
         self._player = DummyPlayer()

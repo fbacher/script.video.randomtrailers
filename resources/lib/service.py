@@ -70,14 +70,14 @@ if REMOTE_DBG:
     # Make pydev debugger works for auto reload.
     # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
     try:
-        _logger = Logger(u'service.RemoteDebug.init')
+        _logger = Logger('service.RemoteDebug.init')
 
-        _logger.debug(u'Trying to attach to debugger')
-        _logger.debug(u'Python path: ' + utils.py2_decode(sys.path))
+        _logger.debug('Trying to attach to debugger')
+        _logger.debug('Python path: ' + utils.py2_decode(sys.path))
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
-        # os.environ[u'PATHS_FROM_ECLIPSE_TO_PYTON'] =\
-        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
-        #    u'/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
+        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
+        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
+        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
 
         '''
             If the server (your python process) has the structure
@@ -91,7 +91,7 @@ if REMOTE_DBG:
             # with the addon script.module.pydevd, only use `import pydevd`
             # import pysrc.pydevd as pydevd
         '''
-        sys.path.append(u'/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
+        sys.path.append('/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
                         )
         import pydevd
         # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
@@ -103,17 +103,17 @@ if REMOTE_DBG:
             raise sys.exc_info()
         except (Exception) as e:
             xbmc.log(
-                u' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
+                ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
     except (ImportError):
-        msg = u'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
+        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
     except (BaseException):
-        Logger.log_exception(u'Waiting on Debug connection')
+        Logger.log_exception('Waiting on Debug connection')
 
-logger = Logger(u'service')
+logger = Logger('service')
 
 
 def is_trailer_screensaver():
@@ -142,27 +142,27 @@ class MyMonitor(Monitor):
         return MyMonitor._singleton
 
     def onScreensaverActivated(self):
-        local_logger = self._logger.get_method_logger(u'onScreensaverActivated')
-        local_logger.debug(u'In onScreenserverActivated')
+        local_logger = self._logger.get_method_logger('onScreensaverActivated')
+        local_logger.debug('In onScreenserverActivated')
 
         if is_trailer_screensaver():
             self._logger.debug(
-                u'In onScreenserverActivated isTrailerScreenSaver')
+                'In onScreenserverActivated isTrailerScreenSaver')
             xbmc.executebuiltin(
                 'xbmc.RunScript("script.video.randomtrailers","screensaver")')
 
     def _waitForAbortThread(self):
         local_logger = self._logger.get_method_logger(
-            u'_waitForAbortThread')
+            '_waitForAbortThread')
         self.waitForAbort()
         self.shutDownEvent.set()
-        local_logger.debug(u'ABORT', trace=Trace.TRACE)
+        local_logger.debug('ABORT', trace=Trace.TRACE)
 
     def wait_for_shutdownEvent(self):
         local_logger = self._logger.get_method_logger(
-            u'wait_for_shutdownEvent')
+            'wait_for_shutdownEvent')
         self.shutDownEvent.wait()
-        local_logger.debug(u'SHUTDOWN received')
+        local_logger.debug('SHUTDOWN received')
         self._thread.join(0.01)  # Won't join if abort hasn't occurred
 
 
@@ -172,16 +172,16 @@ try:
     current_window_id = xbmcgui.getCurrentWindowId()
 
     if __name__ == '__main__':
-        logger.debug(u'I am __main__')
+        logger.debug('I am __main__')
 
-    logger.debug(u'CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
-                      u' ' + str(current_window_id))
+    logger.debug('CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
+                      ' ' + str(current_window_id))
 
     shutdown_event = threading.Event()
 
-    logger.debug(u'randomtrailers.service waiting for shutdown')
+    logger.debug('randomtrailers.service waiting for shutdown')
     MyMonitor.get_instance().wait_for_shutdown()
-    logger.debug(u'randomtrailers.service stopping Player')
+    logger.debug('randomtrailers.service stopping Player')
     xbmc.Player().stop
     logger.exit()
 except (Exception) as e:

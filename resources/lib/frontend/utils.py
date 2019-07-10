@@ -25,11 +25,11 @@ class ReasonEvent(object):
     '''
         Provides a threading.Event with an attached reason
     '''
-    TIMED_OUT = u'timed out'
-    CLEARED = u'Cleared'
-    KODI_ABORT = u'Kodi Abort'
-    SHUTDOWN = u'Shutdown'
-    RUN_STATE_CHANGE = u'Run State Changed'
+    TIMED_OUT = 'timed out'
+    CLEARED = 'Cleared'
+    KODI_ABORT = 'Kodi Abort'
+    SHUTDOWN = 'Shutdown'
+    RUN_STATE_CHANGE = 'Run State Changed'
 
     def __init__(self):
         self._event = threading.Event()
@@ -51,8 +51,8 @@ class ReasonEvent(object):
 
 
 class ScreensaverState(object):
-    ACTIVATED = u'screensaver activated'
-    DEACTIVATED = u'screensaver de-activated'
+    ACTIVATED = 'screensaver activated'
+    DEACTIVATED = 'screensaver de-activated'
 
     _instance = None
 
@@ -85,7 +85,7 @@ class ScreensaverManager(object):
 
     def __init__(self):
         ScreensaverManager._logger = Logger(self.__class__.__name__)
-        local_logger = self._logger.get_method_logger(u'__init__')
+        local_logger = self._logger.get_method_logger('__init__')
         local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
         self._screensaverState = ScreensaverState.getInstance()
         self._screensaverStateChanged = threading.Event()
@@ -105,12 +105,12 @@ class ScreensaverManager(object):
         if ScreensaverManager._instance is None:
             ScreensaverManager._instance = ScreensaverManager()
         local_logger = ScreensaverManager._logger.get_method_logger(
-            u'get_instance')
-        local_logger.trace(u'enter', trace=Trace.TRACE_SCREENSAVER)
+            'get_instance')
+        local_logger.trace('enter', trace=Trace.TRACE_SCREENSAVER)
         return ScreensaverManager._instance
 
     def on_shutdown_event(self):
-        local_logger = self._logger.get_method_logger(u'on_shutdown_event')
+        local_logger = self._logger.get_method_logger('on_shutdown_event')
         local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
 
         # Make sure that restartScreensaverOnIdle thread can exit
@@ -128,7 +128,7 @@ class ScreensaverManager(object):
 
     def inform_screensaver_listeners(self, activated=True):
         local_logger = self._logger.get_method_logger(
-            u'inform_screensaver_listeners')
+            'inform_screensaver_listeners')
         local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
         for listener in self._screenSaverListeners:
             if activated:
@@ -138,16 +138,16 @@ class ScreensaverManager(object):
 
     def get_screensaver_state(self):
         local_logger = self._logger.get_method_logger(
-            u'get_screensaver_state')
+            'get_screensaver_state')
         local_logger.trace(
-            u'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
+            'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
         return self._screensaverState
 
     def isScreensaverActivated(self):
         local_logger = self._logger.get_method_logger(
-            u'isScreensaverActivated')
+            'isScreensaverActivated')
         local_logger.trace(
-            u'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
+            'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
         if not self.is_launched_as_screensaver():
             raise ScreenSaverException()
 
@@ -155,9 +155,9 @@ class ScreensaverManager(object):
 
     def isScreensaverDeactivated(self):
         local_logger = self._logger.get_method_logger(
-            u'isScreensaverDeactivated')
+            'isScreensaverDeactivated')
         local_logger.trace(
-            u'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
+            'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
 
         if not self.is_launched_as_screensaver():
             raise ScreenSaverException()
@@ -231,62 +231,62 @@ class BaseWindow(object):
         self._logger = Logger(self.__class__.__name__)
 
     def add_to_playlist(self, playListId, trailer):
-        local_logger = self._logger.get_method_logger(u'addToPlayList')
+        local_logger = self._logger.get_method_logger('addToPlayList')
         _playlistMap = {xbmcgui.REMOTE_1:
-                        Playlist.PLAYLIST_PREFIX + u'1' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '1' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_2:
-                        Playlist.PLAYLIST_PREFIX + u'2' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '2' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_3:
-                        Playlist.PLAYLIST_PREFIX + u'3' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '3' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_4:
-                        Playlist.PLAYLIST_PREFIX + u'4' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '4' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_5:
-                        Playlist.PLAYLIST_PREFIX + u'5' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '5' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_6:
-                        Playlist.PLAYLIST_PREFIX + u'6' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '6' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_7:
-                        Playlist.PLAYLIST_PREFIX + u'7' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '7' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_8:
-                        Playlist.PLAYLIST_PREFIX + u'8' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '8' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_9:
-                        Playlist.PLAYLIST_PREFIX + u'9' + Playlist.PLAYLIST_SUFFIX,
+                        Playlist.PLAYLIST_PREFIX + '9' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_0:
-                        Playlist.PLAYLIST_PREFIX + u'10' + Playlist.PLAYLIST_SUFFIX}
+                        Playlist.PLAYLIST_PREFIX + '10' + Playlist.PLAYLIST_SUFFIX}
         playlist_file = _playlistMap.get(playListId, None)
         if playlist_file is None:
             local_logger.error(
-                u'Invalid playlistId, ignoring request to write to playlist.')
+                'Invalid playlistId, ignoring request to write to playlist.')
         else:
             Playlist.getPlaylist(playlist_file).recordPlayedTrailer(trailer)
 
     def notifyUser(self, msg):
         # TODO: Supply code
-        local_logger = self._logger.get_method_logger(u'notifyUser')
+        local_logger = self._logger.get_method_logger('notifyUser')
         local_logger.debug(msg)
 
     def play_movie(self, trailer):
         # TODO: Supply code
-        local_logger = self._logger.get_method_logger(u'queue_movie')
-        local_logger.debug(u'Playing movie at user request:',
+        local_logger = self._logger.get_method_logger('queue_movie')
+        local_logger.debug('Playing movie at user request:',
                           trailer[Movie.TITLE])
 
         self.exitRandomTrailers()
         listItem = xbmcgui.ListItem(label=trailer[Movie.TITLE],
                                     thumbnailImage=trailer[Movie.THUMBNAIL],
                                     path=trailer[Movie.FILE])
-        listItem.setInfo(type=u'video',
-                         infoLabels={u'genre': trailer[Movie.GENRE],
-                                     u'path': trailer[Movie.FILE],
-                                     u'plot': trailer[Movie.PLOT]})
-        listItem.setProperty(u'isPlayable', u'true')
+        listItem.setInfo(type='video',
+                         infoLabels={'genre': trailer[Movie.GENRE],
+                                     'path': trailer[Movie.FILE],
+                                     'plot': trailer[Movie.PLOT]})
+        listItem.setProperty('isPlayable', 'true')
 
-        xbmc.Player.play(trailer[Movie.FILE].encode(u'utf-8'), listitem=listItem,
+        xbmc.Player.play(trailer[Movie.FILE].encode('utf-8'), listitem=listItem,
                          windowed=False)
         #"PlayMedia(media[,isdir][,1],[playoffset=xx])"
         #command = 'XBMC.NotifyAll({0}.SIGNAL,{1},{2})'.format(source_id, signal,_encodeData(data))
         # xbmc.executebuiltin(command)
 
     def getTitleString(self, trailer):
-        title = u'[B]' + trailer[Movie.DETAIL_TITLE] + u'[/B]'
+        title = '[B]' + trailer[Movie.DETAIL_TITLE] + '[/B]'
         title2 = trailer[Movie.DETAIL_TITLE]
         return title

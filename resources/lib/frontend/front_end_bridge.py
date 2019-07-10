@@ -49,7 +49,7 @@ class FrontendBridge(PluginBridge):
 
         """
         self._logger = Logger(self.__class__.__name__)
-        local_logger = self._logger.get_method_logger(u'__init__')
+        local_logger = self._logger.get_method_logger('__init__')
         local_logger.enter()
         try:
             super().__init__()
@@ -91,11 +91,11 @@ class FrontendBridge(PluginBridge):
         :return:
         """
 
-        local_logger = self._logger.get_method_logger(u'get_next_trailer')
+        local_logger = self._logger.get_method_logger('get_next_trailer')
         try:
-            local_logger.enter(u'context:', self._context)
+            local_logger.enter('context:', self._context)
             signal_payload = {}
-            self.send_signal(u'get_next_trailer', data=signal_payload,
+            self.send_signal('get_next_trailer', data=signal_payload,
                              source_id=FrontendBridgeStatus.BACKEND_ID)
 
             # It can take some time before we get responses back
@@ -111,7 +111,7 @@ class FrontendBridge(PluginBridge):
                 count += 1
 
             if count >= 300:
-                local_logger.error(u'Timed out waiting on get_next_trailer')
+                local_logger.error('Timed out waiting on get_next_trailer')
                 self._next_trailer = None
                 self._status = FrontendBridgeStatus.TIMED_OUT
 
@@ -120,8 +120,8 @@ class FrontendBridge(PluginBridge):
             self._next_trailer = None
             self._status = FrontendBridgeStatus.IDLE
             if trailer is not None:
-                local_logger.debug(u'returning status:',
-                                   status, u'title:', trailer[Movie.TITLE])
+                local_logger.debug('returning status:',
+                                   status, 'title:', trailer[Movie.TITLE])
             return status, trailer
         except (AbortException, ShutdownException):
             self.delete_instance()
@@ -138,10 +138,10 @@ class FrontendBridge(PluginBridge):
         """
 
         local_logger = self._logger.get_method_logger(
-            u'notify_settings_changed')
+            'notify_settings_changed')
         local_logger.enter()
         signal_payload = {}
-        self.send_signal(u'settings_changed', data=signal_payload,
+        self.send_signal('settings_changed', data=signal_payload,
                          source_id=FrontendBridgeStatus.BACKEND_ID)
 
     def ack(self, what):
@@ -157,10 +157,10 @@ class FrontendBridge(PluginBridge):
         :return:
         """
         local_logger = self._logger.get_method_logger(
-            u'ack')
+            'ack')
         local_logger.enter()
-        signal_payload = {u'what': what}
-        self.send_signal(u'ack', data=signal_payload,
+        signal_payload = {'what': what}
+        self.send_signal('ack', data=signal_payload,
                          source_id=FrontendBridgeStatus.BACKEND_ID)
 
     def returned_trailer(self, data):
@@ -171,13 +171,13 @@ class FrontendBridge(PluginBridge):
         :param data:
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'returned_trailer')
+        local_logger = self._logger.get_method_logger('returned_trailer')
         try:
             self._monitor.throw_exception_if_shutdown_requested()
-            local_logger.debug(self._context, u'received trailer for:',
+            local_logger.debug(self._context, 'received trailer for:',
                                data.get(Movie.TITLE, None))
-            self._next_trailer = data.get(u'trailer', None)
-            self._status = data.get(u'status', None)
+            self._next_trailer = data.get('trailer', None)
+            self._status = data.get('status', None)
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
@@ -191,12 +191,12 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(u'returned_trailer')
+        local_logger = self._logger.get_method_logger('returned_trailer')
         try:
 
             local_logger.enter()
             # Inform monitor
-            self.ack(u'screensaver')
+            self.ack('screensaver')
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
