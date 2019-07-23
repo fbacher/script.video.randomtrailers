@@ -8,10 +8,15 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from common.imports import *
 
-from common.logger import Logger
+from common.constants import (Constants)
+from common.logger import (Logger, LazyLogger, Trace)
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
 
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('player.player_container')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
 
 class PlayerContainer(object):
     _instance = None
@@ -22,7 +27,7 @@ class PlayerContainer(object):
         return PlayerContainer._instance
 
     def __init__(self):
-        self._logger = Logger(self.__class__.__name__)
+        self._logger = module_logger.getChild(self.__class__.__name__)
         self._player = MyPlayer()
         self._is_dummy_player = False
         self._saved_player = None
@@ -55,8 +60,8 @@ class PlayerContainer(object):
         return self._is_dummy_player
 
     def use_dummy_player(self, delete=False):
-        local_logger = self._logger.get_method_logger('use_dummy_player')
-        local_logger.enter('delete:', delete)
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.enter('delete:', delete)
 
         self._saved_player = self._player
         self._player = DummyPlayer()

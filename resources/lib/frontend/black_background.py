@@ -12,7 +12,7 @@ from common.imports import *
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger, Trace
+from common.logger import (Logger, LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor
 from action_map import Action
@@ -24,6 +24,11 @@ from frontend.utils import ReasonEvent, BaseWindow, ScreensaverManager, Screensa
 import sys
 import threading
 from kodi_six import xbmc, xbmcgui
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.black_background')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
 
 
 # noinspection Annotator,Annotator
@@ -57,7 +62,7 @@ class BlackBackground(xbmcgui.WindowXML):
         :param kwargs:
         """
         super().__init__(*args)
-        self._logger = Logger(self.__class__.__name__)
+        self._logger = module_logger.getChild(self.__class__.__name__)
         BlackBackground._instance = self
         self._windowId = xbmcgui.getCurrentWindowId()
         self.set_visibility(opaque=True)
@@ -77,8 +82,7 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger('BlankWindow.close')
-        local_logger.enter()
+        self._logger.enter()
         super().close()
 
     def destroy(self):
@@ -92,8 +96,7 @@ class BlackBackground(xbmcgui.WindowXML):
         BlackBackground._destroyed = True
 
     def show(self):
-        local_logger = self._logger.get_method_logger('BlankWindow.show')
-        local_logger.enter()
+        self._logger.enter()
         super().show()
 
     def set_visibility(self, opaque=False):

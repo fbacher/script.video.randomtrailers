@@ -19,9 +19,15 @@ import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger
+from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.front_end_bridge')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
+
 
 """
     FrontendBridge provides support for the random trailers front_end_service to
@@ -48,9 +54,8 @@ class FrontendBridge(PluginBridge):
         """
 
         """
-        self._logger = Logger(self.__class__.__name__)
-        local_logger = self._logger.get_method_logger('__init__')
-        local_logger.enter()
+        self._logger = module_logger.getChild(self.__class__.__name__)
+        self._logger.enter()
         try:
             super().__init__()
             self._next_trailer = None
@@ -63,7 +68,7 @@ class FrontendBridge(PluginBridge):
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
-            self._logger.log_exception(e)
+            self._logger.exception('')
 
     @staticmethod
     def get_instance():
@@ -90,10 +95,8 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-
-        local_logger = self._logger.get_method_logger('get_next_trailer')
         try:
-            local_logger.enter('context:', self._context)
+            self._logger.enter('context:', self._context)
             signal_payload = {}
             self.send_signal('get_next_trailer', data=signal_payload,
                              source_id=FrontendBridgeStatus.BACKEND_ID)
@@ -111,7 +114,7 @@ class FrontendBridge(PluginBridge):
                 count += 1
 
             if count >= 300:
-                local_logger.error('Timed out waiting on get_next_trailer')
+                self._logger.error('Timed out waiting on get_next_trailer')
                 self._next_trailer = None
                 self._status = FrontendBridgeStatus.TIMED_OUT
 
@@ -120,14 +123,15 @@ class FrontendBridge(PluginBridge):
             self._next_trailer = None
             self._status = FrontendBridgeStatus.IDLE
             if trailer is not None:
-                local_logger.debug('returning status:',
-                                   status, 'title:', trailer[Movie.TITLE])
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('returning status:',
+                                        status, 'title:', trailer[Movie.TITLE])
             return status, trailer
         except (AbortException, ShutdownException):
             self.delete_instance()
             six.reraise(*sys.exc_info())
         except (Exception) as e:
-            local_logger.log_exception(e)
+            self._logger.exception('')
 
     def notify_settings_changed(self):
         # type: () -> None
@@ -136,10 +140,7 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-
-        local_logger = self._logger.get_method_logger(
-            'notify_settings_changed')
-        local_logger.enter()
+        self._logger.enter()
         signal_payload = {}
         self.send_signal('settings_changed', data=signal_payload,
                          source_id=FrontendBridgeStatus.BACKEND_ID)
@@ -156,9 +157,7 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger(
-            'ack')
-        local_logger.enter()
+        self._logger.enter()
         signal_payload = {'what': what}
         self.send_signal('ack', data=signal_payload,
                          source_id=FrontendBridgeStatus.BACKEND_ID)
@@ -171,17 +170,17 @@ class FrontendBridge(PluginBridge):
         :param data:
         :return:
         """
-        local_logger = self._logger.get_method_logger('returned_trailer')
         try:
             self._monitor.throw_exception_if_shutdown_requested()
-            local_logger.debug(self._context, 'received trailer for:',
-                               data.get(Movie.TITLE, None))
             self._next_trailer = data.get('trailer', None)
             self._status = data.get('status', None)
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug(self._context, 'received trailer for:',
+                                   self._next_trailer.get(Movie.TITLE, None))
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
-            local_logger.log_exception(e)
+            self._logger.exception('')
 
     def activate_screensaver(self):
         # type: () -> None
@@ -191,13 +190,12 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger('returned_trailer')
         try:
 
-            local_logger.enter()
+            self._logger.enter()
             # Inform monitor
             self.ack('screensaver')
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
-            local_logger.log_exception(e)
+            self._logger.exception('')

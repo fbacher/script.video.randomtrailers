@@ -131,7 +131,7 @@
         <setting id="tmdb_vote_value" type="number" enable="eq(-5,true) + gt(-1,0)"
                  label="Rating to compare against (0-10)"
                  default="6"/>
-        <setting id="include_old_movie_trailers" type="bool" enable="eq(-6,true)"
+        <setting id="tmdb_include_old_movie_trailers" type="bool" enable="eq(-6,true)"
                  label="Download trailers for old movies"
                  default="false"/>
         <setting id="tmdb_enable_select_by_year_range" type="bool" enable="eq(-7,true) + eq(-1,true)"
@@ -232,6 +232,7 @@
                  label="Number of top billed actors to include in hidden report" default="6"/>
         <setting label="Debug Options" type="lsep"/>
         <setting id="do_debug" type="bool" label="Enable Debug" default="false"/>
+        <setting id="log_level" type="enum" label="Logging Level" values="WARNING|NOTICE|INFO|DEBUG|VERBOSE DEBUG|EXTRA VERBOSE DEBUG" default="0"/>
         <setting id="do_trace" type="bool" label="Enable Debug Trace" default="false"/>
         <setting id="do_trace_stats" type="bool" label="Enable Debug Stats" default="false"/>
     </category>

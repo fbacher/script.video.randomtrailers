@@ -9,16 +9,21 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from common.imports import *
 
-from common.constants import Movie
+from common.constants import (Constants, Movie)
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger, Trace
+from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
 from common.settings import Settings
 from player.player_container import PlayerContainer
 
 import threading
 from kodi_six import xbmc, xbmcgui
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.utils')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
 
 
 class ReasonEvent(object):
@@ -84,9 +89,7 @@ class ScreensaverManager(object):
     _instance = None
 
     def __init__(self):
-        ScreensaverManager._logger = Logger(self.__class__.__name__)
-        local_logger = self._logger.get_method_logger('__init__')
-        local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
+        ScreensaverManager._logger = module_logger.getChild(self.__class__.__name__)
         self._screensaverState = ScreensaverState.getInstance()
         self._screensaverStateChanged = threading.Event()
         self._screenSaverListeners = []
@@ -104,14 +107,13 @@ class ScreensaverManager(object):
     def get_instance():
         if ScreensaverManager._instance is None:
             ScreensaverManager._instance = ScreensaverManager()
-        local_logger = ScreensaverManager._logger.get_method_logger(
-            'get_instance')
-        local_logger.trace('enter', trace=Trace.TRACE_SCREENSAVER)
+        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
+            ScreensaverManager._logger.debug('enter', trace=Trace.TRACE_SCREENSAVER)
         return ScreensaverManager._instance
 
     def on_shutdown_event(self):
-        local_logger = self._logger.get_method_logger('on_shutdown_event')
-        local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
+        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
+            ScreensaverManager._logger.debug('', trace=Trace.TRACE_SCREENSAVER)
 
         # Make sure that restartScreensaverOnIdle thread can exit
 
@@ -127,9 +129,8 @@ class ScreensaverManager(object):
         self.on_shutdown_event()
 
     def inform_screensaver_listeners(self, activated=True):
-        local_logger = self._logger.get_method_logger(
-            'inform_screensaver_listeners')
-        local_logger.trace(trace=Trace.TRACE_SCREENSAVER)
+        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
+            ScreensaverManager._logger.debug(trace=Trace.TRACE_SCREENSAVER)
         for listener in self._screenSaverListeners:
             if activated:
                 listener.onScreensaverActivated()
@@ -137,27 +138,27 @@ class ScreensaverManager(object):
                 listener.onScreensaverDeactivated()
 
     def get_screensaver_state(self):
-        local_logger = self._logger.get_method_logger(
-            'get_screensaver_state')
-        local_logger.trace(
-            'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
+        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
+            ScreensaverManager._logger.debug(
+                'state:', self._screensaverState.getState(),
+                trace=Trace.TRACE_SCREENSAVER)
         return self._screensaverState
 
     def isScreensaverActivated(self):
-        local_logger = self._logger.get_method_logger(
-            'isScreensaverActivated')
-        local_logger.trace(
-            'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
+        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
+            ScreensaverManager._logger.debug(
+                'state:', self._screensaverState.getState(),
+                trace=Trace.TRACE_SCREENSAVER)
         if not self.is_launched_as_screensaver():
             raise ScreenSaverException()
 
         return self._screensaverState.getState() == ScreensaverState.ACTIVATED
 
     def isScreensaverDeactivated(self):
-        local_logger = self._logger.get_method_logger(
-            'isScreensaverDeactivated')
-        local_logger.trace(
-            'state:', self._screensaverState.getState(), trace=Trace.TRACE_SCREENSAVER)
+        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
+            ScreensaverManager._logger.debug(
+                'state:', self._screensaverState.getState(),
+                trace=Trace.TRACE_SCREENSAVER)
 
         if not self.is_launched_as_screensaver():
             raise ScreenSaverException()
@@ -228,10 +229,9 @@ class BaseWindow(object):
     '''
 
     def __init__(self):
-        self._logger = Logger(self.__class__.__name__)
+        self._logger = module_logger.getChild(self.__class__.__name__)
 
     def add_to_playlist(self, playListId, trailer):
-        local_logger = self._logger.get_method_logger('addToPlayList')
         _playlistMap = {xbmcgui.REMOTE_1:
                         Playlist.PLAYLIST_PREFIX + '1' + Playlist.PLAYLIST_SUFFIX,
                         xbmcgui.REMOTE_2:
@@ -254,20 +254,20 @@ class BaseWindow(object):
                         Playlist.PLAYLIST_PREFIX + '10' + Playlist.PLAYLIST_SUFFIX}
         playlist_file = _playlistMap.get(playListId, None)
         if playlist_file is None:
-            local_logger.error(
+            self._logger.error(
                 'Invalid playlistId, ignoring request to write to playlist.')
         else:
             Playlist.getPlaylist(playlist_file).recordPlayedTrailer(trailer)
 
     def notifyUser(self, msg):
         # TODO: Supply code
-        local_logger = self._logger.get_method_logger('notifyUser')
-        local_logger.debug(msg)
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.debug(msg)
 
     def play_movie(self, trailer):
         # TODO: Supply code
-        local_logger = self._logger.get_method_logger('queue_movie')
-        local_logger.debug('Playing movie at user request:',
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.debug('Playing movie at user request:',
                           trailer[Movie.TITLE])
 
         self.exitRandomTrailers()

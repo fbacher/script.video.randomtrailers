@@ -7,11 +7,16 @@ from common.imports import *
 from kodi_six import xbmcgui, utils
 
 from player.advanced_player import AdvancedPlayer
-from common.logger import Logger
-from common.constants import Movie
+from common.logger import (Logger, LazyLogger, Trace)
+from common.constants import (Constants, Movie)
 from common.disk_utils import DiskUtils
 from common.monitor import Monitor
 import os
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('player.my_player')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
 
 
 # noinspection Annotator
@@ -26,7 +31,7 @@ class MyPlayer(AdvancedPlayer):
 
         """
         super().__init__()
-        self._logger = Logger(self.__class__.__name__)
+        self._logger = module_logger.getChild(self.__class__.__name__)
         self._expected_title = None
         self._expected_file_path = None
         self._is_url = False
@@ -42,8 +47,6 @@ class MyPlayer(AdvancedPlayer):
         :param trailer:
         :return:
         """
-        local_logger = self._logger.get_method_logger('play_trailer')
-
         title = trailer[Movie.TITLE]
         file_path = trailer.get(Movie.NORMALIZED_TRAILER, None)
         if file_path is None:
@@ -52,8 +55,9 @@ class MyPlayer(AdvancedPlayer):
         file_name = os.path.basename(file_path)
         passed_file_name = utils.py2_decode(os.path.basename(path))
         if file_name != passed_file_name:
-            local_logger.debug('passed file name:', passed_file_name,
-                               'trailer file_name:', file_name,)
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('passed file name:', passed_file_name,
+                                    'trailer file_name:', file_name,)
 
         listitem = xbmcgui.ListItem(title)
         listitem.setInfo(
@@ -65,7 +69,8 @@ class MyPlayer(AdvancedPlayer):
 
         self.set_playing_title(title)
         self.set_playing_file_path(file_path)
-        local_logger.debug('path:', file_name, 'title:', title)
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.debug('path:', file_name, 'title:', title)
 
         self.play(item=path, listitem=listitem)
 
@@ -115,7 +120,6 @@ class MyPlayer(AdvancedPlayer):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger('onAVStarted')
         try:
             # All local trailers played by Random Trailers will have a fake genre of
             # 'randomtrailers'. However, if a trailer is from a remote source
@@ -124,14 +128,14 @@ class MyPlayer(AdvancedPlayer):
             # of remote trailers will eliminate this issue.
 
             genre = utils.py2_decode(self.getVideoInfoTag().getGenre())
-            # local_logger.debug('genre:', genre)
+            # self._logger.debug('genre:', genre)
             if genre != 'randomtrailers':
                 playing_file = super().getPlayingFile()
                 playing_file = utils.py2_decode(playing_file)
                 if not (self._is_url and DiskUtils.is_url(playing_file)):
                     self._is_activated = False
-                    local_logger.debug(
-                        'Player is playing movie:', playing_file)
+                    if self._logger.isEnabledFor(Logger.DEBUG):
+                        self._logger.debug('Player is playing movie:', playing_file)
                     self.notify_non_random_trailer_video()
         except (Exception) as e:
             pass
@@ -152,7 +156,7 @@ class MyPlayer(AdvancedPlayer):
             try:
                 listener()
             except (Exception) as e:
-                Logger.log_exception(e)
+                LazyLogger.exception('')
 
     def dump_data(self, context):
         # type: (TextType) -> None
@@ -161,18 +165,19 @@ class MyPlayer(AdvancedPlayer):
         :param context:
         :return:
         """
-        local_logger = self._logger.get_method_logger(
-            'dump_data')
         try:
             if self.isPlayingVideo():
                 info_tag_video = self.getVideoInfoTag()
-                local_logger.debug('context:', context, 'title:', info_tag_video.getTitle(),
-                                   'genre:', info_tag_video.getGenre(),
-                                   'trailer:', info_tag_video.getTrailer())
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('context:', context, 'title:',
+                                       info_tag_video.getTitle(),
+                                        'genre:', info_tag_video.getGenre(),
+                                        'trailer:', info_tag_video.getTrailer())
             else:
-                local_logger.debug('Not playing video')
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Not playing video')
         except (Exception) as e:
-            local_logger.log_exception(e)
+            self._logger.exception('')
 
     def isActivated(self):
         # type: () -> bool

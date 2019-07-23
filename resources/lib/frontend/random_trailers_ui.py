@@ -18,13 +18,19 @@ from kodi_six import xbmc, xbmcgui, utils
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger
+from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
 from player.player_container import PlayerContainer
 from common.settings import Settings
 from common.watchdog import WatchDog
 from frontend.trailer_dialog import TrailerDialog, DialogState
 from frontend.black_background import BlackBackground
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
+
 
 '''
     Rough outline:
@@ -69,7 +75,7 @@ from frontend.black_background import BlackBackground
 
 # TODO: Move to ui_utils
 
-logger = Logger('random_trailer_ui')
+logger = module_logger
 
 
 def getTitleFont():
@@ -78,8 +84,8 @@ def getTitleFont():
 
     :return:
     """
-    local_monitor = logger.get_method_logger('getTitleFont')
-    local_monitor.debug('In randomtrailer.getTitleFont')
+    if logger.isEnabledFor(Logger.DEBUG):
+        logger.debug('In randomtrailer.getTitleFont')
     title_font = 'font13'
     base_size = 20
     multiplier = 1
@@ -120,7 +126,6 @@ def play_trailers():
     :return:
     """
     my_trailer_dialog = None
-    local_monitor = logger.get_method_logger('play_trailers')
     black_background = None
     try:
         black_background = BlackBackground.get_instance()
@@ -136,14 +141,16 @@ def play_trailers():
             black_background.destroy()
             del black_background
             black_background = None
-        local_logger = Logger('play_trailers')
-        local_logger.debug('ReplaceWindow(12005)')
+        if logger.isEnabledFor(Logger.DEBUG):
+            logger.debug('ReplaceWindow(12005)')
         xbmc.executebuiltin('ReplaceWindow(12005)')
-        local_logger.debug('Action(FullScreen,12005)')
-        # xbmc.executebuiltin('ActivateWindow(12005)')
-        # xbmc.executebuiltin('Action(FullScreen,12005)')
-        local_logger.debug('About to local_monitor.exit()')
-        local_monitor.exit()
+        # if logger.isEnabledFor(Logger.DEBUG):
+            # logger.debug('Action(FullScreen,12005)')
+            # xbmc.executebuiltin('ActivateWindow(12005)')
+            # xbmc.executebuiltin('Action(FullScreen,12005)')
+        if logger.isEnabledFor(Logger.DEBUG):
+            logger.debug('About to local_monitor.exit()')
+            logger.exit()
 
 
 # noinspection Annotator
@@ -158,9 +165,9 @@ class StartUI(threading.Thread):
 
         """
         super().__init__(name='startUI')
-        self._logger = Logger(self.__class__.__name__)
-        local_monitor = self._logger.get_method_logger('__init__')
-        local_monitor.enter()
+        self._logger = module_logger.getChild(self.__class__.__name__)
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.enter()
 
         self._player_container = None
         self._started_as_screensaver = started_as_screesaver
@@ -174,30 +181,27 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger('run')
         try:
-            local_monitor.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
-            finished = False
-            while not finished:
-                self.start_playing_trailers()
-                break
-                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=60)
+            self.start_playing_trailers()
 
         except (AbortException):
-            local_monitor.error(
+            self._logger.error(
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
         except (ShutdownException):
-            local_monitor.error(
+            self._logger.error(
                 'Exiting Random Trailers Screen Saver at addon\'s request')
         except (Exception) as e:
-            local_monitor.log_exception(e)
+            self._logger.exception('')
 
         finally:
-            local_monitor.debug('Stopping xbmc.Player')
+            if logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('Stopping xbmc.Player')
 
             Monitor.get_instance().shutdown_requested()
-            local_monitor.exit()
+            self._logger.exit()
 
     def start_playing_trailers(self):
         # type: () -> None
@@ -205,16 +209,17 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger(
-            'start_playing_trailers')
         # black_background = None
         try:
-            local_monitor.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
+            if logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
-                local_monitor.debug('Python path:', utils.py2_decode(sys.path))
+                if logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Python path:', utils.py2_decode(sys.path))
 
-                if (self._started_as_screensaver and Settings.is_set_fullscreen_when_screensaver()):
+                if (self._started_as_screensaver and
+                        Settings.is_set_fullscreen_when_screensaver()):
                     if not xbmc.getCondVisibility("System.IsFullscreen"):
                         xbmc.executebuiltin('xbmc.Action(togglefullscreen)')
 
@@ -222,8 +227,10 @@ class StartUI(threading.Thread):
 
                 current_dialog_id = xbmcgui.getCurrentWindowDialogId()
                 current_window_id = xbmcgui.getCurrentWindowId()
-                local_monitor.debug('CurrentDialogId, CurrentWindowId: ' + str(current_dialog_id) +
-                                    ' ' + str(current_window_id))
+                if logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('CurrentDialogId, CurrentWindowId:',
+                                        current_dialog_id,
+                                        current_window_id)
 
                 volume_was_adjusted = False
                 if Settings.get_adjust_volume():
@@ -238,15 +245,6 @@ class StartUI(threading.Thread):
                                 'XBMC.SetVolume(' + str(volume) + ')')
 
                 self._player_container = PlayerContainer.get_instance()
-                # if Settings.get_show_curtains():
-                #    self._player_container.get_player().play_trailer(Settings.get_open_curtain_path(),
-                #                                                  {Movie.TITLE: 'openCurtain',
-                # Movie.TRAILER: Settings.get_open_curtain_path()})
-
-                # Finish curtain playing before proceeding
-
-                #    self._player_container.get_player().waitForIsPlayingVideo(3)
-                #    self._player_container.get_player().waitForIsNotPlayingVideo()
                 play_trailers()
 
                 # TODO: Need to adjust whenever settings changes
@@ -265,22 +263,24 @@ class StartUI(threading.Thread):
                         xbmc.executebuiltin(
                             'XBMC.SetVolume(' + str(current_volume) + ')')
 
-                local_monitor.debug('Shutting down')
+                if logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Shutting down')
                 Playlist.shutdown()
             else:
-                local_monitor.notice(
+                self._logger.notice(
                     'Exiting Random Trailers Screen Saver Something is playing!!!!!!')
         except (AbortException):
-            local_monitor.error(
+            self._logger.error(
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
         except (ShutdownException):
-            local_monitor.error(
+            self._logger.error(
                 'Exiting Random Trailers Screen Saver at addon\'s request')
         except (Exception) as e:
-            local_monitor.log_exception(e)
+            self._logger.exception('')
 
         finally:
-            local_monitor.debug('Stopping xbmc.Player')
+            if logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
             # Random Trailers control
@@ -289,7 +289,8 @@ class StartUI(threading.Thread):
                     and self._player_container.get_player() is not None):
                 self._player_container.get_player().stop()
 
-            local_monitor.debug('Deleting black screen')
+            if logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('Deleting black screen')
 
             black_background = BlackBackground.get_instance()
             if black_background is not None:
@@ -297,7 +298,7 @@ class StartUI(threading.Thread):
                 black_background.destroy()
                 del black_background
             black_background = None
-            local_monitor.exit()
+            self._logger.exit()
 
     def check_for_xsqueeze(self):
         # type: () -> bool
@@ -305,8 +306,7 @@ class StartUI(threading.Thread):
 
         :return:
         """
-        local_monitor = self._logger.get_method_logger('check_for_xsqueeze')
-        local_monitor.enter()
+        self._logger.enter()
         key_map_dest_file = os.path.join(xbmc.translatePath(
             'special://userdata/keymaps'), "xsqueeze.xml")
         if os.path.isfile(key_map_dest_file):

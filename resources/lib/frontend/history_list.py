@@ -16,11 +16,16 @@ from collections import deque
 from common.constants import Constants, Movie
 from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger, Trace
+from common.logger import (Logger, LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor
 
 from frontend.history_empty import HistoryEmpty
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.history_list')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
 
 
 class HistoryList(object):
@@ -35,8 +40,7 @@ class HistoryList(object):
 
         """
         super().__init__()
-        self._logger = Logger(self.__class__.__name__)
-        local_logger = self._logger.get_method_logger('__init__')
+        self._logger = module_logger.getChild(self.__class__.__name__)
         self._buffer = []  # type: List[MovieType]
         self._cursor = int(0)  # type: int
 
@@ -47,8 +51,7 @@ class HistoryList(object):
         :param movie:
         :return:
         """
-        local_logger = self._logger.get_method_logger('append')
-        local_logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
+        self._logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
                         len(self._buffer), 'cursor:', self._cursor)
         if len(self._buffer) > HistoryList.MAX_HISTORY:
             # Delete oldest entry
@@ -62,8 +65,8 @@ class HistoryList(object):
 
         :return:
         """
-        local_logger = self._logger.get_method_logger('getPreviousMovie')
-        local_logger.debug('cursor:', self._cursor)
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.debug('cursor:', self._cursor)
         if self._cursor == -1:
             movie = None
             raise HistoryEmpty()

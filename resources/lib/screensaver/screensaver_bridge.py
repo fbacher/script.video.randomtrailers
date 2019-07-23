@@ -19,9 +19,15 @@ import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie
 from common.exceptions import AbortException, ShutdownException
-from common.logger import Logger
+from common.logger import (LazyLogger, Logger, Trace)
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
+
+if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    module_logger = LazyLogger.get_addon_module_logger().getChild('screensaver.screensaver_bridge')
+else:
+    module_logger = LazyLogger.get_addon_module_logger()
+
 
 class ScreensaverBridgeStatus(PluginBridgeStatus):
     """
@@ -42,7 +48,7 @@ class ScreensaverBridge(PluginBridge):
         """
 
         """
-        self._logger = Logger(self.__class__.__name__)
+        self._logger = module_logger.getChild(self.__class__.__name__)
         super().__init__()
         self._context = Constants.SCREENSAVER_SERVICE
         self._ack_received = None
@@ -73,9 +79,7 @@ class ScreensaverBridge(PluginBridge):
             Used by screensaver service to tell front-end to activate
             screensaver
         """
-        local_logger = self._logger.get_method_logger(
-            'request_activate_screensaver')
-        local_logger.enter()
+        self._logger.enter()
         try:
             self._ack_received = False
             self.send_signal('activate_screensaver', data={},
@@ -85,17 +89,18 @@ class ScreensaverBridge(PluginBridge):
 
             count = 0
             while count < 30 and self._ack_received is None:
-                Monitor.get_instance().waitForAbort(0.05)
+                Monitor.get_instance().wait_for_shutdown(0.05)
                 count += 1
 
             if not self._ack_received:
-                local_logger.debug('randomtrailers front-end appears inactive')
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('randomtrailers front-end appears inactive')
                 return False
             return True
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
-            local_logger.log_exception(e)
+            self._logger.exception('')
 
     def receiveAck(self, data):
         # type: (Any) -> None
@@ -104,17 +109,17 @@ class ScreensaverBridge(PluginBridge):
         :param data:
         :return:
         """
-        local_logger = self._logger.get_method_logger('receiveAck')
         try:
             what = data.get('what', None)
-            local_logger.debug(self._context, 'received ack for:',
-                              )
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug(self._context, 'received ack for:', what)
             if what != 'screensaver':
-                local_logger.error('Unexpected response:', what)
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.error('Unexpected response:', what)
             else:
                 self._ack_received = what
 
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
-            local_logger.log_exception(e)
+            self._logger.exception('')
