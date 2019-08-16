@@ -176,6 +176,8 @@
         <setting id="trailer_cache_expiration_days" enable="eq(-2,true)" type="number"
                  label="Maximum Days to Keep Cached Media"
                  default="30"/>
+        <setting id="trailer_exixtance_cache_check_days" enable="eq(-3,true)" type="number"
+                 label="Recheck Movies without Trailers" default="7" />
 
         <setting label="Data Cache Size Limits" type="lsep"/>
         <setting id="limit_cached_json" enable="eq(-8,true)" type="bool" label="Limit Data Disk Usage" default="false"/>

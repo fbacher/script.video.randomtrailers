@@ -90,15 +90,12 @@ class ScreensaverManager(object):
 
     def __init__(self):
         ScreensaverManager._logger = module_logger.getChild(self.__class__.__name__)
-        self._screensaverState = ScreensaverState.getInstance()
+        # self._screensaverState = ScreensaverState.getInstance()
         self._screensaverStateChanged = threading.Event()
         self._screenSaverListeners = []
-        self._screensaverInactiveEvent = threading.Event()
         self._is_screen_saver = None
         self._screensaverActiveEvent = threading.Event()
         self._monitor = Monitor.get_instance()
-        self._monitor.register_shutdown_listener(self.on_shutdown_event)
-        self._monitor.register_abort_listener(self.on_abort_event)
 
         # TODO: - Need own thread subclasses to catch unhandled exceptions
         # and to catch abortException & ShutdownException
@@ -110,23 +107,6 @@ class ScreensaverManager(object):
         if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
             ScreensaverManager._logger.debug('enter', trace=Trace.TRACE_SCREENSAVER)
         return ScreensaverManager._instance
-
-    def on_shutdown_event(self):
-        if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
-            ScreensaverManager._logger.debug('', trace=Trace.TRACE_SCREENSAVER)
-
-        # Make sure that restartScreensaverOnIdle thread can exit
-
-        self._screensaverStateChanged.set()
-
-        # Set these events so that the code will fall-through
-        # and check for AbortandShutdown
-
-        self._screensaverInactiveEvent.set()
-        self._screensaverActiveEvent.set()
-
-    def on_abort_event(self):
-        self.on_shutdown_event()
 
     def inform_screensaver_listeners(self, activated=True):
         if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
@@ -166,60 +146,6 @@ class ScreensaverManager(object):
 
     def is_launched_as_screensaver(self):
         return self._is_screen_saver
-
-    # def wakeup(self, is_screen_saver):
-
-        # May be transitioning to a screensaver, or perhaps
-        # this invocation was not as a screensaver, but we already are one
-
-        # if not self._is_screen_saver:
-        #    self._is_screen_saver = is_screen_saver
-
-        # TODO: resolve how screensaver mode is handled. Is script re-launced
-        # each time, or is it made dormant and re-awakened?
-        #
-        # If a screen saver, then wait for idle period,
-        # otherwise, wake up immediately
-        # if self._is_screen_saver:
-        #    self._checkForIdle.set()
-        # else:
-        # self._checkForIdle.clear()
-
-    # def isAddonActive(self):
-    #    return self._isAddonActive
-
-    # def setAddonActive(self, isActive):
-    #    self._isAddonActive = isActive
-
-    def waitForScreensaverActive(self, timeout=None):
-        '''
-            Block until this plugin is active as a screen saver
-
-            Note that when a plugin is not running as a
-            screen saver, then it will not exit until Kodi
-            shuts down.
-
-            Raises an AbortException or ShutdownException
-            when those conditions exist.
-        '''
-        self._screensaverActiveEvent.wait(timeout)
-        self._monitor.throw_exception_if_abort_requested(timeout=0)
-        self._monitor.throw_exception_if_shutdown_requested(delay=0)
-
-    def waitForScreensaverInactive(self, timeout=None):
-        '''
-            Block until this plugin is active as a screen saver
-
-            Note that when a plugin is not running as a
-            screen saver, then it will not exit until Kodi
-            shuts down.
-
-            Raises an AbortException or ShutdownException
-            when those conditions exist.
-        '''
-        self._screensaverInactiveEvent.wait(timeout=timeout)
-        self._monitor.throw_exception_if_abort_requested(timeout=0)
-        self._monitor.throw_exception_if_shutdown_requested(delay=0)
 
 class BaseWindow(object):
 

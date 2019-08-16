@@ -240,5 +240,5 @@ class DummyPlayer(object):
     def shutdownThread(self):
         return
 
-    def isActivated(self):
+    def is_activated(self):
         return False

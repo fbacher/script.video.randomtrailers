@@ -175,8 +175,12 @@ class FrontendBridge(PluginBridge):
             self._next_trailer = data.get('trailer', None)
             self._status = data.get('status', None)
             if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(self._context, 'received trailer for:',
-                                   self._next_trailer.get(Movie.TITLE, None))
+                if self._next_trailer is None:
+                    title = 'No Trailer Received'
+                else:
+                    title = self._next_trailer.get(Movie.TITLE, 'No Title')
+                self._logger.debug(self._context, 'status:', self._status,
+                                   'received trailer for:', title)
         except (AbortException, ShutdownException):
             six.reraise(*sys.exc_info())
         except (Exception) as e:

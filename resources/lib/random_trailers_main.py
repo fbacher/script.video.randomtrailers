@@ -189,6 +189,11 @@ class MainThreadLoop(object):
             # sending/receiving events to plugins.
 
             while not self._monitor._waitForAbort(timeout=timeout):
+                # Need to check for a shutdown event because an abort
+                # event will not trigger one at this time.
+
+                self._monitor.throw_exception_if_shutdown_requested(delay=0)
+
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 0.10
@@ -214,7 +219,7 @@ class MainThreadLoop(object):
             self._start_ui = random_trailers_ui.StartUI(self._is_screensaver)
             self._start_ui.start()
         except (Exception):
-            MainThreadLoop._logger.exception()
+            MainThreadLoop._logger.exception('')
 
     def run_on_main_thread(self, callable_class):
         # type: (Callable) -> None

@@ -27,7 +27,8 @@ from frontend.trailer_dialog import TrailerDialog, DialogState
 from frontend.black_background import BlackBackground
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
+    module_logger = LazyLogger.get_addon_module_logger(
+    ).getChild('frontend.random_trailers_ui')
 else:
     module_logger = LazyLogger.get_addon_module_logger()
 
@@ -132,7 +133,7 @@ def play_trailers():
         black_background.show()
         my_trailer_dialog = TrailerDialog('script-trailerwindow.xml',
                                           Constants.ADDON_PATH, 'Default')
-        my_trailer_dialog.doModal()
+        exiting_playing_movie = my_trailer_dialog.doModal()
     finally:
         if my_trailer_dialog is not None:
             del my_trailer_dialog
@@ -141,13 +142,14 @@ def play_trailers():
             black_background.destroy()
             del black_background
             black_background = None
-        if logger.isEnabledFor(Logger.DEBUG):
-            logger.debug('ReplaceWindow(12005)')
-        xbmc.executebuiltin('ReplaceWindow(12005)')
+        if exiting_playing_movie:
+            if logger.isEnabledFor(Logger.DEBUG):
+                logger.debug('ReplaceWindow(12005)')
+            xbmc.executebuiltin('ReplaceWindow(12005)')
         # if logger.isEnabledFor(Logger.DEBUG):
-            # logger.debug('Action(FullScreen,12005)')
-            # xbmc.executebuiltin('ActivateWindow(12005)')
-            # xbmc.executebuiltin('Action(FullScreen,12005)')
+        # logger.debug('Action(FullScreen,12005)')
+        # xbmc.executebuiltin('ActivateWindow(12005)')
+        # xbmc.executebuiltin('Action(FullScreen,12005)')
         if logger.isEnabledFor(Logger.DEBUG):
             logger.debug('About to local_monitor.exit()')
             logger.exit()
@@ -216,7 +218,8 @@ class StartUI(threading.Thread):
 
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
                 if logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Python path:', utils.py2_decode(sys.path))
+                    self._logger.debug(
+                        'Python path:', utils.py2_decode(sys.path))
 
                 if (self._started_as_screensaver and
                         Settings.is_set_fullscreen_when_screensaver()):
@@ -229,8 +232,8 @@ class StartUI(threading.Thread):
                 current_window_id = xbmcgui.getCurrentWindowId()
                 if logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('CurrentDialogId, CurrentWindowId:',
-                                        current_dialog_id,
-                                        current_window_id)
+                                       current_dialog_id,
+                                       current_window_id)
 
                 volume_was_adjusted = False
                 if Settings.get_adjust_volume():

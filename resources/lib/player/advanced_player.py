@@ -626,6 +626,7 @@ class AdvancedPlayer(xbmc.Player):
             self._logger.enter()
         # self._dump_state()  # TODO: remove
 
+    """
     # Defined in xbmc.Player
     def onPlayBackStarted(self):
         '''
@@ -643,8 +644,11 @@ class AdvancedPlayer(xbmc.Player):
             self._logger.debug_verbose('You probably want to use onAVStarted instead')
         # self._dump_state()  # TODO: remove
 
-    # Defined in xbmc.Playesr
+    """
+
+    # Defined in xbmc.Player
     def onAVStarted(self):
+
         '''
         Will be called when Kodi has a video or audiostream.
 
@@ -1009,18 +1013,28 @@ class AdvancedPlayer(xbmc.Player):
                 else:
                     self._has_osd = False
 
+                if self._closed:
+                    break
+
                 if xbmc.getCondVisibility('Player.ShowInfo'):
                     if not self._has_show_info:
                         self.onShowInfo()
                         self._has_show_info = True
                 else:
                     self._has_show_info = False
+
+                if self._closed:
+                    break
+
                 if xbmc.getCondVisibility('Window.IsActive(seekbar)'):
                     if not self._has_seek_osd:
                         self._has_seek_osd = True
                         self.onSeekOSD()
                 else:
                     self._has_seek_osd = False
+
+                if self._closed:
+                    break
 
                 if xbmc.getCondVisibility('VideoPlayer.IsFullscreen'):
                     if not has_full_screened:
@@ -1029,6 +1043,9 @@ class AdvancedPlayer(xbmc.Player):
                 elif has_full_screened and not xbmc.getCondVisibility('Window.IsVisible(busydialog)'):
                     has_full_screened = False
                     self.onVideoWindowClosed()
+
+                if self._closed:
+                    break
 
                 ct += 1
                 if ct > 9:

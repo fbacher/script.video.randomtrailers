@@ -12,7 +12,7 @@ from common.imports import *
 import datetime
 import sys
 import threading
-
+import queue
 import six
 
 from kodi_six import xbmc, xbmcgui
@@ -24,7 +24,6 @@ from common.logger import (Logger, LazyLogger, Trace, log_entry_exit)
 from common.messages import Messages
 from common.monitor import Monitor
 from frontend.front_end_bridge import FrontendBridge, FrontendBridgeStatus
-from action_map import Action
 from common.settings import Settings
 from player.player_container import PlayerContainer
 from frontend.black_background import BlackBackground
@@ -42,7 +41,7 @@ else:
 
 class MovieStatus(FrontendBridgeStatus):
     PREVIOUS_MOVIE = 'PREVIOUS_MOVIE'
-
+    NEXT_MOVIE = 'NEXT_MOVIE'
 
 class MovieManager(object):
 
@@ -62,9 +61,13 @@ class MovieManager(object):
         self._movie_history_cursor = None
         self.front_end_bridge = FrontendBridge.get_instance()
         self._play_open_curtain_next = Settings.get_show_curtains()
+        self._play_next_trailer = False
         self._play_previous_trailer = False
+        self._thread = None
         self._queuedMovie = None
-        self._pre_fetched_trailer = None
+        self._pre_fetched_trailer_queue = queue.Queue(2)
+        self.fetched_event = threading.Event()
+        self.pre_fetch_trailer()
 
     def get_next_trailer(self):
         # type: () -> (TextType, MovieType)
@@ -73,7 +76,8 @@ class MovieManager(object):
         :return:
         """
         trailer = None
-        status = 0
+        status = None
+        prefetched = False
         if self._play_open_curtain_next:
             status = MovieStatus.OK
             trailer = {Movie.SOURCE: 'curtain',
@@ -90,29 +94,28 @@ class MovieManager(object):
             status = MovieStatus.PREVIOUS_MOVIE
             self._play_previous_trailer = False
             try:
-                trailer = self._movie_history.getPreviousMovie()
+                trailer = self._movie_history.get_previous_movie()
             except (HistoryEmpty):
                 six.reraise(*sys.exc_info())
+        elif self._play_next_trailer:
+            status = MovieStatus.NEXT_MOVIE
+            self._play_next_trailer = False
+            trailer = self._pre_fetched_trailer_queue.get()
+            self._movie_history.append(trailer)
         else:
-            if self._pre_fetched_trailer is not None:
-                trailer = self._pre_fetched_trailer
-                self._pre_fetched_trailer = None
-            else:
-                status, trailer = self.front_end_bridge.get_next_trailer()
-            if trailer is not None:
-                # Put trailer in recent history. If full, delete oldest
-                # entry. User can traverse backwards through shown
-                # trailers
+            status = MovieStatus.OK
+            trailer = self._pre_fetched_trailer_queue.get()
+            # Put trailer in recent history. If full, delete oldest
+            # entry. User can traverse backwards through shown
+            # trailers
 
-                self._movie_history.append(trailer)
+            self._movie_history.append(trailer)
 
         title = None
         if trailer is not None:
             title = trailer.get(Movie.TITLE)
-        self._logger.exit('status:', status, 'trailer', title)
-
-        if self._pre_fetched_trailer is None:
-            self.pre_fetch_trailer()
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.exit('status:', status, 'trailer', title)
 
         return status, trailer
 
@@ -122,11 +125,17 @@ class MovieManager(object):
         self._thread.start()
 
     def _pre_fetch_trailer(self):
-        trailer = None
-        while trailer is None:
+        while not Monitor.is_shutdown_requested():
             status, trailer = self.front_end_bridge.get_next_trailer()
-
-        self._pre_fetched_trailer = trailer
+            if trailer is not None:
+                added = False
+                while not added:
+                    try:
+                        self._pre_fetched_trailer_queue.put(trailer, timeout=0.1)
+                        added = True
+                    except queue.Full:
+                        if Monitor.wait_for_shutdown(timeout=1.0):
+                            break
 
     # Put trailer in recent history. If full, delete oldest
     # entry. User can traverse backwards through shown
@@ -143,11 +152,22 @@ class MovieManager(object):
         self._logger.enter()
         self._play_previous_trailer = True
 
-    def play_curtain_next(self, curtainType):
-        if curtainType == MovieManager.OPEN_CURTAIN:
+    def play_next_trailer(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
+
+        # TODO: probably not needed
+        self._logger.enter()
+        self._play_next_trailer = True
+
+    def play_curtain_next(self, curtain_type):
+        if curtain_type == MovieManager.OPEN_CURTAIN:
             self._play_open_curtain_next = True
             self._play_close_curtain_next = False
-        elif curtainType == MovieManager.CLOSE_CURTAIN:
+        elif curtain_type == MovieManager.CLOSE_CURTAIN:
             self._play_open_curtain_next = False
             self._play_close_curtain_next = True
         else:

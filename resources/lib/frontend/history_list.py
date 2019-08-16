@@ -42,7 +42,7 @@ class HistoryList(object):
         super().__init__()
         self._logger = module_logger.getChild(self.__class__.__name__)
         self._buffer = []  # type: List[MovieType]
-        self._cursor = int(0)  # type: int
+        self._cursor = int(-1)  # type: int
 
     def append(self, movie):
         # type: (MovieType) -> None
@@ -53,13 +53,13 @@ class HistoryList(object):
         """
         self._logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
                         len(self._buffer), 'cursor:', self._cursor)
+        self._buffer.append(movie)
         if len(self._buffer) > HistoryList.MAX_HISTORY:
             # Delete oldest entry
             del self._buffer[0]
-        self._buffer.append(movie)
         self._cursor = len(self._buffer) - 1
 
-    def getPreviousMovie(self):
+    def get_previous_movie(self):
         # type: () -> MovieType
         """
 
@@ -67,11 +67,13 @@ class HistoryList(object):
         """
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.debug('cursor:', self._cursor)
-        if self._cursor == -1:
+        # cursor points to currently playing movie or -1
+        self._cursor -= 1
+        if self._cursor <= -1:
+            self._cursor = -1
             movie = None
             raise HistoryEmpty()
         else:
             movie = self._buffer[self._cursor]
-            self._cursor -= 1
 
         return movie

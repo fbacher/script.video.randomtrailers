@@ -71,3 +71,6 @@ class PlayerContainer(object):
         if delete:
             del self._saved_player
             self._saved_player = None
+
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.exit()

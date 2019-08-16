@@ -179,7 +179,7 @@ class MyPlayer(AdvancedPlayer):
         except (Exception) as e:
             self._logger.exception('')
 
-    def isActivated(self):
+    def is_activated(self):
         # type: () -> bool
         """
 
