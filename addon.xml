@@ -29,8 +29,8 @@
     <extension point="xbmc.addon.metadata">
         <reuselanguageinvoker>false</reuselanguageinvoker>
         <platform>all</platform>
-        <summary lang="en_US">Plays Random Trailers from Multiple Sources</summary>
-        <description lang="en_US">Plays random movie trailers from a variety of sources:[CR]-The Users Movie
+        <summary lang="en_us">Plays Random Trailers from Multiple Sources</summary>
+        <description lang="en_us">Plays random movie trailers from a variety of sources:[CR]-The Users Movie
             Library[CR]-Apple iTunes[CR]-YouTube(via themoviedb.org)[CR]-A user specified folder[CR]
             Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of
             trailers, hide trailers of watched movies, and display opening / closing animations.
@@ -38,8 +38,8 @@
             display next trailer. LEFT or ESC will exit. If the current playing trailer is from
             the users movie library hitting enter or return will play the associated movie.
         </description>
-        <disclaimer lang="en_US"></disclaimer>
-        <language>en</language> <!-- the language of the videos the plugin provides, may be left blank -->
+        <disclaimer lang="en_us"></disclaimer>
+        <language>en_us</language> <!-- the language of the videos the plugin provides, may be left blank -->
         <platform>all</platform>
         <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
         <forum>http://forum.xbmc.org/showthread.php?tid=167276</forum>
