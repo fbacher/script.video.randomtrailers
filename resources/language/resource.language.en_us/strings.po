@@ -10,258 +10,258 @@ msgstr ""
 "POT-Creation-Date: 2019-01-29 13:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE\n"
+"Language-Team: English (United States)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Language: en\n"
+"Language: en_us\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
 msgctxt "Addon Summary"
 msgid "Plays Random Trailers from Multiple Sources"
-msgstr ""
+msgstr "Plays Random Trailers from Multiple Sources"
 
 msgctxt "Addon Description"
 msgid "Plays random movie trailers from a variety of sources:[CR]-The Users Movie Library[CR]-Apple iTunes[CR]-YouTube(via themoviedb.org)[CR]-A user specified folder[CR]\nInstalls as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations. \nWhen viewing trailers you can press UP or I to view movie information and DOWN or I to hide. RIGHT or X will display next trailer. LEFT or ESC will exit. If the current playing trailer is from\nthe users movie library hitting enter or return will play the associated movie.\n	"
-msgstr ""
+msgstr "Plays random movie trailers from a variety of sources:[CR]-The Users Movie Library[CR]-Apple iTunes[CR]-YouTube(via themoviedb.org)[CR]-A user specified folder[CR]\nInstalls as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations. \nWhen viewing trailers you can press UP or I to view movie information and DOWN or I to hide. RIGHT or X will display next trailer. LEFT or ESC will exit. If the current playing trailer is from\nthe users movie library hitting enter or return will play the associated movie.\n	"
 
 #All %s must remain in string but can change position
 
 msgctxt "#32000"
 msgid "Number Of Trailers to Play (0 for Continuous)"
-msgstr ""
+msgstr "Number Of Trailers to Play (0 for Continuous)"
 
 msgctxt "#32001"
 msgid "Play Opening and Closing Animation"
-msgstr ""
+msgstr "Play Opening and Closing Animation"
 
 msgctxt "#32002"
 msgid "Filter by Genre"
-msgstr ""
+msgstr "Filter by Genre
 
 msgctxt "#32003"
 msgid "Hide Movie Info"
-msgstr ""
+msgstr "Hide Movie Info"
 
 msgctxt "#32004"
 msgid "Hide Trailers of Watched Movies"
-msgstr ""
+msgstr "Hide Trailers of Watched Movies"
 
 msgctxt "#32005"
 msgid "Number of Days to Hide Watched Trailers"
-msgstr ""
+msgstr "Number of Days to Hide Watched Trailers"
 
 msgctxt "#32006"
-msgid "Reduce Volume of All Media"
-msgstr ""
+msgid "Reduce Volume During Playback"
+msgstr "Reduce Volume During Playback"
 
 msgctxt "#32007"
-msgid "Force Full Screen When Started Automatically"
-msgstr ""
+msgid "Force Full Screen"
+msgstr "Force Full Screen"
 
 msgctxt "#32008"
 msgid "Show Movie Title During Playback"
-msgstr "Pig Show Title During Playback"
+msgstr "Show Movie Title During Playback"
 
 msgctxt "#32009"
 msgid "Folder Settings"
-msgstr ""
+msgstr "Folder Settings"
 
 msgctxt "#32010"
 msgid "Path to Trailers"
-msgstr ""
+msgstr "Path to Trailers"
 
 msgctxt "#32011"
-msgid "Volume: (0-100)"
-msgstr ""
+msgid "Volume (0-100)"
+msgstr "Volume (0-100)"
 
 msgctxt "#32012"
 msgid "Library Settings"
-msgstr ""
+msgstr "Library Settings"
 
 msgctxt "#32013"
 msgid "Apple iTunes Settings"
-msgstr ""
+msgstr "Apple iTunes Settings"
 
 msgctxt "#32014"
 msgid "Quality"
-msgstr ""
+msgstr "Quality"
 
 msgctxt "#32015"
 msgid "Library"
-msgstr ""
+msgstr "Library"
 
 msgctxt "#32016"
 msgid "Common"
-msgstr ""
+msgstr "Common"
 
 msgctxt "#32017"
 msgid "Source of Trailers"
-msgstr ""
+msgstr "Source of Trailers"
 
 msgctxt "#32018"
 msgid "Include Clips"
-msgstr ""
+msgstr "Include Clips"
 
 msgctxt "#32019"
 msgid "Include Featurettes"
-msgstr ""
+msgstr "Include Featurettes"
 
 msgctxt "#32020"
 msgid "Multiple Source Settings (Configure Each First)"
-msgstr ""
+msgstr "Multiple Source Settings (Configure Each First)"
 
 msgctxt "#32021"
 msgid "Include Trailers From Library"
-msgstr ""
+msgstr "Include Trailers From Library"
 
 msgctxt "#32022"
 msgid "Include Trailers From Folder"
-msgstr ""
+msgstr "Include Trailers From Folder"
 
 msgctxt "#32023"
 msgid "Include Trailers From Apple iTunes"
-msgstr ""
+msgstr "Include Trailers From Apple iTunes"
 
 msgctxt "#32024"
 msgid "Folder"
-msgstr ""
+msgstr "Folder"
 
 msgctxt "#32025"
 msgid "Apple iTunes"
-msgstr ""
+msgstr "Apple iTunes"
 
 msgctxt "#32026"
 msgid "Common Settings"
-msgstr ""
+msgstr "Common Settings"
 
 msgctxt "#32027"
 msgid "Selected Genres"
-msgstr ""
+msgstr "Selected Genres"
 
 msgctxt "#32028"
 msgid "Action and Adventure"
-msgstr ""
+msgstr "Action and Adventure"
 
 msgctxt "#32029"
 msgid "Comedy"
-msgstr ""
+msgstr "Comedy"
 
 msgctxt "#32030"
 msgid "Documentary"
-msgstr ""
+msgstr "Documentary"
 
 msgctxt "#32031"
 msgid "Drama"
-msgstr ""
+msgstr "Drama"
 
 msgctxt "#32032"
 msgid "Family"
-msgstr ""
+msgstr "Family"
 
 msgctxt "#32033"
 msgid "Fantasy"
-msgstr ""
+msgstr "Fantasy"
 
 msgctxt "#32034"
 msgid "Foreign"
-msgstr ""
+msgstr "Foreign"
 
 msgctxt "#32035"
 msgid "Horror"
-msgstr ""
+msgstr "Horror"
 
 msgctxt "#32036"
 msgid "Musical"
-msgstr ""
+msgstr "Musical"
 
 msgctxt "#32037"
 msgid "Romance"
-msgstr ""
+msgstr "Romance"
 
 msgctxt "#32038"
 msgid "Science Fiction"
-msgstr ""
+msgstr "Science Fiction"
 
 msgctxt "#32039"
 msgid "Thriller"
-msgstr ""
+msgstr "Thriller"
 
 msgctxt "#32040"
 msgid "Rating Limit"
-msgstr ""
+msgstr "Rating Limit"
 
 msgctxt "#32041"
 msgid "Include Not Yet Rated"
-msgstr ""
+msgstr "Include Not Yet Rated"
 
 msgctxt "#32042"
 msgid "Include Not Rated (NR)"
-msgstr ""
+msgstr "Include Not Rated (NR)"
 
 msgctxt "#32043"
 msgid "Type of Trailers to Include"
-msgstr ""
+msgstr "Type of Trailers to Include"
 
 msgctxt "#32044"
-msgid "Include Media from themoviedb.org"
-msgstr ""
+msgid "Include Trailers from Themoviedb.org (YouTube)"
+msgstr "Include Trailers from Themoviedb.org (YouTube)"
 
 msgctxt "#32045"
 msgid "Themoviedb.org"
-msgstr ""
+msgstr "Themoviedb.org"
 
 msgctxt "#32046"
 msgid "Themoviedb.org Settings"
-msgstr ""
+msgstr "Themoviedb.org Settings"
 
 msgctxt "#32047"
 msgid "Popular"
-msgstr ""
+msgstr "Popular"
 
 msgctxt "#32048"
 msgid "Top Rated"
-msgstr ""
+msgstr "Top Rated"
 
 msgctxt "#32049"
 msgid "Upcoming"
-msgstr ""
+msgstr "Upcoming"
 
 msgctxt "#32050"
 msgid "Now Playing"
-msgstr ""
+msgstr "Now Playing"
 
 msgctxt "#32051"
 msgid "All"
-msgstr ""
+msgstr "All"
 
 # Msg 32052 is not in use
 msgctxt "#32052"
 msgid "New DVD Releases"
-msgstr ""
+msgstr "New DVD Releases"
 
 msgctxt "#32053"
 msgid "Play Trailers in Groups"
-msgstr ""
+msgstr "Play Trailers in Groups"
 
 msgctxt "#32054"
 msgid "Number of Trailers in Each Group"
-msgstr ""
+msgstr "Number of Trailers in Each Group"
 
 msgctxt "#32055"
 msgid "Minutes Between Groups"
-msgstr ""
+msgstr "Minutes Between Groups"
 
 #empty strings from id 32056 to 32099
 
 msgctxt "#32100"
 msgid "Select Genre"
-msgstr ""
+msgstr "Select Genre"
 
 msgctxt "#32101"
 msgid "Do you want to select a genre to watch?"
-msgstr ""
+msgstr "Do you want to select a genre to watch?"
 
 msgctxt "#32102"
 msgid "Genres"
-msgstr ""
+msgstr "Genres"
