@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Created on Apr 17, 2019
 
 @author: Frank Feuerbacher
-'''
+"""
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
@@ -28,6 +28,7 @@ from frontend.black_background import BlackBackground
 from frontend.movie_manager import MovieManager, MovieStatus
 from frontend.history_empty import HistoryEmpty
 
+# noinspection PyUnresolvedReferences
 from frontend.utils import ReasonEvent, BaseWindow, ScreensaverState
 from kodi_six import xbmc, xbmcgui
 
@@ -38,7 +39,7 @@ else:
     module_logger = LazyLogger.get_addon_module_logger()
 
 
-class DialogState:
+class DialogState(object):
     """
 
     """
@@ -65,16 +66,22 @@ class DialogState:
                  SHUTDOWN: 'SHUTDOWN'}
 
     @staticmethod
-    def getLabel(dialogState):
-        return DialogState.label_map[dialogState]
+    def get_label(dialog_state):
+        # type: (DialogState) -> TextType
+        """
+
+        :param dialog_state:
+        :return:
+        """
+        return DialogState.label_map[dialog_state]
 
 
-# noinspection Annotator
+# noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
 class TrailerDialog(xbmcgui.WindowXMLDialog):
-    '''
+    """
         Note that the underlying 'script-trailer-window.xml' has a "videowindow"
         control. This causes the player to ignore many of the normal keymap actions.
-    '''
+    """
     DETAIL_GROUP_CONTROL = 38001
 
     DUMMY_TRAILER = {
@@ -87,8 +94,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         Movie.DETAIL_STUDIOS: ''
     }
 
-    def __init__(self, *args, **kwargs):
-        # type: (*Any, **Dict[TextType, TextType]) -> None
+    def __init__(self, *args):
+        # type: (*Any]) -> None
         super().__init__(*args)
         self._logger = module_logger.getChild(self.__class__.__name__)
         self._logger.enter()
@@ -138,6 +145,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                             notification=False, information=False)
 
     def onInit(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         self._logger.enter()
 
         # Prevent flash of grid
@@ -145,11 +157,17 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.set_visibility(video_window=False, info=False, brief_info=False,
                             notification=False, information=False)
         if self._thread is None:
+            # noinspection PyTypeChecker
             self._thread = threading.Thread(
                 target=self.play_trailers, name='TrailerDialog')
             self._thread.start()
 
     def configure_trailer_play_parameters(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         total_trailers_to_play = Settings.get_number_of_trailers_to_play()
 
         trailers_per_group = total_trailers_to_play
@@ -164,8 +182,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if total_trailers_to_play > 0:
                 trailers_per_iteration = min(
                     trailers_per_iteration, total_trailers_to_play)
-        else:
-            trailers_per_iteration = total_trailers_to_play
 
         delay_between_groups = Settings.get_group_delay()
 
@@ -175,9 +191,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.delay_between_groups = delay_between_groups
 
     def play_trailers(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         self.configure_trailer_play_parameters()
         trailers_played = 0
-        trailers_to_play_on_next_iteration = self.trailers_per_iteration
         try:
             while not self.is_random_trailers_play_state():
                 self.play_a_group_of_trailers()
@@ -202,11 +222,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                         if remaining_to_play <= 0:
                             break
 
-                        if remaining_to_play < self.trailers_per_iteration:
-                            trailers_to_play_on_next_iteration = remaining_to_play
-
                     self._wait_event.wait(self.delay_between_groups)
-                    if self.is_random_trailers_play_state(DialogState.USER_REQUESTED_EXIT):
+                    if self.is_random_trailers_play_state(
+                            DialogState.USER_REQUESTED_EXIT):
                         break
                     if self.is_random_trailers_play_state(DialogState.NORMAL):
                         # Wake up and resume playing trailers early
@@ -322,7 +340,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 # TrailerDialog.PLAYER_GROUP_CONTROL and
                 # TrailerDialog.DETAIL_GROUP_CONTROL are, by default,
                 # not visible in script-trailerwindow.xml
-                # self.show()
 
                 # Wait until previous video is complete.
                 # Our event listeners will stop the player, as appropriate.
@@ -389,7 +406,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 if self.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
                                                       exact_match=True):
                     continue
-                if self.is_random_trailers_play_state(minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
+                if self.is_random_trailers_play_state(
+                        minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
                     if self._logger.isEnabledFor(Logger.DEBUG):
                         self._logger.debug('breaking due to play_state 2 movie:',
                                            self._trailer[Movie.TITLE])
@@ -404,7 +422,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                     notification=False,
                                     information=show_trailer_title)
                 if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('about to play movie:',
+                    self._logger.debug('about to play trailer:',
                                        self._trailer[Movie.TITLE])
                 normalized = False
                 cached = False
@@ -421,7 +439,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     trailer_path = self._trailer[Movie.TRAILER]
                     self.get_player().play_trailer(trailer_path, self._trailer)
 
-                time_to_play_trailer = datetime.datetime.now() - self._get_next_trailer_start
+                time_to_play_trailer = (datetime.datetime.now() -
+                                        self._get_next_trailer_start)
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('started play_trailer:',
                                        self._trailer[Movie.TITLE],
@@ -444,7 +463,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                             DialogState.SKIP_PLAYING_TRAILER,
                             exact_match=True):
                         continue
-                    if self.is_random_trailers_play_state(minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
+                    if self.is_random_trailers_play_state(
+                            minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
                         if self._logger.isEnabledFor(Logger.DEBUG):
                             self._logger.debug('breaking at play_state 3 movie:',
                                                self._trailer[Movie.TITLE])
@@ -464,7 +484,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                             DialogState.SKIP_PLAYING_TRAILER,
                             exact_match=True):
                         continue
-                    if self.is_random_trailers_play_state(minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
+                    if self.is_random_trailers_play_state(
+                            minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
                         self._logger.debug(
                             'breaking at play_state 4 movie:', self._trailer[Movie.TITLE])
                         break
@@ -495,7 +516,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 if self.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
                                                       exact_match=True):
                     continue
-                if self.is_random_trailers_play_state(minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
+                if self.is_random_trailers_play_state(
+                        minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
                     if self._logger.isEnabledFor(Logger.DEBUG):
                         self._logger.debug('breaking at play_state 5 movie:',
                                            self._trailer[Movie.TITLE])
@@ -575,9 +597,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         return self._player_container.get_player()
 
     def is_random_trailers_play_state(self,
-                                      minimum_exit_state=DialogState.GROUP_QUOTA_REACHED,  # type: int
-                                      exact_match=False,  # type: bool
-                                      throw_exception_on_shutdown=True  # type: bool
+                        minimum_exit_state=DialogState.GROUP_QUOTA_REACHED,  # type: int
+                        exact_match=False,  # type: bool
+                        throw_exception_on_shutdown=True  # type: bool
                                       ):
         # type: (...) -> bool
         """
@@ -667,6 +689,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
     @log_entry_exit
     def show_detailed_info(self, from_user_request=False):
+        # type: (bool) -> None
+        """
+
+        :param from_user_request:
+        :return:
+        """
 
         if self._source != Movie.FOLDER_SOURCE:
             if self._logger.isEnabledFor(Logger.DEBUG):
@@ -682,6 +710,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.show_detail_info(self._trailer, display_seconds)
 
     def show_detail_info(self, trailer, display_seconds=0):
+        # type: (MovieType, float) -> None
+        """
+
+        :param trailer:
+        :param display_seconds:
+        :return:
+        """
         self.set_visibility(video_window=False, info=True, brief_info=False,
                             notification=False, information=True)
 
@@ -695,9 +730,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._show_details_event.set()  # Force show_detail_info to unblock
         self.set_visibility(video_window=False, info=False, brief_info=False,
                             notification=False, information=False)
-        pass
 
     def hide_detail_info(self, reason=''):
+        # type: (TextType) -> None
+        """
+
+        :param reason:
+        :return:
+        """
         self._logger.enter()
         self._show_details_event.set()  # Force show_detail_info to unblock
         self.set_visibility(info=False, information=False)
@@ -720,7 +760,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :param information:
         :return:
         """
-        # self.wait_or_exception(timeout=0)
+        # self.wait_or_interrupt(timeout=0)
         shutdown = False
         try:
             if self.is_random_trailers_play_state(
@@ -792,9 +832,15 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         for command in commands:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug(command)
+            # noinspection PyTypeChecker
             xbmc.executebuiltin(command)
 
     def update_detail_view(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         try:
             Monitor.get_instance().throw_exception_if_shutdown_requested()
 
@@ -824,6 +870,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.getControl(38007).setLabel(movie_writers)
 
             plot = self._trailer[Movie.PLOT]
+            # noinspection PyUnresolvedReferences
             self.getControl(38009).setText(plot)
 
             movie_studios = self._trailer[Movie.DETAIL_STUDIOS]
@@ -847,15 +894,30 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             pass
 
     def doModal(self):
+        # type: () -> bool
+        """
+
+        :return:
+        """
         self._logger.enter()
         super().doModal()
         self._logger.exit()
         return self.exiting_playing_movie
 
     def show(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         super().show()
 
     def close(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         super().close()
         self._ready_to_exit_event.set()
 
@@ -868,7 +930,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('state:', DialogState.getLabel(dialog_state),
+            self._logger.debug('state:', DialogState.get_label(dialog_state),
                                trace=Trace.TRACE_SCREENSAVER)
 
         if dialog_state >= DialogState.SHUTDOWN_CUSTOM_PLAYER:
@@ -896,6 +958,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._wait_event.set(ReasonEvent.RUN_STATE_CHANGE)
 
     def exit_screensaver_to_play_movie(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         self.set_random_trailers_play_state(DialogState.SHUTDOWN_CUSTOM_PLAYER)
 
         black_background = BlackBackground.get_instance()
@@ -907,6 +974,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         self.exiting_playing_movie = True
         self.close()
+        # noinspection PyTypeChecker
         xbmc.executebuiltin('Action(FullScreen,12005)')
 
     def on_shutdown_event(self):
@@ -943,7 +1011,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     self._logger.debug('adjusted max_play_time:', max_play_time,
                                        trace=Trace.TRACE_UI_CONTROLLER)
                 self._long_trailer_killer = threading.Timer(max_play_time,
-                                                            self.kill_long_playing_trailer)
+                                                        self.kill_long_playing_trailer)
+                # noinspection PyTypeChecker
                 self._long_trailer_killer.setName('TrailerKiller')
                 self._long_trailer_killer.start()
 
@@ -1038,7 +1107,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             ACTION_MOVE_LEFT -> Play previous trailer
 
-            PREVIOUS_MENU | NAV_BACK | ACTION_BUILT_IN_FUNCTION -> Exit Random Trailer script
+            PREVIOUS_MENU | NAV_BACK | ACTION_BUILT_IN_FUNCTION ->
+                                                 Exit Random Trailer script
                 or stop Screensaver
 
             PAUSE -> Toggle Play/Pause playing trailer
@@ -1138,7 +1208,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if Utils.is_couch_potato_installed():
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug(key, 'Queue to couch potato')
-                str_couch_potato = 'plugin://plugin.video.couchpotato_manager/movies/add?title=' + \
+                str_couch_potato = \
+                    'plugin://plugin.video.couchpotato_manager/movies/add?title=' + \
                     self._trailer[Movie.TITLE]
                 xbmc.executebuiltin('XBMC.RunPlugin(' + str_couch_potato + ')')
 
@@ -1215,6 +1286,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.add_to_playlist(action_id, self._trailer)
 
     def get_title_control(self, text=''):
+        # type: (TextType) -> xbmcgui.ControlLabel
+        """
+
+        :param text:
+        :return:
+        """
         title_control = self.getControl(38021)
         if text != '':
             title_control.setLabel(text)
@@ -1349,7 +1426,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 normalized = False
                 if self._trailer.get(Movie.NORMALIZED_TRAILER) is not None:
                     normalized = True
-                elif self._trailer[Movie.CACHED_TRAILER] is not None:
+                elif self._trailer.get(Movie.CACHED_TRAILER) is not None:
                     cached = True
 
                 if normalized:
@@ -1373,7 +1450,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
     def shutdown(self):
         # type: () -> None
         """
-            Orderly stops execution of TrialerDialog.
+            Orderly stop execution of TrailerDialog.
 
             Note that this method can be called voluntarily, when the plugin
             decides to exit, as in the case of the configured number of trailers
@@ -1386,6 +1463,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         self._logger.enter()
+        self._wait_or_interrupt_event.set()
         self.close()
         delete_player = False
         try:

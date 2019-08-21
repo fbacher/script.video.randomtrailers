@@ -33,7 +33,7 @@ class PlayerContainer(object):
         self._saved_player = None
 
     def register_exit_on_movie_playing(self, listener):
-        # type: (Callable[[Union[Any, None]], Union[Any, None]]) -> None
+        # type: (Callable[[Union[Any, None]]]) -> None
         """
 
         :param listener:

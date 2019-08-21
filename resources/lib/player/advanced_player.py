@@ -624,6 +624,7 @@ class AdvancedPlayer(xbmc.Player):
     def onPrePlayStarted(self):
         if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
             self._logger.enter()
+        pass
         # self._dump_state()  # TODO: remove
 
     """
@@ -885,7 +886,8 @@ class AdvancedPlayer(xbmc.Player):
             mode.
         :return: None
         """
-        self._logger.enter()
+        if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+            self._logger.enter()
         self._player_window_open = False
         self.hideOSD()
         # self._dump_state()  # TODO: remove
@@ -900,7 +902,7 @@ class AdvancedPlayer(xbmc.Player):
         #    self.dialog.showOSD()
 
     def hideOSD(self, delete=False):
-        self._logger.enter()
+        pass
         # self._dump_state()  # TODO: remove
 
         # if self.dialog:
@@ -925,7 +927,8 @@ class AdvancedPlayer(xbmc.Player):
         pass
 
     def onSeekOSD(self):
-        self._logger.enter()
+        if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+            self._logger.enter()
         # self._dump_state()  # TODO: remove
 
     def kill_playing_trailer(self):
@@ -947,28 +950,28 @@ class AdvancedPlayer(xbmc.Player):
             self._logger.enter()
 
             while not kodi_monitor.wait_for_shutdown(0.1) and not self._closed:
-                if not self.isPlaying():
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Player: Idling...')
+                if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+                    if not self.isPlaying():
+                        self._logger.debug_extra_verbose('Player: Idling...')
 
                 while not self.isPlaying() and not self._closed:
                     kodi_monitor.throw_exception_if_shutdown_requested(0.1)
 
                 if self.isPlayingVideo():
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Monitoring video...')
+                    if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                        self._logger.debug_verbose('Monitoring video...')
                     self._video_monitor()
                 elif self.isPlayingAudio():
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Monitoring audio...')
+                    if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                        self._logger.debug_verbose('Monitoring audio...')
                     self._audio_monitor()
                 elif self.isPlaying():
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Monitoring pre-play...')
+                    if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                        self._logger.debug_verbose('Monitoring pre-play...')
                     self._preplay_monitor()
 
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Player: Closed')
+            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                self._logger.debug_verbose('Player: Closed')
         except (AbortException, ShutdownException):
             pass # Just exit thread
         except (Exception) as e:
@@ -978,7 +981,7 @@ class AdvancedPlayer(xbmc.Player):
 
     def _preplay_monitor(self):
         try:
-            if self._logger.isEnabledFor(Logger.DEBUG):
+            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                 self._logger.enter()
             kodi_monitor = Monitor.get_instance()
             self.onPrePlayStarted()
@@ -990,7 +993,7 @@ class AdvancedPlayer(xbmc.Player):
             if not self.isPlayingVideo() and not self.isPlayingAudio():
                 self.onPlayBackFailed()
 
-            if self._logger.isEnabledFor(Logger.DEBUG):
+            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                 self._logger.exit()
         except (AbortException, ShutdownException):
             raise sys.exc_info()
@@ -1000,7 +1003,8 @@ class AdvancedPlayer(xbmc.Player):
     def _video_monitor(self):
         try:
             kodi_monitor = Monitor.get_instance()
-            self._logger.enter()
+            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                self._logger.enter()
             has_full_screened = False
 
             ct = 0
@@ -1055,7 +1059,8 @@ class AdvancedPlayer(xbmc.Player):
             if has_full_screened:
                 self.onVideoWindowClosed()
 
-            self._logger.exit()
+            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                self._logger.exit()
         except (AbortException, ShutdownException):
             raise sys.exc_info()
         except (Exception) as e:
