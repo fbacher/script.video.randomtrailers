@@ -51,13 +51,17 @@ class HistoryList(object):
         :param movie:
         :return:
         """
-        self._logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
-                        len(self._buffer), 'cursor:', self._cursor)
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
+                               len(self._buffer), 'cursor:', self._cursor)
         self._buffer.append(movie)
         if len(self._buffer) > HistoryList.MAX_HISTORY:
             # Delete oldest entry
             del self._buffer[0]
         self._cursor = len(self._buffer) - 1
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
+                              len(self._buffer), 'cursor:', self._cursor)
 
     def get_previous_movie(self):
         # type: () -> MovieType
@@ -66,14 +70,42 @@ class HistoryList(object):
         :return:
         """
         if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('cursor:', self._cursor)
-        # cursor points to currently playing movie or -1
+            self._logger.enter('len(buffer):',
+                               len(self._buffer), 'cursor:', self._cursor)        # cursor points to currently playing movie or -1
         self._cursor -= 1
-        if self._cursor <= -1:
+        if self._cursor < 0:
             self._cursor = -1
             movie = None
             raise HistoryEmpty()
         else:
             movie = self._buffer[self._cursor]
 
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
+                              len(self._buffer), 'cursor:', self._cursor)
+        return movie
+
+    def get_next_movie(self):
+        # type: () -> MovieType
+        """
+        Play the next movie in the history buffer.
+        :return: The next movie in the buffer or None, if there are none.
+        """
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.enter('len(buffer):',
+                               len(self._buffer), 'cursor:',
+                               self._cursor)  # cursor points to currently playing
+            # movie or -1
+        self._cursor += 1
+        if self._cursor <= -1:
+            self._cursor = 0
+        if len(self._buffer) < (self._cursor + 1):
+            movie = None
+            title = 'None'
+        else:
+            movie = self._buffer[self._cursor]
+            title = movie[Movie.TITLE]
+        if self._logger.isEnabledFor(Logger.DEBUG):
+            self._logger.exit('movie', title, 'len(buffer):',
+                              len(self._buffer), 'cursor:', self._cursor)
         return movie

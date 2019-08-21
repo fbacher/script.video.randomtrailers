@@ -100,16 +100,16 @@ class MovieManager(object):
         elif self._play_next_trailer:
             status = MovieStatus.NEXT_MOVIE
             self._play_next_trailer = False
-            trailer = self._pre_fetched_trailer_queue.get()
-            self._movie_history.append(trailer)
+            trailer = self._movie_history.get_next_movie()
+            if trailer is None:
+                trailer = self._pre_fetched_trailer_queue.get()
+                self._movie_history.append(trailer)
         else:
             status = MovieStatus.OK
-            trailer = self._pre_fetched_trailer_queue.get()
-            # Put trailer in recent history. If full, delete oldest
-            # entry. User can traverse backwards through shown
-            # trailers
-
-            self._movie_history.append(trailer)
+            trailer = self._movie_history.get_next_movie()
+            if trailer is None:
+                trailer = self._pre_fetched_trailer_queue.get()
+                self._movie_history.append(trailer)
 
         title = None
         if trailer is not None:

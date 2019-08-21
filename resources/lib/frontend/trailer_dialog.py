@@ -112,7 +112,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._notification_timeout = 0.0
         self._notification_killer = None
         self._thread = None
-        self._pause = threading.Event()
+        self._wait_or_interrupt_event = threading.Event()
 
         # Used mostly as a timer
         self._show_details_event = threading.Event()
@@ -641,7 +641,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 self._logger.debug('message:', message)
             self.get_notification_control(text=message)
             self.set_visibility(notification=True, information=True)
-            self.wait_or_exception(
+            self.wait_or_interrupt(
                 timeout=Constants.MAX_PLAY_TIME_WARNING_TIME)
             self.set_visibility(notification=False)
         except (Exception) as e:
@@ -649,19 +649,20 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         return
 
-    def wait_or_exception(self, timeout=0):
+    def wait_or_interrupt(self, timeout=0):
         # type: (float) -> None
         """
 
-        :param delay:
+        :param timeout:
         :return:
         """
         # During shutdown, Monitor deletes itself, so to avoid a silly error in
         # the log, avoid calling it.
 
-        monitor = Monitor.get_instance()
-        if monitor is not None:
-            monitor.throw_exception_if_shutdown_requested(delay=timeout)
+        self._wait_or_interrupt_event.clear()
+        self._wait_or_interrupt_event.wait(timeout=timeout)
+        self._wait_or_interrupt_event.clear()
+
         return
 
     @log_entry_exit
@@ -1112,6 +1113,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         elif (action_id == xbmcgui.ACTION_STOP or action_id == xbmcgui.ACTION_MOVE_RIGHT):
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug(key, 'Play next trailer at user\'s request')
+            self._wait_or_interrupt_event.set()
             self.set_random_trailers_play_state(
                 DialogState.SKIP_PLAYING_TRAILER)
             self.play_next_trailer()
@@ -1122,6 +1124,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug(key,
                                    'Play previous trailer at user\'s request')
+            self._wait_or_interrupt_event.set()
             self._movie_manager.play_previous_trailer()
             self.set_random_trailers_play_state(
                 DialogState.SKIP_PLAYING_TRAILER)
