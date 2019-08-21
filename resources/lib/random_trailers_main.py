@@ -262,10 +262,10 @@ class MainThreadLoop(object):
         self._front_end_bridge = FrontendBridge.get_instance()
 
 
-def bootstrap():
-    # type: () -> None
+def bootstrap_random_trailers(is_screensaver):
+    # type: (bool) -> None
     """
-
+    :param is_screensaver: True when launched as a screensaver
     :return:
     """
     try:
@@ -273,14 +273,6 @@ def bootstrap():
             Settings.on_settings_changed)
         Monitor.get_instance().register_settings_changed_listener(
             Logger.on_settings_changed)
-
-        # TODO: need quick exit if backend is not running
-
-        argc = len(sys.argv) - 1
-        is_screensaver = False
-        for arg in sys.argv[1:]:
-            if arg == 'screensaver':
-                is_screensaver = True
 
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         current_window_id = xbmcgui.getCurrentWindowId()
@@ -308,6 +300,25 @@ def bootstrap():
                 pass
         exit(0)
 
+def bootstrap_unit_test():
+    pass
+if __name__ == '__main__':  # TODO: need quick exit if backend is not running
+    run_random_trailers = True
+    argc = len(sys.argv) - 1
+    is_screensaver = False
+    is_unit_test = False
+    for arg in sys.argv[1:]:
+        if arg == 'screensaver':
+            is_screensaver = True
+        if arg == 'unittest':
+            is_unit_test = True
 
-if __name__ == '__main__':
-    bootstrap()
+    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
+    current_window_id = xbmcgui.getCurrentWindowId()
+    if module_logger.isEnabledFor(Logger.DEBUG):
+        module_logger.debug('CurrentDialogId, CurrentWindowId:', current_dialog_id,
+                            current_window_id)
+    if run_random_trailers:
+        bootstrap_random_trailers(is_screensaver)
+    elif is_unit_test:
+        bootstrap_unit_test()
