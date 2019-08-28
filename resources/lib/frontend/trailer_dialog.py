@@ -95,7 +95,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
     }
 
     def __init__(self, *args):
-        # type: (*Any]) -> None
+        # type: (*Any) -> None
+        """
+
+        :param args:
+        """
         super().__init__(*args)
         self._logger = module_logger.getChild(self.__class__.__name__)
         self._logger.enter()
@@ -254,6 +258,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             return  # Exit thread
 
     def play_a_group_of_trailers(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         self.set_visibility(video_window=False, info=False, brief_info=False,
                             notification=False, information=False)
         if self._logger.isEnabledFor(Logger.DEBUG):
@@ -268,7 +277,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self._logger.debug('Window Dimensions: ' + str(window_height) +
                                ' H  x ' + str(window_width) + ' W')
 
-        # self.show()
         number_of_trailers_played = 0
         try:
             # Main trailer playing loop
@@ -619,13 +627,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         match = False
-        monitor = Monitor.get_instance()
-        if monitor is None or monitor.is_shutdown_requested():
+        if Monitor is None or Monitor.is_shutdown_requested():
             self._dialog_state = DialogState.SHUTDOWN
 
         if self._dialog_state == DialogState.SHUTDOWN:
-            if throw_exception_on_shutdown and monitor is not None:
-                monitor.throw_exception_if_shutdown_requested()
+            if throw_exception_on_shutdown and Monitor is not None:
+                Monitor.throw_exception_if_shutdown_requested()
             else:
                 match = True
         elif exact_match:
@@ -635,7 +642,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         return match
 
     def show_movie_info(self, show_detail_info=False, show_brief_info=False):
-        # self.setBriefInfoVisibility(False)
+        # type: (bool, bool) -> None
+        """
+
+        :param show_detail_info:
+        :param show_brief_info:
+        :return:
+        """
         if show_detail_info:
             self.show_detailed_info()
         else:
@@ -656,8 +669,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         pass
 
     def notification(self, message):
-        # TODO: implement
+        # type: (TextType) -> None
+        """
 
+        :param message: Message to display
+        :return:
+        """
         try:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('message:', message)
@@ -842,8 +859,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         try:
-            Monitor.get_instance().throw_exception_if_shutdown_requested()
-
+            Monitor.throw_exception_if_shutdown_requested()
             self._logger.enter()
 
             control = self.getControl(38002)  # type: xbmcgui.ControlImage
@@ -1304,7 +1320,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :param text:
         :return:
         """
-        title_control = self.getControl(38023)
+        title_control = self.getControl(38023) # type: xbmcgui.ControlLabel
         if text != '':
             title_control.setLabel(text)
         return title_control
@@ -1355,7 +1371,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('Queing movie at user request:',
+            self._logger.debug('Queuing movie at user request:',
                                trailer[Movie.TITLE])
         self._queued_movie = trailer
         self.set_random_trailers_play_state(DialogState.START_MOVIE_AND_EXIT)
@@ -1394,12 +1410,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 DialogState.SHUTDOWN_CUSTOM_PLAYER)
             xbmc.Player().play(movie)
 
-        monitor = Monitor.get_instance()
-
-        if monitor.is_shutdown_requested():
+        if Monitor.is_shutdown_requested():
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('SHUTDOWN requested before playing movie!')
-        while not monitor.wait_for_shutdown(timeout=0.10):
+        while not Monitor.wait_for_shutdown(timeout=0.10):
             # Call xbmc.Player directly to avoid using DummyPlayer
             if xbmc.Player().isPlayingVideo():
                 break
@@ -1407,7 +1421,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.set_random_trailers_play_state(DialogState.STARTED_PLAYING_MOVIE)
 
         # Time to exit plugin
-        monitor.shutdown_requested()
+        Monitor.shutdown_requested()
         self._logger.exit('Just started player')
 
     def get_title_string(self, trailer):

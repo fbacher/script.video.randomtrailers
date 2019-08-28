@@ -78,15 +78,15 @@ else:
 
 logger = module_logger
 
-
-def getTitleFont():
+# noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
+def get_title_font():
     # type: () -> TextType
     """
 
     :return:
     """
     if logger.isEnabledFor(Logger.DEBUG):
-        logger.debug('In randomtrailer.getTitleFont')
+        logger.debug('In randomtrailer.get_title_font')
     title_font = 'font13'
     base_size = 20
     multiplier = 1
@@ -146,10 +146,6 @@ def play_trailers():
             if logger.isEnabledFor(Logger.DEBUG):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
-        # if logger.isEnabledFor(Logger.DEBUG):
-        # logger.debug('Action(FullScreen,12005)')
-        # xbmc.executebuiltin('ActivateWindow(12005)')
-        # xbmc.executebuiltin('Action(FullScreen,12005)')
         if logger.isEnabledFor(Logger.DEBUG):
             logger.debug('About to local_monitor.exit()')
             logger.exit()
@@ -162,9 +158,10 @@ class StartUI(threading.Thread):
     """
 
     def __init__(self, started_as_screesaver):
-        # type: () -> None
+        # type: (bool) -> None
         """
 
+        :param started_as_screesaver:
         """
         super().__init__(name='startUI')
         self._logger = module_logger.getChild(self.__class__.__name__)

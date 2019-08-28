@@ -18,15 +18,12 @@ import six
 from kodi_six import xbmc, xbmcgui
 
 from common.constants import Constants, Movie
-from common.playlist import Playlist
 from common.exceptions import AbortException, ShutdownException, LogicError
 from common.logger import (Logger, LazyLogger, Trace, log_entry_exit)
 from common.messages import Messages
 from common.monitor import Monitor
 from frontend.front_end_bridge import FrontendBridge, FrontendBridgeStatus
 from common.settings import Settings
-from player.player_container import PlayerContainer
-from frontend.black_background import BlackBackground
 from frontend.history_list import HistoryList
 from frontend.history_empty import HistoryEmpty
 

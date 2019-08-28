@@ -10,23 +10,18 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from common.imports import *
 
 from common.constants import Constants, Movie
-from common.playlist import Playlist
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import (AbortException, ShutdownException)
 from common.logger import (Logger, LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor
 from action_map import Action
 from common.settings import Settings
-from player.player_container import PlayerContainer
 
-from frontend.utils import ReasonEvent, BaseWindow, ScreensaverManager, ScreensaverState
-
-import sys
-import threading
 from kodi_six import xbmc, xbmcgui
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.black_background')
+    module_logger = LazyLogger.get_addon_module_logger().getChild(
+                                                    'frontend.black_background')
 else:
     module_logger = LazyLogger.get_addon_module_logger()
 
