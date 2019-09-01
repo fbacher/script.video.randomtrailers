@@ -83,6 +83,8 @@ do_fullscreen = addon.getSetting('do_fullscreen')
 try:
 
     if __name__ == '__main__':
+        if xbmc.Player().isPlaying():
+            exit(0)
         current_dialog_id = xbmcgui.getCurrentWindowDialogId()
         current_window_id = xbmcgui.getCurrentWindowId()
         _monitor = Monitor.get_instance()

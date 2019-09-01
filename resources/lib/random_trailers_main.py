@@ -302,6 +302,8 @@ def bootstrap_random_trailers(is_screensaver):
 def bootstrap_unit_test():
     pass
 if __name__ == '__main__':  # TODO: need quick exit if backend is not running
+    if xbmc.Player().isPlaying():
+        exit(0)
     run_random_trailers = True
     argc = len(sys.argv) - 1
     is_screensaver = False
