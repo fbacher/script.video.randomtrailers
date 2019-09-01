@@ -162,7 +162,6 @@ class MainThreadLoop(object):
             module_logger.exception('')
 
         self._monitor.set_startup_complete()
-        Playlist('junk').get_all_playlists()
         self.event_processing_loop()
 
     def event_processing_loop(self):

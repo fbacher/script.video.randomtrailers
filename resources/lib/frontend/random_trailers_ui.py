@@ -214,13 +214,13 @@ class StartUI(threading.Thread):
                 self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
-                if logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug(
+                if logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+                    self._logger.debug_extra_verbose(
                         'Python path:', utils.py2_decode(sys.path))
 
                 if (self._started_as_screensaver and
                         Settings.is_set_fullscreen_when_screensaver()):
-                    if not xbmc.getCondVisibility("System.IsFullscreen"):
+                    if not xbmc.getCondVisibility('System.IsFullscreen'):
                         xbmc.executebuiltin('xbmc.Action(togglefullscreen)')
 
                 # TODO: Use settings
