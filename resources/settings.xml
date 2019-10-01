@@ -140,6 +140,9 @@
         <setting id="tmdb_year_range_maximum" type="number" enable="eq(-9,true) + eq(-2,true)" label="Maximum year"/>
         <setting id="tmdb_max_number_of_trailers" type="number" enable="eq(-10,true)" label="Maximum Number of trailers"
                  default="500"/>
+        <setting id="tmdb_max_download_movies" type="number" enable="eq(-11,true)"
+                 label="Maximum Number of movies to search for trailers"
+                 default="20000"/>
     </category>
     <category label="32025">
         <setting label="32013" type="lsep"/>
