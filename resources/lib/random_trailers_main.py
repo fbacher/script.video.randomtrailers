@@ -273,14 +273,17 @@ def bootstrap_random_trailers(is_screensaver):
         Monitor.get_instance().register_settings_changed_listener(
             Logger.on_settings_changed)
 
-        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        current_window_id = xbmcgui.getCurrentWindowId()
         if module_logger.isEnabledFor(Logger.DEBUG):
-            module_logger.debug('CurrentDialogId, CurrentWindowId:', current_dialog_id,
-                                current_window_id)
+            try:
+                Settings.get_locale()
+                Settings.getLang_iso_639_1()
+                Settings.getLang_iso_639_2()
+                Settings.getLang_iso_3166_1()
+            except (Exception):
+                pass
 
-        mainLoop = MainThreadLoop.get_instance(is_screensaver)
-        mainLoop.startup()
+        main_loop = MainThreadLoop.get_instance(is_screensaver)
+        main_loop.startup()
 
         # LazyLogger can be unusable during shutdown
 
