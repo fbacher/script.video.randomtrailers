@@ -1443,6 +1443,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 elif self._trailer.get(Movie.CACHED_TRAILER) is not None:
                     cached = True
 
+                title += ' - ' + self._trailer.get(Movie.DETAIL_RATING)
                 if normalized:
                     title = title + ' Normalized'
                 elif cached:
