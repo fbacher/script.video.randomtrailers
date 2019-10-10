@@ -116,7 +116,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._long_trailer_killer = None
         self._messages = Messages.get_instance()
         self._viewed_playlist = Playlist.get_playlist(
-            Playlist.VIEWED_PLAYLIST_FILE)
+            Playlist.VIEWED_PLAYLIST_FILE, append=False, rotate=True)
         self._viewed_playlist.add_timestamp()
         self._title_control = None
         self._notification_control = None
@@ -1359,7 +1359,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self._logger.error(
                 'Invalid playlistId, ignoring request to write to playlist.')
         else:
-            Playlist.get_playlist(playlist_file).record_played_trailer(trailer)
+            Playlist.get_playlist(playlist_file, playlist_format=True).\
+                record_played_trailer(trailer)
 
     def queue_movie(self, trailer):
         # type: (Dict[TextType, TextType]) -> None
