@@ -1,0 +1,18 @@
+{
+  "jsonrpc": "2.0",
+  "method": "VideoLibrary.GetMovies",
+  "params":
+  {
+    "properties:"
+[
+  "uniqueid"
+],
+"filter":
+{
+"field": "uniqueid", "operator": "contains", "value":
+{
+"tmdb": 42716
+}
+}
+}, "id": 1
+}

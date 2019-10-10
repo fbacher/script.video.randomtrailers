@@ -9,22 +9,21 @@
         <import addon="script.module.simplejson" version="3.3.0"/>
         <import addon="script.module.xbmcswift2" version="2.4.0"/>
         <import addon="script.module.future" version="0.16.0.4"/>
-        <!-- <import addon="script.module.typing" version="0.0.1.1"/> -->
         <import addon="script.module.pydevd" version="3.4.1"/>
         <import addon="script.module.requests" version="2.21.0"/>
         <import addon="script.module.six" version="1.11.0"/>
         <import addon="script.module.kodi65" version="1.2.1"/>
         <import addon="script.module.kodi-six" version="0.1.0"/>
         <import addon="script.module.addon.signals" version="0.0.3"/>
-        <import addon="service.randomtrailers.backend" version="2.0.2"/>
+        <import addon="script.module.dateutil" version="2.7.3" />
     </requires>
 
     <extension point="xbmc.python.script" library="resources/lib/random_trailers_main.py">
         <provides>video</provides>
     </extension>
-    <!-- <extension point="xbmc.service"                library="resources/lib/service.py" start="login" /> -->
     <extension point="xbmc.ui.screensaver" library="resources/lib/screensaver.py"/>
-    <!-- <extension point="xbmc.service" library="resources/lib/screensaver.py" start="login"/> -->
+    <extension point="xbmc.service" library="resources/lib/back_end_service.py" start="login">
+    </extension>
 
     <extension point="xbmc.addon.metadata">
         <reuselanguageinvoker>false</reuselanguageinvoker>
