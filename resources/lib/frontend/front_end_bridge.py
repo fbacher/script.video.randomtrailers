@@ -24,7 +24,8 @@ from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.front_end_bridge')
+    module_logger = LazyLogger.get_addon_module_logger(
+    ).getChild('frontend.front_end_bridge')
 else:
     module_logger = LazyLogger.get_addon_module_logger()
 
@@ -99,7 +100,7 @@ class FrontendBridge(PluginBridge):
             self._logger.enter('context:', self._context)
             signal_payload = {}
             self.send_signal('get_next_trailer', data=signal_payload,
-                             source_id=FrontendBridgeStatus.BACKEND_ID)
+                             source_id=Constants.BACKEND_ID)
 
             # It can take some time before we get responses back
             # Wait max 30 seconds
@@ -125,7 +126,7 @@ class FrontendBridge(PluginBridge):
             if trailer is not None:
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('returning status:',
-                                        status, 'title:', trailer[Movie.TITLE])
+                                       status, 'title:', trailer[Movie.TITLE])
             return status, trailer
         except (AbortException, ShutdownException):
             self.delete_instance()
@@ -143,7 +144,7 @@ class FrontendBridge(PluginBridge):
         self._logger.enter()
         signal_payload = {}
         self.send_signal('settings_changed', data=signal_payload,
-                         source_id=FrontendBridgeStatus.BACKEND_ID)
+                         source_id=Constants.BACKEND_ID)
 
     def ack(self, what):
         # type: (TextType) -> None
@@ -160,7 +161,7 @@ class FrontendBridge(PluginBridge):
         self._logger.enter()
         signal_payload = {'what': what}
         self.send_signal('ack', data=signal_payload,
-                         source_id=FrontendBridgeStatus.BACKEND_ID)
+                         source_id=Constants.BACKEND_ID)
 
     def returned_trailer(self, data):
         # type: (Any) -> None
