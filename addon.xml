@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <addon id="script.video.randomtrailers"
        name="Random Trailers"
-       version="2.0.1-alpha"
+       version="2.0.2"
        provider-name="fbacher">
     <requires>
         <import addon="xbmc.python" version="2.26.0"/>
@@ -16,7 +16,7 @@
         <import addon="script.module.kodi65" version="1.2.1"/>
         <import addon="script.module.kodi-six" version="0.1.0"/>
         <import addon="script.module.addon.signals" version="0.0.3"/>
-        <import addon="script.service.randomtrailers.backend" version="2.0.1-alpha"/>
+        <import addon="service.randomtrailers.backend" version="2.0.2"/>
     </requires>
 
     <extension point="xbmc.python.script" library="resources/lib/random_trailers_main.py">
@@ -29,17 +29,29 @@
     <extension point="xbmc.addon.metadata">
         <reuselanguageinvoker>false</reuselanguageinvoker>
         <platform>all</platform>
-        <summary lang="en_us">Plays Random Trailers from Multiple Sources</summary>
-        <description lang="en_us">Plays random movie trailers from a variety of sources:[CR]-The Users Movie
-            Library[CR]-Apple iTunes[CR]-YouTube(via themoviedb.org)[CR]-A user specified folder[CR]
-            Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of
-            trailers, hide trailers of watched movies, and display opening / closing animations.
-            When viewing trailers you can press UP or I to view movie information and DOWN or I to hide. RIGHT or X will
-            display next trailer. LEFT or ESC will exit. If the current playing trailer is from
-            the users movie library hitting enter or return will play the associated movie.
+        <summary lang="en_GB">Plays Random Trailers from Multiple Sources</summary>
+        <description lang="en_GB">Addon DescriptionPlays random movie trailers from a variety of sources:
+  -The Users Movie Library
+  -Apple iTunes
+  -Themoviedb.org
+  -A user specified folder
+
+Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating,
+select number of trailers, hide trailers of watched movies, and display opening / closing animations.
+
+Navigation:
+  ACTION_MOVE_LEFT previous trailer
+  ACTION_MOVE_RIGHT or ACTION_STOP for next trailer
+  ACTION_PREVIOUS_MENU or ACTION_NAV_BACK or ACTION_BUILT_IN_FUNCTION to exit
+  ACTION_ENTER or ACTION_SELECT_ITEM or ACTION_SHOW_GUI to play movie from local library
+  ACTION_SHOW_INFO to toggle display of detailed info
+  ACTION_QUEUE_ITEM queue to Coach Potato, if installed
+
+Experimental:
+  REMOTE_0-REMOTE_9 write movie title of playing trailer to pseudo-playlist in userdata
         </description>
-        <disclaimer lang="en_us"></disclaimer>
-        <language>en_us</language> <!-- the language of the videos the plugin provides, may be left blank -->
+        <disclaimer lang="en_GB"></disclaimer>
+        <language></language> <!-- the language of the videos the plugin provides, may be left blank -->
         <platform>all</platform>
         <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
         <forum>http://forum.xbmc.org/showthread.php?tid=167276</forum>
