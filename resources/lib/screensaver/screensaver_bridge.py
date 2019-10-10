@@ -24,7 +24,8 @@ from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('screensaver.screensaver_bridge')
+    module_logger = LazyLogger.get_addon_module_logger(
+    ).getChild('screensaver.screensaver_bridge')
 else:
     module_logger = LazyLogger.get_addon_module_logger()
 
@@ -33,6 +34,7 @@ class ScreensaverBridgeStatus(PluginBridgeStatus):
     """
 
     """
+
 
 class ScreensaverBridge(PluginBridge):
     """
@@ -64,8 +66,6 @@ class ScreensaverBridge(PluginBridge):
             ScreensaverBridge._instance = ScreensaverBridge()
         return ScreensaverBridge._instance
 
-
-
     ###########################################################
     #
     #    Screensaver service requests to front-end to activate
@@ -83,7 +83,7 @@ class ScreensaverBridge(PluginBridge):
         try:
             self._ack_received = False
             self.send_signal('activate_screensaver', data={},
-                            source_id=ScreensaverBridgeStatus.BACKEND_ID)
+                             source_id=Constants.BACKEND_ID)
 
             # Wait for response
 
@@ -94,7 +94,8 @@ class ScreensaverBridge(PluginBridge):
 
             if not self._ack_received:
                 if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('randomtrailers front-end appears inactive')
+                    self._logger.debug(
+                        'randomtrailers front-end appears inactive')
                 return False
             return True
         except (AbortException, ShutdownException):
