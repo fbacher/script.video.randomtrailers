@@ -128,6 +128,7 @@ def play_trailers():
     """
     my_trailer_dialog = None
     black_background = None
+    exiting_playing_movie = False
     try:
         black_background = BlackBackground.get_instance()
         black_background.show()
