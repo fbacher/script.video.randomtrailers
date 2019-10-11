@@ -94,6 +94,26 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         Movie.DETAIL_STUDIOS: ''
     }
 
+    _playlist_map = {xbmcgui.REMOTE_1: 1,
+                     xbmcgui.REMOTE_2: 2,
+                     xbmcgui.REMOTE_3: 3,
+                     xbmcgui.REMOTE_4: 4,
+                     xbmcgui.REMOTE_5: 5,
+                     xbmcgui.REMOTE_6: 6,
+                     xbmcgui.REMOTE_7: 7,
+                     xbmcgui.REMOTE_8: 8,
+                     xbmcgui.REMOTE_9: 9,
+                     xbmcgui.REMOTE_0: 10,
+
+                     xbmcgui.ACTION_JUMP_SMS2: 2,
+                     xbmcgui.ACTION_JUMP_SMS3: 3,
+                     xbmcgui.ACTION_JUMP_SMS4: 4,
+                     xbmcgui.ACTION_JUMP_SMS5: 5,
+                     xbmcgui.ACTION_JUMP_SMS6: 6,
+                     xbmcgui.ACTION_JUMP_SMS7: 7,
+                     xbmcgui.ACTION_JUMP_SMS8: 8,
+                     xbmcgui.ACTION_JUMP_SMS9: 9}
+
     def __init__(self, *args):
         # type: (*Any) -> None
         """
@@ -605,9 +625,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         return self._player_container.get_player()
 
     def is_random_trailers_play_state(self,
-                        minimum_exit_state=DialogState.GROUP_QUOTA_REACHED,  # type: int
-                        exact_match=False,  # type: bool
-                        throw_exception_on_shutdown=True  # type: bool
+                                      minimum_exit_state=DialogState.GROUP_QUOTA_REACHED,  # type: int
+                                      exact_match=False,  # type: bool
+                                      throw_exception_on_shutdown=True  # type: bool
                                       ):
         # type: (...) -> bool
         """
@@ -1027,7 +1047,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     self._logger.debug('adjusted max_play_time:', max_play_time,
                                        trace=Trace.TRACE_UI_CONTROLLER)
                 self._long_trailer_killer = threading.Timer(max_play_time,
-                                                        self.kill_long_playing_trailer)
+                                                            self.kill_long_playing_trailer)
                 # noinspection PyTypeChecker
                 self._long_trailer_killer.setName('TrailerKiller')
                 self._long_trailer_killer.start()
@@ -1287,16 +1307,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # From IR remote as well as keyboard
         # Close InfoDialog and resume playing trailer
 
-        elif (action_id == xbmcgui.REMOTE_1 or
-              action_id == xbmcgui.REMOTE_2 or
-              action_id == xbmcgui.REMOTE_3 or
-              action_id == xbmcgui.REMOTE_4 or
-              action_id == xbmcgui.REMOTE_5 or
-              action_id == xbmcgui.REMOTE_6 or
-              action_id == xbmcgui.REMOTE_7 or
-              action_id == xbmcgui.REMOTE_8 or
-              action_id == xbmcgui.REMOTE_9 or
-                action_id == xbmcgui.REMOTE_0):
+        elif action_id in TrailerDialog._playlist_map:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug(key)
             self.add_to_playlist(action_id, self._trailer)
@@ -1320,33 +1331,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :param text:
         :return:
         """
-        title_control = self.getControl(38023) # type: xbmcgui.ControlLabel
+        title_control = self.getControl(38023)  # type: xbmcgui.ControlLabel
         if text != '':
             title_control.setLabel(text)
         return title_control
 
-    _playlist_map = {xbmcgui.REMOTE_1:
-                     Playlist.PLAYLIST_PREFIX + '1' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_2:
-                     Playlist.PLAYLIST_PREFIX + '2' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_3:
-                     Playlist.PLAYLIST_PREFIX + '3' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_4:
-                     Playlist.PLAYLIST_PREFIX + '4' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_5:
-                     Playlist.PLAYLIST_PREFIX + '5' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_6:
-                     Playlist.PLAYLIST_PREFIX + '6' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_7:
-                     Playlist.PLAYLIST_PREFIX + '7' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_8:
-                     Playlist.PLAYLIST_PREFIX + '8' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_9:
-                     Playlist.PLAYLIST_PREFIX + '9' + Playlist.PLAYLIST_SUFFIX,
-                     xbmcgui.REMOTE_0:
-                     Playlist.PLAYLIST_PREFIX + '10' + Playlist.PLAYLIST_SUFFIX}
-
-    def add_to_playlist(self, play_list_id, trailer):
+    def add_to_playlist(self, action_id, trailer):
         # type: (TextType, dict) -> None
         """
 
@@ -1354,12 +1344,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :param trailer:
         :return:
         """
-        playlist_file = TrailerDialog._playlist_map.get(play_list_id, None)
-        if playlist_file is None:
+        playlist_number = TrailerDialog._playlist_map[action_id]
+        playlist_file_name = Settings.get_playlist_name(playlist_number) \
+            + Playlist.PLAYLIST_SUFFIX
+        if playlist_file_name is None or playlist_file_name == '':
             self._logger.error(
                 'Invalid playlistId, ignoring request to write to playlist.')
         else:
-            Playlist.get_playlist(playlist_file, playlist_format=True).\
+            Playlist.get_playlist(playlist_file_name, playlist_format=True).\
                 record_played_trailer(trailer)
 
     def queue_movie(self, trailer):

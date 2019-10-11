@@ -591,8 +591,8 @@ msgid "Maximum Size of Data Cache (MB)"
 msgstr "Maximum Size of Data Cache (MB)"
 
 msgctxt "#32135"
-msgid "Limit Filesystem \% for Data Cache"
-msgstr "Limit Filesystem \% for Data Cache"
+msgid "Limit Filesystem %% for Data Cache"
+msgstr "Limit Filesystem %% for Data Cache"
 
 msgctxt "#32136"
 msgid "Maximum % of Filesystem for Data Cache"
@@ -623,12 +623,12 @@ msgid "Maximum Size of Media Cache (MB)"
 msgstr "Maximum Size of Media Cache (MB)"
 
 msgctxt "#32143"
-msgid "Limit Filesystem \% for Media Cache"
-msgstr "Limit Filesystem \% for Media Cache"
+msgid "Limit Filesystem %% for Media Cache"
+msgstr "Limit Filesystem %% for Media Cache"
 
 msgctxt "#32144"
-msgid "Maximum \% of Filesystem for Media Cache"
-msgstr "Maximum \% of Filesystem for Media Cache"
+msgid "Maximum %% of Filesystem for Media Cache"
+msgstr "Maximum %% of Filesystem for Media Cache"
 
 msgctxt "#32145"
 msgid "Advanced"

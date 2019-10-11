@@ -104,6 +104,7 @@ class Constants(object):
 
         Constants.ADDON_PATH = utils.py2_decode(Constants.ADDON.getAddonInfo(
             'path').decode('utf-8'))
+        Constants.USER_DATA_PATH = xbmc.translatePath("special://userdata")
         Constants.MEDIA_PATH = addon.MEDIA_PATH
         Constants.SCRIPT_PATH = os.path.join(
             Constants.ADDON_PATH, 'resources', 'skins', 'Default', '720p')
@@ -112,8 +113,7 @@ class Constants(object):
         Constants.CACHE_FILE_EXPIRED_TIME = now - secondsInMonth
         Constants.FRONTEND_DATA_PATH = xbmc.translatePath(
             "special://profile/addon_data/%s" % Constants.FRONTEND_ID).decode("utf-8")
-        Constants.PLAYLIST_PATH = xbmc.translatePath(
-            "special://videoplaylists")
+        Constants.PLAYLIST_PATH = Constants.USER_DATA_PATH + '/playlists/video'
         LOCALE = locale.getdefaultlocale()
 
 

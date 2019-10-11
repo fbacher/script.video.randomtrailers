@@ -144,6 +144,16 @@ class Settings(object):
     CACHE_TRAILER_CHECK_DAYS = 'trailer_exixtance_cache_check_days'
     TRAILER_CACHE_PATH = 'trailer_cache_path'
     CACHE_PATH = 'remote_db_cache_path'
+    PLAYLIST_1 = "playlist_name_1"
+    PLAYLIST_2 = "playlist_name_2"
+    PLAYLIST_3 = "playlist_name_3"
+    PLAYLIST_4 = "playlist_name_4"
+    PLAYLIST_5 = "playlist_name_5"
+    PLAYLIST_6 = "playlist_name_6"
+    PLAYLIST_7 = "playlist_name_7"
+    PLAYLIST_8 = "playlist_name_8"
+    PLAYLIST_9 = "playlist_name_9"
+    PLAYLIST_10 = "playlist_name_10"
 
     ALL_SETTINGS = [
         ADJUST_VOLUME,
@@ -252,8 +262,18 @@ class Settings(object):
         EXPIRE_TRAILER_CACHE_DAYS,
         CACHE_TRAILER_CHECK_DAYS,
         TRAILER_CACHE_PATH,
-        CACHE_PATH
-        ]
+        CACHE_PATH,
+        PLAYLIST_1,
+        PLAYLIST_2,
+        PLAYLIST_3,
+        PLAYLIST_4,
+        PLAYLIST_5,
+        PLAYLIST_6,
+        PLAYLIST_7,
+        PLAYLIST_8,
+        PLAYLIST_9,
+        PLAYLIST_10
+    ]
 
     TRAILER_LOADING_SETTINGS = [
         ALLOW_FOREIGN_LANGUAGES,
@@ -621,6 +641,18 @@ class Settings(object):
         """
         return xbmc.translatePath(os.path.join(
             Settings.get_media_path(), 'CurtainClosingSequence.flv')).decode('utf-8')
+
+    @staticmethod
+    def get_playlist_name(playlist_number):
+        # type: (int) -> TextType
+        """
+
+        :return:
+        """
+        playlist_id = "playlist_name_" + str(playlist_number)
+        playlist_name = Settings.get_addon().addon.getSetting(playlist_id).decode('utf-8')
+
+        return playlist_name
 
     @staticmethod
     def is_debug():

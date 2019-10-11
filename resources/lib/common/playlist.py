@@ -107,8 +107,12 @@ class Playlist(object):
             except (Exception) as e:
                 self._logger.exception('')
 
-        self._file = io.open(path, mode=mode, buffering=1, newline=None,
-                             encoding='utf-8')
+        try:
+            self._file = io.open(path, mode=mode, buffering=1, newline=None,
+                                 encoding='utf-8')
+        except (Exception) as e:
+            self._logger.exception('')
+
         if not already_exists and self.playlist_format:
             line = Playlist.PLAYLIST_HEADER + '\n'
             self._file.writelines(line)
@@ -151,6 +155,9 @@ class Playlist(object):
         :param msg:
         :return:
         """
+        if self.playlist_format:
+            use_movie_path = True
+
         name = trailer.get(Movie.TITLE, 'unknown Title')
         year = '(' + str(trailer.get(Movie.YEAR, 'unknown Year')) + ')'
         movie_type = trailer.get(Movie.TYPE, 'Unknown MovieType')
@@ -186,7 +193,7 @@ class Playlist(object):
             line += path + '\n'
         else:
             line = name + '  ' + year + '  # path: ' + formatted_title + ' ' +\
-                   path + ' ' + msg + '\n'
+                path + ' ' + msg + '\n'
         self._file.writelines(line)
 
     def writeLine(self, line):

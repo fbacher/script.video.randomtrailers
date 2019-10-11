@@ -29,25 +29,28 @@
         <reuselanguageinvoker>false</reuselanguageinvoker>
         <platform>all</platform>
         <summary lang="en_GB">Plays Random Trailers from Multiple Sources</summary>
-        <description lang="en_GB">Addon DescriptionPlays random movie trailers from a variety of sources:
-  -The Users Movie Library
-  -Apple iTunes
-  -Themoviedb.org
-  -A user specified folder
+        <description lang="en_GB">
+Plays random movie trailers from a variety of sources:
+ - Movie Library
+ - Apple iTunes
+ - Themoviedb.org
+ - Specified folder
 
-Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating,
-select number of trailers, hide trailers of watched movies, and display opening / closing animations.
+Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations.
 
 Navigation:
   ACTION_MOVE_LEFT previous trailer
   ACTION_MOVE_RIGHT or ACTION_STOP for next trailer
-  ACTION_PREVIOUS_MENU or ACTION_NAV_BACK or ACTION_BUILT_IN_FUNCTION to exit
-  ACTION_ENTER or ACTION_SELECT_ITEM or ACTION_SHOW_GUI to play movie from local library
+  ACTION_PREVIOUS_MENU, ACTION_NAV_BACK or
+      ACTION_BUILT_IN_FUNCTION to exit
+  ACTION_ENTER, ACTION_SELECT_ITEM or
+      ACTION_SHOW_GUI to play movie from library
   ACTION_SHOW_INFO to toggle display of detailed info
   ACTION_QUEUE_ITEM queue to Coach Potato, if installed
 
 Experimental:
-  REMOTE_0-REMOTE_9 write movie title of playing trailer to pseudo-playlist in userdata
+  ACTION_REMOTE_[0-9] and ACTION_JUMP_SMS[2-9] writes
+     to playlist. See playlist setting for more information.
         </description>
         <disclaimer lang="en_GB"></disclaimer>
         <language></language> <!-- the language of the videos the plugin provides, may be left blank -->

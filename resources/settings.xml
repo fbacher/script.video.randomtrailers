@@ -159,8 +159,22 @@
         <setting id="path" type="folder" enable="eq(-1,true)" label="32010" default=""/>
     </category>
 
+    <!-- "Playlists/Reports" -->
     <category label="32118">
+        <setting label="32170" type="lsep" />"
+        <setting id="playlist_name_1" type="text" label="32171" default="Watch Later"/>
+        <setting id="playlist_name_2" type="text" label="32172" default="Dislike"/>
+        <setting id="playlist_name_3" type="text" label="32173" default="Random_Trailers_3"/>
+        <setting id="playlist_name_4" type="text" label="32174" default="Random_Trailers_4"/>
+        <setting id="playlist_name_5" type="text" label="32175" default="Random_Trailers_5"/>
+        <setting id="playlist_name_6" type="text" label="32176" default="Random_Trailers_6"/>
+        <setting id="playlist_name_7" type="text" label="32177" default="Random_Trailers_7"/>
+        <setting id="playlist_name_8" type="text" label="32178" default="Random_Trailers_8"/>
+        <setting id="playlist_name_9" type="text" label="32179" default="Random_Trailers_9"/>
+        <setting id="playlist_name_10" type="text" label="32180" default="Random_Trailers_10"/>
     </category>
+
+    <!-- Cache -->
     <category label="32119">
         <setting label="32120" type="lsep"/>
         <setting id="use_remote_data_cache" type="bool" label="32121" default="true"/>
