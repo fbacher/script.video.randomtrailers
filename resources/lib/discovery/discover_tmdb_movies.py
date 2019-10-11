@@ -673,7 +673,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 self._logger.debug('SEARCH_PAGES_CONFIGURED',
                                    'len(cached_pages_data):',
                                    cached_pages_data.get_number_of_search_pages())
-            return True  # finished
+        return True  # finished
 
     def send_cached_movies_to_discovery(self):
         # type: () -> None
