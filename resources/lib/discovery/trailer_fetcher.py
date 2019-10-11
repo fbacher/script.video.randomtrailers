@@ -66,7 +66,7 @@ class TrailerFetcher(TrailerFetcherInterface):
     _trailer_fetchers = []
 
     def __init__(self, movie_data,
-                 thread_name=''):
+                 thread_name='No TrailerFetcher Thread Name'):
         # type: (AbstractMovieData, TextType, TextType)-> None
         """
 
