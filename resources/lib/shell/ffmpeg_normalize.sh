@@ -17,7 +17,7 @@ useNormalize="true"
 #exec 3>"${passLogFile}"
 #rm "{$passLogFile}"
 
-passLogFile="/tmp/ffmpeg2pass"
+passLogFile=`mktemp`
 
 if "${useCompand}" -eq "true" 
   then
@@ -32,5 +32,6 @@ if  ${useNormalize} == "true"
 #	ffmpeg -i "${file}" -pass 2 -passlogfile "${passLogFile}" -filter:a loudnorm=dual_mono=true -y "${outFile}"
 	ffmpeg -i "${file}" -pass 1 -passlogfile "${passLogFile}" -c:v copy -filter:a loudnorm -f null 
 	ffmpeg -i "${file}" -pass 2 -passlogfile "${passLogFile}" -c:v copy -filter:a loudnorm -y "${outFile}"
+	rm -f ${passLogFile}
 fi 
 ) >/tmp/normalize.log 2>&1
