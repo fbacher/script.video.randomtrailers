@@ -153,6 +153,12 @@
         <setting id="itunes_trailer_type" type="enum" enable="eq(-1,true)" label="32043"
                  lvalues="32113|32114|32115|32116|32117" default="4"/>>
     </category>
+
+     <category label="32170">
+        <setting id="include_tfh_trailers" type="bool" label="32171" default="false"/>
+         <setting id="max_tfh_trailers" type="number" label="32172" default="1000"/>
+    </category>
+
     <category label="32024">
         <setting label="32009" type="lsep"/>
         <setting id="do_folder" type="bool" label="32022" default="false"/>

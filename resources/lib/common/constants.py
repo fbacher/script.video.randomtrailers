@@ -339,12 +339,8 @@ List.Sort
     LANGUAGE_INFORMATION_FOUND = 'language_information_found'
     LANGUAGE_MATCHES = 'language_matches'
 
-    # Used for movie trailers discovered from TMDB and not from movies in Kodi.
-    # Contains TMDB Id for the movie
-    #
-    # TODO: change to use UNIQUE_ID structure
-    #TMDB_ID = 'rts.tmdbId'
     ITUNES_ID = 'rts.appleId'
+    TFH_ID = 'rts.tfhId'
 
     # Processed values for InfoDialog
     DETAIL_ACTORS = 'rts.actors'
@@ -368,8 +364,10 @@ List.Sort
     LIBRARY_SOURCE = 'library'
     ITUNES_SOURCE = 'iTunes'
     TMDB_SOURCE = 'TMDb'
+    TFH_SOURCE = 'TFH'
 
-    LIB_TMDB_ITUNES_SOURCES = (LIBRARY_SOURCE, TMDB_SOURCE, ITUNES_SOURCE)
+    LIB_TMDB_ITUNES_SOURCES = (
+        LIBRARY_SOURCE, TMDB_SOURCE, ITUNES_SOURCE, TFH_SOURCE)
 
     # In addition to above source values, these are used to identify
     # discovery modules

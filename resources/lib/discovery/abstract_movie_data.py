@@ -165,6 +165,8 @@ class UniqQueue(object):
             key = movie[Movie.ITUNES_ID]
         elif movie_source == Movie.LIBRARY_SOURCE:
             key = movie_source + str(movie[Movie.MOVIEID])
+        elif movie_source == Movie.TFH_SOURCE:
+            key = movie_source + str(movie[Movie.TFH_ID])
 
         return key
 
@@ -236,7 +238,8 @@ class MovieList(object):
         with self._lock:
             if self._iterating:
                 self._changed = True
-                self._saved_stack_trace, self._saved_thread_name = LazyLogger.capture_stack()
+                self._saved_stack_trace, self._saved_thread_name = \
+                    LazyLogger.capture_stack()
 
             self._duplicate_check.clear()
             del self._list[:]
@@ -258,7 +261,8 @@ class MovieList(object):
         with self._lock:
             if self._iterating:
                 self._changed = True
-                self._saved_stack_trace, self._saved_thread_name = LazyLogger.capture_stack()
+                self._saved_stack_trace, self._saved_thread_name =\
+                    LazyLogger.capture_stack()
 
             if key in self._duplicate_check:
                 raise DuplicateException()
@@ -533,6 +537,8 @@ class MovieList(object):
             key = movie[Movie.ITUNES_ID]
         elif movie_source == Movie.LIBRARY_SOURCE:
             key = movie_source + str(movie[Movie.MOVIEID])
+        elif movie_source == Movie.TFH_SOURCE:
+            key = movie_source + str(movie[Movie.TFH_ID])
 
         return key
 

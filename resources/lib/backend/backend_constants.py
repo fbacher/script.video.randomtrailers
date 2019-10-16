@@ -18,3 +18,5 @@ TMDB_TRAILER_CACHE_FILE_PREFIX = 'tmdb_'
 
 # Just use the generated apple movie id
 APPLE_TRAILER_CACHE_FILE_PREFIX = 'appl_'
+
+TFH_TRAILER_CACHE_FILE_PREFIX = 'tfh_'

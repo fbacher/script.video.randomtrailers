@@ -729,3 +729,15 @@ msgstr "Generate Tag_Frequency.report"
 msgctxt "#32169"
 msgid "Enable Movie Statistics Reporting"
 msgstr "Enable Movie Statistics Reporting"
+
+msgctxt "#32170"
+msgid "TFH"
+msgstr "TFH"
+
+msgctxt "#32171"
+msgid "Include Trailers From Hell"
+msgstr "Include Trailers From Hell"
+
+msgctxt "#32172"
+msgid "Maximum Number of TFH trailers"
+msgstr "Maximum Number of TFH trailers"

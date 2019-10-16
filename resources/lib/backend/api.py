@@ -19,6 +19,7 @@ from discovery.discover_library_movies import DiscoverLibraryMovies
 from discovery.discover_folder_trailers import DiscoverFolderTrailers
 from discovery.discover_itunes_movies import DiscoverItunesMovies
 from discovery.discover_tmdb_movies import DiscoverTmdbMovies
+from discovery.discover_tfh_movies import DiscoverTFHMovies
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger().getChild('backend.api')
@@ -64,6 +65,10 @@ def load_trailers():
     if (Settings.get_include_tmdb_trailers()
             and instances.get(Movie.TMDB_SOURCE) is None):
         DiscoverTmdbMovies().discover_basic_information()
+
+    if (Settings.is_include_tfh_trailers()
+            and instances.get(Movie.TFH_SOURCE) is None):
+        DiscoverTFHMovies().discover_basic_information()
 
     Monitor.get_instance().throw_exception_if_shutdown_requested(delay=1.0)
     Monitor.get_instance().set_startup_complete()

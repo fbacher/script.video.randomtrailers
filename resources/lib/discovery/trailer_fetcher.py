@@ -1177,7 +1177,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         try:
             start = datetime.datetime.now()
             if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(movie[Movie.TRAILER])
+                self._logger.debug(movie[Movie.TITLE], movie[Movie.TRAILER])
 
             movie_id = ''
             trailer_path = movie[Movie.TRAILER]
@@ -1205,7 +1205,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 trailer_path = new_path
 
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
-                             Movie.ITUNES_SOURCE]
+                             Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
             if movie[Movie.SOURCE] not in valid_sources:
                 return
 
@@ -1335,7 +1335,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # would have to be created.
 
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
-                             Movie.ITUNES_SOURCE]
+                             Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
 
             if movie[Movie.SOURCE] not in valid_sources:
                 return

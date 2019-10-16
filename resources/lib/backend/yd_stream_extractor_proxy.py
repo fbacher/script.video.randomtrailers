@@ -192,3 +192,68 @@ class YDStreamExtractorProxy(object):
                 trailer_info = None
 
         return trailer_info
+
+    def get_tfh_index(self, url, trailer_handler):
+        # type: (TextType) -> None
+        """
+
+        :param url:
+        :return:
+        """
+        python_exec = sys.executable
+        PYTHONPATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
+
+        cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
+                                'resources', 'lib', 'shell', 'youtube_dl_main.py')
+
+        env = os.environ.copy()
+        env['PYTHONPATH'] = PYTHONPATH
+        args = [python_exec, cmd_path, '--ignore-errors', '--skip-download',
+                '--playlist-random', '--print-json', url]
+
+        remaining_attempts = 10
+        line = None
+        while remaining_attempts > 0:
+            try:
+                # It can take 20 minutes to dump entire TFH index. Read
+                # as it is produced
+
+                commmand_process = subprocess.Popen(
+                    args, bufsize=1, stdin=None, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    shell=False, env=env, close_fds=True, universal_newlines=True)
+                # commmand_process.wait()
+
+                # output, stderr = commmand_process.communicate()
+                finished = False
+                while not finished:
+                    line = commmand_process.stdout.readline()
+                    if not line:
+                        break
+                    #
+                    # Returns True when no more trailers are wanted
+
+                    finished = trailer_handler(line)
+
+                break
+            except (CalledProcessError) as e:
+                remaining_attempts -= 1
+                output = e.output
+                stderr = e.stderror
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Failed to download site info for:', url,
+                                       'remaining_attempts:', remaining_attempts)
+                    self._logger.debug('output:', output)
+                    self._logger.debug('stderr:', stderr)
+                trailer_info = None
+                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=70.0)
+            except (Exception) as e:
+                remaining_attempts -= 1
+                self._logger.exception('')
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Failed to download site info for:', url,
+                                       'remaining_attempts:', remaining_attempts)
+                    if line:
+                        self._logger.debug('current response:', line)
+
+        return

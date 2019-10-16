@@ -90,6 +90,8 @@ class Settings(object):
     INCLUDE_REMOTE_TRAILERS = 'do_remote_trailers'
     INCLUDE_TMDB_TRAILERS = 'do_tmdb'
     INCLUDE_TRAILER_FOLDERS = 'do_folder'
+    INCLUDE_TFH_TRAILERS = 'include_tfh_trailers'
+    MAX_TFH_TRAILERS = 'max_tfh_trailers'
     LIMIT_CACHED_TRAILERS = 'limit_cached_trailers'
     LIMIT_NUMBER_OF_CACHED_TRAILERS = 'limit_number_of_cached_trailers'
     MAX_NUMBER_OF_CACHED_TRAILERS = 'max_number_of_cached_trailers'
@@ -214,6 +216,7 @@ class Settings(object):
         LIMIT_NUMBER_OF_CACHED_TRAILERS,
         MAX_NUMBER_OF_CACHED_TRAILERS,
         TMDB_MAX_NUMBER_OF_TRAILERS,
+        INCLUDE_TFH_TRAILERS,
 
         LIMIT_SIZE_OF_CACHED_TRAILERS,
         MAX_SIZE_OF_CACHED_TRAILERS,
@@ -324,6 +327,7 @@ class Settings(object):
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
         INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TMDB_TRAILERS,
+        INCLUDE_TFH_TRAILERS,
         INCLUDE_TRAILER_FOLDERS,
         MINIMUM_DAYS_SINCE_WATCHED,
         # ITUNES_QUALITY,
@@ -385,6 +389,7 @@ class Settings(object):
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
         INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TMDB_TRAILERS,
+        INCLUDE_TFH_TRAILERS,
         INCLUDE_TRAILER_FOLDERS,
         MINIMUM_DAYS_SINCE_WATCHED,
         # ITUNES_QUALITY,
@@ -415,6 +420,10 @@ class Settings(object):
         INCLUDE_TMDB_TRAILERS,
         TMDB_SORT_ORDER
     ]
+
+    TFH_SPECIFIC_SETTINGS = [
+        INCLUDE_TFH_TRAILERS,
+        MAX_TFH_TRAILERS]
 
     @staticmethod
     def get_addon():
@@ -595,6 +604,33 @@ class Settings(object):
             Settings._logger.debug('changed:', result)
 
         return result
+
+    @staticmethod
+    def is_tfh_loading_settings_changed():
+        # type: () -> bool
+        """
+
+        :return:
+        """
+        if len(Settings.get_changed_settings(Settings.TFH_SPECIFIC_SETTINGS)) > 0:
+            result = True
+        else:
+            result = Settings.is_trailer_loading_settings_changed()
+
+        if module_logger.isEnabledFor(Logger.DEBUG):
+            Settings._logger.debug('changed:', result)
+
+        return result
+
+    @staticmethod
+    def get_max_number_of_tfh_trailers():
+        #  type: () -> int
+        """
+
+        :return:
+        """
+
+        return Settings.get_setting_int(Settings.MAX_TFH_TRAILERS)
 
     @staticmethod
     def get_adjust_volume():
@@ -1205,6 +1241,15 @@ class Settings(object):
         return Settings.get_setting_bool(Settings.INCLUDE_TRAILER_FOLDERS)
 
     @staticmethod
+    def is_include_tfh_trailers():
+        # type: () -> bool
+        """
+
+        :return:
+        """
+        return Settings.get_setting_bool(Settings.INCLUDE_TFH_TRAILERS)
+
+    @staticmethod
     def is_set_fullscreen_when_screensaver():
         # type: () -> bool
         """
@@ -1502,7 +1547,8 @@ class Settings(object):
         :return:
         """
         try:
-            minimum_year = Settings.get_setting_int(Settings.TMDB_YEAR_RANGE_MINIMUM)
+            minimum_year = Settings.get_setting_int(
+                Settings.TMDB_YEAR_RANGE_MINIMUM)
         except (Exception):
             minimum_year = 1928  # Start of talkies
         return minimum_year
@@ -1515,7 +1561,8 @@ class Settings(object):
         :return:
         """
         try:
-            maximum_year = Settings.get_setting_int(Settings.TMDB_YEAR_RANGE_MAXIMUM)
+            maximum_year = Settings.get_setting_int(
+                Settings.TMDB_YEAR_RANGE_MAXIMUM)
         except (Exception):
             maximum_year = datetime.datetime.now().year
 
@@ -1981,4 +2028,3 @@ class Settings(object):
             value = Settings.get_setting_float(
                 Settings.MAX_PERCENT_OF_CACHED_JSON) / 100.0
         return value
-
