@@ -249,6 +249,7 @@ class Cache(object):
                                                         ensure_ascii=False,
                                                         indent=3, sort_keys=True))
                 cacheFile.write(json_text)
+                cacheFile.flush()
                 stop = datetime.datetime.now()
                 write_time = stop - start
                 if Cache._logger.isEnabledFor(Logger.DEBUG):
@@ -273,12 +274,14 @@ class Cache(object):
         try:
             source = trailer[Movie.SOURCE]
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
-                             Movie.ITUNES_SOURCE]
+                             Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
             if source in valid_sources:
                 if source == Movie.LIBRARY_SOURCE:
                     movie_id = trailer[Movie.MOVIEID]
                 elif source == Movie.TMDB_SOURCE:
                     movie_id = MovieEntryUtils.get_tmdb_id(trailer)
+                elif source == Movie.TFH_SOURCE:
+                    movie_id = trailer[Movie.TFH_ID]
 
                 elif source == Movie.ITUNES_SOURCE:
                     # Apple doesn't provide ID, use TMDB ID instead.
@@ -322,7 +325,7 @@ class Cache(object):
                             a_ for Apple/iTunes).
         """
         valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
-                         Movie.ITUNES_SOURCE]
+                         Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
         unique_id = None
         if source not in valid_sources:
             if Cache._logger.isEnabledFor(Logger.DEBUG):
@@ -334,6 +337,9 @@ class Cache(object):
         elif source == Movie.TMDB_SOURCE:
             unique_id = (backend_constants.TMDB_TRAILER_CACHE_FILE_PREFIX +
                          str(movie_id))
+        elif source == Movie.TFH_SOURCE:
+            unique_id = str(backend_constants.TFH_TRAILER_CACHE_FILE_PREFIX +
+                            str(movie_id))
         elif source == Movie.ITUNES_SOURCE:
             unique_id = (backend_constants.APPLE_TRAILER_CACHE_FILE_PREFIX +
                          str(movie_id))
@@ -378,6 +384,13 @@ class Cache(object):
                 #
                 x = prefix.split('_')
                 folder = 't' + x[1][0]
+            elif source == Movie.TFH_SOURCE:
+                #
+                # For TFH entries, the numeric TFH id is prefaced with:
+                # "tfh_". Use a folder named "h" + first digit of TFH
+                #
+                x = prefix.split('_')
+                folder = 'h' + x[1][0]
             elif source == Movie.ITUNES_SOURCE:
                 #
                 # For ITunes entries, Apple does not supply an ID, so we
@@ -436,7 +449,7 @@ class Cache(object):
         source = None
         try:
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
-                             Movie.ITUNES_SOURCE]
+                             Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
             if trailer[Movie.SOURCE] in valid_sources:
                 movie_id = Cache.get_video_id(trailer)
                 source = trailer[Movie.SOURCE]
@@ -457,6 +470,9 @@ class Cache(object):
                 elif source == Movie.TMDB_SOURCE:
                     x = prefix.split('_')
                     folder = 't' + x[1][0]
+                elif source == Movie.TFH_SOURCE:
+                    x = prefix.split('_')
+                    folder = 'h' + x[1][0]
                 elif source == Movie.ITUNES_SOURCE:
                     if Cache._logger.isEnabledFor(Logger.DEBUG):
                         Cache._logger.debug(
