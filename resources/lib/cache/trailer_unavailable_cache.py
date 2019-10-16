@@ -244,6 +244,7 @@ class TrailerUnavailableCache(object):
                                        default=TrailerUnavailableCache.handler,
                                        indent=3, sort_keys=True))
                         cacheFile.write(json_text)
+                        cacheFile.flush()
 
                     cls.tmdb_last_save = datetime.datetime.now()
                     cls.tmdb_unsaved_changes = 0
@@ -279,6 +280,7 @@ class TrailerUnavailableCache(object):
                                        default=TrailerUnavailableCache.handler,
                                        indent=3, sort_keys=True))
                         cacheFile.write(json_text)
+                        cacheFile.flush()
 
                     cls.library_last_save = datetime.datetime.now()
                     cls.library_unsaved_changes = 0

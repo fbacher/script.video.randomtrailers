@@ -294,7 +294,7 @@ class CacheParameters(object):
                              encoding='utf-8', ) as cacheFile:
                     json_text = cls.to_json()
                     cacheFile.write(json_text)
-
+                    cacheFile.flush()
             except (IOError) as e:
                 cls._logger.exception('')
             except (Exception) as e:
@@ -785,6 +785,7 @@ class CachedPagesData(object):
                                                         default=CacheIndex.handler,
                                                         indent=3, sort_keys=True))
                 cacheFile.write(json_text)
+                cacheFile.flush()
                 self._number_of_unsaved_changes = 0
                 self._time_of_last_save = datetime.datetime.now()
 
@@ -1087,6 +1088,7 @@ class CacheIndex(object):
                                                             default=CacheIndex.handler,
                                                             indent=3, sort_keys=True))
                     cacheFile.write(json_text)
+                    cacheFile.flush()
                     cls._last_saved_movie_timestamp = datetime.datetime.now()
                     cls._unsaved_movie_changes = 0
 
@@ -1166,6 +1168,7 @@ class CacheIndex(object):
                                                             default=CacheIndex.handler,
                                                             indent=3, sort_keys=True))
                     cacheFile.write(json_text)
+                    cacheFile.flush()
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
                     cls._unsaved_trailer_changes = 0
 
