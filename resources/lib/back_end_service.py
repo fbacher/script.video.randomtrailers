@@ -363,7 +363,7 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
             exit(0)
 
         post_install()
-        profile = True
+        profile = False
         if profile:
             import cProfile
             MainThreadLoop.profiler = cProfile.Profile()

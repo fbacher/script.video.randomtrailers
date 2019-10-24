@@ -14,6 +14,7 @@ from subprocess import CalledProcessError
 import json
 import os
 import sys
+import threading
 
 from kodi_six import utils
 
@@ -194,7 +195,7 @@ class YDStreamExtractorProxy(object):
         return trailer_info
 
     def get_tfh_index(self, url, trailer_handler):
-        # type: (TextType) -> None
+        # type: (TextType) -> bool
         """
 
         :param url:
@@ -208,36 +209,43 @@ class YDStreamExtractorProxy(object):
 
         env = os.environ.copy()
         env['PYTHONPATH'] = PYTHONPATH
-        args = [python_exec, cmd_path, '--ignore-errors', '--skip-download',
-                '--playlist-random', '--print-json', url]
+        args = [python_exec, cmd_path, '--playlist-random', '--yes-playlist',
+                '--dump-json', url]
 
         remaining_attempts = 10
         line = None
+        lines_read = 0
+        self._tfh_success = True
         while remaining_attempts > 0:
             try:
                 # It can take 20 minutes to dump entire TFH index. Read
                 # as it is produced
 
-                commmand_process = subprocess.Popen(
+                self._tfh_command_process = subprocess.Popen(
                     args, bufsize=1, stdin=None, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     shell=False, env=env, close_fds=True, universal_newlines=True)
-                # commmand_process.wait()
 
-                # output, stderr = commmand_process.communicate()
+                self._thread = threading.Thread(
+                    target=self.stderr_reader, name='Stderr Reader')
+                self._thread.start()
+
                 finished = False
                 while not finished:
-                    line = commmand_process.stdout.readline()
-                    if not line:
+                    line = self._tfh_command_process.stdout.readline()
+                    if not line or not self._tfh_success:
                         break
                     #
                     # Returns True when no more trailers are wanted
 
                     finished = trailer_handler(line)
+                    lines_read += 1
 
                 break
             except (CalledProcessError) as e:
                 remaining_attempts -= 1
+                if remaining_attempts == 0:
+                    self._tfh_success = False
                 output = e.output
                 stderr = e.stderror
                 if self._logger.isEnabledFor(Logger.DEBUG):
@@ -249,6 +257,8 @@ class YDStreamExtractorProxy(object):
                 Monitor.get_instance().throw_exception_if_shutdown_requested(delay=70.0)
             except (Exception) as e:
                 remaining_attempts -= 1
+                if remaining_attempts == 0:
+                    self._tfh_success = False
                 self._logger.exception('')
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
@@ -256,4 +266,23 @@ class YDStreamExtractorProxy(object):
                     if line:
                         self._logger.debug('current response:', line)
 
-        return
+        if lines_read == 0:
+            self._tfh_success = False
+
+        return self._tfh_success
+
+    def stderr_reader(self):
+        #  type: () -> None
+        """
+        """
+        finished = False
+        while not finished:
+            line = self._tfh_command_process.stderr.readline()
+            if not line:
+                break
+            self._logger.info('stderr:', line)
+            if 'Error 429' in line:
+                self._logger.error(
+                    'Abandoning download from TFH. Too Many Requests')
+                self._tfh_success = False
+                self._tfh_command_process.terminate()

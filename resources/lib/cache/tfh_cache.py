@@ -83,12 +83,10 @@ class TFHCache(object):
         if not isinstance(trailers, list):
             if trailers is not None:
                 cls._cached_trailers.append(trailers)
+                cls._unsaved_trailer_changes += 1
         else:
             cls._cached_trailers.extend(trailers)
-
-        cls._unsaved_trailer_changes += len(trailers)
-        if cls._unsaved_trailer_changes == 0:
-            return
+            cls._unsaved_trailer_changes += len(trailers)
 
         if (not flush and not cache_complete and
                 (cls._unsaved_trailer_changes < 50)

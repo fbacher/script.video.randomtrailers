@@ -8,6 +8,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from common.imports import *
 
+import re
 import sys
 import datetime
 import json
@@ -209,8 +210,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         cache_complete = TFHCache.load_trailer_cache()
         cached_trailers = TFHCache.get_cached_trailers()
         max_trailers = Settings.get_max_number_of_tfh_trailers()
-        if max_trailers > len(cached_trailers):
-            del cached_trailers[max_trailers :]
+        if len(cached_trailers) > max_trailers:
+            del cached_trailers[max_trailers:]
             cache_complete = True
             TFHCache.save_trailers_to_cache(
                 None, flush=True, cache_complete=True)
@@ -224,10 +225,11 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             trailer_folder = xbmc.translatePath(
                 'special://temp').encode("utf-8")
             url = "https://www.youtube.com/user/trailersfromhell/videos"
-            youtube_data_stream_extractor_proxy.get_tfh_index(
+            success = youtube_data_stream_extractor_proxy.get_tfh_index(
                 url, self.trailer_handler)
-            TFHCache.save_trailers_to_cache(
-                None, flush=True, cache_complete=True)
+            if success:
+                TFHCache.save_trailers_to_cache(
+                    None, flush=True, cache_complete=True)
 
     def trailer_handler(self, json_text):
         #  type: (TextType) -> bool
@@ -242,6 +244,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         if trailer_id not in self._unique_trailer_ids:
             self._unique_trailer_ids.add(trailer_id)
             title = tfh_trailer['title']
+            title_segments = title.split(' on ')
+            real_title_index = len(title_segments) - 1
+            movie_title = title_segments[real_title_index]
             trailer_url = 'https://youtu.be/' + trailer_id
             upload_date = tfh_trailer['upload_date']  # 20120910
             year = upload_date[0:4]
@@ -251,7 +256,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             description = tfh_trailer['description']
             trailer_entry = {Movie.SOURCE: Movie.TFH_SOURCE,
                              Movie.TFH_ID: trailer_id,
-                             Movie.TITLE: title,
+                             Movie.TITLE: movie_title,
                              Movie.YEAR: year,
                              Movie.ORIGINAL_LANGUAGE: original_language,
                              Movie.TRAILER: trailer_url,

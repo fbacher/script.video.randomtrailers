@@ -382,14 +382,14 @@ class Cache(object):
                 # For TMDB entries, the numeric TMDB id is prefaced with:
                 # "tmdb_". Use a folder named "t" + first digit of TMDBID
                 #
-                x = prefix.split('_')
+                x = prefix.split('_', 1)
                 folder = 't' + x[1][0]
             elif source == Movie.TFH_SOURCE:
                 #
                 # For TFH entries, the numeric TFH id is prefaced with:
                 # "tfh_". Use a folder named "h" + first digit of TFH
                 #
-                x = prefix.split('_')
+                x = prefix.split('_', 1)
                 folder = 'h' + x[1][0]
             elif source == Movie.ITUNES_SOURCE:
                 #
@@ -400,7 +400,7 @@ class Cache(object):
                 # The TMDB id here is prefaced with: "appl_". Use a folder named
                 # "a" + first digit of TMDBID.
 
-                x = prefix.split('_')
+                x = prefix.split('_', 1)
                 folder = 'a' + x[1][0]
             else:
                 Cache._logger.error('Unexpected source:', source,
@@ -463,22 +463,18 @@ class Cache(object):
                 # prefix = Cache.generate_unique_id_from_source(
                 #    movie_id, source) + '_'
 
+                # movie_id may begin with an '_'.
+
                 prefix = movie_id + '_'
                 folder = None
                 if source == Movie.LIBRARY_SOURCE:
-                    folder = prefix[0]
+                    folder = movie_id[0]
                 elif source == Movie.TMDB_SOURCE:
-                    x = prefix.split('_')
-                    folder = 't' + x[1][0]
+                    folder = 't' + movie_id[0]
                 elif source == Movie.TFH_SOURCE:
-                    x = prefix.split('_')
-                    folder = 'h' + x[1][0]
+                    folder = 'h' + movie_id[0]
                 elif source == Movie.ITUNES_SOURCE:
-                    if Cache._logger.isEnabledFor(Logger.DEBUG):
-                        Cache._logger.debug(
-                            'source:', source, 'prefix:', prefix)
-                    x = prefix.split('_')
-                    folder = 'a' + x[1][0]
+                    folder = 'a' + movie_id[0]
 
                 # Possible that trailer was downloaded into cache
 
@@ -497,7 +493,9 @@ class Cache(object):
                 path = xbmc.validatePath(path)
 
         except (Exception) as e:
-            Cache._logger.exception('')
+            title = trailer.get(Movie.TITLE, 'no title')
+            Cache._logger.exception('title:', title)
+
             path = None
 
         if Cache._logger.isEnabledFor(Logger.DEBUG):
