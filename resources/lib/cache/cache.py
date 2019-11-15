@@ -468,11 +468,14 @@ class Cache(object):
                 if source == Movie.LIBRARY_SOURCE:
                     folder = movie_id[0]
                 elif source == Movie.TMDB_SOURCE:
-                    folder = 't' + movie_id[0]
+                    x = prefix.split('_', 1)
+                    folder = 't' + x[1][0]
                 elif source == Movie.TFH_SOURCE:
-                    folder = 'h' + movie_id[0]
+                    x = prefix.split('_', 1)
+                    folder = 'h' + x[1][0]
                 elif source == Movie.ITUNES_SOURCE:
-                    folder = 'a' + movie_id[0]
+                    x = prefix.split('_', 1)
+                    folder = 'a' + movie_id[1][0]
 
                 # Possible that trailer was downloaded into cache
 
@@ -480,14 +483,20 @@ class Cache(object):
                     r'^' + re.escape(prefix), '', orig_file_name)
 
                 if normalized:
-                    file_name = prefix + 'normalized_' + orig_file_name
+                    if 'normalized_' in orig_file_name:
+                        Cache._logger.error('Already normalized:',
+                                            trailer.get(
+                                                Movie.TITLE, 'no title'),
+                                            'orig_file_name:', orig_file_name)
+                        file_name = prefix + orig_file_name
+                    else:
+                        file_name = prefix + 'normalized_' + orig_file_name
                 else:
                     file_name = prefix + orig_file_name
 
                 path = os.path.join(Settings.get_downloaded_trailer_cache_path(),
                                     folder, file_name)
                 # Should not be needed
-                path = path.encode('utf-8')
                 path = xbmc.validatePath(path)
 
         except (Exception) as e:

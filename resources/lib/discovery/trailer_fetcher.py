@@ -207,6 +207,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                 discovery_state = trailer[Movie.DISCOVERY_STATE]
                 if discovery_state >= Movie.DISCOVERY_COMPLETE:
                     self.throw_exception_on_forced_to_stop()
+
+                    # if cached files purged, then reload them
+
+                    if discovery_state == Movie.DISCOVERY_READY_TO_DISPLAY:
+                        self.validate_cached_files(trailer)
+                        discovery_state = trailer[Movie.DISCOVERY_STATE]
+
                     if discovery_state < Movie.DISCOVERY_READY_TO_DISPLAY:
                         fully_populated_trailer = self.get_detail_info(trailer)
                         if fully_populated_trailer is None:
@@ -222,6 +229,36 @@ class TrailerFetcher(TrailerFetcherInterface):
                 finished = True
             except (RestartDiscoveryException):
                 Monitor.throw_exception_if_shutdown_requested(0.10)
+
+    def validate_cached_files(self,
+                              movie  # type: MovieType
+                              ):
+        cache_file_missing = False
+
+        if movie.get(Movie.CACHED_TRAILER, "") != "":
+            try:
+                if not os.path.exists(movie[Movie.CACHED_TRAILER]):
+                    movie[Movie.CACHED_TRAILER] = None
+                    cache_file_missing = True
+            except (Exception):
+                self._logger.error('Movie:', movie[Movie.TITLE],
+                                   'cached_trailer:', movie[Movie.CACHED_TRAILER])
+                movie[Movie.CACHED_TRAILER] = None
+                cache_file_missing = True
+
+        if movie.get(Movie.NORMALIZED_TRAILER, "") != "":
+            try:
+                if not os.path.exists(movie[Movie.NORMALIZED_TRAILER]):
+                    movie[Movie.NORMALIZED_TRAILER] = None
+                    cache_file_missing = True
+            except (Exception):
+                self._logger.error('Movie:', movie[Movie.TITLE],
+                                   'normalized_trailer:', movie[Movie.NORMALIZED_TRAILER])
+                movie[Movie.NORMALIZED_TRAILER] = None
+                cache_file_missing = True
+
+        if cache_file_missing and movie[Movie.DISCOVERY_STATE] > Movie.DISCOVERY_COMPLETE:
+            movie[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_COMPLETE
 
     def _fetch_trailer_to_play_worker(self,
                                       trailer  # type: MovieType
@@ -624,7 +661,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         dict_info[Movie.DIRECTOR] = [missing_detail]
         dict_info[Movie.WRITER] = [missing_detail]
         dict_info[Movie.PLOT] = missing_detail
-        dict_info[Movie.CAST] = [missing_detail]
+        dict_info[Movie.CAST] = []
         dict_info[Movie.RUNTIME] = 0
         dict_info[Movie.GENRE] = [missing_detail]
         dict_info[Movie.DETAIL_TAGS] = [missing_detail]
@@ -1112,9 +1149,15 @@ class TrailerFetcher(TrailerFetcherInterface):
         if len(actors) > 6:
             actors = actors[:5]
         actors_list = []
-        for actor in actors:
-            actors_list.append(actor['name'])
-        movie_actors = ', '.join(actors_list)
+        try:
+            for actor in actors:
+                if actor.get('name') is not None:
+                    actors_list.append(actor['name'])
+            movie_actors = ', '.join(actors_list)
+        except (Exception):
+            movie_actors = ''
+            self._logger.error('Movie:', trailer[Movie.TITLE],
+                               'cast:', trailer[Movie.CAST])
 
         return movie_actors
 
@@ -1174,6 +1217,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         download_path = None
         movie_id = None
+        cached_path = None
 
         try:
             start = datetime.datetime.now()
@@ -1231,7 +1275,12 @@ class TrailerFetcher(TrailerFetcherInterface):
                     movie, '*-movie.*', False)
                 cached_trailers = glob.glob(cached_path)
                 if len(cached_trailers) != 0:
-                    if 'normalized' not in cached_trailers:
+                    already_normalized = False
+                    for cached_trailer in cached_trailers:
+                        if 'normalized' in cached_trailer:
+                            already_normalized = True
+
+                    if not already_normalized:
                         movie[Movie.CACHED_TRAILER] = cached_trailers[0]
                         stop = datetime.datetime.now()
                         locate_time = stop - start
@@ -1247,7 +1296,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     youtube_data_stream_extractor_proxy = \
                         YDStreamExtractorProxy.get_instance()
                     trailer_folder = xbmc.translatePath(
-                        'special://temp').encode("utf-8")
+                        'special://temp')
                     download_info = youtube_data_stream_extractor_proxy.get_video(
                         trailer_path, trailer_folder, movie_id)
                     if download_info is not None:
@@ -1385,6 +1434,8 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             # NORMALIZED_TRAILER is not automatically discovered from disk
             if movie.get(Movie.NORMALIZED_TRAILER, None) is None:
+                # trailer_path is either a cached_path or a library path.
+
                 # Discover from cache
                 parent_dir, trailer_file_name = os.path.split(trailer_path)
                 normalized_path = Cache.get_trailer_cache_file_path_for_movie_id(
@@ -1446,6 +1497,12 @@ class TrailerFetcher(TrailerFetcherInterface):
                                                movie[Movie.TITLE])
 
             if cached_normalized_trailer is not None:
+                assert 'normalized_normalized' not in cached_normalized_trailer,\
+                    self._logger.error('Invalid normalized path name. Movie:',
+                                       movie[Movie.TITLE],
+                                       'trailer_path:', trailer_path,
+                                       'cached_normalized_trailer:',
+                                       cached_normalized_trailer)
                 #
                 # If source file was downloaded and cached, then just blow it away
                 #
