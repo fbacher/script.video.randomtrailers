@@ -174,7 +174,7 @@ class UsageData(object):
         """
         if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
             self._logger.debug_extra_verbose('will delete- path:', file_data.get_path(),
-                               'creation:', file_data.get_creation_date())
+                                             'creation:', file_data.get_creation_date())
         os.remove(file_data.get_path())
         self._aggregate_deleted_size += file_data.get_size()
         self._aggregate_cache_file_size -= file_data.get_size()
@@ -238,9 +238,9 @@ class UsageData(object):
         # in
 
         file_data_list = (sorted(self._file_data.values(),
-                                key=lambda file_data_element:
-                                    file_data_element.get_creation_date(),
-                                reverse=False))
+                                 key=lambda file_data_element:
+                                 file_data_element.get_creation_date(),
+                                 reverse=False))
         return file_data_list
 
 
@@ -248,6 +248,7 @@ class FileData(object):
     """
 
     """
+
     def __init__(self, path, creation_date, size):
         # type: (TextType, datetime.datetime, int) -> None
         """
@@ -368,18 +369,14 @@ class DiskUtils(object):
                 usage = None
         elif os.name == 'nt':  # Windows
             import ctypes
-            import sys
 
             try:
                 # drive = "%s\\" % os.path.splitdrive(path)[0]
                 # cluster_sectors, sector_size = ctypes.c_longlong(0)
 
                 _, total, free = ctypes.c_ulonglong(), ctypes.c_ulonglong(),\
-                                 ctypes.c_ulonglong()
-                if sys.version_info >= (3,) or isinstance(path, unicode):
-                    fun = ctypes.windll.kernel32.GetDiskFreeSpaceExW
-                else:
-                    fun = ctypes.windll.kernel32.GetDiskFreeSpaceExA
+                    ctypes.c_ulonglong()
+                fun = ctypes.windll.kernel32.GetDiskFreeSpaceExW
                 ret = fun(path, ctypes.byref(_), ctypes.byref(
                     total), ctypes.byref(free))
                 if ret == 0:
@@ -408,15 +405,15 @@ class DiskUtils(object):
                 cls._logger.debug('Result: None')
             else:
                 cls._logger.debug('total:', usage['total'],
-                                   'used', usage['used'],
-                                   'free',  usage['free'])
+                                  'used', usage['used'],
+                                  'free',  usage['free'])
 
         return usage
 
     @classmethod
     def get_stats_for_path(cls,
-                           top, # type: TextType
-                           patterns # type: Dict[TextType, TextType]
+                           top,  # type: TextType
+                           patterns  # type: Dict[TextType, TextType]
                            ):
         # type: (...) -> Dict[TextType, UsageData]
         """
@@ -498,9 +495,9 @@ class DiskUtils(object):
                                     st.st_mtime)
                                 size_in_blocks = st.st_size
                                 size_on_disk = ((size_in_blocks - 1) /
-                                            block_size + 1) * block_size
+                                                block_size + 1) * block_size
                             except (OSError) as e:
-                                continue # File doesn't exist
+                                continue  # File doesn't exist
                             except (Exception) as e:
                                 cls._logger.exception('')
                                 continue
@@ -512,7 +509,8 @@ class DiskUtils(object):
                                         if ((now - mod_time).total_seconds() >
                                                 db_cache_file_expiration_seconds):
                                             if cls._logger.isEnabledFor(Logger.DEBUG):
-                                                cls._logger.debug('deleting:', path)
+                                                cls._logger.debug(
+                                                    'deleting:', path)
                                             os.remove(path)
                                             deleted = True
                                             usage_data.add_to_disk_deleted(
@@ -523,7 +521,8 @@ class DiskUtils(object):
                                         if ((now - mod_time).total_seconds() >
                                                 trailer_cache_file_expiration_seconds):
                                             if cls._logger.isEnabledFor(Logger.DEBUG):
-                                                cls._logger.debug('deleting:', path)
+                                                cls._logger.debug(
+                                                    'deleting:', path)
                                             os.remove(path)
                                             deleted = True
                                             usage_data.add_to_disk_deleted(
@@ -561,5 +560,6 @@ class DiskUtils(object):
                 return "%3.1f%s%s" % (num, unit, suffix)
             num /= 1024.0
         return "%.1f%s%s" % (num, 'Yi', suffix)
+
 
 DiskUtils.class_init()

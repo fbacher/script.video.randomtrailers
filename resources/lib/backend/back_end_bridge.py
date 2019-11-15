@@ -15,7 +15,6 @@ import threading
 import six
 
 from kodi65 import addon
-from kodi_six import xbmc
 import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie

@@ -29,7 +29,8 @@ import threading
 import calendar
 import six
 
-from kodi_six import xbmc, utils
+import xbmc
+from kodi_six import utils
 
 from common.constants import Constants, Movie
 from common.logger import (Logger, LazyLogger, Trace)
@@ -433,7 +434,7 @@ class CacheManager(object):
         self._logger.enter()
 
         # Purge off any stray undeleted temp files
-        folder = xbmc.translatePath('special://temp').encode("utf-8")
+        folder = xbmc.translatePath('special://temp')
         to_delete = os.path.join(folder, '_rt_*')
         to_delete = glob.glob(to_delete)
         for a_file in to_delete:

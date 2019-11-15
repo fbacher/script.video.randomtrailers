@@ -15,12 +15,12 @@ import dateutil.parser
 import io
 import simplejson as json
 from simplejson import (JSONDecodeError)
-
 import os
-
 import threading
 
-from kodi_six import xbmc, utils
+import xbmc
+
+from kodi_six import utils
 
 from common.development_tools import (Any, List,
                                       Dict, Union,
@@ -111,7 +111,7 @@ class TFHCache(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tfh_trailers.json')
-        path = path.encode('utf-8')
+
         path = xbmc.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
@@ -144,7 +144,6 @@ class TFHCache(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tfh_trailers.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)

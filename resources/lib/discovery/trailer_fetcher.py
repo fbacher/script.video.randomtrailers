@@ -18,8 +18,9 @@ import re
 import shutil
 import subprocess
 import six
+import xbmc
 
-from kodi_six import xbmc
+#from kodi_six import xbmc
 
 from common.monitor import Monitor
 from common.constants import Constants, Movie, RemoteTrailerPreference

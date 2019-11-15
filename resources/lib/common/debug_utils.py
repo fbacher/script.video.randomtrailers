@@ -10,6 +10,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from .imports import *
 
+import xbmc
 from .constants import Constants, Movie
 from .logger import (Logger, LazyLogger, Trace)
 from .critical_settings import CriticalSettings
@@ -19,7 +20,7 @@ import json
 import threading
 import traceback
 
-from kodi_six import xbmc, utils
+from kodi_six import utils
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger().getChild(
@@ -63,8 +64,8 @@ class Debug(object):
         :return:
         """
         cls._logger.debug(text, json.dumps(data, ensure_ascii=False,
-                                            encoding='unicode', indent=4,
-                                            sort_keys=True), xbmc.LOGINFO)
+                                           encoding='unicode', indent=4,
+                                           sort_keys=True), xbmc.LOGINFO)
 
     @classmethod
     def dump_all_threads(cls, delay=None):
@@ -108,7 +109,6 @@ class Debug(object):
         xbmc.log(msg.encode('utf-8'), xbmc.LOGERROR)
         xbmc.log(string_buffer.encode('utf-8'), xbmc.LOGDEBUG)
 
-
     @classmethod
     def compare_movies(cls, trailer, new_trailer, max_value_length=60):
         # type: (MovieType, MovieType, int) ->None
@@ -122,25 +122,25 @@ class Debug(object):
         :return:
         """
         keys_of_primary_interest = [Movie.TRAILER,
-                                 Movie.SOURCE, Movie.TITLE,
-                                 Movie.YEAR, Movie.TYPE]
+                                    Movie.SOURCE, Movie.TITLE,
+                                    Movie.YEAR, Movie.TYPE]
         keys_of_interest = [Movie.TRAILER,
-                          Movie.SOURCE, Movie.TITLE,
-                          Movie.FANART, Movie.PLOT,
-                          Movie.FILE, Movie.THUMBNAIL,
-                          Movie.YEAR, Movie.TYPE]
+                            Movie.SOURCE, Movie.TITLE,
+                            Movie.FANART, Movie.PLOT,
+                            Movie.FILE, Movie.THUMBNAIL,
+                            Movie.YEAR, Movie.TYPE]
         for key in trailer:
             if key in keys_of_interest and new_trailer.get(key) is None:
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
                 cls._logger.debug('CompareMovies- key:', key,
-                             'is missing from new. Value:',
-                             value)
+                                  'is missing from new. Value:',
+                                  value)
 
         for key in trailer:
             if key in keys_of_primary_interest and (trailer.get(key) is not None
-                                            and trailer.get(key) != new_trailer.get(key)):
+                                                    and trailer.get(key) != new_trailer.get(key)):
 
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
@@ -149,7 +149,7 @@ class Debug(object):
                 if len(new_value) > max_value_length:
                     new_value = new_value[:max_value_length]
                 cls._logger.debug('Values for:', key, 'different:', value,
-                             'new:', new_value)
+                                  'new:', new_value)
 
         for key in new_trailer:
             if key in keys_of_interest and trailer.get(key) is None:
@@ -157,7 +157,7 @@ class Debug(object):
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
                 cls._logger.debug('key:', key, 'is missing from old. Value:',
-                             value)
+                                  value)
 
     @classmethod
     def validate_basic_movie_properties(cls, movie, stack_trace=True):
@@ -187,14 +187,6 @@ class Debug(object):
                 failing_properties.append(property_name)
                 is_failed = True
                 movie.setdefault(property_name, 'default_' + property_name)
-            elif CriticalSettings.is_debug_enabled:
-                my_type = type(movie[property_name]).__name__
-                if my_type not in ('newstr', 'unicode'):
-                    if isinstance(movie[property_name], basestring):
-                        is_failed = True
-                        LazyLogger.dump_stack('Expected unicode, not:' +
-                                                 my_type + ' property: ' +
-                                                 property_name)
 
         if len(failing_properties) > 0:
             msg = ', '.join(failing_properties)
@@ -216,14 +208,14 @@ class Debug(object):
         :return:
         """
         details_properties = (Movie.WRITER,
-                             Movie.DETAIL_DIRECTORS,
-                             Movie.CAST,
-                             Movie.PLOT,
-                             Movie.GENRE,
-                             Movie.STUDIO,
-                             Movie.RUNTIME,
-                             # Movie.ADULT,
-                             Movie.MPAA)
+                              Movie.DETAIL_DIRECTORS,
+                              Movie.CAST,
+                              Movie.PLOT,
+                              Movie.GENRE,
+                              Movie.STUDIO,
+                              Movie.RUNTIME,
+                              # Movie.ADULT,
+                              Movie.MPAA)
 
         cls.validate_basic_movie_properties(movie, stack_trace=stack_trace)
         failing_properties = []
@@ -233,14 +225,6 @@ class Debug(object):
                 failing_properties.append(property_name)
                 movie.setdefault(property_name, 'default_' + property_name)
                 is_failed = True
-            else:
-                my_type = type(movie[property_name]).__name__
-                if my_type not in ('newstr', 'unicode'):
-                    if isinstance(movie[property_name], basestring):
-                        is_failed = True
-                        cls._logger.dump_stack(
-                            'Expected unicode, not:' + my_type + ' property: ' +
-                            property_name)
 
         if len(failing_properties) > 0:
             msg = ', '.join(failing_properties)

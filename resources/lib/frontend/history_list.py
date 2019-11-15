@@ -71,7 +71,8 @@ class HistoryList(object):
         """
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.enter('len(buffer):',
-                               len(self._buffer), 'cursor:', self._cursor)        # cursor points to currently playing movie or -1
+                               len(self._buffer), 'cursor:', self._cursor)
+        # cursor points to currently playing movie or -1
         self._cursor -= 1
         if self._cursor < 0:
             self._cursor = -1

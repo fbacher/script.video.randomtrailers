@@ -17,11 +17,13 @@ from common.monitor import Monitor
 from action_map import Action
 from common.settings import Settings
 
-from kodi_six import xbmc, xbmcgui
+# from kodi_six import xbmc, xbmcgui
+import xbmc
+import xbmcgui
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger().getChild(
-                                                    'frontend.black_background')
+        'frontend.black_background')
 else:
     module_logger = LazyLogger.get_addon_module_logger()
 

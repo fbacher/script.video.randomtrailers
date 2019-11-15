@@ -59,7 +59,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         kwargs[Movie.SOURCE] = Movie.TMDB_SOURCE
 
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = TMDBMovieData()
         self._select_by_year_range = None
         self._language = None
@@ -636,7 +636,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         (total_pages_in_year / page_scale_factor) + 0.5)
                     try:
                         pages_for_year = DiskUtils.RandomGenerator.sample(
-                            xrange(1, total_pages_in_year + 1), scaled_pages)
+                            range(1, total_pages_in_year + 1), scaled_pages)
                         if viewed_page is not None and viewed_page in pages_for_year:
                             pages_for_year.remove(viewed_page)
                     except (KeyError):
@@ -693,7 +693,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         try:
             # Send any cached TMDB trailers to the discovered list
-            tmdb_trailer_ids = CacheIndex.get_found_tmdb_trailer_ids()
+            tmdb_trailer_ids = CacheIndex.get_found_tmdb_trailer_ids().copy()
             movies = []
             for tmdb_id in tmdb_trailer_ids:
                 cached_movie = Cache.read_tmdb_cache_json(tmdb_id, Movie.TMDB_SOURCE,

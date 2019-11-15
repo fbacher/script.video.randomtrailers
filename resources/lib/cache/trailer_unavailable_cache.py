@@ -17,8 +17,9 @@ from simplejson import (JSONDecodeError)
 import os
 import threading
 
+import xbmc
 
-from kodi_six import xbmc, utils
+from kodi_six import utils
 
 from backend.statistics import (Statistics)
 from common.development_tools import (Optional, Union,
@@ -79,9 +80,9 @@ class TrailerUnavailableCache(object):
             values[Movie.YEAR] = year
             values[Movie.SOURCE] = source
 
-        with TrailerUnavailableCache.lock:
-            if tmdb_id not in TrailerUnavailableCache._all_missing_tmdb_trailers:
-                TrailerUnavailableCache._all_missing_tmdb_trailers[tmdb_id] = values
+        with cls.lock:
+            if tmdb_id not in cls._all_missing_tmdb_trailers:
+                cls._all_missing_tmdb_trailers[tmdb_id] = values
                 cls.tmdb_cache_changed()
                 Statistics.add_missing_tmdb_trailer()
 
@@ -115,9 +116,9 @@ class TrailerUnavailableCache(object):
             values[Movie.YEAR] = year
             values[Movie.SOURCE] = source
 
-        with TrailerUnavailableCache.lock:
+        with cls.lock:
             if tmdb_id not in TrailerUnavailableCache._all_missing_library_trailers:
-                TrailerUnavailableCache._all_missing_library_trailers[tmdb_id] = values
+                cls._all_missing_library_trailers[tmdb_id] = values
                 cls.library_cache_changed()
                 Statistics.add_missing_library_trailer()
 
@@ -130,15 +131,15 @@ class TrailerUnavailableCache(object):
         :param library_id:
         :return:
         """
-        with TrailerUnavailableCache.lock:
-            if library_id not in TrailerUnavailableCache._all_missing_library_trailers:
+        with cls.lock:
+            if library_id not in cls._all_missing_library_trailers:
                 entry = None
             else:
-                entry = TrailerUnavailableCache._all_missing_library_trailers[library_id]
+                entry = cls._all_missing_library_trailers[library_id]
                 elapsed = datetime.date.today() - entry['timestamp']
                 elapsed_days = elapsed.days
                 if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
-                    del TrailerUnavailableCache._all_missing_library_trailers[library_id]
+                    del cls._all_missing_library_trailers[library_id]
                     entry = None
                     cls.library_cache_changed()
             if entry is None:
@@ -174,10 +175,10 @@ class TrailerUnavailableCache(object):
         :param tmdb_id:
         :return:
         """
-        with TrailerUnavailableCache.lock:
+        with cls.lock:
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 return None
-            entry = TrailerUnavailableCache._all_missing_tmdb_trailers[tmdb_id]
+            entry = cls._all_missing_tmdb_trailers[tmdb_id]
 
             elapsed_time = datetime.date.today() - entry['timestamp']
             elapsed_days = elapsed_time.days
@@ -221,16 +222,21 @@ class TrailerUnavailableCache(object):
 
         with cls.lock:
             if cls.tmdb_unsaved_changes > 0:
+                entries_to_delete = []
                 for key, entry in cls._all_missing_tmdb_trailers.items():
                     elapsed_time = datetime.date.today() - entry['timestamp']
                     elapsed_days = elapsed_time.days
                     if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
                         if entry[Movie.UNIQUE_ID_TMDB] in cls._all_missing_tmdb_trailers:
-                            del cls._all_missing_tmdb_trailers[entry[Movie.UNIQUE_ID_TMDB]]
+                            entries_to_delete.append(
+                                entry[Movie.UNIQUE_ID_TMDB])
+                for entry_to_delete in entries_to_delete:
+                    del cls._all_missing_tmdb_trailers[entry_to_delete]
+
                 try:
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_tmdb_trailers.json')
-                    path = path.encode('utf-8')
+                    # path = path.encode('utf-8')
                     path = xbmc.validatePath(path)
                     parent_dir, file_name = os.path.split(path)
                     if not os.path.exists(parent_dir):
@@ -254,18 +260,22 @@ class TrailerUnavailableCache(object):
                     cls._logger.exception('')
 
             if cls.library_unsaved_changes > 0:
+                entries_to_delete = []
+
                 for key, entry in cls._all_missing_library_trailers.items():
                     elapsed_time = datetime.date.today() - entry['timestamp']
                     elapsed_days = elapsed_time.days
                     if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
                         if entry[Movie.MOVIEID] in cls._all_missing_library_trailers:
-                            del cls._all_missing_library_trailers[entry[Movie.MOVIEID]]
+                            entries_to_delete.append(entry[Movie.MOVIEID])
 
+                for entry_to_delete in entries_to_delete:
+                    del cls._all_missing_library_trailers[entry_to_delete]
                 try:
 
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_library_trailers.json')
-                    path = path.encode('utf-8')
+                    # path = path.encode('utf-8')
                     path = xbmc.validatePath(path)
                     parent_dir, file_name = os.path.split(path)
                     if not os.path.exists(parent_dir):
@@ -303,8 +313,8 @@ class TrailerUnavailableCache(object):
         # else:  # if isinstance(obj, ...):
         #     return json.JSONEncoder.default(self, obj)
         else:
-            raise TypeError, 'Object of type %s with value of %s is not JSON serializable' % (
-                type(obj), repr(obj))
+            raise TypeError('Object of type %s with value of %s is not JSON serializable' % (
+                type(obj), repr(obj)))
 
     @staticmethod
     def datetime_parser(dct):
@@ -331,16 +341,15 @@ class TrailerUnavailableCache(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_tmdb_trailers.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
 
             if os.path.exists(path):
-                with TrailerUnavailableCache.lock, io.open(path, mode='rt',
-                                                           newline=None,
-                                                           encoding='utf-8') as cacheFile:
+                with cls.lock, io.open(path, mode='rt',
+                                       newline=None,
+                                       encoding='utf-8') as cacheFile:
                     cls._all_missing_tmdb_trailers = json.load(
                         cacheFile, encoding='utf-8',
                         object_hook=TrailerUnavailableCache.datetime_parser)
@@ -356,15 +365,14 @@ class TrailerUnavailableCache(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_library_trailers.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
             if os.path.exists(path):
-                with TrailerUnavailableCache.lock, io.open(path, mode='rt',
-                                                           newline=None,
-                                                           encoding='utf-8') as cacheFile:
+                with cls.lock, io.open(path, mode='rt',
+                                       newline=None,
+                                       encoding='utf-8') as cacheFile:
                     cls._all_missing_library_trailers = json.load(
                         cacheFile, encoding='utf-8',
                         object_hook=TrailerUnavailableCache.datetime_parser)

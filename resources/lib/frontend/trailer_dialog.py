@@ -13,6 +13,8 @@ import datetime
 import sys
 import threading
 import six
+import xbmc
+import xbmcgui
 
 from common.constants import Constants, Movie
 from common.playlist import Playlist
@@ -30,7 +32,6 @@ from frontend.history_empty import HistoryEmpty
 
 # noinspection PyUnresolvedReferences
 from frontend.utils import ReasonEvent, BaseWindow, ScreensaverState
-from kodi_six import xbmc, xbmcgui
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger(
@@ -587,7 +588,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 _, curtain = self._movie_manager.get_next_trailer()
                 self.set_visibility(video_window=True, info=False, brief_info=False,
                                     notification=False, information=False)
-                self.get_player().play_trailer(curtain[Movie.TRAILER].encode('utf-8'),
+                self.get_player().play_trailer(curtain[Movie.TRAILER],
                                                curtain)
                 if not self.get_player().waitForIsPlayingVideo(timeout=5.0):
                     if self._logger.isEnabledFor(Logger.DEBUG):

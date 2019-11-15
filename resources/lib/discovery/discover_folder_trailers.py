@@ -14,7 +14,9 @@ import requests
 import six
 import sys
 
-from kodi_six import xbmc, xbmcvfs
+#from kodi_six import xbmc, xbmcvfs
+import xbmc
+import xbmcvfs
 
 from common.constants import Constants, Movie
 from common.debug_utils import Debug
@@ -57,7 +59,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.FOLDER_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = FolderMovieData()
 
     def discover_basic_information(self):
@@ -139,13 +141,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     for item in files:
                         try:
                             file_path = os.path.join(
-                                folder, item).decode('utf-8')
-                            # TODO: DELETE ME
-
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                if type(file_path).__name__ not in ('unicode', 'newstr'):
-                                    self._logger.debug('LEAK: trailer not unicode1:',
-                                                       type(file_path).__name__)
+                                folder, item)
 
                             title = xbmc.translatePath(file_path)
                             # TODO: DELETE ME

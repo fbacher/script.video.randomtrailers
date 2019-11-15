@@ -8,7 +8,9 @@ Created on Feb 12, 2019
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
-import logging
+import xbmc
+import xbmcgui
+import xbmcaddon
 from logging import *
 
 from common.monitor import Monitor
@@ -17,7 +19,7 @@ from common.exceptions import AbortException, ShutdownException
 from common.logger import (Logger, LazyLogger, Trace, MyHandler, MyFilter)
 from common.watchdog import WatchDog
 from screensaver.screensaver_bridge import ScreensaverBridge
-from kodi_six import xbmc, xbmcgui, xbmcaddon, utils
+from kodi_six import utils
 
 import sys
 

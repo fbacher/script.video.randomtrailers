@@ -17,15 +17,15 @@ import simplejson as json
 from simplejson import (JSONDecodeError)
 
 import os
-
 import threading
 
-from kodi_six import xbmc, utils
+import xbmc
+from kodi_six import utils
 
 from common.development_tools import (Any, List,
                                       Dict, Union,
                                       TextType, MovieType)
-from common.constants import (Constants, RemoteTrailerPreference)
+from common.constants import (Constants, Movie, RemoteTrailerPreference)
 from common.logger import (Logger, LazyLogger)
 from common.messages import Messages
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -282,7 +282,6 @@ class CacheParameters(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_discovery_parameters.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
@@ -366,7 +365,6 @@ class CacheParameters(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_discovery_parameters.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
@@ -447,6 +445,7 @@ class CachedPagesData(object):
         :param key:
         :param total_pages:
         """
+        self._logger = module_logger.getChild(self.__class__.__name__)
         self._number_of_unsaved_changes = 0
         self._time_of_last_save = None
         self._key = key
@@ -456,6 +455,8 @@ class CachedPagesData(object):
         self._years_to_get = None
         self._search_pages_configured = False
         self._path = 'tmdb_' + key + '.json'
+        self._logger.debug('remote_db_cache_path:',
+                           Settings.get_remote_db_cache_path())
         self._path = os.path.join(Settings.get_remote_db_cache_path(),
                                   'index', self._path)
         # type:Optional[Dict[TextType, CachedPage]]
@@ -581,7 +582,7 @@ class CachedPagesData(object):
             return int(len(self._cached_page_by_key))
 
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
     def get_undiscovered_search_pages(self):
         # type: () -> List[CachedPage]
@@ -599,7 +600,7 @@ class CachedPagesData(object):
                 if not search_page.processed:
                     undiscovered_search_pages.append(search_page)
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
         return undiscovered_search_pages
 
@@ -618,7 +619,7 @@ class CachedPagesData(object):
                 if not search_page.processed:
                     number_of_undiscovered_pages += 1
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
         return int(number_of_undiscovered_pages)
 
@@ -637,7 +638,7 @@ class CachedPagesData(object):
                 if search_page.processed:
                     number_of_discovered_pages += 1
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
         return int(number_of_discovered_pages)
 
@@ -658,7 +659,7 @@ class CachedPagesData(object):
 
             cached_page = self._cached_page_by_key.get(key)
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
         return cached_page
 
@@ -713,7 +714,7 @@ class CachedPagesData(object):
                     json_dict[key] = entry_dict
 
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
         return json_dict
 
     def from_json(self, encoded_values):
@@ -755,7 +756,7 @@ class CachedPagesData(object):
             cached_pages_data._time_of_last_save = datetime.datetime.now()
 
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
         return cached_pages_data
 
@@ -771,8 +772,7 @@ class CachedPagesData(object):
                 and
                 self.get_time_since_last_save() < datetime.timedelta(minutes=5)):
             return
-        path = self._path.encode('utf-8')
-        path = xbmc.validatePath(path)
+        path = xbmc.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -790,11 +790,11 @@ class CachedPagesData(object):
                 self._time_of_last_save = datetime.datetime.now()
 
         except (IOError) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
         except (JSONDecodeError) as e:
             os.remove(path)
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
     def load_search_pages(self):
         # type: () -> None
@@ -805,8 +805,7 @@ class CachedPagesData(object):
         if self._cached_page_by_key is not None:
             return
 
-        path = self._path.encode('utf-8')
-        path = xbmc.validatePath(path)
+        path = xbmc.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -823,12 +822,12 @@ class CachedPagesData(object):
                 self._cached_page_by_key = dict()
 
         except (IOError) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
         except (JSONDecodeError) as e:
             os.remove(path)
             self._cached_page_by_key = dict()
         except (Exception) as e:
-            CacheIndex.logger().exception('')
+            self._logger().exception('')
 
         self._time_of_last_save = datetime.datetime.now()
 
@@ -871,8 +870,8 @@ class CacheIndex(object):
         cls._unprocessed_movies = {}  # type: Dict[int, MovieType]
         cls._found_trailers = set()  # type: Set(MovieType)
         cls._unsaved_trailer_changes = 0
-        cls._unsaved_movie_changes = 0
-        cls._last_saved_movie_timestamp = datetime.datetime.now()
+        cls._unprocessed_movie_changes = 0
+        cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
         cls._last_saved_trailer_timestamp = datetime.datetime.now()
 
     @classmethod
@@ -891,8 +890,8 @@ class CacheIndex(object):
                 cls._unprocessed_movies = {}  # type: Dict[int, MovieType]
                 cls._found_trailers = set()  # type: Set(MovieType)
                 cls._unsaved_trailer_changes = 0
-                cls._unsaved_movie_changes = 0
-                cls._last_saved_movie_timestamp = datetime.datetime.now()
+                cls._unprocessed_movie_changes = 0
+                cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
                 cls._last_saved_trailer_timestamp = datetime.datetime.now()
                 cls.save_parameter_cache()
                 cls.save_unprocessed_movie_cache(flush=True)
@@ -975,14 +974,15 @@ class CacheIndex(object):
         :param movies:
         :return:
         """
-        for movie in movies:
-            tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-            if tmdb_id not in cls._unprocessed_movies:
-                cls._unprocessed_movies[tmdb_id] = movie
+        with cls.lock:
+            for movie in movies:
+                tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                if tmdb_id not in cls._unprocessed_movies:
+                    cls._unprocessed_movies[tmdb_id] = movie
 
-        cls._unsaved_movie_changes += len(movies)
-        Statistics.add_tmdb_total_number_of_unprocessed_movies(len(movies))
-        cls.save_unprocessed_movie_cache()
+            cls._unprocessed_movie_changes += len(movies)
+            Statistics.add_tmdb_total_number_of_unprocessed_movies(len(movies))
+            cls.save_unprocessed_movie_cache()
 
     @classmethod
     def remove_unprocessed_movie(cls,
@@ -994,11 +994,12 @@ class CacheIndex(object):
         :param tmdb_id:
         :return:
         """
-        if tmdb_id in cls._unprocessed_movies:
-            del cls._unprocessed_movies[tmdb_id]
-            cls._unsaved_movie_changes += 1
-            Statistics.add_tmdb_total_number_of_removed_unprocessed_movies()
-            cls.save_unprocessed_movie_cache()
+        with cls.lock:
+            if tmdb_id in cls._unprocessed_movies:
+                del cls._unprocessed_movies[tmdb_id]
+                cls._unprocessed_movie_changes += 1
+                Statistics.add_tmdb_total_number_of_removed_unprocessed_movies()
+                cls.save_unprocessed_movie_cache()
 
     @classmethod
     def trailer_found(cls,
@@ -1017,20 +1018,21 @@ class CacheIndex(object):
 
     @classmethod
     def get_found_tmdb_trailer_ids(cls):
-        #  type: () -> List[MovieType]
+        #  type: () -> Set[MovieType]
         """
         :return:
         """
-        return cls._found_trailers
+        return cls._found_trailers.copy()
 
     @classmethod
     def get_unprocessed_movies(cls):
-        #  type: () -> List[MovieType]
+        #  type: () -> Dict[int, MovieType]
         """
 
         :return:
         """
-        return cls._unprocessed_movies
+        with cls.lock:
+            return cls._unprocessed_movies
 
     @classmethod
     def get_random_pages(cls):
@@ -1059,20 +1061,19 @@ class CacheIndex(object):
         :param flush:
         :return:
         """
-        if cls._unsaved_movie_changes == 0:
+        if cls._unprocessed_movie_changes == 0:
             return
 
         if (not flush and
                 # Constants.TRAILER_CACHE_FLUSH_UPDATES)
-                (cls._unsaved_movie_changes < 10)
+                (cls._unprocessed_movie_changes < 10)
                 and
-                (datetime.datetime.now() - cls._last_saved_movie_timestamp)
+                (datetime.datetime.now() - cls._last_saved_unprocessed_movie_timestamp)
                 < datetime.timedelta(minutes=5)):
             return
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_unprocessed_movies.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
@@ -1082,15 +1083,15 @@ class CacheIndex(object):
             try:
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
-                    json_text = utils.py2_decode(json.dumps(cls._unprocessed_movies,
+                    json_text = utils.py2_decode(json.dumps(cls.get_unprocessed_movies(),
                                                             encoding='utf-8',
                                                             ensure_ascii=False,
                                                             default=CacheIndex.handler,
                                                             indent=3, sort_keys=True))
                     cacheFile.write(json_text)
                     cacheFile.flush()
-                    cls._last_saved_movie_timestamp = datetime.datetime.now()
-                    cls._unsaved_movie_changes = 0
+                    cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
+                    cls._unprocessed_movie_changes = 0
 
             except (IOError) as e:
                 CacheIndex.logger().exception('')
@@ -1106,7 +1107,6 @@ class CacheIndex(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_unprocessed_movies.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
@@ -1119,7 +1119,7 @@ class CacheIndex(object):
                         cacheFile, encoding='utf-8',
                         object_hook=CacheIndex.datetime_parser)
                     cls.last_saved_movie_timestamp = None
-                    cls._unsaved_movie_changes = 0
+                    cls._unprocessed_movie_changes = 0
             else:
                 cls._unprocessed_movies = {}
 
@@ -1151,7 +1151,6 @@ class CacheIndex(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_found_trailers.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
@@ -1190,8 +1189,8 @@ class CacheIndex(object):
         # else:  # if isinstance(obj, ...):
         #     return json.JSONEncoder.default(cls, obj)
         else:
-            raise TypeError, 'Object of type %s with value of %s is not JSON serializable' % (
-                type(obj), repr(obj))
+            raise TypeError('Object of type %s with value of %s is not JSON serializable' % (
+                type(obj), repr(obj)))
 
     @staticmethod
     def datetime_parser(dct):
@@ -1218,7 +1217,6 @@ class CacheIndex(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_found_trailers.json')
-        path = path.encode('utf-8')
         path = xbmc.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)

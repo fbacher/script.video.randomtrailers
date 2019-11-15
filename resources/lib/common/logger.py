@@ -15,10 +15,11 @@ import os
 import sys
 import threading
 import traceback
-import cStringIO
+from io import StringIO
 
 import six
-from kodi_six import xbmc, utils
+import xbmc
+from kodi_six import utils
 
 from .exceptions import AbortException, ShutdownException
 from .constants import Constants
@@ -299,7 +300,7 @@ class Logger(logging.Logger):
                 my_trace = set()
             elif isinstance(trace, list):
                 my_trace = set(trace)
-            elif isinstance(trace, basestring):  # Single trace keyword
+            elif isinstance(trace, str):  # Single trace keyword
                 my_trace = {trace, }  # comma creates set
 
             extra = {'trace': my_trace, 'start_file': start_file,
@@ -539,7 +540,7 @@ class Logger(logging.Logger):
 
         try:
             msg = Constants.CURRENT_ADDON_NAME + ': ' + msg + ' thread:' + thread_name
-            msg = utils.py2_decode(msg)
+            # msg = utils.py2_decode(msg)
 
             string_buffer = msg
             string_buffer = string_buffer + '\n' + Constants.TRACEBACK
@@ -638,7 +639,7 @@ class Logger(logging.Logger):
                 # stack = LazyLogger._capture_stack(ignore_frames=0)
             thread_name = threading.current_thread().getName()
 
-            sio = cStringIO.StringIO()
+            sio = StringIO()
             LazyLogger.print_full_stack(
                 frame=frame, thread_name=thread_name, log_file=sio)
 
@@ -648,7 +649,7 @@ class Logger(logging.Logger):
             six.reraise(*sys.exc_info())
         except (Exception) as e:
             msg = 'Logger.log_exception raised exception during processing'
-            xbmc.log(msg.encode('utf-8'), xbmc.LOGERROR)
+            xbmc.log(msg, xbmc.LOGERROR)
 
     @staticmethod
     def print_full_stack(frame=None, thread_name='', limit=None,
@@ -1119,7 +1120,7 @@ class LazyLogger(Logger):
 
         try:
             msg = Constants.CURRENT_ADDON_NAME + ': ' + msg + ' thread:' + thread_name
-            msg = utils.py2_decode(msg)
+            # msg = utils.py2_decode(msg)
 
             string_buffer = msg
             string_buffer = string_buffer + '\n' + Constants.TRACEBACK
@@ -1385,7 +1386,7 @@ class MyFormatter(logging.Formatter):
         if ei is not None:
             thread_name = threading.current_thread().getName()
 
-            sio = cStringIO.StringIO()
+            sio = StringIO()
             self.print_exception(
                 ei[0], ei[1], ei[2], thread_name='', limit=None, log_file=sio)
 
@@ -1396,7 +1397,7 @@ class MyFormatter(logging.Formatter):
     def print_exception(self, etype, value, tb, thread_name='',
                         limit=None, log_file=None):
 
-        # type: ( Any, TextType, int, cStringIO.StringIO) -> None
+        # type: ( Any, TextType, int, StringIO) -> None
         """
 
         :param frame:

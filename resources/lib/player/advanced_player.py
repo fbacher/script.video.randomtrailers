@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from common.imports import *
 
-from kodi_six import xbmc
+import xbmc
 
 from common.constants import (Constants)
 from common.exceptions import AbortException, ShutdownException
@@ -13,7 +13,8 @@ import sys
 import threading
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('player.advanced_player')
+    module_logger = LazyLogger.get_addon_module_logger(
+    ).getChild('player.advanced_player')
 else:
     module_logger = LazyLogger.get_addon_module_logger()
 
@@ -238,17 +239,17 @@ class AdvancedPlayer(xbmc.Player):
             self._logger.enter()
 
             self._logger.debug('isPlayingVideo:',
-                                self.isPlayingVideo())
+                               self.isPlayingVideo())
             """
             Returns True if the player is playing video.
             """
 
             self._logger.debug("Player.Playing: " +
-                              str(bool(xbmc.getCondVisibility('Player.Playing'))))
+                               str(bool(xbmc.getCondVisibility('Player.Playing'))))
             self._logger.debug('Player.HasVideo: ' +
-                              str(bool(xbmc.getCondVisibility('Player.HasVideo'))))
+                               str(bool(xbmc.getCondVisibility('Player.HasVideo'))))
         is_playing = bool(xbmc.getCondVisibility('Player.Playing')
-                         and xbmc.getCondVisibility('Player.HasVideo'))
+                          and xbmc.getCondVisibility('Player.HasVideo'))
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.debug('is really playing:', is_playing)
         return is_playing
@@ -649,7 +650,6 @@ class AdvancedPlayer(xbmc.Player):
 
     # Defined in xbmc.Player
     def onAVStarted(self):
-
         '''
         Will be called when Kodi has a video or audiostream.
 
@@ -657,7 +657,8 @@ class AdvancedPlayer(xbmc.Player):
             New function added.
         '''
         if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
-            self._logger.debug_verbose(self.getPlayingTitle(), trace=Trace.TRACE)
+            self._logger.debug_verbose(
+                self.getPlayingTitle(), trace=Trace.TRACE)
 
         # self._dump_state()  # TODO: remove
         '''

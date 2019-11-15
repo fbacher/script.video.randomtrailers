@@ -51,8 +51,7 @@ class BaseDiscoverMovies(threading.Thread):
                  target=None,
                  thread_name=None,  # type: TextType
                  args=(),  # type: Optional[Any]
-                 kwargs=None,  # type: Optional[Any]
-                 verbose=None  # type: Optional[bool]
+                 kwargs=None  # type: Optional[Any]
                  ):
         # type: (...) -> None
         """
@@ -62,7 +61,6 @@ class BaseDiscoverMovies(threading.Thread):
         :param thread_name:
         :param args:
         :param kwargs:
-        :param verbose:
         """
         self._logger = module_logger.getChild(self.__class__.__name__)
         self._logger.enter()
@@ -75,7 +73,7 @@ class BaseDiscoverMovies(threading.Thread):
         if thread_name is None or thread_name == '':
             thread_name = Constants.ADDON_PATH + '.BaseDiscoverMovies'
         super().__init__(group=group, target=target, name=thread_name,
-                         args=args, kwargs=kwargs, verbose=verbose)
+                         args=args, kwargs=kwargs)
         if self.__class__.__name__ != 'BaseDiscoverMovies':
             Monitor.get_instance().register_settings_changed_listener(
                 self.on_settings_changed)

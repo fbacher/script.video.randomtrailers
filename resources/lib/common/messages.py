@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from .imports import *
 from .constants import Movie
 
+
 class Messages(object):
     """
     Provides methods, message tags and default messages for accessing translated messages.
@@ -121,7 +122,7 @@ class Messages(object):
         """
         trailer_type = movie.get(Movie.TYPE, '')
 
-        year = str(movie.get(Movie.YEAR), '')
+        year = str(movie.get(Movie.YEAR, ''))
         if year != '':
             year = '(' + year + ')'
 

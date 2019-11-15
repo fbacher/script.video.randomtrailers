@@ -12,8 +12,10 @@ import datetime
 import locale
 import os
 
+import xbmc
+
 from kodi65.kodiaddon import Addon
-from kodi_six import xbmc
+from kodi_six import utils
 
 from .constants import (Constants, DebugLevel,
                         RemoteTrailerPreference, GenreEnum)
@@ -662,8 +664,7 @@ class Settings(object):
         vote_comparison = Settings.get_setting_int(Settings.TMDB_VOTE_FILTER)
         vote_value = Settings.get_setting_int(Settings.TMDB_VOTE_VALUE)
         if vote_value < 0 or vote_value > 10:
-            xbmc.log('Vote filter value must be in range 0..10'.encode(
-                'utf-8'), xbmc.LOGWARNING)
+            xbmc.log('Vote filter value must be in range 0..10', xbmc.LOGWARNING)
             vote_value = int(6)
 
         return vote_comparison, vote_value
@@ -676,7 +677,7 @@ class Settings(object):
         :return:
         """
         return xbmc.translatePath(os.path.join(
-            Settings.get_media_path(), 'CurtainClosingSequence.flv')).decode('utf-8')
+            Settings.get_media_path(), 'CurtainClosingSequence.flv'))
 
     @staticmethod
     def get_playlist_name(playlist_number):
@@ -686,7 +687,7 @@ class Settings(object):
         :return:
         """
         playlist_id = "playlist_name_" + str(playlist_number)
-        playlist_name = Settings.get_addon().addon.getSetting(playlist_id).decode('utf-8')
+        playlist_name = Settings.get_addon().addon.getSetting(playlist_id)
 
         return playlist_name
 
@@ -1400,7 +1401,7 @@ class Settings(object):
         :return:
         """
         return xbmc.translatePath(os.path.join(
-            Settings.get_resources_path(), 'media')).decode('utf-8')
+            Settings.get_resources_path(), 'media'))
 
     @staticmethod
     def get_minimum_days_since_watched():
@@ -1450,7 +1451,7 @@ class Settings(object):
         :return:
         """
         return xbmc.translatePath(os.path.join(
-            Settings.get_media_path(), 'CurtainOpeningSequence.flv')).decode('utf-8')
+            Settings.get_media_path(), 'CurtainOpeningSequence.flv'))
 
     @staticmethod
     def prompt_for_settings():
@@ -1516,7 +1517,7 @@ class Settings(object):
         :return:
         """
         return xbmc.translatePath(
-            os.path.join(Constants.ADDON_PATH, 'resources')).decode('utf-8')
+            os.path.join(Constants.ADDON_PATH, 'resources'))
 
     @staticmethod
     def get_rotten_tomatoes_api_key():
@@ -1807,6 +1808,7 @@ class Settings(object):
 
         :return:
         """
+
         return Settings.get_setting_int(Settings.CACHE_EXPIRATION_DAYS)
 
     @staticmethod
@@ -1837,7 +1839,6 @@ class Settings(object):
         try:
             path = xbmc.translatePath(
                 Settings.get_addon().setting(Settings.TRAILER_CACHE_PATH))
-            path = path.decode('utf-8')
         except (Exception) as e:
             path = None
 
@@ -1853,9 +1854,10 @@ class Settings(object):
         try:
             path = xbmc.translatePath(
                 Settings.get_addon().setting(Settings.CACHE_PATH))
-            path = path.decode('utf-8')
         except (Exception) as e:
             path = None
+            Settings._logger.exception()
+
         return path
 
     @staticmethod

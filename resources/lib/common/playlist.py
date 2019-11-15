@@ -13,9 +13,9 @@ import datetime
 import io
 import os
 import threading
-import simplejson as json
 
-from kodi_six import xbmc
+import xbmc
+from kodi_six import utils
 
 from .constants import Constants, Movie
 from .logger import (Logger, LazyLogger, Trace)
@@ -80,7 +80,6 @@ class Playlist(object):
             path = Constants.PLAYLIST_PATH + '/' + playlist_name
         else:
             path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name
-        path = path.decode('utf-8')
         path = xbmc.validatePath(path)
         path = xbmc.translatePath(path)
         already_exists = False
@@ -94,7 +93,6 @@ class Playlist(object):
         if rotate:
             try:
                 save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
-                save_path = save_path.decode('utf-8')
                 save_path = xbmc.validatePath(save_path)
                 try:
                     os.remove(save_path)

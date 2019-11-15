@@ -280,7 +280,7 @@
                         <texturedown flipy="true">-</texturedown>
                         <textureupfocus>-</textureupfocus>
                         <texturedownfocus flipy="true"></texturedownfocus>
-                        <autoscroll delay="15000" time="2500" repeat="5000"></autoscroll>
+                        <autoscroll delay="15000" time="2500" repeat="5000">Skin.HasSetting(Info)</autoscroll>
                     </control>
                     <control type="label" id="38011">
                         <description>Duration/Genre</description>

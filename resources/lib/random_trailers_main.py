@@ -17,7 +17,12 @@ import queue
 import sys
 
 
-from kodi_six import xbmc, xbmcgui, utils
+from kodi_six import utils
+
+import xbmc
+import xbmcgui
+import xbmcaddon
+import xbmcplugin
 
 from kodi65 import addon
 from common.monitor import Monitor
@@ -302,8 +307,11 @@ def bootstrap_random_trailers(is_screensaver):
                 pass
         exit(0)
 
+
 def bootstrap_unit_test():
     pass
+
+
 if __name__ == '__main__':  # TODO: need quick exit if backend is not running
     if xbmc.Player().isPlaying():
         exit(0)

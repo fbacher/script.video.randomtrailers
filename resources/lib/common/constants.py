@@ -13,9 +13,10 @@ import datetime
 import locale
 import os
 
+import xbmc
 from kodi65 import addon
 from kodi65.kodiaddon import Addon
-from kodi_six import xbmc, utils
+from kodi_six import utils
 
 
 class Constants(object):
@@ -55,13 +56,15 @@ class Constants(object):
     COUCH_POTATO_ID = 'plugin.video.couchpotato'
     InitialGarbageCollectionTime = 10 * 60  # Ten minutes in seconds
     # Run daily garbage collection at 04:13 in the morning.
-    DailyGarbageCollectionTime = datetime.time(hour=04, minute=13)
+    DailyGarbageCollectionTime = datetime.time(hour=4, minute=13)
     TRACEBACK = 'LEAK Traceback StackTrace StackDump'
     TRAILER_CACHE_FLUSH_SECONDS = 300  # Five minutes with changes
     TRAILER_CACHE_FLUSH_UPDATES = 10  # Flush cache after n updates
 
     # Altered to one month ago in static_init
     CACHE_FILE_EXPIRED_TIME = datetime.MAXYEAR
+    PLAYLIST_PATH = ''
+    LOCALE = ''
 
     plugin_short_names = {'service.randomtrailers.backend': 'randomtrailers.backend',
                           'script.video.randomtrailers.screensaver': 'randomtrailers.screensaver',
@@ -91,8 +94,8 @@ class Constants(object):
         Constants.YOUTUBE_DL_ADDON_UTIL = Addon(
             'script.module.youtube.dl')
         Constants.YOUTUBE_DL_ADDON = Constants.YOUTUBE_DL_ADDON_UTIL.addon
-        Constants.YOUTUBE_DL_ADDON_PATH = Constants.YOUTUBE_DL_ADDON.getAddonInfo(
-            'path').decode('utf-8')
+        Constants.YOUTUBE_DL_ADDON_PATH = utils.py2_decode(Constants.YOUTUBE_DL_ADDON.getAddonInfo(
+            'path'))
         Constants.YOUTUBE_DL_ADDON_LIB_PATH = os.path.join(
             Constants.YOUTUBE_DL_ADDON_PATH, 'lib')
 
@@ -103,7 +106,7 @@ class Constants(object):
             pass
 
         Constants.ADDON_PATH = utils.py2_decode(Constants.ADDON.getAddonInfo(
-            'path').decode('utf-8'))
+            'path'))
         Constants.USER_DATA_PATH = xbmc.translatePath("special://userdata")
         Constants.MEDIA_PATH = addon.MEDIA_PATH
         Constants.SCRIPT_PATH = os.path.join(
@@ -111,10 +114,10 @@ class Constants(object):
         now = datetime.datetime.now()
         secondsInMonth = datetime.timedelta(30)
         Constants.CACHE_FILE_EXPIRED_TIME = now - secondsInMonth
-        Constants.FRONTEND_DATA_PATH = xbmc.translatePath(
-            "special://profile/addon_data/%s" % Constants.FRONTEND_ID).decode("utf-8")
+        Constants.FRONTEND_DATA_PATH = utils.py2_decode(xbmc.translatePath(
+            "special://profile/addon_data/%s" % Constants.FRONTEND_ID))
         Constants.PLAYLIST_PATH = Constants.USER_DATA_PATH + '/playlists/video'
-        LOCALE = locale.getdefaultlocale()
+        Constants.LOCALE = locale.getdefaultlocale()
 
 
 Constants.static_init()

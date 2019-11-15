@@ -19,7 +19,8 @@ import re
 import threading
 import six
 
-from kodi_six import xbmc, utils
+import xbmc
+from kodi_six import utils
 
 from common.development_tools import (Any, Dict, Union,
                                       TextType, MovieType)
@@ -410,7 +411,6 @@ class Cache(object):
             cache_file = prefix + '.json'
             path = os.path.join(Settings.get_remote_db_cache_path(),
                                 folder, cache_file)
-            path = path.encode('utf-8')
             path = xbmc.validatePath(path)
 
             return path
@@ -460,8 +460,6 @@ class Cache(object):
                                         'source:', trailer[Movie.SOURCE])
 
             if movie_id is not None:
-                # prefix = Cache.generate_unique_id_from_source(
-                #    movie_id, source) + '_'
 
                 # movie_id may begin with an '_'.
 

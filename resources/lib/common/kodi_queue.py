@@ -26,8 +26,11 @@ else:
 
 
 class KodiQueue(object):
-    from queue import Full as Full
-    from queue import Empty as Empty
+    from queue import Full as _Full
+    from queue import Empty as _Empty
+
+    Full = _Full
+    Empty = _Empty
 
     def __init__(self, maxsize=0):
         # type: (int) -> None

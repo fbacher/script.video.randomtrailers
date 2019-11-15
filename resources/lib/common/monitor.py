@@ -15,7 +15,8 @@ import datetime
 import os
 import threading
 
-from kodi_six import xbmc
+import xbmc
+from kodi_six import utils
 
 from .constants import Constants
 from .critical_settings import CriticalSettings

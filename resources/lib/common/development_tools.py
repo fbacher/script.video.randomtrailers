@@ -7,7 +7,7 @@ try:
     from typing import (Any, Callable, FrozenSet, Optional, Iterable, List, Dict, Set,
                         Tuple,
                         Sequence, Union)
-    TextType = Union[str, unicode]
+    TextType = str
     MovieType = Dict[TextType, Any]
 
 except (Exception):

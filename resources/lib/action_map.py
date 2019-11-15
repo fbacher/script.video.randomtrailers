@@ -8,7 +8,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from common.imports import *
 
-from kodi_six import xbmc
+import xbmc
+
 
 class Action(object):
     # Values came from xbmcgui

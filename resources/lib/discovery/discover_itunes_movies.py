@@ -60,7 +60,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.ITUNES_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = ItunesMovieData()
         self._selected_genres = None
         self._excluded_genres = None
@@ -270,9 +270,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                 # self._logger.debug('poster:', poster)
 
-                thumb = string.replace(
-                    poster, 'poster.jpg', 'poster-xlarge.jpg')
-                fanart = string.replace(poster, 'poster.jpg', 'background.jpg')
+                thumb = poster.replace(
+                    'poster.jpg', 'poster-xlarge.jpg')
+                fanart = poster.replace('poster.jpg', 'background.jpg')
 
                 # self._logger.debug('thumb:', thumb, ' fanart:', fanart)
 

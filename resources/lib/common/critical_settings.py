@@ -11,15 +11,15 @@ from .imports import *
 from functools import wraps
 from logging import Logger as Python_Logger
 from logging import (Handler, LogRecord, NOTSET)
-import logging
 import os
 import re
 import sys
 import threading
 import traceback
 
+import xbmc
 import six
-from kodi_six import xbmc, utils
+from kodi_six import utils
 from kodi65.kodiaddon import Addon
 
 
@@ -86,7 +86,7 @@ class CriticalSettings(object):
 
             if CriticalSettings.addon is None:
                 xbmc.log('Can not access script.video.randomtrailers',
-                         level=xmbc.LOGERROR)
+                         level=xbmc.LOGERROR)
                 translated_value = 3
             else:
                 log_level = CriticalSettings.addon.setting('log_level')

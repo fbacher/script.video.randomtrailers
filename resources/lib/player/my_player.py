@@ -3,8 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import threading
 from common.imports import *
+import xbmcgui
 
-from kodi_six import xbmcgui, utils
+from kodi_six import utils
 
 from player.advanced_player import AdvancedPlayer
 from common.logger import (Logger, LazyLogger, Trace)
@@ -57,14 +58,14 @@ class MyPlayer(AdvancedPlayer):
         if file_name != passed_file_name:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('passed file name:', passed_file_name,
-                                    'trailer file_name:', file_name,)
+                                   'trailer file_name:', file_name,)
 
         listitem = xbmcgui.ListItem(title)
         listitem.setInfo(
             'video', {'title': title, 'genre': 'randomtrailers',
-                       'Genre': 'randomtrailers',
-                       'trailer': passed_file_name, 'path': utils.py2_decode(path),
-                       'mediatype': 'video', 'tag': 'randomtrailers'})
+                      'Genre': 'randomtrailers',
+                      'trailer': passed_file_name, 'path': utils.py2_decode(path),
+                      'mediatype': 'video', 'tag': 'randomtrailers'})
         listitem.setPath(file_path)
 
         self.set_playing_title(title)
@@ -135,7 +136,8 @@ class MyPlayer(AdvancedPlayer):
                 if not (self._is_url and DiskUtils.is_url(playing_file)):
                     self._is_activated = False
                     if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Player is playing movie:', playing_file)
+                        self._logger.debug(
+                            'Player is playing movie:', playing_file)
                     self.notify_non_random_trailer_video()
         except (Exception) as e:
             pass
@@ -171,8 +173,8 @@ class MyPlayer(AdvancedPlayer):
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('context:', context, 'title:',
                                        info_tag_video.getTitle(),
-                                        'genre:', info_tag_video.getGenre(),
-                                        'trailer:', info_tag_video.getTrailer())
+                                       'genre:', info_tag_video.getGenre(),
+                                       'trailer:', info_tag_video.getTrailer())
             else:
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('Not playing video')

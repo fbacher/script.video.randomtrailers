@@ -24,7 +24,8 @@ import threading
 import calendar
 import six
 
-from kodi_six import xbmc, utils
+import xbmc
+from kodi_six import utils
 
 from common.development_tools import (Any, List, Dict, Union,
                                       TextType)

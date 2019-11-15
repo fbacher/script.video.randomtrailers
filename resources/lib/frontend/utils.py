@@ -18,7 +18,8 @@ from common.settings import Settings
 from player.player_container import PlayerContainer
 
 import threading
-from kodi_six import xbmc, xbmcgui
+import xbmc
+import xbmcgui
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.utils')
@@ -89,7 +90,8 @@ class ScreensaverManager(object):
     _instance = None
 
     def __init__(self):
-        ScreensaverManager._logger = module_logger.getChild(self.__class__.__name__)
+        ScreensaverManager._logger = module_logger.getChild(
+            self.__class__.__name__)
         # self._screensaverState = ScreensaverState.getInstance()
         self._screensaverStateChanged = threading.Event()
         self._screenSaverListeners = []
@@ -105,7 +107,8 @@ class ScreensaverManager(object):
         if ScreensaverManager._instance is None:
             ScreensaverManager._instance = ScreensaverManager()
         if ScreensaverManager._logger.isEnabledFor(Logger.DEBUG):
-            ScreensaverManager._logger.debug('enter', trace=Trace.TRACE_SCREENSAVER)
+            ScreensaverManager._logger.debug(
+                'enter', trace=Trace.TRACE_SCREENSAVER)
         return ScreensaverManager._instance
 
     def inform_screensaver_listeners(self, activated=True):
@@ -147,6 +150,7 @@ class ScreensaverManager(object):
     def is_launched_as_screensaver(self):
         return self._is_screen_saver
 
+
 class BaseWindow(object):
 
     '''
@@ -183,7 +187,7 @@ class BaseWindow(object):
             self._logger.error(
                 'Invalid playlistId, ignoring request to write to playlist.')
         else:
-            Playlist.getPlaylist(playlist_file).recordPlayedTrailer(trailer)
+            Playlist.get_playlist(playlist_file).recordPlayedTrailer(trailer)
 
     def notifyUser(self, msg):
         # TODO: Supply code
@@ -194,7 +198,7 @@ class BaseWindow(object):
         # TODO: Supply code
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.debug('Playing movie at user request:',
-                          trailer[Movie.TITLE])
+                               trailer[Movie.TITLE])
 
         self.exitRandomTrailers()
         listItem = xbmcgui.ListItem(label=trailer[Movie.TITLE],
@@ -206,7 +210,7 @@ class BaseWindow(object):
                                      'plot': trailer[Movie.PLOT]})
         listItem.setProperty('isPlayable', 'true')
 
-        xbmc.Player.play(trailer[Movie.FILE].encode('utf-8'), listitem=listItem,
+        xbmc.Player.play(trailer[Movie.FILE], listitem=listItem,
                          windowed=False)
         #"PlayMedia(media[,isdir][,1],[playoffset=xx])"
         #command = 'XBMC.NotifyAll({0}.SIGNAL,{1},{2})'.format(source_id, signal,_encodeData(data))

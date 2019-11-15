@@ -60,8 +60,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                  target=None,
                  thread_name=None,  # type: TextType
                  args=(),  # type: Optional[Any]
-                 kwargs=None,  # type: Optional[Any]
-                 verbose=None   # type: Optional[bool]
+                 kwargs=None  # type: Optional[Any]
                  ):
         # type: (...) -> None
         """
@@ -71,7 +70,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         :param thread_name:
         :param args:
         :param kwargs:
-        :param verbose:
         """
         self._logger = module_logger.getChild(self.__class__.__name__)
         thread_name = type(self).__name__
@@ -79,7 +77,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             kwargs = {}
         kwargs[Movie.SOURCE] = Movie.LIBRARY_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = LibraryMovieData()
 
         self._selected_genres = []
@@ -493,7 +491,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.LIBRARY_URL_TRAILER
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = LibraryURLMovieData()
 
     def on_settings_changed(self):
@@ -569,7 +567,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.LIBRARY_NO_TRAILER
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = LibraryNoTrailerMovieData()
 
     def on_settings_changed(self):

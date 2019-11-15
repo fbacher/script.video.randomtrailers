@@ -11,9 +11,12 @@ from common.imports import *
 import sys
 import os
 import threading
+import xbmc
+import xbmcgui
+
 from xml.dom import minidom
 
-from kodi_six import xbmc, xbmcgui, utils
+from kodi_six import utils
 
 from common.constants import Constants, Movie
 from common.playlist import Playlist
@@ -79,6 +82,8 @@ else:
 logger = module_logger
 
 # noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
+
+
 def get_title_font():
     # type: () -> TextType
     """

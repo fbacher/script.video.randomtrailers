@@ -17,8 +17,7 @@ import stat
 import threading
 from queue import Queue, Empty
 
-from kodi_six import xbmc
-from kodi65 import addon
+import xbmc
 
 from backend.back_end_bridge import BackendBridge
 from common.constants import Constants

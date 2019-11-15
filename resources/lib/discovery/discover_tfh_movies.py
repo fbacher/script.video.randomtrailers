@@ -13,8 +13,9 @@ import sys
 import datetime
 import json
 import six
+import xbmc
 
-from kodi_six import xbmc
+# from kodi_six import xbmc
 
 from cache.tfh_cache import (TFHCache)
 
@@ -63,7 +64,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         kwargs[Movie.SOURCE] = Movie.TMDB_SOURCE
 
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None, verbose=None)
+                         args=(), kwargs=None)
         self._movie_data = TFHMovieData()
         self._unique_trailer_ids = set()
 
@@ -127,7 +128,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     if self._logger.isEnabledFor(Logger.DEBUG):
                         self._logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
-                    if not Settings.get_include_tfh_trailers():
+                    if not Settings.is_include_tfh_trailers():
                         finished = True
                         self.remove_self()
 
@@ -223,7 +224,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             youtube_data_stream_extractor_proxy = \
                 YDStreamExtractorProxy.get_instance()
             trailer_folder = xbmc.translatePath(
-                'special://temp').encode("utf-8")
+                'special://temp')
             url = "https://www.youtube.com/user/trailersfromhell/videos"
             success = youtube_data_stream_extractor_proxy.get_tfh_index(
                 url, self.trailer_handler)
