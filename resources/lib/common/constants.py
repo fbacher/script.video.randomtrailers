@@ -48,7 +48,8 @@ class Constants(object):
     FRONTEND_SERVICE = 'randomTrailers.frontend'
     BACKEND_SERVICE = FRONTEND_SERVICE
     SCREENSAVER_SERVICE = 'randomTrailers.screensaver.service'
-    FRONTEND_ID = 'script.video.randomtrailers'
+    ADDON_ID = 'script.video.randomtrailers'
+    FRONTEND_ID = ADDON_ID
     # BACKEND_ID = 'service.randomtrailers.backend'
     BACKEND_ID = FRONTEND_ID
 
@@ -69,6 +70,10 @@ class Constants(object):
     plugin_short_names = {'service.randomtrailers.backend': 'randomtrailers.backend',
                           'script.video.randomtrailers.screensaver': 'randomtrailers.screensaver',
                           'script.video.randomtrailers': 'randomtrailers.frontend'}
+
+    VIDEO_TYPE_TRAILER = 'Trailer'
+    VIDEO_TYPE_FEATURETTE = 'Featurette'
+    VIDEO_TYPE_CLIP = 'Clip'
 
     @staticmethod
     def static_init():
@@ -357,6 +362,10 @@ List.Sort
     DETAIL_WRITERS = 'rts.writers'
     DETAIL_TAGS = 'rts.tags'
 
+    # For use with speech synthesis
+    MAX_VOICED_ACTORS = 3
+    VOICED_DETAIL_ACTORS = 'rts.voiced.actors'
+
     # Reference to corresponding movie dict entry
     DETAIL_ENTRY = 'rts.movie.entry'
 
@@ -412,8 +421,9 @@ List.Sort
 
     CACHED = 'cached'
 
-
 # noinspection PyClassHasNoInit
+
+
 class iTunes(object):
     """
         Defines constants that apply to iTunes

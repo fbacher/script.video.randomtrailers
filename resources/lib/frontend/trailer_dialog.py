@@ -32,6 +32,7 @@ from frontend.history_empty import HistoryEmpty
 
 # noinspection PyUnresolvedReferences
 from frontend.utils import ReasonEvent, BaseWindow, ScreensaverState
+from frontend import text_to_speech
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger(
@@ -682,6 +683,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         if show_brief_info:
             title = self.get_title_string(self._trailer)
             self.get_title_control().setLabel(title)
+            if not show_detail_info:
+                text_to_speech.say_text(title, interrupt=True)
 
         self.set_visibility(video_window=False, info=show_detail_info,
                             brief_info=show_brief_info,
@@ -745,6 +748,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     self.get_player().pausePlay()
 
             self.update_detail_view()
+            self.voice_detail_view()
             self.show_detail_info(self._trailer, display_seconds)
 
     def show_detail_info(self, trailer, display_seconds=0):
@@ -768,6 +772,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._show_details_event.set()  # Force show_detail_info to unblock
         self.set_visibility(video_window=False, info=False, brief_info=False,
                             notification=False, information=False)
+        text_to_speech.say_text('.', interrupt=True)
 
     def hide_detail_info(self, reason=''):
         # type: (TextType) -> None
@@ -888,8 +893,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             control.setImage(thumbnail)
 
             self.getControl(38004).setImage(self._trailer[Movie.FANART])
-
-            title_string = self.get_title_string(self._trailer)
+            verbose = False
+            if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+                verbose = True
+            title_string = self.get_title_string(self._trailer, verbose)
 
             title = self.getControl(38003)
             title.setLabel(title_string)
@@ -920,6 +927,74 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             image_rating = self._trailer[Movie.DETAIL_RATING_IMAGE]
             self.getControl(38013).setImage(image_rating)
+
+            self._logger.exit()
+
+        except (AbortException, ShutdownException):
+            raise sys.exc_info()
+        except (Exception) as e:
+            self._logger.exception('')
+        finally:
+            pass
+
+    def voice_detail_view(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
+        try:
+            Monitor.throw_exception_if_shutdown_requested()
+            self._logger.enter()
+
+            title_label = \
+                Messages.get_instance().get_formatted_msg(Messages.TITLE_LABEL)
+            text_to_speech.say_text(title_label, interrupt=True)
+
+            title_string = self.get_title_string(self._trailer)
+            text_to_speech.say_text(title_string, interrupt=False)
+
+            director_label = \
+                Messages.get_instance().get_formatted_msg(Messages.DIRECTOR_LABEL)
+            text_to_speech.say_text(director_label, interrupt=False)
+
+            movie_directors = self._trailer[Movie.DETAIL_DIRECTORS]
+            text_to_speech.say_text(movie_directors, interrupt=False)
+
+            writer_label = \
+                Messages.get_instance().get_formatted_msg(Messages.WRITER_LABEL)
+            text_to_speech.say_text(writer_label, interrupt=False)
+
+            movie_writers = self._trailer[Movie.DETAIL_WRITERS]
+            text_to_speech.say_text(movie_writers, interrupt=False)
+
+            stars_label = \
+                Messages.get_instance().get_formatted_msg(Messages.STARS_LABEL)
+            text_to_speech.say_text(stars_label, interrupt=False)
+
+            movie_actors = self._trailer[Movie.VOICED_DETAIL_ACTORS]
+            text_to_speech.say_text(movie_actors, interrupt=False)
+
+            plot_label = \
+                Messages.get_instance().get_formatted_msg(Messages.PLOT_LABEL)
+            text_to_speech.say_text(plot_label, interrupt=False)
+
+            plot = self._trailer[Movie.PLOT]
+            text_to_speech.say_text(plot, interrupt=False)
+
+            runtime_genres = self._messages.get_formatted_msg(Messages.RUNTIME_GENRE,
+                                                     self._trailer[Movie.DETAIL_RUNTIME],
+                                                     self._trailer[Movie.DETAIL_GENRES])
+            text_to_speech.say_text(runtime_genres, interrupt=False)
+
+            movie_studios = self._trailer[Movie.DETAIL_STUDIOS]
+            text_to_speech.say_text(movie_studios, interrupt=False)
+
+            label = self._messages.get_formatted_msg(Messages.RUNTIME_GENRE,
+                                                     self._trailer[Movie.DETAIL_RUNTIME],
+                                                     self._trailer[Movie.DETAIL_GENRES])
+
+            image_rating = self._trailer[Movie.DETAIL_RATING_IMAGE]
 
             self._logger.exit()
 
@@ -1418,8 +1493,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         Monitor.shutdown_requested()
         self._logger.exit('Just started player')
 
-    def get_title_string(self, trailer):
-        # type: (dict) -> TextType
+    def get_title_string(self, trailer, verbose=False):
+        # type: (dict, bool) -> TextType
         """
 
         :param trailer:
@@ -1429,7 +1504,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         try:
             title = '[B]' + trailer[Movie.DETAIL_TITLE] + '[/B]'
 
-            if Settings.is_debug():
+            if verbose:
                 cached = False
                 normalized = False
                 if self._trailer.get(Movie.NORMALIZED_TRAILER) is not None:
