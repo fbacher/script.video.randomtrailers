@@ -1054,6 +1054,10 @@ class TrailerFetcher(TrailerFetcherInterface):
             actors = self.get_actors(trailer, tmdb_detail_movie_info, source)
             trailer[Movie.DETAIL_ACTORS] = actors
 
+            actors = self.get_actors(trailer, tmdb_detail_movie_info, source,
+                                     max_actors= Movie.MAX_VOICED_ACTORS)
+            trailer[Movie.VOICED_DETAIL_ACTORS] = actors
+
             movie_studios = ', '.join(trailer.get(Movie.STUDIO, []))
 
             title_string = Messages.get_instance().get_formated_title(trailer)
@@ -1123,27 +1127,38 @@ class TrailerFetcher(TrailerFetcherInterface):
         # Itunes does not supply writer info, get from TMDB query
 
         if source == Movie.ITUNES_SOURCE:
-            writers = tmdb_info.get(Movie.WRITER, [])
+            writers_temp = tmdb_info.get(Movie.WRITER, [])
         else:
-            writers = trailer.get(Movie.WRITER, [])
+            writers_temp = trailer.get(Movie.WRITER, [])
+
+        # The same person can be the book author, the script writer,
+        # etc.
+
+        unique_writers = dict()
+        writers = []
+        for writer in writers_temp:
+            if unique_writers.get(writer, None) is None:
+                unique_writers[writer] = writer
+                writers.append(writer)
 
         movie_writers = ', '.join(writers)
 
         return movie_writers
 
-    def get_actors(self, trailer, info, source):
-        # type: ( MovieType, MovieType, TextType) -> TextType
+    def get_actors(self, trailer, info, source, max_actors=6):
+        # type: ( MovieType, MovieType, TextType, int) -> TextType
         """
 
         :param self:
         :param trailer:
         :param info:
         :param source:
+        :param max_actors:
         :return:
         """
         actors = trailer.get(Movie.CAST, [])
-        if len(actors) > 6:
-            actors = actors[:5]
+        if len(actors) > max_actors:
+            actors = actors[:(max_actors - 1)]
         actors_list = []
         try:
             for actor in actors:
