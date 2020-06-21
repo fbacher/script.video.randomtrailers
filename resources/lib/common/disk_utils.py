@@ -481,6 +481,7 @@ class DiskUtils(object):
             trailer_cache_path_top = Settings.get_downloaded_trailer_cache_path()
             now = datetime.datetime.now()
 
+            found_directories = set()
             for root, dirs, files in os.walk(top):
                 for filename in files:
                     Monitor.get_instance().throw_exception_if_shutdown_requested()
@@ -489,13 +490,17 @@ class DiskUtils(object):
                         pattern = patterns[cache_name]
                         if pattern in filename:
                             path = os.path.join(root, filename)
+                            mod_time = now
                             try:
-                                st = os.stat(path)
-                                mod_time = datetime.datetime.fromtimestamp(
-                                    st.st_mtime)
-                                size_in_blocks = st.st_size
-                                size_on_disk = ((size_in_blocks - 1) /
-                                                block_size + 1) * block_size
+                                if not os.path.isdir(path):
+                                    st = os.stat(path)
+                                    mod_time = datetime.datetime.fromtimestamp(
+                                        st.st_mtime)
+                                    size_in_blocks = st.st_size
+                                    size_on_disk = ((size_in_blocks - 1) /
+                                                    block_size + 1) * block_size
+                                else:
+                                    found_directories.add(path)
                             except (OSError) as e:
                                 continue  # File doesn't exist
                             except (Exception) as e:
@@ -536,6 +541,12 @@ class DiskUtils(object):
                                 usage_data.add_file_data(file_data)
                                 usage_data.add_to_disk_used_by_cache(
                                     size_on_disk)
+
+            for directory in found_directories:
+                try:
+                    os.rmdir(directory)
+                except (Exception) as e:
+                    pass
 
         except (AbortException, ShutdownException) as e:
             pass
