@@ -41,6 +41,7 @@ from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 from cache.cache import (Cache)
 from cache.cache_index import (CacheIndex)
+from cache.trailer_cache import (TrailerCache)
 from cache.trailer_unavailable_cache import (TrailerUnavailableCache)
 from backend.genreutils import GenreUtils
 from backend.backend_constants import YOUTUBE_URL_PREFIX
@@ -211,8 +212,10 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # if cached files purged, then reload them
 
                     if discovery_state == Movie.DISCOVERY_READY_TO_DISPLAY:
-                        self.validate_cached_files(trailer)
+                        TrailerCache.validate_cached_files(trailer)
                         discovery_state = trailer[Movie.DISCOVERY_STATE]
+                        if discovery_state < Movie.DISCOVERY_READY_TO_DISPLAY:
+                            self.cache_and_normalize_trailer(trailer)
 
                     if discovery_state < Movie.DISCOVERY_READY_TO_DISPLAY:
                         fully_populated_trailer = self.get_detail_info(trailer)
@@ -224,41 +227,17 @@ class TrailerFetcher(TrailerFetcherInterface):
                     else:
                         self._playable_trailers.add_to_ready_to_play_queue(
                             trailer)
+
+                    trailer_path = trailer[Movie.TRAILER]
+                    if DiskUtils.is_url(trailer_path) \
+                            and trailer[Movie.SOURCE] == Movie.TMDB_SOURCE:
+                        tmdb_id = MovieEntryUtils.get_tmdb_id(trailer)
+                        CacheIndex.remove_unprocessed_movie(tmdb_id)
                 else:
                     self._fetch_trailer_to_play_worker(trailer)
                 finished = True
             except (RestartDiscoveryException):
                 Monitor.throw_exception_if_shutdown_requested(0.10)
-
-    def validate_cached_files(self,
-                              movie  # type: MovieType
-                              ):
-        cache_file_missing = False
-
-        if movie.get(Movie.CACHED_TRAILER, "") != "":
-            try:
-                if not os.path.exists(movie[Movie.CACHED_TRAILER]):
-                    movie[Movie.CACHED_TRAILER] = None
-                    cache_file_missing = True
-            except (Exception):
-                self._logger.error('Movie:', movie[Movie.TITLE],
-                                   'cached_trailer:', movie[Movie.CACHED_TRAILER])
-                movie[Movie.CACHED_TRAILER] = None
-                cache_file_missing = True
-
-        if movie.get(Movie.NORMALIZED_TRAILER, "") != "":
-            try:
-                if not os.path.exists(movie[Movie.NORMALIZED_TRAILER]):
-                    movie[Movie.NORMALIZED_TRAILER] = None
-                    cache_file_missing = True
-            except (Exception):
-                self._logger.error('Movie:', movie[Movie.TITLE],
-                                   'normalized_trailer:', movie[Movie.NORMALIZED_TRAILER])
-                movie[Movie.NORMALIZED_TRAILER] = None
-                cache_file_missing = True
-
-        if cache_file_missing and movie[Movie.DISCOVERY_STATE] > Movie.DISCOVERY_COMPLETE:
-            movie[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_COMPLETE
 
     def _fetch_trailer_to_play_worker(self,
                                       trailer  # type: MovieType
@@ -345,7 +324,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # Ok, tmdb_id not in Kodi database, query TMDB
 
                     if (tmdb_id is None or tmdb_id == ''
-                        ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
+                            ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
                         tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                             trailer[Movie.TITLE], trailer['year'])
                         self.throw_exception_on_forced_to_stop()
@@ -511,36 +490,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                         keep_new_trailer = True
 
         if keep_new_trailer:
-            if (Settings.is_use_trailer_cache() and
-                    (DiskUtils.is_url(trailer[Movie.TRAILER]) or
-                     trailer[Movie.SOURCE] != Movie.LIBRARY_SOURCE)):
-                self.cache_remote_trailer(trailer)
-
-                # If download for cache fails, then probably can't play from
-                # URL either
-
-                if trailer.get(Movie.CACHED_TRAILER) is None:
-                    keep_new_trailer = False
-            else:
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Not caching:', trailer[Movie.TITLE],
-                                       'trailer:', trailer[Movie.TRAILER],
-                                       'source:', trailer[Movie.SOURCE],
-                                       'state:', trailer[Movie.DISCOVERY_STATE])
+            keep_new_trailer = self.cache_and_normalize_trailer(trailer)
 
         if keep_new_trailer:
-            normalized = False
-            if Settings.is_normalize_volume_of_downloaded_trailers():
-                self.normalize_trailer_sound(trailer)
-                normalized = True
-
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(trailer[Movie.TITLE], 'audio normalized:',
-                                   normalized,
-                                   'trailer:', trailer.get(
-                                       Movie.NORMALIZED_TRAILER),
-                                   'source:', trailer[Movie.SOURCE])
-
             trailer[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_COMPLETE
             AbstractMovieData.get_aggregate_trailers_by_name_date()[
                 movie_id] = trailer
@@ -589,6 +541,36 @@ class TrailerFetcher(TrailerFetcherInterface):
         Monitor.throw_exception_if_shutdown_requested(delay=delay)
         if self._movie_data.restart_discovery_event.isSet():
             raise RestartDiscoveryException()
+
+    def cache_and_normalize_trailer(self, movie):
+        trailer_ok = True
+        if (Settings.is_use_trailer_cache() and
+                (DiskUtils.is_url(movie[Movie.TRAILER]) or
+                 movie[Movie.SOURCE] != Movie.LIBRARY_SOURCE)):
+            trailer_ok = self.cache_remote_trailer(movie)
+
+        else:
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('Not caching:', movie[Movie.TITLE],
+                                   'trailer:', movie[Movie.TRAILER],
+                                   'source:', movie[Movie.SOURCE],
+                                   'state:', movie[Movie.DISCOVERY_STATE])
+
+        if trailer_ok:
+            normalized = False
+            if (Settings.is_normalize_volume_of_downloaded_trailers() or
+                    Settings.is_normalize_volume_of_local_trailers()):
+                self.normalize_trailer_sound(movie)
+                normalized = True
+
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug(movie[Movie.TITLE], 'audio normalized:',
+                                   normalized,
+                                   'trailer:', movie.get(
+                                       Movie.NORMALIZED_TRAILER),
+                                   'source:', movie[Movie.SOURCE])
+
+            return trailer_ok
 
     # noinspection SyntaxError
     def get_tmdb_trailer(self,
@@ -727,6 +709,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         try:
             if tmdb_result.get(Movie.CACHED) is not None:
                 dict_info[Movie.CACHED] = tmdb_result.get(Movie.CACHED)
+
             #
             # First, deal with the trailer. If there is no trailer, there
             # is no point continuing.
@@ -777,6 +760,17 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             dict_info[Movie.TYPE] = trailer_type
             MovieEntryUtils.set_tmdb_id(dict_info, tmdb_id)
+
+            if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+                tmdb_countries = tmdb_result['releases']['countries']
+                mpaa = ''
+                for c in tmdb_countries:
+                    if c['iso_3166_1'] == Settings.getLang_iso_3166_1():
+                        mpaa = c['certification']
+                if mpaa == '':
+                    self._logger.debug('No certification. Title:',
+                                       tmdb_result[Movie.TITLE],
+                                       'year:', year, 'trailer:', trailer_key)
 
             # No point going on if we don't have a  trailer
 
@@ -1081,6 +1075,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             trailer[Movie.DETAIL_RATING_IMAGE] = img_rating
 
             trailer[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_READY_TO_DISPLAY
+            if tmdb_id is not None:
+                CacheIndex.remove_unprocessed_movie(tmdb_id)
 
             if not keep_trailer:
                 trailer = None
@@ -1206,7 +1202,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         return runtime
 
     def cache_remote_trailer(self, movie):
-        # type: (MovieType) -> None
+        # type: (MovieType) -> bool
         """
 
         :param self:
@@ -1218,6 +1214,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         download_path = None
         movie_id = None
         cached_path = None
+        trailer_ok = True
 
         try:
             start = datetime.datetime.now()
@@ -1237,14 +1234,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                 movie[Movie.NORMALIZED_TRAILER] = None
 
             if not DiskUtils.is_url(trailer_path):
-                return
+                return trailer_ok
 
             # No need for cached trailer if we have a cached normalized trailer
             if movie.get(Movie.NORMALIZED_TRAILER) is not None:
-                return
+                return trailer_ok
 
             if trailer_path.startswith('plugin'):
-                video_id = re.sub(r'^.*video_id=', '', trailer_path)
+                video_id = re.sub(r'^.*video_?id=', '', trailer_path)
                 # plugin://plugin.video.youtube/play/?video_id=
                 new_path = 'https://youtu.be/' + video_id
                 trailer_path = new_path
@@ -1252,7 +1249,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
                              Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
             if movie[Movie.SOURCE] not in valid_sources:
-                return
+                return trailer_ok
 
             movie_id = Cache.get_video_id(movie)
 
@@ -1279,6 +1276,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                     for cached_trailer in cached_trailers:
                         if 'normalized' in cached_trailer:
                             already_normalized = True
+                            if movie.get(Movie.NORMALIZED_TRAILER) is None:
+                                movie[Movie.NORMALIZED_TRAILER] = cached_trailer
 
                     if not already_normalized:
                         movie[Movie.CACHED_TRAILER] = cached_trailers[0]
@@ -1320,6 +1319,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     if download_path is None:
                         self._missing_trailers_playlist.record_played_trailer(
                             movie, use_movie_path=False, msg='Download FAILED')
+                        trailer_ok = False
                     else:
                         #
                         # Rename and cache
@@ -1366,6 +1366,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 self._logger.debug('Exception. Movie:', movie[Movie.TITLE],
                                    'ID:', movie_id, 'Path:', cached_path)
             self._logger.exception('')
+
+        return trailer_ok
 
     def normalize_trailer_sound(self, movie):
         # type: (TrailerFetcher, MovieType) -> None
@@ -1478,12 +1480,22 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if not os.path.exists(normalized_path):
                     DiskUtils.create_path_if_needed(
                         os.path.dirname(normalized_path))
+
+                    # TODO: terminate process if Shutdown occurs
+
                     cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                             'resources', 'lib', 'shell',
                                             'ffmpeg_normalize.sh')
                     args = [cmd_path, trailer_path, normalized_path]
-                    rc = subprocess.call(args, stdin=None, stdout=None,
-                                         stderr=None, shell=False)
+                    try:
+                        rc = subprocess.call(args, stdin=None, stdout=None,
+                                             stderr=None, shell=False)
+                    except (ProcessLookupError):
+                        rc = -1
+                        if self._logger.isEnabledFor(Logger.DEBUG):
+                            self._logger.debug('ProcessLookupError Movie:', movie[Movie.TITLE],
+                                               'Path:', normalized_path)
+                        self._logger.exception('')
 
                     if rc == 0:
                         if self._logger.isEnabledFor(Logger.DEBUG):

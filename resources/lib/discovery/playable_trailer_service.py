@@ -24,6 +24,7 @@ from common.logger import (Logger, Trace, LazyLogger)
 from discovery.abstract_movie_data import AbstractMovieData
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.playable_trailers_container import PlayableTrailersContainer
+from cache.trailer_cache import (TrailerCache)
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger().getChild(
@@ -267,11 +268,19 @@ class PlayableTrailerService(object):
                         'PlayableTrailerService.next Attempt:', attempts,
                         'manager:', found_playable_trailers.__class__.__name__)
                 trailer = found_playable_trailers.get_next_movie()
-                found_playable_trailers.set_starving(False)
-                title = trailer[Movie.TITLE] + ' : ' + trailer[Movie.TRAILER]
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug(
-                        'PlayableTrailerService.next found:', title)
+                TrailerCache.validate_cached_files(trailer)
+
+                # If cached trailer is invalid, then skip over this trailer.
+
+                if trailer[Movie.DISCOVERY_STATE] != Movie.DISCOVERY_READY_TO_DISPLAY:
+                    trailer = None
+                else:
+                    found_playable_trailers.set_starving(False)
+                    title = trailer[Movie.TITLE] + \
+                        ' : ' + trailer[Movie.TRAILER]
+                    if self._logger.isEnabledFor(Logger.DEBUG):
+                        self._logger.debug(
+                            'PlayableTrailerService.next found:', title)
             except (queue.Empty):
                 found_playable_trailers.set_starving(True)
                 trailer = None
@@ -291,7 +300,7 @@ class PlayableTrailerService(object):
             second_attempt_start_time = datetime.datetime.now()
             second_method_attempts = 0
             iteration = 0
-            playable_trailers_list = playable_trailers_map.keys()
+            playable_trailers_list = [*playable_trailers_map.keys()]
             DiskUtils.RandomGenerator.shuffle(playable_trailers_list)
             for source in itertools.cycle(playable_trailers_list):
                 try:
@@ -309,8 +318,16 @@ class PlayableTrailerService(object):
                                 'discoveredTrailerQueue empty',
                                 'source:', source,
                                 trace=Trace.TRACE_DISCOVERY)
-                        playable_trailers.get_movie_data().shuffle_discovered_trailers(mark_unplayed=True)
+                        playable_trailers.get_movie_data().\
+                            shuffle_discovered_trailers(mark_unplayed=True)
                     trailer = playable_trailers.get_next_movie()
+
+                    # If cached trailer is invalid, then skip over this
+                    # trailer.
+
+                    if trailer[Movie.DISCOVERY_STATE] != Movie.DISCOVERY_READY_TO_DISPLAY:
+                        trailer = None
+
                     if trailer is not None:
                         break
                 except (queue.Empty):
@@ -322,22 +339,20 @@ class PlayableTrailerService(object):
                     Monitor.get_instance().throw_exception_if_shutdown_requested(
                         delay=0.5)
 
-        # movie = trailer[Movie.DETAIL_ENTRY]
-        # movie[Movie.TRAILER_PLAYED] = True
-        trailer[Movie.TRAILER_PLAYED] = True
-        title = trailer[Movie.TITLE] + ' : ' + trailer[Movie.TRAILER]
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('PlayableTrailerService.next trailer:',
-                               title)
+        if trailer is None:
+            self._next_failures += 1
+        else:
+            trailer[Movie.TRAILER_PLAYED] = True
+            title = trailer[Movie.TITLE] + ' : ' + trailer[Movie.TRAILER]
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug('PlayableTrailerService.next trailer:',
+                                   title)
 
         duration = datetime.datetime.now() - start_time
         self._next_total_duration += duration.seconds
         self._next_calls += 1
         self._next_attempts += attempts
         self._next_total_first_method_attempts += attempts
-
-        if trailer is None:
-            self._next_failures += 1
 
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.debug('elapsedTime:', duration.seconds, 'seconds',
@@ -354,11 +369,12 @@ class PlayableTrailerService(object):
                                    second_method_attempts, 'elapsedTime:',
                                    second_duration.seconds, trace=Trace.STATS)
 
+        if trailer is None:
+            raise StopIteration
+
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.debug('Playing:', trailer[Movie.DETAIL_TITLE],
                                trace=Trace.TRACE)
-        if trailer is None:
-            raise StopIteration
 
         # Periodically report on played movie statistics
 
