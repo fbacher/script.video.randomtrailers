@@ -106,8 +106,8 @@ class Debug(object):
         string_buffer = string_buffer + '\n*** STACKTRACE - END ***\n'
 
         msg = Debug._currentAddonName + ' : dump_all_threads'
-        xbmc.log(msg.encode('utf-8'), xbmc.LOGERROR)
-        xbmc.log(string_buffer.encode('utf-8'), xbmc.LOGDEBUG)
+        xbmc.log(msg, xbmc.LOGERROR)
+        xbmc.log(string_buffer, xbmc.LOGDEBUG)
 
     @classmethod
     def compare_movies(cls, trailer, new_trailer, max_value_length=60):
