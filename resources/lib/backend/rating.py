@@ -77,8 +77,8 @@ class Rating(object):
             Rating(re.compile('^Rated R.*$'),
                    Rating.RATING_R),  # R with comment
             # Adult
-            Rating(re.compile('^NC17.*$'), Rating.RATING_NC_17),
-            Rating(re.compile('^Rated NC17.*$'), Rating.RATING_NC_17),
+            Rating(re.compile('^NC-17.*$'), Rating.RATING_NC_17),
+            Rating(re.compile('^Rated NC-17.*$'), Rating.RATING_NC_17),
             Rating(re.compile('^X.*$'), Rating.RATING_NC_17),
 
             Rating(re.compile('^NR$'), Rating.RATING_NR),
