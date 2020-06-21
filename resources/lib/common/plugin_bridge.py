@@ -38,6 +38,7 @@ class PluginBridgeStatus(object):
     TIMED_OUT = 'Timed Out'
     BUSY = 'Busy'
     OK = 'OK'
+    DELETED = 'Deleted'  # When cached trailer (or even non-cached) is deleted
 
 
 class PluginBridge(object):

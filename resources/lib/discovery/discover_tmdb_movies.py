@@ -408,6 +408,105 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         return movies
 
+    def filter_movie(self,
+                     movie  # type: MovieType
+                     ):
+        # type: (...) -> bool
+        """
+
+        :param movie: # type: MovieType
+                Movie to filter
+        :return: # type: bool
+        """
+
+        try:
+            result = True
+            if self._minimum_year is not None \
+                    and movie[Movie.YEAR] < self._minimum_year:
+                result = False
+            elif self._maximum_year is not None \
+                    and movie[Movie.YEAR] > self._maximum_year:
+                result = False
+            elif movie.get(Movie.TYPE) is not None \
+                    and Settings.get_include_featurettes() \
+                    and movie[Movie.TYPE] != Constants.VIDEO_TYPE_FEATURETTE:
+                result = False
+            elif movie.get(Movie.TYPE) is not None \
+                    and Settings.get_include_clips() \
+                    and movie[Movie.TYPE] != Constants.VIDEO_TYPE_CLIP:
+                result = False
+            # if Settings.getLang_iso_3166_1() != movie[Movie.COUNTRY]:
+            #     break
+            elif movie.get(Movie.MPAA) is not None and \
+                    not Rating.check_rating(movie[Movie.MPAA]):
+                result = False
+            # if self._vote_value
+
+            elif not Settings.is_allow_foreign_languages() \
+                    and movie[Movie.ORIGINAL_LANGUAGE] != Settings.getLang_iso_639_1():
+                result = False
+            """
+            if Settings.get_filter_genres() and not tag_found and not genre_found:
+                add_movie = False
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Rejected due to GenreUtils or Keyword')
+
+            if vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
+                if vote_comparison == \
+                        RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
+                    if vote_average < vote_value:
+                        add_movie = False
+                        if self._logger.isEnabledFor(Logger.DEBUG):
+                            self._logger.debug(
+                                'Rejected due to vote_average <')
+                elif vote_comparison == \
+                        RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
+                    if vote_average > vote_value:
+                        add_movie = False
+                        if self._logger.isEnabledFor(Logger.DEBUG):
+                            self._logger.debug(
+                                'Rejected due to vote_average >')
+
+            original_title = tmdb_result['original_title']
+            if original_title is not None:
+                dict_info[Movie.ORIGINAL_TITLE] = original_title
+
+            adult_movie = tmdb_result['adult'] == 'true'
+            if adult_movie and not include_adult:
+                add_movie = False
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Rejected due to adult')
+
+            dict_info[Movie.ADULT] = adult_movie
+            dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
+
+            # Normalize rating
+
+            mpaa = Rating.get_mpa_rating(mpaa_rating=mpaa, adult_rating=None)
+            if not Rating.check_rating(mpaa):
+                add_movie = False
+                if self._logger.isEnabledFor(Logger.DEBUG):
+                    self._logger.debug('Rejected due to rating')
+                    # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
+
+            current_parameters = CacheParameters({
+                'excluded_tags': self._excluded_keywords,
+                'remote_trailer_preference': self._remote_trailer_preference,
+                'vote_comparison': self._vote_comparison,  # type: int
+                'vote_value': self._vote_value,  # type: int
+                'rating_limit_string': self._rating_limit_string,  # type: TextType
+                'language': self._language,  # type TextType
+                'country': self._country,  # type: TextType
+            })
+            """
+
+        except (AbortException, ShutdownException, RestartDiscoveryException):
+            six.reraise(*sys.exc_info())
+        except (Exception) as e:
+            self._logger.exception('')
+
+        return result
+
     def configure_year_query(self,
                              tmdb_trailer_type,  # type: TextType
                              tmdb_search_query="",  # type: TextType
@@ -684,15 +783,39 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         try:
             # Send any unprocessed TMDB trailers to the discovered list
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug(
+                    "Sending unprocessed movies to discovered list")
 
             unprocessed_movies = CacheIndex.get_unprocessed_movies()
             for movie in unprocessed_movies.values():
-                self.add_to_discovered_trailers(movie)
+                if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+                    if Movie.MPAA in movie and movie[Movie.MPAA] == '':
+                        self._logger.debug('No certification. Title:',
+                                           movie[Movie.TITLE],
+                                           'year:', movie.get(Movie.YEAR),
+                                           'trailer:', movie.get(Movie.TRAILER))
+
+                if Movie.DISCOVERY_STATE in movie:
+                    if movie[Movie.DISCOVERY_STATE] == Movie.NOT_FULLY_DISCOVERED \
+                            and self.filter_movie(movie):
+                        self.add_to_discovered_trailers(movie)
+                    if movie[Movie.DISCOVERY_STATE] >= Movie.DISCOVERY_COMPLETE:
+                        tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                        CacheIndex.remove_unprocessed_movie(tmdb_id)
+                else:
+                    self._logger.error('Missing discovery state for unprocessed movie:',
+                                       movie[Movie.TITLE])
+
         except (Exception) as e:
             self._logger.exception('')
 
         try:
             # Send any cached TMDB trailers to the discovered list
+            if self._logger.isEnabledFor(Logger.DEBUG):
+                self._logger.debug(
+                    "Sending cached TMDB trailers to discovered list")
+
             tmdb_trailer_ids = CacheIndex.get_found_tmdb_trailer_ids().copy()
             movies = []
             for tmdb_id in tmdb_trailer_ids:
@@ -709,8 +832,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                    Movie.ORIGINAL_LANGUAGE:
                                        cached_movie[Movie.ORIGINAL_LANGUAGE]}
                     MovieEntryUtils.set_tmdb_id(movie_entry, tmdb_id)
-                    movies.append(movie_entry)
-            CacheIndex.add_unprocessed_movies(movies)
+                    if self.filter_movie(movie_entry):
+                        movies.append(movie_entry)
+
+            # Don't add found trailers to unprocessed_movies
+            # CacheIndex.add_unprocessed_movies(movies)
             self.add_to_discovered_trailers(movies)
         except (Exception) as e:
             self._logger.exception('')

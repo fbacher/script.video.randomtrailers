@@ -110,3 +110,12 @@ class HistoryList(object):
             self._logger.exit('movie', title, 'len(buffer):',
                               len(self._buffer), 'cursor:', self._cursor)
         return movie
+
+    def remove(self, movie):
+        try:
+            i = self._buffer.index(movie)
+            del self._buffer[i]
+            if self._cursor >  len(self._buffer) - 1:
+                self._cursor = len(self._buffer) - 1
+        except (Exception) as e:
+            pass # Does not exist in list

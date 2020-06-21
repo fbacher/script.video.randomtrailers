@@ -10,9 +10,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from common.imports import *
 
 import datetime
-import sys
-import threading
 import queue
+import sys
+import os
+import threading
 import six
 
 from kodi_six import xbmc, xbmcgui
@@ -110,11 +111,36 @@ class MovieManager(object):
 
         title = None
         if trailer is not None:
+            if self.purge_removed_cached_trailers(trailer):
+                self._movie_history.remove(trailer)
+                return self.get_next_trailer()
+
+        if trailer is not None:
             title = trailer.get(Movie.TITLE)
         if self._logger.isEnabledFor(Logger.DEBUG):
             self._logger.exit('status:', status, 'trailer', title)
 
         return status, trailer
+
+    def purge_removed_cached_trailers(self, trailer):
+        trailer_path = None
+        if trailer.get(Movie.NORMALIZED_TRAILER) is not None:
+            trailer_path = trailer[Movie.NORMALIZED_TRAILER]
+            if not os.path.exists(trailer_path):
+                trailer[Movie.NORMALIZED_TRAILER] = None
+                self._logger.debug('Does not exist:', trailer_path)
+        elif trailer.get(Movie.CACHED_TRAILER) is not None:
+            trailer_path = trailer[Movie.CACHED_TRAILER]
+            if not os.path.exists(trailer_path):
+                trailer[Movie.CACHED_TRAILER] = None
+                self._logger.debug('Does not exist:', trailer_path)
+        else:
+            trailer_path = trailer[Movie.TRAILER]
+            if trailer_path is None or not os.path.exists(trailer_path):
+                trailer[Movie.TRAILER] = None
+                self._logger.debug('Does not exist:', trailer_path)
+                trailer_path = None
+        return trailer_path is None
 
     def pre_fetch_trailer(self):
         self._thread = threading.Thread(
