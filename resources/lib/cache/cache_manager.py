@@ -378,11 +378,13 @@ class CacheManager(object):
             usage_data_map = DiskUtils.get_stats_for_path(
                 Settings.get_downloaded_trailer_cache_path(),
                 {'trailer': '-trailer.',
-                 'json': '.json'})
+                 'json': '.json',
+                 'tfh': '-movie.'})
         else:
             usage_data_map = DiskUtils.get_stats_for_path(
                 Settings.get_downloaded_trailer_cache_path(),
-                {'trailer': '-trailer.'})
+                {'trailer': '-trailer.',
+                 'tfh': '-movie.'})
             json_usage_data = DiskUtils.get_stats_for_path(
                 Settings.get_remote_db_cache_path(),
                 {'json': '.json'})

@@ -244,10 +244,18 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         trailer_id = tfh_trailer['id']
         if trailer_id not in self._unique_trailer_ids:
             self._unique_trailer_ids.add(trailer_id)
+
+            # TFH trailers are titled: <reviewer> on <MOVIE_TITLE_ALL_CAPS>
+            # Here we can try to get just the movie title and then look up
+            # a likely match in TMDB (with date, and other info).
+
+            # TFH may not like changing the title, however.
+
             title = tfh_trailer['title']
-            title_segments = title.split(' on ')
-            real_title_index = len(title_segments) - 1
-            movie_title = title_segments[real_title_index]
+            #title_segments = title.split(' on ')
+            #real_title_index = len(title_segments) - 1
+            #movie_title = title_segments[real_title_index]
+            movie_title = title
             trailer_url = 'https://youtu.be/' + trailer_id
             upload_date = tfh_trailer['upload_date']  # 20120910
             year = upload_date[0:4]
