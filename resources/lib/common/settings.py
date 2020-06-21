@@ -39,7 +39,7 @@ class Settings(object):
     _previous_settings = {}
 
     ADJUST_VOLUME = 'do_volume'
-    ALLOW_FOREIGN_LANGUAGES = 'allow_foreign_languages'
+    TMDB_ALLOW_FOREIGN_LANGUAGES = 'tmdb_allow_foreign_languages'
     TMDB_VOTE_FILTER = 'tmdb_vote_filter'
     TMDB_VOTE_VALUE = 'tmdb_vote_value'
     DO_NOT_RATED = 'do_nr'
@@ -79,7 +79,7 @@ class Settings(object):
     GROUP_TRAILERS = 'group_trailers'
     GROUP_DELAY = 'group_delay'
     TRAILERS_PER_GROUP = 'trailers_per_group'
-    HIDE_WATCHED_MOVIES = 'hide_watched'
+    LIBRARY_HIDE_WATCHED_MOVIES = 'hide_watched'
     INCLUDE_CLIPS = 'do_clips'
     INCLUDE_FEATURETTES = 'do_featurettes'
     INCLUDE_TEASERS = 'do_teasers'
@@ -89,7 +89,7 @@ class Settings(object):
     INCLUDE_LIBRARY_TRAILERS = 'do_library'
     INCLUDE_NOT_YET_RATED = 'do_notyetrated'
     INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS = 'do_library_remote_trailers'
-    INCLUDE_REMOTE_TRAILERS = 'do_remote_trailers'
+    LIBRARY_INCLUDE_REMOTE_TRAILERS = 'do_remote_trailers'
     INCLUDE_TMDB_TRAILERS = 'do_tmdb'
     INCLUDE_TRAILER_FOLDERS = 'do_folder'
     INCLUDE_TFH_TRAILERS = 'include_tfh_trailers'
@@ -145,7 +145,7 @@ class Settings(object):
     ENABLE_TRAILER_CACHE = 'use_trailer_cache'
     CACHE_EXPIRATION_DAYS = 'json_cache_expiration_days'
     EXPIRE_TRAILER_CACHE_DAYS = 'trailer_cache_expiration_days'
-    CACHE_TRAILER_CHECK_DAYS = 'trailer_exixtance_cache_check_days'
+    CACHE_TRAILER_CHECK_DAYS = 'trailer_existance_cache_check_days'
     TRAILER_CACHE_PATH = 'trailer_cache_path'
     CACHE_PATH = 'remote_db_cache_path'
     PLAYLIST_1 = "playlist_name_1"
@@ -161,7 +161,7 @@ class Settings(object):
 
     ALL_SETTINGS = [
         ADJUST_VOLUME,
-        ALLOW_FOREIGN_LANGUAGES,
+        TMDB_ALLOW_FOREIGN_LANGUAGES,
         TMDB_VOTE_FILTER,
         TMDB_VOTE_VALUE,
         DO_NOT_RATED,
@@ -201,7 +201,7 @@ class Settings(object):
         GROUP_TRAILERS,
         GROUP_DELAY,
         TRAILERS_PER_GROUP,
-        HIDE_WATCHED_MOVIES,
+        LIBRARY_HIDE_WATCHED_MOVIES,
         INCLUDE_CLIPS,
         INCLUDE_FEATURETTES,
         INCLUDE_TEASERS,
@@ -211,7 +211,7 @@ class Settings(object):
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_NOT_YET_RATED,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        INCLUDE_REMOTE_TRAILERS,
+        LIBRARY_INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TMDB_TRAILERS,
         INCLUDE_TRAILER_FOLDERS,
         LIMIT_CACHED_TRAILERS,
@@ -281,9 +281,6 @@ class Settings(object):
     ]
 
     TRAILER_LOADING_SETTINGS = [
-        ALLOW_FOREIGN_LANGUAGES,
-        TMDB_VOTE_FILTER,
-        TMDB_VOTE_VALUE,
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -317,7 +314,7 @@ class Settings(object):
         GENRE_WAR,
         GENRE_WAR_DOCUMENTARY,
         GENRE_WESTERN,
-        HIDE_WATCHED_MOVIES,
+        LIBRARY_HIDE_WATCHED_MOVIES,
         INCLUDE_CLIPS,
         INCLUDE_FEATURETTES,
         INCLUDE_TEASERS,
@@ -327,7 +324,7 @@ class Settings(object):
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_NOT_YET_RATED,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        INCLUDE_REMOTE_TRAILERS,
+        LIBRARY_INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TMDB_TRAILERS,
         INCLUDE_TFH_TRAILERS,
         INCLUDE_TRAILER_FOLDERS,
@@ -339,13 +336,10 @@ class Settings(object):
         TMDB_YEAR_RANGE_MINIMUM,
         TMDB_YEAR_RANGE_MAXIMUM,
         TMDB_TRAILER_TYPE,
-        CACHE_TRAILER_CHECK_DAYS,
         TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
         TMDB_MAX_DOWNLOAD_MOVIES]
 
     COMMON_TRAILER_LOADING_SETTINGS = [
-        TMDB_VOTE_FILTER,
-        TMDB_VOTE_VALUE,
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -379,48 +373,42 @@ class Settings(object):
         GENRE_WAR,
         GENRE_WAR_DOCUMENTARY,
         GENRE_WESTERN,
-        HIDE_WATCHED_MOVIES,
+        INCLUDE_NOT_YET_RATED,
+        MINIMUM_DAYS_SINCE_WATCHED,
+        RATING_LIMIT]
+
+    ITUNES_SPECIFIC_SETTINGS = [
+        # ITUNES_QUALITY,
         INCLUDE_CLIPS,
         INCLUDE_FEATURETTES,
         INCLUDE_TEASERS,
         INCLUDE_ITUNES_TRAILERS,
-        ITUNES_TRAILER_TYPE,
-        INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO,
-        INCLUDE_LIBRARY_TRAILERS,
-        INCLUDE_NOT_YET_RATED,
-        INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        INCLUDE_REMOTE_TRAILERS,
-        INCLUDE_TMDB_TRAILERS,
-        INCLUDE_TFH_TRAILERS,
-        INCLUDE_TRAILER_FOLDERS,
-        MINIMUM_DAYS_SINCE_WATCHED,
-        # ITUNES_QUALITY,
-        RATING_LIMIT,
-        TMDB_ENABLE_SELECT_BY_YEAR_RANGE,
-        TMDB_YEAR_RANGE_MINIMUM,
-        TMDB_YEAR_RANGE_MAXIMUM,
-        TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
-        TMDB_MAX_DOWNLOAD_MOVIES]
-
-    ITUNES_SPECIFIC_SETTINGS = [
-        # ITUNES_QUALITY,
-        INCLUDE_ITUNES_TRAILERS,
         ITUNES_TRAILER_TYPE]
 
     LIBRARY_SPECIFIC_SETTINGS = [
-        HIDE_WATCHED_MOVIES,
+        LIBRARY_HIDE_WATCHED_MOVIES,
         INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO,
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        INCLUDE_REMOTE_TRAILERS,
+        LIBRARY_INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TRAILER_FOLDERS]
 
     TMDB_SPECIFIC_SETTINGS = [
-        ALLOW_FOREIGN_LANGUAGES,
+        TMDB_ALLOW_FOREIGN_LANGUAGES,
         TMDB_SORT_ORDER,
         TMDB_TRAILER_TYPE,
         INCLUDE_TMDB_TRAILERS,
-        TMDB_SORT_ORDER
+        INCLUDE_CLIPS,
+        INCLUDE_FEATURETTES,
+        INCLUDE_TEASERS,
+        TMDB_SORT_ORDER,
+        TMDB_ENABLE_SELECT_BY_YEAR_RANGE,
+        TMDB_VOTE_VALUE,
+        TMDB_VOTE_FILTER,
+        TMDB_YEAR_RANGE_MINIMUM,
+        TMDB_YEAR_RANGE_MAXIMUM,
+        TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
+        TMDB_MAX_DOWNLOAD_MOVIES
     ]
 
     TFH_SPECIFIC_SETTINGS = [
@@ -524,22 +512,6 @@ class Settings(object):
         return changed_settings
 
     @staticmethod
-    def is_trailer_loading_settings_changed():
-        # type: () -> bool
-        """
-
-        :return:
-        """
-        if len(Settings.get_changed_settings(Settings.TRAILER_LOADING_SETTINGS)) > 0:
-            result = True
-        result = False
-
-        if module_logger.isEnabledFor(Logger.DEBUG):
-            Settings._logger.debug('changed:', result)
-
-        return result
-
-    @staticmethod
     def is_common_trailer_loading_settings_changed():
         # type: () -> bool
         """
@@ -549,7 +521,8 @@ class Settings(object):
         if len(Settings.get_changed_settings(
                 Settings.COMMON_TRAILER_LOADING_SETTINGS)) > 0:
             result = True
-        result = False
+        else:
+            result = False
 
         if module_logger.isEnabledFor(Logger.DEBUG):
             Settings._logger.debug('changed:', result)
@@ -566,7 +539,7 @@ class Settings(object):
         if len(Settings.get_changed_settings(Settings.LIBRARY_SPECIFIC_SETTINGS)) > 0:
             result = True
         else:
-            result = Settings.is_trailer_loading_settings_changed()
+            result = Settings.is_common_trailer_loading_settings_changed()
 
         if module_logger.isEnabledFor(Logger.DEBUG):
             Settings._logger.debug('changed:', result)
@@ -583,7 +556,7 @@ class Settings(object):
         if len(Settings.get_changed_settings(Settings.ITUNES_SPECIFIC_SETTINGS)) > 0:
             result = True
         else:
-            result = Settings.is_trailer_loading_settings_changed()
+            result = Settings.is_common_trailer_loading_settings_changed()
 
         if module_logger.isEnabledFor(Logger.DEBUG):
             Settings._logger.debug('changed:', result)
@@ -600,7 +573,7 @@ class Settings(object):
         if len(Settings.get_changed_settings(Settings.TMDB_SPECIFIC_SETTINGS)) > 0:
             result = True
         else:
-            result = Settings.is_trailer_loading_settings_changed()
+            result = Settings.is_common_trailer_loading_settings_changed()
 
         if module_logger.isEnabledFor(Logger.DEBUG):
             Settings._logger.debug('changed:', result)
@@ -617,7 +590,7 @@ class Settings(object):
         if len(Settings.get_changed_settings(Settings.TFH_SPECIFIC_SETTINGS)) > 0:
             result = True
         else:
-            result = Settings.is_trailer_loading_settings_changed()
+            result = Settings.is_common_trailer_loading_settings_changed()
 
         if module_logger.isEnabledFor(Logger.DEBUG):
             Settings._logger.debug('changed:', result)
@@ -651,7 +624,7 @@ class Settings(object):
         :return:
         """
         allow_foreign_languages = Settings.get_setting_bool(
-            Settings.ALLOW_FOREIGN_LANGUAGES)
+            Settings.TMDB_ALLOW_FOREIGN_LANGUAGES)
         return allow_foreign_languages
 
     @staticmethod
@@ -1125,7 +1098,7 @@ class Settings(object):
 
         :return:
         """
-        return Settings.get_setting_bool(Settings.HIDE_WATCHED_MOVIES)
+        return Settings.get_setting_bool(Settings.LIBRARY_HIDE_WATCHED_MOVIES)
 
     @staticmethod
     def get_include_clips():
@@ -1221,7 +1194,7 @@ class Settings(object):
 
         :return:
         """
-        return Settings.get_setting_bool(Settings.INCLUDE_REMOTE_TRAILERS)
+        return Settings.get_setting_bool(Settings.LIBRARY_INCLUDE_REMOTE_TRAILERS)
 
     @staticmethod
     def get_include_tmdb_trailers():
@@ -1748,6 +1721,8 @@ class Settings(object):
         if Settings.get_adjust_volume():
             volume = Settings.get_setting_int(Settings.VOLUME)
 
+        return volume
+
     @staticmethod
     def get_tmdb_include_old_movie_trailers():
         # type: () -> bool
@@ -1822,7 +1797,7 @@ class Settings(object):
 
     @staticmethod
     def get_expire_trailer_cache_days():
-        # type: () -> bool
+        # type: () -> int
         """
 
         :return:
