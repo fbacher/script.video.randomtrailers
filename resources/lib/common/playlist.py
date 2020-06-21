@@ -15,6 +15,7 @@ import os
 import threading
 
 import xbmc
+import xbmcvfs
 from kodi_six import utils
 
 from .constants import Constants, Movie
@@ -80,7 +81,7 @@ class Playlist(object):
             path = Constants.PLAYLIST_PATH + '/' + playlist_name
         else:
             path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         path = xbmc.translatePath(path)
         already_exists = False
         if append:
@@ -93,7 +94,7 @@ class Playlist(object):
         if rotate:
             try:
                 save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
-                save_path = xbmc.validatePath(save_path)
+                save_path = xbmcvfs.validatePath(save_path)
                 try:
                     os.remove(save_path)
                 except (Exception) as e:
@@ -159,8 +160,10 @@ class Playlist(object):
         name = trailer.get(Movie.TITLE, 'unknown Title')
         year = '(' + str(trailer.get(Movie.YEAR, 'unknown Year')) + ')'
         movie_type = trailer.get(Movie.TYPE, 'Unknown MovieType')
-        movie_path = trailer.get(Movie.FILE, '')
+        movie_path = trailer.get(Movie.FILE, None)
         if movie_path is None:
+            if use_movie_path: # Nothing to do if there is no movie path
+                return
             movie_path = 'Unknown movie path'
         trailer_path = trailer.get(Movie.TRAILER, '')
         cache_path_prefix = Settings.get_downloaded_trailer_cache_path()
@@ -187,7 +190,7 @@ class Playlist(object):
                 return
 
         if self.playlist_format:
-            line = "EXTINF:0," + name + '\n'
+            line = Playlist.PLAYLIST_ENTRY_PREFIX + name + '\n'
             line += path + '\n'
         else:
             line = name + '  ' + year + '  # path: ' + formatted_title + ' ' +\
@@ -227,7 +230,7 @@ class Playlist(object):
         """
         try:
             with Playlist._playlist_lock:
-                for playlist in Playlist._playlists.copy().itervalues():
+                for playlist in Playlist._playlists.copy().values():
                     playlist.close()
         finally:
             with Playlist._playlist_lock:

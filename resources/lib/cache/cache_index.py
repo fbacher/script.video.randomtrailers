@@ -20,6 +20,7 @@ import os
 import threading
 
 import xbmc
+import xbmcvfs
 from kodi_six import utils
 
 from common.development_tools import (Any, List,
@@ -282,7 +283,7 @@ class CacheParameters(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_discovery_parameters.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
             DiskUtils.create_path_if_needed(parent_dir)
@@ -365,7 +366,7 @@ class CacheParameters(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_discovery_parameters.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
             DiskUtils.create_path_if_needed(parent_dir)
@@ -582,7 +583,7 @@ class CachedPagesData(object):
             return int(len(self._cached_page_by_key))
 
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
     def get_undiscovered_search_pages(self):
         # type: () -> List[CachedPage]
@@ -600,7 +601,7 @@ class CachedPagesData(object):
                 if not search_page.processed:
                     undiscovered_search_pages.append(search_page)
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
         return undiscovered_search_pages
 
@@ -619,7 +620,7 @@ class CachedPagesData(object):
                 if not search_page.processed:
                     number_of_undiscovered_pages += 1
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
         return int(number_of_undiscovered_pages)
 
@@ -638,7 +639,7 @@ class CachedPagesData(object):
                 if search_page.processed:
                     number_of_discovered_pages += 1
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
         return int(number_of_discovered_pages)
 
@@ -659,7 +660,7 @@ class CachedPagesData(object):
 
             cached_page = self._cached_page_by_key.get(key)
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
         return cached_page
 
@@ -714,7 +715,7 @@ class CachedPagesData(object):
                     json_dict[key] = entry_dict
 
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
         return json_dict
 
     def from_json(self, encoded_values):
@@ -756,7 +757,7 @@ class CachedPagesData(object):
             cached_pages_data._time_of_last_save = datetime.datetime.now()
 
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
         return cached_pages_data
 
@@ -772,14 +773,16 @@ class CachedPagesData(object):
                 and
                 self.get_time_since_last_save() < datetime.timedelta(minutes=5)):
             return
-        path = xbmc.validatePath(self._path)
+        saved_pages = 0
+        path = xbmcvfs.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
 
             with CacheIndex.lock, io.open(path, mode='wt', newline=None,
                                           encoding='utf-8') as cacheFile:
-                json_text = utils.py2_decode(json.dumps(self.to_json(),
+                json_dict = self.to_json()
+                json_text = utils.py2_decode(json.dumps(json_dict,
                                                         encoding='utf-8',
                                                         ensure_ascii=False,
                                                         default=CacheIndex.handler,
@@ -790,11 +793,13 @@ class CachedPagesData(object):
                 self._time_of_last_save = datetime.datetime.now()
 
         except (IOError) as e:
-            self._logger().exception('')
+            self._logger.exception('')
         except (JSONDecodeError) as e:
             os.remove(path)
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
+
+        self._logger.debug_verbose("Entries Saved: ", saved_pages)
 
     def load_search_pages(self):
         # type: () -> None
@@ -805,7 +810,7 @@ class CachedPagesData(object):
         if self._cached_page_by_key is not None:
             return
 
-        path = xbmc.validatePath(self._path)
+        path = xbmcvfs.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -822,13 +827,14 @@ class CachedPagesData(object):
                 self._cached_page_by_key = dict()
 
         except (IOError) as e:
-            self._logger().exception('')
+            self._logger.exception('')
         except (JSONDecodeError) as e:
             os.remove(path)
             self._cached_page_by_key = dict()
         except (Exception) as e:
-            self._logger().exception('')
+            self._logger.exception('')
 
+        self._logger.debug_verbose("Loaded entries:", len(self._cached_page_by_key))
         self._time_of_last_save = datetime.datetime.now()
 
     def clear(self):
@@ -1074,7 +1080,7 @@ class CacheIndex(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_unprocessed_movies.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
             DiskUtils.create_path_if_needed(parent_dir)
@@ -1107,7 +1113,7 @@ class CacheIndex(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_unprocessed_movies.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -1151,7 +1157,7 @@ class CacheIndex(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_found_trailers.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
             DiskUtils.create_path_if_needed(parent_dir)
@@ -1217,7 +1223,7 @@ class CacheIndex(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'tmdb_found_trailers.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)

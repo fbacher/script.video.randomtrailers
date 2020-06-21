@@ -20,6 +20,7 @@ import threading
 import six
 
 import xbmc
+import xbmcvfs
 from kodi_six import utils
 
 from common.development_tools import (Any, Dict, Union,
@@ -245,10 +246,10 @@ class Cache(object):
                 return None
             with io.open(path, mode='wt', newline=None,
                          encoding='utf-8', ) as cacheFile:
-                json_text = utils.py2_decode(json.dumps(trailer,
-                                                        encoding='utf-8',
-                                                        ensure_ascii=False,
-                                                        indent=3, sort_keys=True))
+                json_text = json.dumps(trailer,
+                                    encoding='utf-8',
+                                    ensure_ascii=False,
+                                    indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
                 stop = datetime.datetime.now()
@@ -411,7 +412,7 @@ class Cache(object):
             cache_file = prefix + '.json'
             path = os.path.join(Settings.get_remote_db_cache_path(),
                                 folder, cache_file)
-            path = xbmc.validatePath(path)
+            path = xbmcvfs.validatePath(path)
 
             return path
         except (Exception) as e:
@@ -497,7 +498,7 @@ class Cache(object):
                 path = os.path.join(Settings.get_downloaded_trailer_cache_path(),
                                     folder, file_name)
                 # Should not be needed
-                path = xbmc.validatePath(path)
+                path = xbmcvfs.validatePath(path)
 
         except (Exception) as e:
             title = trailer.get(Movie.TITLE, 'no title')

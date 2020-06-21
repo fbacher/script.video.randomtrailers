@@ -18,6 +18,7 @@ import os
 import threading
 
 import xbmc
+import xbmcvfs
 
 from kodi_six import utils
 
@@ -237,7 +238,7 @@ class TrailerUnavailableCache(object):
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_tmdb_trailers.json')
                     # path = path.encode('utf-8')
-                    path = xbmc.validatePath(path)
+                    path = xbmcvfs.validatePath(path)
                     parent_dir, file_name = os.path.split(path)
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
@@ -276,7 +277,7 @@ class TrailerUnavailableCache(object):
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_library_trailers.json')
                     # path = path.encode('utf-8')
-                    path = xbmc.validatePath(path)
+                    path = xbmcvfs.validatePath(path)
                     parent_dir, file_name = os.path.split(path)
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
@@ -341,7 +342,7 @@ class TrailerUnavailableCache(object):
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_tmdb_trailers.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -365,7 +366,7 @@ class TrailerUnavailableCache(object):
 
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_library_trailers.json')
-        path = xbmc.validatePath(path)
+        path = xbmcvfs.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
