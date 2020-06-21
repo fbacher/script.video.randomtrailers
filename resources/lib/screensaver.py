@@ -24,7 +24,7 @@ from kodi_six import utils
 import sys
 
 
-REMOTE_DBG = True
+REMOTE_DBG = False  # True
 
 # append pydev remote debugger
 if REMOTE_DBG:

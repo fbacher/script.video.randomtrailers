@@ -36,7 +36,7 @@ from common.playlist import Playlist
 
 from frontend import random_trailers_ui
 
-REMOTE_DBG = True
+REMOTE_DBG = False
 
 # append pydev remote debugger
 if REMOTE_DBG:
@@ -45,7 +45,7 @@ if REMOTE_DBG:
     try:
         xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
-        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
+        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTHON'] =\
         #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
         #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
 
