@@ -681,9 +681,6 @@ class JsonUtilsBasic(object):
                 if JsonUtilsBasic._logger.isEnabledFor(Logger.DEBUG):
                     JsonUtilsBasic._logger.debug(
                         'generated url:', response.url)
-                    if type(response.text).__name__ != 'unicode':
-                        JsonUtilsBasic._logger.debug('HTTP response text type should be unicode:',
-                                                     type(response.text).__name__)
                     json_text = response.json()
                     # Don't specify encoding so that it figures out for itself. iTunes
                     # was using Windows-1252 encoding.
@@ -876,10 +873,10 @@ class JsonUtilsBasic(object):
         # else:
         #    Debug.myLog('requests: ' + str(Constants.tmdbRequestCount))
 
-        if dump_results and JsonUtilsBasic._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
-            JsonUtilsBasic._logger.debug_extra_verbose('JSON DUMP:', dump_msg)
-            JsonUtilsBasic._logger.debug_extra_verbose(json.dumps(
-                json_text, indent=3, sort_keys=True))
+        #if dump_results and JsonUtilsBasic._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+        #    JsonUtilsBasic._logger.debug_extra_verbose('JSON DUMP:', dump_msg)
+        #    JsonUtilsBasic._logger.debug_extra_verbose(json.dumps(
+        #        json_text, indent=3, sort_keys=True))
 
         if status_code == 200:
             status_code = 0
