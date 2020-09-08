@@ -12,6 +12,8 @@ as well as best practices.
 
 4) (DONE) To improve functionality and performance.
 
+5) (DONE) Works with TTS plugin
+
 Work Items:
 
  * (DONE) Support for non-English languages (text processing)
