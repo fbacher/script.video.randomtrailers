@@ -4,21 +4,21 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 '''
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
+import os
 import re
+import sys
 
+from common.exceptions import AbortException
 from common.constants import (Constants)
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
+from common.messages import Messages
+from common.monitor import Monitor
 from common.settings import Settings
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'backend.rating')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Rating(object):
@@ -29,6 +29,21 @@ class Rating(object):
     RATING_R = 'R'
     RATING_NC_17 = 'NC-17'
     RATING_NR = 'NR'
+    _logger = None
+    ALLOWED_RATINGS = None
+    POSSIBLE_RATINGS = (RATING_G,
+                        RATING_PG,
+                        RATING_PG_13,
+                        RATING_R,
+                        RATING_NC_17,
+                        RATING_NR)
+
+    MESSAGE_IDS = {RATING_G: Messages.RATING_G,
+                   RATING_PG: Messages.RATING_PG,
+                   RATING_PG_13: Messages.RATING_PG_13,
+                   RATING_R: Messages.RATING_R,
+                   RATING_NC_17: Messages.RATING_NC_17,
+                   RATING_NR: Messages.RATING_NR}
 
     def __init__(self, pattern, mpaa_rating_label):
         self._pattern = pattern
@@ -36,9 +51,9 @@ class Rating(object):
 
     @classmethod
     def _init_class(cls):
-        Rating._logger = module_logger.getChild(cls.__name__)
+        cls._logger = module_logger.getChild(cls.__name__)
 
-        Rating.ALLOWED_RATINGS = (
+        cls.ALLOWED_RATINGS = (
 
             # General Audience
             Rating(re.compile('^A$'), Rating.RATING_G),  # Hays
@@ -91,28 +106,28 @@ class Rating(object):
         )
 
     @classmethod
-    def get_mpa_rating(cls, mpaa_rating=None, adult_rating=None):
+    def get_mpa_rating(cls, mpaa_rating='', adult_rating=False):
 
         rating = cls.RATING_NR
         if adult_rating is not None:
             if adult_rating:
                 rating = cls.RATING_NC_17
 
-        if Rating._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             Rating._logger.debug_extra_verbose(
-                'In randomtrailers.get_mpa_rating rating:',
+                'rating:',
                 mpaa_rating, 'adult:', adult_rating)
 
         found_rating = False
-        for rating_pattern in Rating.ALLOWED_RATINGS:
+        for rating_pattern in cls.ALLOWED_RATINGS:
             if rating_pattern._pattern.match(mpaa_rating):
                 found_rating = True
                 rating = rating_pattern._mpaa_rating_label
                 break
 
         if not found_rating:
-            if Rating._logger.isEnabledFor(Logger.DEBUG):
-                Rating._logger.debug('mpaa rating not found for:',
+            if Rating._logger.isEnabledFor(LazyLogger.DEBUG):
+                Rating._logger.debug('MPAA rating not found for:',
                                      mpaa_rating, 'assuming Not Rated')
 
         return rating
@@ -147,8 +162,8 @@ class Rating(object):
         passed = False
         max_rating = Settings.get_rating_limit_setting()
 
-        if Rating._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
-            Rating._logger.enter('rating:', rating, 'limit:', max_rating)
+        # if Rating._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        #    Rating._logger.enter('rating:', rating, 'limit:', max_rating)
 
         if max_rating == '0':
             passed = True
@@ -180,6 +195,11 @@ class Rating(object):
                 passed = True
 
         return passed
+
+    @staticmethod
+    def get_message_for_rating(rating):
+        msg_id = Rating.MESSAGE_IDS[rating]
+        return Messages.get_msg(msg_id)
 
 
 Rating._init_class()
