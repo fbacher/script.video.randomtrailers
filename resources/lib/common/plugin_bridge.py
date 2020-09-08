@@ -59,7 +59,7 @@ class PluginBridge(object):
         try:
             self._monitor = Monitor.get_instance()
             self._monitor.register_shutdown_listener(self.on_shutdown_event)
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
         except (Exception) as e:
             self._logger.exception('')
@@ -129,9 +129,9 @@ class PluginBridge(object):
                 name='BackendBridge.on_settings_changed')
 
             thread.start()
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             self._logger.exception('')
 
     def send_signal_worker(self, signal, data=None, source_id=None):

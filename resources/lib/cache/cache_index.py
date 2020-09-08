@@ -17,6 +17,7 @@ import simplejson as json
 from simplejson import (JSONDecodeError)
 
 import os
+import sys
 import threading
 
 import xbmc
@@ -27,8 +28,10 @@ from common.development_tools import (Any, List,
                                       Dict, Union,
                                       TextType, MovieType)
 from common.constants import (Constants, Movie, RemoteTrailerPreference)
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger)
 from common.messages import Messages
+from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import Settings
 from common.disk_utils import DiskUtils
@@ -290,14 +293,18 @@ class CacheParameters(object):
 
         with CacheIndex.lock:
             try:
+                Monitor.throw_exception_if_abort_requested()
+
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     json_text = cls.to_json()
                     cacheFile.write(json_text)
                     cacheFile.flush()
+            except AbortException:
+                six.reraise(*sys.exc_info())
             except (IOError) as e:
                 cls._logger.exception('')
-            except (Exception) as e:
+            except Exception as e:
                 cls._logger.exception('')
 
     @classmethod
@@ -390,10 +397,12 @@ class CacheParameters(object):
                              encoding='utf-8') as cacheFile:
                     saved_preferences = json.load(cacheFile, encoding='utf-8')
                     saved_preferences = CacheParameters(saved_preferences)
-            except (IOError) as e:
+            except AbortException:
+                six.reraise(*sys.exc_info())
+            except IOError as e:
                 cls._logger.exception('')
                 exception_occurred = True
-            except (Exception) as e:
+            except Exception as e:
                 cls._logger.exception('')
                 exception_occurred = True
 
@@ -600,7 +609,10 @@ class CachedPagesData(object):
             for search_page in self._cached_page_by_key.values():
                 if not search_page.processed:
                     undiscovered_search_pages.append(search_page)
-        except (Exception) as e:
+            Monitor.throw_exception_if_abort_requested()
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
 
         return undiscovered_search_pages
@@ -619,7 +631,9 @@ class CachedPagesData(object):
             for search_page in self._cached_page_by_key.values():
                 if not search_page.processed:
                     number_of_undiscovered_pages += 1
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
 
         return int(number_of_undiscovered_pages)

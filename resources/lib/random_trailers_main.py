@@ -27,7 +27,7 @@ import xbmcplugin
 from kodi65 import addon
 from common.monitor import Monitor
 from common.constants import Constants
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.watchdog import WatchDog
 from common.settings import Settings
 from frontend.front_end_bridge import FrontendBridge
@@ -69,9 +69,9 @@ if REMOTE_DBG:
         try:
             pydevd.settrace('localhost', stdoutToServer=True,
                             stderrToServer=True)
-        except (AbortException, ShutdownException):
+        except AbortException:
             raise sys.exc_info()
-        except (Exception) as e:
+        except Exception as e:
             xbmc.log(
                 ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
@@ -94,7 +94,7 @@ else:
 class MainThreadLoop(object):
     """
         Kodi's Monitor class has some quirks in it that strongly favor creating
-        it from the main thread as well as callng xbmc.sleep/xbmc.waitForAbort.
+        it from the main thread as well as callng xbmc.sleep/xbmc.wait_for_abort.
         The main issue is that a Monitor event can not be received until
         xbmc.sleep/xbmc.waitForAbort is called FROM THE SAME THREAD THAT THE
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
@@ -163,10 +163,12 @@ class MainThreadLoop(object):
                 target=self.ui_thread_runner,
                 name='ui_thread')
             thread.start()
-        except (Exception):
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception:
             module_logger.exception('')
 
-        self._monitor.set_startup_complete()
+        Monitor.set_startup_complete()
         self.event_processing_loop()
 
     def event_processing_loop(self):
@@ -192,12 +194,7 @@ class MainThreadLoop(object):
             # If this is not done, then Kodi will get constipated
             # sending/receiving events to plugins.
 
-            while not self._monitor._waitForAbort(timeout=timeout):
-                # Need to check for a shutdown event because an abort
-                # event will not trigger one at this time.
-
-                self._monitor.throw_exception_if_shutdown_requested(delay=0)
-
+            while not Monitor._wait_for_abort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 0.10
@@ -208,21 +205,18 @@ class MainThreadLoop(object):
                 except (queue.Empty):
                     pass
 
-        except (Exception) as e:
-            MainThreadLoop._logger.exception('')
-        finally:
-            monitor = Monitor.get_instance()
-            if monitor is not None and monitor.is_shutdown_requested():
-                if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-                    MainThreadLoop._logger.debug(
-                        '*********************** SHUTDOWN MAIN **************')
-            WatchDog.shutdown()
-
+            Monitor.throw_exception_if_abort_requested(timeout=timeout)
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            self._logger.exception(e)
     def ui_thread_runner(self):
         try:
             self._start_ui = random_trailers_ui.StartUI(self._is_screensaver)
             self._start_ui.start()
-        except (Exception):
+        except AbortException:
+            pass  # Thread to die
+        except Exception:
             MainThreadLoop._logger.exception('')
 
     def run_on_main_thread(self, callable_class):
@@ -245,9 +239,9 @@ class MainThreadLoop(object):
             MainThreadLoop._logger.enter()
         try:
             callable_class()
-        except (AbortException, ShutdownException) as e:
+        except AbortException:
             pass
-        except (Exception) as e:
+        except Exception:
             MainThreadLoop._logger.exception('')
 
     def configure_settings(self):
@@ -295,7 +289,7 @@ def bootstrap_random_trailers(is_screensaver):
         if module_logger.isEnabledFor(Logger.DEBUG):
             module_logger.exit('Exiting plugin')
 
-    except (AbortException, ShutdownException) as e:
+    except AbortException:
         pass
     except (Exception) as e:
         module_logger.exception('')

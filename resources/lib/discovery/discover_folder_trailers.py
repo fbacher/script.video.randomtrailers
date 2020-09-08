@@ -21,7 +21,7 @@ import xbmcvfs
 from common.constants import Constants, Movie
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.logger import (Logger, LazyLogger, Trace)
 from common.settings import Settings
@@ -100,7 +100,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                         finished = True
                         self.remove_self()
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             return  # Just exit thread
         except (Exception):
             self._logger.exception('')
@@ -163,9 +163,9 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                             self.add_to_discovered_trailers(
                                 new_trailer)
 
-                        except (AbortException, ShutdownException):
+                        except AbortException:
                             six.reraise(*sys.exc_info())
-                        except (Exception) as e:
+                        except Exception as e:
                             self._logger.exception('')
 
                     for item in dirs:
@@ -174,9 +174,9 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                         self.discover_basic_information_worker(
                             sub_tree)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
         return
 

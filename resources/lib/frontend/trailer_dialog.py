@@ -151,8 +151,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._show_details_event = threading.Event()
         self._wait_event = ReasonEvent()
         self._ready_to_exit_event = threading.Event()
-        monitor = Monitor.get_instance()
-        monitor.register_shutdown_listener(self.on_shutdown_event)
+        Monitor.register_abort_listener(self.on_abort_event)
 
         self._saved_brief_info_visibility = False
         self._movie_manager = MovieManager()
@@ -269,6 +268,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         finally:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('About to close TrailerDialog')
+
+            Monitor.unregister_abort_listener(self.on_abort_event)
 
             self.cancel_long_playing_trailer_killer()
             # self._logger.debug('Stopped xbmc.Player')
@@ -649,12 +650,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         match = False
-        if Monitor is None or Monitor.is_shutdown_requested():
+        if Monitor is None or Monitor.is_abort_requested():
             self._dialog_state = DialogState.SHUTDOWN
 
         if self._dialog_state == DialogState.SHUTDOWN:
-            if throw_exception_on_shutdown and Monitor is not None:
-                Monitor.throw_exception_if_shutdown_requested()
+            if throw_exception_on_abort and Monitor is not None:
+                Monitor.throw_exception_if_abort_requested()
             else:
                 match = True
         elif exact_match:
@@ -885,7 +886,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         try:
-            Monitor.throw_exception_if_shutdown_requested()
+            Monitor.throw_exception_if_abort_requested()
             self._logger.enter()
 
             control = self.getControl(38002)  # type: xbmcgui.ControlImage
@@ -944,7 +945,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         try:
-            Monitor.throw_exception_if_shutdown_requested()
+            Monitor.throw_exception_if_abort_requested()
             self._logger.enter()
 
             title_label = \
@@ -1479,10 +1480,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 DialogState.SHUTDOWN_CUSTOM_PLAYER)
             xbmc.Player().play(movie)
 
-        if Monitor.is_shutdown_requested():
+        if Monitor.is_abort_requested():
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('SHUTDOWN requested before playing movie!')
-        while not Monitor.wait_for_shutdown(timeout=0.10):
+        while not Monitor.wait_for_abort(timeout=0.10):
             # Call xbmc.Player directly to avoid using DummyPlayer
             if xbmc.Player().isPlayingVideo():
                 break
@@ -1490,7 +1491,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.set_random_trailers_play_state(DialogState.STARTED_PLAYING_MOVIE)
 
         # Time to exit plugin
-        Monitor.shutdown_requested()
+        Monitor.abort_requested()
         self._logger.exit('Just started player')
 
     def get_title_string(self, trailer, verbose=False):
@@ -1538,9 +1539,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             Note that this method can be called voluntarily, when the plugin
             decides to exit, as in the case of the configured number of trailers
-            has played. OR, can be called by Monitor detecting a shutdown or
+            has played. OR, can be called by Monitor detecting an
             abort, in which case the shutdown still needs to be orderly, but
-            since there are frequent checks for Monitor shutdown/abort, the
+            since there are frequent checks for Monitor abort, the
             shutdown is less orderly, since the code is sprinkled with checks.
             In such case, some parts of the plugin can be shutting down already.
 

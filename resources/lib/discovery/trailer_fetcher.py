@@ -26,8 +26,7 @@ from common.monitor import Monitor
 from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.disk_utils import DiskUtils
 from common.playlist import Playlist
-from common.exceptions import AbortException, ShutdownException
-from common.watchdog import WatchDog
+from common.exceptions import AbortException
 from common.settings import Settings
 from common.logger import (Logger, Trace, LazyLogger)
 from common.messages import Messages
@@ -146,9 +145,9 @@ class TrailerFetcher(TrailerFetcherInterface):
         """
         try:
             self.run_worker()
-        except (ShutdownException, AbortException):
+        except AbortException:
             return  # Just exit thread
-        except (Exception):
+        except Exception:
             self._logger.exception('')
 
     def run_worker(self):
@@ -188,9 +187,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                     self._logger.debug('got movie from fetch queue:',
                                        trailer[Movie.TITLE])
                 self.fetch_trailer_to_play(trailer)
-            except (AbortException, ShutdownException) as e:
+            except AbortException as e:
                 six.reraise(*sys.exc_info())
-            except (Exception) as e:
+            except Exception as e:
                 self._logger.exception('')
 
     def fetch_trailer_to_play(self,
@@ -688,9 +687,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                     'Error getting TMDB data for:', movie_title,
                     'status:', status_code)
                 return Constants.REJECTED_STATUS, None
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             self._logger.exception('')
             self._logger.exit('Error processing movie: ', movie_title)
             if ignore_failures:
@@ -702,7 +701,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         try:
             year = tmdb_result['release_date'][:-6]
             year = int(year)
-        except (Exception):
+        except Exception:
             year = 0
 
         dict_info[Movie.YEAR] = year
@@ -957,9 +956,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                     self._logger.debug('Rejected due to rating')
                     # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
 
-        except (AbortException, ShutdownException) as e:
+        except AbortException as e:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('%s %s'.format(
                 'Error getting info for tmdb_id:', tmdb_id))
             try:
@@ -1086,7 +1085,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                 trailer = None
 
             return trailer
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
             return {}
 
@@ -1107,7 +1108,9 @@ class TrailerFetcher(TrailerFetcherInterface):
         try:
             for arg in argv:
                 detail_trailer[arg] = trailer.get(arg, None)
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
 
     def get_writers(self,
@@ -1374,9 +1377,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                             #                          cache: ' +
                             #                        trailer_path)
 
-        except (AbortException, ShutdownException) as e:
+        except AbortException as e:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('Exception. Movie:', movie[Movie.TITLE],
                                    'ID:', movie_id, 'Path:', cached_path)
@@ -1540,7 +1543,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                 normalized_used = True
             if normalized_used and self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('Used Normalized:', normalized_used)
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('Exception. Movie:', movie[Movie.TITLE],
                                    'Path:', normalized_path)
@@ -1572,7 +1577,9 @@ def get_tmdb_id_from_title_year(title, year):
         if trailer_id is None:
             trailer_id = _get_tmdb_id_from_title_year(title, year - 1)
 
-    except (Exception):
+    except AbortException:
+            six.reraise(*sys.exc_info())
+    except Exception:
         module_logger.exception('Error finding tmdbid for movie:', title,
                                 'year:', year)
 

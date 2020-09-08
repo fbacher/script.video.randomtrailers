@@ -14,7 +14,7 @@ import json
 import six
 
 from common.constants import Constants, Movie, RemoteTrailerPreference
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.logger import (Logger, LazyLogger, Trace)
 from common.settings import Settings
@@ -77,17 +77,20 @@ class MovieEntryUtils (object):
                     data['api_key'] = Settings.get_tmdb_api_key()
                     url = 'http://api.themoviedb.org/3/find/' + str(imdb_id)
                     try:
+                        Monitor.throw_exception_if_abort_requested()
                         status_code, tmdb_result = JsonUtilsBasic.get_json(
                             url, error_msg=title,
                             params=data, dump_results=True, dump_msg='')
 
-                        if status_code == 0:
+                        Monitor.throw_exception_if_abort_requested()
+
+                        if status_code == 0 and tmdb_result is not None:
                             s_code = tmdb_result.get('status_code', None)
                             if s_code is not None:
                                 status_code = s_code
                         if status_code != 0:
                             pass
-                        else:
+                        elif tmdb_result is not None:
                             movie_results = tmdb_result.get(
                                 'movie_results', [])
                             if len(movie_results) == 0:
@@ -104,7 +107,9 @@ class MovieEntryUtils (object):
                                 else:
                                     cls.set_tmdb_id(movie, tmdb_id)
                                     cls.update_database_unique_id(movie)
-                    except (Exception):
+                    except AbortException:
+                        reraise(*sys.exc_info())
+                    except Exception:
                         cls._logger.exception('')
         return tmdb_id
 
@@ -137,9 +142,13 @@ class MovieEntryUtils (object):
         year = 0
         dump_msg = 'movie_id: ' + str(movie_id)
         try:
+            Monitor.throw_exception_if_abort_requested()
+
             status_code, tmdb_result = JsonUtilsBasic.get_json(
                 url, error_msg=movie_title,
                 params=data, dump_results=False, dump_msg=dump_msg)
+            Monitor.throw_exception_if_abort_requested()
+
             if status_code == 0:
                 s_code = tmdb_result.get('status_code', None)
                 if s_code is not None:
@@ -149,9 +158,9 @@ class MovieEntryUtils (object):
                     'Error getting TMDB data for:', movie_title,
                     'status:', status_code)
                 return None
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             cls._logger.exception('Error processing movie: ', movie_title)
             return None
 
@@ -161,7 +170,9 @@ class MovieEntryUtils (object):
             try:
                 year = tmdb_result['release_date'][:-6]
                 year = int(year)
-            except (Exception):
+            except AbortException:
+                six.reraise(*sys.exc_info())
+            except Exception:
                 year = 0
 
             parsed_data[Movie.YEAR] = year
@@ -212,9 +223,9 @@ class MovieEntryUtils (object):
             if original_title is not None:
                 parsed_data[Movie.ORIGINAL_TITLE] = original_title
 
-        except (AbortException, ShutdownException) as e:
+        except AbortException as e:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             cls._logger.exception('%s %s'.format(
                 'Error getting info for movie_id:', movie_id))
             try:
@@ -222,7 +233,8 @@ class MovieEntryUtils (object):
                     json_text = json.dumps(
                         tmdb_result, indent=3, sort_keys=True)
                     cls._logger.debug(json_text)
-            except (Exception) as e:
+            except AbortException:
+            except Exception as e:
                 cls._logger('failed to get Json data')
 
             parsed_data = None
@@ -288,6 +300,8 @@ class MovieEntryUtils (object):
 
             # "uniqueid":{"imdb": "tt0033517", "unknown": "tt0033517"}
             # "uniqueid": {"tmdb": 196862, "imdb": "tt0042784"}
+            Monitor.throw_exception_if_abort_requested()
+
             json_text = json.dumps(unique_id)
             update = '{"jsonrpc": "2.0", "method": "VideoLibrary.SetMovieDetails", \
                     "params": {\
@@ -295,10 +309,13 @@ class MovieEntryUtils (object):
 
             query_result = JsonUtilsBasic.get_kodi_json(
                 update, dump_results=True)
+            Monitor.throw_exception_if_abort_requested()
             if cls._logger.isEnabledFor(Logger.DEBUG):
                 cls._logger.debug('Update TMDBID for:', trailer[Movie.TITLE],
                                   'update json:', update)
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             cls._logger.exception('')
 
 

@@ -14,7 +14,7 @@ from queue import (Queue)
 
 
 from common.constants import Constants
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.logger import (Logger, Trace, LazyLogger)
 
@@ -67,9 +67,9 @@ class KodiQueue(object):
                 try:
                     self._wrapped_queue.put(item, block=False)
                     finished = True
-                except (KodiQueue.Full):
-                    Monitor.throw_exception_if_shutdown_requested(
-                        delay=time_chunk)
+                except KodiQueue.Full:
+                    Monitor.throw_exception_if_abort_requested(
+                        timeout=time_chunk)
                     time_remaining -= time_chunk
                     if time_remaining <= 0:
                         raise KodiQueue.Full
@@ -95,9 +95,9 @@ class KodiQueue(object):
                 try:
                     item = self._wrapped_queue.get(block=False)
                     finished = True
-                except(KodiQueue.Empty):
-                    Monitor.throw_exception_if_shutdown_requested(
-                        delay=time_chunk)
+                except KodiQueue.Empty:
+                    Monitor.throw_exception_if_abort_requested(
+                        timeout=time_chunk)
                     time_remaining -= time_chunk
                     if time_remaining <= 0:
                         raise KodiQueue.Empty

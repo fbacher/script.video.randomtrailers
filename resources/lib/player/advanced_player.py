@@ -6,7 +6,7 @@ from common.imports import *
 import xbmc
 
 from common.constants import (Constants)
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
 import sys
@@ -973,9 +973,9 @@ class AdvancedPlayer(xbmc.Player):
 
             if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                 self._logger.debug_verbose('Player: Closed')
-        except (AbortException, ShutdownException):
+        except AbortException:
             pass # Just exit thread
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
         finally:
             pass
@@ -996,9 +996,9 @@ class AdvancedPlayer(xbmc.Player):
 
             if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                 self._logger.exit()
-        except (AbortException, ShutdownException):
+        except AbortException:
             raise sys.exc_info()
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def _video_monitor(self):
@@ -1062,9 +1062,9 @@ class AdvancedPlayer(xbmc.Player):
 
             if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                 self._logger.exit()
-        except (AbortException, ShutdownException):
+        except AbortException:
             raise sys.exc_info()
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def _audio_monitor(self):
@@ -1083,9 +1083,9 @@ class AdvancedPlayer(xbmc.Player):
 
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.exit()
-        except (AbortException, ShutdownException):
+        except AbortException:
             raise sys.exc_info()
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def shutdown_thread(self):

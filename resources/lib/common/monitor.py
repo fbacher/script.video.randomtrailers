@@ -6,9 +6,8 @@ Created on Feb 19, 2019
 @author: Frank Feuerbacher
 
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from .imports import *
+from common.imports import *
 
 import copy
 import datetime
@@ -16,18 +15,13 @@ import os
 import threading
 
 import xbmc
-from kodi_six import utils
 
-from .constants import Constants
-from .critical_settings import CriticalSettings
-from .exceptions import AbortException, ShutdownException
-from .logger import (Logger, LazyLogger, Trace)
+from common.constants import Constants
+from common.critical_settings import CriticalSettings
+from common.exceptions import AbortException
+from common.logger import (Logger, LazyLogger, Trace)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.monitor')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection
@@ -39,23 +33,24 @@ class Monitor(xbmc.Monitor):
     """
     startup_complete_event = None
     _monitor_changes_in_settings_thread = None
-    _shutdown = False
-    _shutdown_received = None
     _logger = None
+    _instance = None
     _xbmc_monitor = None
     _screen_saver_listeners = None
     _screen_saver_listener_lock = None
     _settings_changed_listeners = None
     _settings_changed_listener_lock = None
-    _shutdown_listeners = None
-    _shutdown_listener_lock = None
     _abort_listeners = None
     _abort_listener_lock = None
-    _abort_or_shutdown_event_received = None
     _abort_received = None
 
+    def __init__(self):
+        type(self)._logger.debug('In init')
+        super().__init__()
+        type(self)._logger.debug('Super called')
+
     @classmethod
-    def class_init_(cls):
+    def class_init(cls):
         # type;() -> None
         """
 
@@ -63,27 +58,24 @@ class Monitor(xbmc.Monitor):
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__class__.__name__)
             cls._logger.enter()
+            cls._instance = Monitor()
             # Weird problems with recursion if we make requests to the super
 
-            Monitor._xbmc_monitor = xbmc.Monitor()
-            _monitor_changes_in_settings_thread = None
+            cls._xbmc_monitor = xbmc.Monitor()
             cls._screen_saver_listeners = []
             cls._screen_saver_listener_lock = threading.RLock()
             cls._settings_changed_listeners = []
             cls._settings_changed_listener_lock = threading.RLock()
-            cls._shutdown_listeners = []
-            cls._shutdown_listener_lock = threading.RLock()
             cls._abort_listeners = []
             cls._abort_listener_lock = threading.RLock()
-            cls._abort_or_shutdown_event_received = threading.Event()
             cls._abort_received = threading.Event()
 
             #
             # These events are prioritized:
             #
             # _wait_for_abort_thread waits until a Kodi Abort occurs,
-            # once it happens it will set the lower priority events:
-            # shutdown_event and startup_complete_event. This is done so that
+            # once it happens it will set the lower priority event:
+            # startup_complete_event. This is done so that
             # anything waiting on
             # them will stop waiting. They should be sure to check why they
             # woke up, in case they need to take more drastic action.
@@ -91,7 +83,6 @@ class Monitor(xbmc.Monitor):
             # The same scheme is used for wait_for_startup_complete,
             # onScreensaverActivated, onScreensaverDeactivated
 
-            cls._shutdown_received = threading.Event()
             cls.startup_complete_event = threading.Event()
 
             # noinspection PyTypeChecker
@@ -99,30 +90,6 @@ class Monitor(xbmc.Monitor):
                 target=cls._monitor_changes_in_settings,
                 name='monitorSettingsChanges')
             cls._monitor_changes_in_settings_thread.start()
-
-    @classmethod
-    def shutdownThread(cls):
-        # type: () -> None
-        """
-
-        :return:
-        """
-        if cls._logger.isEnabledFor(Logger.DEBUG):
-            cls._logger.debug('Trying to shutdown abort_thread')
-        Monitor._shutdown = True
-
-        finished = False
-        if cls._monitor_changes_in_settings_thread.isAlive():
-            cls._monitor_changes_in_settings_thread.join(0.5)
-
-    @classmethod
-    def get_instance(cls):
-        # type: () -> Monitor
-        """
-
-        :return:
-        """
-        return cls
 
     @classmethod
     def _monitor_changes_in_settings(cls):
@@ -138,25 +105,32 @@ class Monitor(xbmc.Monitor):
         if cls._logger.isEnabledFor(Logger.DEBUG):
             cls._logger.debug('settings_path:', settings_path)
 
-        while not cls.wait_for_shutdown(timeout=60.0):
-            # noinspection PyRedundantParentheses
-            try:
-                fileStat = os.stat(settings_path)
-                modTime = datetime.datetime.fromtimestamp(
-                    fileStat.st_mtime)
-                if cls._logger.isEnabledFor(Logger.DEBUG):
-                    cls._logger.debug('start_time:', start_time.strftime(
-                        '%A, %d %B %Y %I:%M%p'), 'modTime:', modTime.strftime(
-                        '%A, %d %B %Y %I:%M%p'))
-            except (Exception) as e:
-                cls._logger.debug("Failed to read settings.xml")
-                modTime = start_time
+        # It seems that if multiple xbmc.WaitForAborts are pending, xbmc
+        # Does not inform all of them when an abort occurs. So, instead
+        # of waiting for 60 seconds per iteration, we wait 0.1 seconds
+        # and act when 600 calls has been made. Not exactly 60 seconds, but
+        # close enough for this
 
-            if modTime > start_time:
-                start_time = datetime.datetime.now()
-                if cls._logger.isEnabledFor(Logger.DEBUG):
-                    cls._logger.debug('Settings Changed!')
-                cls.onSettingsChanged()
+        iterations = 600
+        while not cls._wait_for_abort(timeout=0.1):
+            # noinspection PyRedundantParentheses
+            iterations -= 1
+            if iterations < 0:
+                iterations = 600
+                try:
+                    fileStat = os.stat(settings_path)
+                    modTime = datetime.datetime.fromtimestamp(
+                        fileStat.st_mtime)
+                except Exception as e:
+                    cls._logger.debug("Failed to read settings.xml")
+                    modTime = start_time
+
+                if modTime > start_time:
+                    start_time = datetime.datetime.now()
+                    if cls._logger.isEnabledFor(Logger.DEBUG):
+                        cls._logger.debug('Settings Changed!')
+                    cls._instance.onSettingsChanged()
+                    # Here we go again
 
     @classmethod
     def register_screensaver_listener(cls, listener):
@@ -167,7 +141,8 @@ class Monitor(xbmc.Monitor):
         :return:
         """
         with cls._screen_saver_listener_lock:
-            cls._screen_saver_listeners.append(listener)
+            if not cls.is_abort_requested():
+                cls._screen_saver_listeners.append(listener)
 
     @classmethod
     def unregister_screensaver_listener(cls, listener):
@@ -178,7 +153,10 @@ class Monitor(xbmc.Monitor):
         :return:
         """
         with cls._screen_saver_listener_lock:
-            cls._screen_saver_listeners.remove(listener)
+            try:
+                cls._screen_saver_listeners.remove(listener)
+            except ValueError:
+                pass
 
     @classmethod
     def register_settings_changed_listener(cls, listener):
@@ -193,7 +171,8 @@ class Monitor(xbmc.Monitor):
                               listener.__name__)
 
         with cls._settings_changed_listener_lock:
-            cls._settings_changed_listeners.append(listener)
+            if not cls.is_abort_requested():
+                cls._settings_changed_listeners.append(listener)
 
     @classmethod
     def unregister_settings_changed_listener(cls, listener):
@@ -204,29 +183,10 @@ class Monitor(xbmc.Monitor):
         :return:
         """
         with cls._settings_changed_listener_lock:
-            cls._settings_changed_listeners.remove(listener)
-
-    @classmethod
-    def register_shutdown_listener(cls, listener):
-        # type: (Callable[[Union[Any, None]], Union[Any, None]]) -> None
-        """
-
-        :param listener:
-        :return:
-        """
-        with cls._shutdown_listener_lock:
-            cls._shutdown_listeners.append(listener)
-
-    @classmethod
-    def unregister_shutdown_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
-        """
-
-        :param listener:
-        :return:
-        """
-        with cls._shutdown_listener_lock:
-            cls._shutdown_listeners.remove(listener)
+            try:
+                cls._settings_changed_listeners.remove(listener)
+            except ValueError:
+                pass
 
     @classmethod
     def register_abort_listener(cls, listener):
@@ -237,7 +197,10 @@ class Monitor(xbmc.Monitor):
         :return:
         """
         with cls._abort_listener_lock:
-            cls._abort_listeners.append(listener)
+            if not cls.is_abort_requested():
+                cls._abort_listeners.append(listener)
+            else:
+                raise AbortException()
 
     @classmethod
     def unregister_abort_listener(cls, listener):
@@ -248,27 +211,48 @@ class Monitor(xbmc.Monitor):
         :return:
         """
         with cls._abort_listener_lock:
-            cls._abort_listeners.remove(listener)
+            try:
+                cls._abort_listeners.remove(listener)
+            except ValueError:
+                pass
 
     @classmethod
-    def inform_abort_listeners(cls):
+    def _inform_abort_listeners(cls):
         # type: () ->None
         """
 
         :return:
         """
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            cls._logger.enter()
         with cls._abort_listener_lock:
             listeners_copy = copy.copy(cls._abort_listeners)
-            del cls._abort_listeners[:]
+            del cls._abort_listeners[:]  # Unregister all
 
         for listener in listeners_copy:
             # noinspection PyTypeChecker
             thread = threading.Thread(
-                target=listener.on_abort_event, name='Monitor.inform_abort_listeners')
+                target=listener, name='Monitor._inform_abort_listeners')
             thread.start()
 
+        # cls._inform_settings_changed_listeners()
+        cls.startup_complete_event.set()
+        #cls._inform_screensaver_listeners()
+
+        with cls._settings_changed_listener_lock:
+            del cls._settings_changed_listeners[:]
+
+        with cls._screen_saver_listener_lock:
+            del cls._screen_saver_listeners[:]
+
+        xbmc.sleep(1000)
+        from common.debug_utils import Debug
+        Debug.dump_all_threads()
+        xbmc.sleep(1000)
+        Debug.dump_all_threads()
+
     @classmethod
-    def inform_settings_changed_listeners(cls):
+    def _inform_settings_changed_listeners(cls):
         # type: () -> None
         """
 
@@ -276,6 +260,8 @@ class Monitor(xbmc.Monitor):
         """
         with cls._settings_changed_listener_lock:
             listeners = copy.copy(cls._settings_changed_listeners)
+            if cls.is_abort_requested():
+                del cls._settings_changed_listeners[:]
 
         for listener in listeners:
             if cls._logger.isEnabledFor(Logger.DEBUG):
@@ -285,27 +271,7 @@ class Monitor(xbmc.Monitor):
             thread.start()
 
     @classmethod
-    def inform_shutdown_listeners(cls):
-        # type: () -> None
-        """
-
-        :return:
-        """
-        with cls._shutdown_listener_lock:
-            listeners = copy.copy(cls._shutdown_listeners)
-            del cls._shutdown_listeners[:]
-
-        # TODO: Change to not use fixed method name
-
-        for listener in listeners:
-            # noinspection PyTypeChecker
-            thread = threading.Thread(
-                target=listener,  # .on_shutdown_event,
-                name='Monitor.inform_shutdown_listeners')
-            thread.start()
-
-    @classmethod
-    def inform_screensaver_listeners(cls, activated=True):
+    def _inform_screensaver_listeners(cls, activated=True):
         # type () -> None
         """
 
@@ -314,16 +280,17 @@ class Monitor(xbmc.Monitor):
         """
         with cls._screen_saver_listener_lock:
             listeners_copy = copy.copy(cls._screen_saver_listeners)
+            if cls.is_abort_requested():
+                del cls._screen_saver_listeners[:]
 
         for listener in listeners_copy:
             # noinspection PyTypeChecker
             thread = threading.Thread(
-                target=listener, name='Monitor.inform_screensaver_listeners',
+                target=listener, name='Monitor._inform_screensaver_listeners',
                 args=(activated,))
             thread.start()
 
-    @classmethod
-    def onSettingsChanged(cls):
+    def onSettingsChanged(self):
         # type: () -> None
         """
         on_settings_changed method.
@@ -332,11 +299,10 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        cls._logger.enter()
-        cls.inform_settings_changed_listeners()
+        type(self)._logger.enter()
+        type(self)._inform_settings_changed_listeners()
 
-    @classmethod
-    def onScreensaverActivated(cls):
+    def onScreensaverActivated(self):
         # type: () -> None
         """
         onScreensaverActivated method.
@@ -345,13 +311,12 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        cls._logger.enter()
-        cls.inform_screensaver_listeners(activated=True)
+        type(self)._logger.enter()
+        type(self)._inform_screensaver_listeners(activated=True)
 
         # return super().onScreensaverActivated()
 
-    @classmethod
-    def onScreensaverDeactivated(cls):
+    def onScreensaverDeactivated(self):
         # type: () -> None
         """
         onScreensaverDeactivated method.
@@ -360,13 +325,12 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        cls._logger.enter()
-        cls.inform_screensaver_listeners(activated=False)
+        type(self)._logger.enter()
+        type(self)._inform_screensaver_listeners(activated=False)
 
         # return super().onScreensaverDeactivated()
 
-    @classmethod
-    def onDPMSActivated(cls):
+    def onDPMSActivated(self):
         # type: () -> None
         """
         onDPMSActivated method.
@@ -377,8 +341,7 @@ class Monitor(xbmc.Monitor):
         """
         # return super().onDPMSActivated()
 
-    @classmethod
-    def onDPMSDeactivated(cls):
+    def onDPMSDeactivated(self):
         # type: () -> None
         """
         onDPMSDeactivated method.
@@ -389,9 +352,8 @@ class Monitor(xbmc.Monitor):
         """
         # return super().onDPMSDeactivated()
 
-    @classmethod
-    def onScanStarted(cls, library):
-        # type: (TextType) -> None
+    def onScanStarted(self, library):
+        # type: (str) -> None
         """
         onScanStarted method.
 
@@ -406,9 +368,8 @@ class Monitor(xbmc.Monitor):
         """
         # return super().onScanStarted(library)
 
-    @classmethod
-    def onScanFinished(cls, library):
-        # type: (TextType) -> None
+    def onScanFinished(self, library):
+        # type: (str) -> None
         """
         onScanFinished method.
 
@@ -423,9 +384,8 @@ class Monitor(xbmc.Monitor):
         """
         # return super().onScanFinished(library)
 
-    @classmethod
-    def onCleanStarted(cls, library):
-        # type: (TextType) -> None
+    def onCleanStarted(self, library):
+        # type: (str) -> None
         """
         onCleanStarted method.
 
@@ -439,9 +399,8 @@ class Monitor(xbmc.Monitor):
         """
         # return super().onCleanStarted(library)
 
-    @classmethod
-    def onCleanFinished(cls, library):
-        # type: (TextType) -> None
+    def onCleanFinished(self, library):
+        # type: (str) -> None
         """
         onCleanFinished method.
 
@@ -455,9 +414,8 @@ class Monitor(xbmc.Monitor):
         """
         # return super().onCleanFinished(library)
 
-    @classmethod
-    def onNotification(cls, sender, method, data):
-        # type: (TextType, TextType, TextType) -> None
+    def onNotification(self, sender, method, data):
+        # type: (str, str, str) -> None
         """
         onNotification method.
 
@@ -468,14 +426,13 @@ class Monitor(xbmc.Monitor):
         :return:
 
         Will be called when Kodi receives or sends a notification
-
-        New function added.
         """
-        if cls._logger.isEnabledFor(Logger.DEBUG):
-            cls._logger.debug('sender:', sender, 'method:', method)
+        # if type(self)._logger.isEnabledFor(Logger.DEBUG):
+        #    type(self)._logger.debug('sender:', sender, 'method:', method)
+        pass
 
     @classmethod
-    def _waitForAbort(cls, timeout=None):
+    def _wait_for_abort(cls, timeout=None):
         # type: (float) -> bool
         """
         Wait for Abort
@@ -493,57 +450,35 @@ class Monitor(xbmc.Monitor):
 
         New function added.
         """
-        abort = False
+        abort = True
         if not cls._abort_received.isSet():
-            abort = None
+            abort = False
             if timeout is None:  # Wait forever
-                finished = False
-                while not finished:
-                    abort = cls._xbmc_monitor().waitForAbort(timeout=0.10)
-                    if abort:
-                        cls._abort_or_shutdown_event_received.set()
-                        cls._abort_received.set()
-                        break
-                    if cls._shutdown_received.isSet():
-                        break
-
-            # Appears to be bug in waitForAbort(0), waits forever
-            elif timeout == 0:  # No wait
-                abort = cls.is_abort_requested()
-                if abort:
-                    cls._set_abort_or_shutdown_event()
-                    cls._abort_received.set()
+                while not abort:
+                    abort = cls._instance.waitForAbort(timeout=0.10)
             else:
                 timeout_arg = float(timeout)
+                if timeout_arg == 0.0:
+                    timeout_arg = 0.001  # Otherwise waits forever
 
-                # Was getting recursive calls here.Somehow.
-                #abort = super().waitForAbort(timeout=timeout_arg)
-
-                abort = cls._xbmc_monitor.waitForAbort(timeout=timeout_arg)
-                if abort:
-                    cls._set_abort_or_shutdown_event()
-                    cls._abort_received.set()
-
+                abort = cls._instance.waitForAbort(timeout=timeout_arg)
             if abort:
+                cls._abort_received.set()
                 if cls._logger.isEnabledFor(Logger.DEBUG):
                     cls._logger.debug(
                         'SYSTEM ABORT received', trace=Trace.TRACE_MONITOR)
-
-            elif cls._shutdown_received.isSet():
-                if cls._logger.isEnabledFor(Logger.DEBUG):
-                    cls._logger.debug('ABORT NOT received, but SHUTDOWN event already',
-                                      'received', trace=Trace.TRACE_MONITOR)
-            if abort:
-                cls.inform_abort_listeners()
-
-        else:
-            #    return cls.is_abort_requested()
-            pass
+                cls._inform_abort_listeners()
 
         return abort
 
+    def waitForAbort(self, timeout=None):
+        # Provides signature of super class (xbmc.Monitor)
+        abort = super().waitForAbort(timeout=timeout)
+        # _wait_for_abort responsible for notifications
+        return abort
+
     @classmethod
-    def waitForAbort(cls, timeout=None):
+    def wait_for_abort(cls, timeout=None):
         # type: (float) -> bool
         """
         Wait for Abort
@@ -557,16 +492,24 @@ class Monitor(xbmc.Monitor):
 
         New function added.
         """
-        return cls._abort_received.wait(timeout=timeout)
+        abort = cls._abort_received.isSet()
+        if not abort:
+            abort = cls._instance.waitForAbort(timeout=timeout)
+
+        return abort
 
     @classmethod
-    def abortRequested(cls):
+    def abort_requested(cls):
+        cls._instance.abortRequested()
+
+    def abortRequested(self):
         # type: () -> None
         """
 
         :return:
         """
         super().abortRequested()
+        type(self)._abort_received.set()
 
     @classmethod
     def is_abort_requested(cls):
@@ -579,67 +522,6 @@ class Monitor(xbmc.Monitor):
         New function added.
         """
         return cls._abort_received.isSet()
-
-    @classmethod
-    def shutdown_requested(cls):
-        # type: () -> None
-        """
-        Puts plugin into shutdown-requested state.
-
-        :return:
-        """
-        if cls._logger.isEnabledFor(Logger.DEBUG):
-            cls._logger.enter()
-        if not cls._shutdown_received.isSet():
-            cls._shutdown_received.set()
-            cls._set_abort_or_shutdown_event()
-            cls.inform_shutdown_listeners()
-            if cls._logger.isEnabledFor(Logger.DEBUG):
-                cls._logger.debug(
-                    'shutdown_event set', trace=Trace.TRACE_MONITOR)
-
-            if CriticalSettings.is_debug_enabled:
-                LazyLogger.dump_stack('shutdown_requested')
-        else:
-            if CriticalSettings.is_debug_enabled:
-                cls._logger.debug('Shutdown already set.')
-
-    @classmethod
-    def is_shutdown_requested(cls):
-        # type: () -> bool
-        """
-
-        :return:
-        """
-        return cls._shutdown_received.isSet()
-
-    @classmethod
-    def wait_for_shutdown(cls, timeout=None):
-        # type (float) -> bool
-        """
-            Waits a maximum of timeout seconds until shutdown (or abort) is set.
-            If timeout = 0, then returns the current shutdown state.
-            if timeout = None, then wait forever until shutdown (or abort) is set.
-            Otherwise, wait a maximum a maximum of the specified time in seconds.
-
-        :param timeout:
-        :return:
-        """
-
-        is_set = cls._abort_or_shutdown_event_received.wait(timeout=timeout)
-        return is_set
-
-    @classmethod
-    def _set_abort_or_shutdown_event(cls):
-        # type: () -> None
-        """
-
-        :return:
-        """
-
-        if cls._logger.isEnabledFor(Logger.DEBUG):
-            cls._logger.debug('Setting _abort_or_shutdown_event_received')
-        cls._abort_or_shutdown_event_received.set()
 
     @classmethod
     def set_startup_complete(cls):
@@ -696,30 +578,7 @@ class Monitor(xbmc.Monitor):
         if cls._abort_received.wait(timeout=timeout):
             raise AbortException()
 
-    @classmethod
-    def throw_exception_if_shutdown_requested(cls, delay=0):
-        # type: (float) -> None
-        """
-            Throws a ShutdownException if shutdown has been set or an
-            AbortException if Abort has been set within the specified time period.
-
-            If timeout = 0, then immediately returns without exception if
-             shutdwown (or abort) is not set, or with an Exception if it
-             is set.
-            if timeout = None, then wait forever until shutdown (or abort) is set.
-            Otherwise, wait a maximum of the specified time in seconds.
-
-        :param delay:
-        :return:
-        """
-        if cls._abort_or_shutdown_event_received.wait(timeout=delay):
-            if cls._abort_received.isSet():
-                raise AbortException()
-            cls._logger.debug(
-                'wait_for_shutdown was set', trace=Trace.TRACE_MONITOR)
-            raise ShutdownException()
-
 
 # Initialize class:
 #
-Monitor.class_init_()
+Monitor.class_init()

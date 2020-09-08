@@ -27,8 +27,7 @@ from common.constants import Constants
 #    exit(0)
 
 from common.monitor import Monitor
-from common.exceptions import AbortException, ShutdownException
-from common.watchdog import WatchDog
+from common.exceptions import AbortException
 from common.settings import Settings
 from common.critical_settings import CriticalSettings
 from backend.api import load_trailers
@@ -80,18 +79,18 @@ if REMOTE_DBG:
         try:
             pydevd.settrace('localhost', stdoutToServer=True,
                             stderrToServer=True)
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             xbmc.log(
                 ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
-    except (ImportError):
+    except ImportError:
         msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
-    except (BaseException):
+    except BaseException:
         xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
 
 RECEIVER = None
@@ -107,9 +106,9 @@ else:
 class MainThreadLoop(object):
     """
         Kodi's Monitor class has some quirks in it that strongly favors creating
-        it from the main thread as well as calling xbmc.sleep/xbmc.waitForAbort.
+        it from the main thread as well as calling xbmc.sleep/xbmc.wait_for_abort.
         The main issue is that a Monitor event can not be received until
-        xbmc.sleep/xbmc.waitForAbort is called FROM THE SAME THREAD THAT THE
+        xbmc.sleep/xbmc.wait_for_abort is called FROM THE SAME THREAD THAT THE
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
         other plugins may be blocked as well. For this reason, the main thread
         should not be blocked for too long.
@@ -174,12 +173,12 @@ class MainThreadLoop(object):
             i = 0
             timeout = initial_timeout
 
-            # Using _waitForAbort instead of waiting for shutdown to
+            # Using _wait_for_abort to
             # cause Monitor to query Kodi for Abort on the main thread.
             # If this is not done, then Kodi will get constipated
             # sending/receiving events to plugins.
 
-            while not self._monitor._waitForAbort(timeout=timeout):
+            while not Monitor._wait_for_abort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 0.10
@@ -187,12 +186,13 @@ class MainThreadLoop(object):
                 try:
                     task = self._callableTasks.get(block=False)
                     self.run_task(task)
-                except (Empty) as e:
+                except Empty as e:
                     pass
 
-        except (AbortException, ShutdownException):
+            Monitor.throw_exception_if_abort_requested(timeout=timeout)
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             MainThreadLoop._logger.exception('')
         finally:
             if Monitor.get_instance().is_shutdown_requested():
@@ -226,9 +226,9 @@ class MainThreadLoop(object):
             MainThreadLoop._logger.debug('%s', 'Enter', lazy_logger=False)
         try:
             callable_class()
-        except (AbortException, ShutdownException) as e:
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception:
             MainThreadLoop._logger.exception('')
 
 
@@ -247,12 +247,14 @@ def profiler_thread():
             stats = pstats.Stats(
                 MainThreadLoop.profiler, stream=f)
 
-            Monitor.get_instance().throw_exception_if_shutdown_requested(delay=5 * 60)
+            Monitor.throw_exception_if_abort_requested(timeout=5 * 60)
             MainThreadLoop.profiler.create_stats()
             stats.print_stats()
             f.close()
-    except (Exception) as e:
-        MainThreadLoop._logger.exception('')
+    except AbortException:
+            six.reraise(*sys.exc_info())
+    except Exception:
+        module_logger.exception('')
 
 
 def startup_non_main_thread():
@@ -266,24 +268,26 @@ def startup_non_main_thread():
 
     WatchDog.create()
     Settings.save_settings()
-    Monitor.get_instance().register_settings_changed_listener(
+    Monitor.register_settings_changed_listener(
         Settings.on_settings_changed)
-    Monitor.get_instance().register_settings_changed_listener(
-        Logger.on_settings_changed)
+    Monitor.register_settings_changed_listener(
+        LazyLogger.on_settings_changed)
     try:
         Settings.get_locale()
         if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
             Settings.getLang_iso_639_1()
             Settings.getLang_iso_639_2()
             Settings.getLang_iso_3166_1()
-    except (Exception):
+    except AbortException:
+        six.reraise(*sys.exc_info())
+    except Exception:
         pass
     load_trailers()
 
     # Start the periodic garbage collector
 
     CacheManager.get_instance().start_cache_garbage_collection_thread()
-    Monitor.get_instance().register_settings_changed_listener(load_trailers)
+    Monitor.register_settings_changed_listener(load_trailers)
 
 
 def bootstrap_random_trailers():
@@ -310,20 +314,20 @@ def bootstrap_random_trailers():
                 target=startup_non_main_thread,
                 name='back_end_service.startup_main_thread')
             thread.start()
-        except (Exception):
+        except Exception:
             module_logger.exception('')
 
         mainLoop.event_processing_loop()
 
-    except (AbortException, ShutdownException) as e:
+    except AbortException as e:
         pass
-    except (Exception) as e:
+    except Exception as e:
         module_logger.exception('')
     finally:
         if REMOTE_DBG:
             try:
                 pydevd.stoptrace()
-            except (Exception) as e:
+            except Exception:
                 pass
         exit(0)
 
@@ -371,3 +375,5 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
             bootstrap_random_trailers()
     elif is_unit_test:
         bootstrap_unit_test()
+    except AbortException:
+        pass  # Die, Die, Die

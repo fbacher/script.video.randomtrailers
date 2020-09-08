@@ -18,7 +18,7 @@ from kodi_six import xbmc
 import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
@@ -66,9 +66,9 @@ class FrontendBridge(PluginBridge):
             self._busy_getting_trailer = False
             self._status = FrontendBridgeStatus.IDLE
             self.register_listeners()
-        except (AbortException, ShutdownException):
+            except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+            except Exception as e:
             self._logger.exception('')
 
     @staticmethod
@@ -111,7 +111,7 @@ class FrontendBridge(PluginBridge):
             self._status = FrontendBridgeStatus.BUSY
             count = 0
             while self._status == FrontendBridgeStatus.BUSY and count < 300:
-                self._monitor.throw_exception_if_shutdown_requested(0.10)
+                Monitor.throw_exception_if_abort_requested(timeout=0.10)
                 count += 1
 
             if count >= 300:
@@ -128,10 +128,10 @@ class FrontendBridge(PluginBridge):
                     self._logger.debug('returning status:',
                                        status, 'title:', trailer[Movie.TITLE])
             return status, trailer
-        except (AbortException, ShutdownException):
+        except AbortException:
             self.delete_instance()
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def notify_settings_changed(self):
@@ -172,7 +172,7 @@ class FrontendBridge(PluginBridge):
         :return:
         """
         try:
-            self._monitor.throw_exception_if_shutdown_requested()
+            Monitor.throw_exception_if_abort_requested()
             self._next_trailer = data.get('trailer', None)
             self._status = data.get('status', None)
             if self._logger.isEnabledFor(Logger.DEBUG):
@@ -182,9 +182,9 @@ class FrontendBridge(PluginBridge):
                     title = self._next_trailer.get(Movie.TITLE, 'No Title')
                 self._logger.debug(self._context, 'status:', self._status,
                                    'received trailer for:', title)
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def activate_screensaver(self):
@@ -200,7 +200,7 @@ class FrontendBridge(PluginBridge):
             self._logger.enter()
             # Inform monitor
             self.ack('screensaver')
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')

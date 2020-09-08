@@ -34,13 +34,12 @@ from kodi_six import utils
 
 from common.constants import Constants, Movie
 from common.logger import (Logger, LazyLogger, Trace)
-from common.exceptions import AbortException, ShutdownException, TrailerIdException
+from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
 from backend import backend_constants
 from common.disk_utils import DiskUtils, UsageData, FileData
-from common.watchdog import WatchDog
 
 RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
 
@@ -231,8 +230,10 @@ class CacheData(object):
 
                 self._logger.debug(msg_disk_used_by_cache,
                                    DiskUtils.sizeof_fmt(self._disk_used_by_cache))
-        except (Exception) as e:
-            self._logger.exception('')
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
+            type(self)._logger.exception('')
 
     def collect_garbage(self):
         # type: () -> None
@@ -267,6 +268,7 @@ class CacheData(object):
                     # Order json files by age
 
                     for cache_file in self._usage_data.get_file_data_by_creation_date():
+                        Monitor.throw_exception_if_abort_requested()
                         self._usage_data.remove_file(cache_file)
                         number_of_cache_files_to_delete -= 1
                         if number_of_cache_files_to_delete <= 0:
@@ -298,6 +300,7 @@ class CacheData(object):
                     # Order json files by age
 
                     for cache_file in self._usage_data.get_file_data_by_creation_date():
+                        Monitor.throw_exception_if_abort_requested()
                         self._usage_data.remove_file(cache_file)
                         bytes_of_files_to_delete = (
                             self._usage_data.get_disk_used_by_cache()
@@ -324,6 +327,7 @@ class CacheData(object):
                     # Order json files by age
 
                     for cache_file in self._usage_data.get_file_data_by_creation_date():
+                        Monitor.throw_exception_if_abort_requested()
                         self._usage_data.remove_file(cache_file)
                         bytes_of_files_to_delete = (
                             self._usage_data.get_disk_used_by_cache()
@@ -420,9 +424,9 @@ class CacheManager(object):
         try:
             self.drive_garbage_collection()
 
-        except (ShutdownException, AbortException) as e:
-            pass
-        except (Exception) as e:
+        except AbortException as e:
+            pass  # Thread dies
+        except Exception as e:
             self._logger.exception('')
 
     def drive_garbage_collection(self):
@@ -440,6 +444,7 @@ class CacheManager(object):
         to_delete = os.path.join(folder, '_rt_*')
         to_delete = glob.glob(to_delete)
         for a_file in to_delete:
+            Monitor.throw_exception_if_abort_requested()
             os.remove(a_file)
 
         del folder
@@ -451,8 +456,8 @@ class CacheManager(object):
         usage_data_map = None
         try:
             while not finished:
-                Monitor.get_instance().throw_exception_if_shutdown_requested(
-                    delay=float(start_seconds_from_now))
+                Monitor.throw_exception_if_abort_requested(
+                    timeout=float(start_seconds_from_now))
                 usage_data_map = self.get_stats_for_caches()
 
                 # Sizes in MB
@@ -498,9 +503,9 @@ class CacheManager(object):
                         self._logger.debug_extra_verbose('New delay:',
                                                          start_seconds_from_now)
 
-        except (ShutdownException, AbortException) as e:
+        except AbortException as e:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
         finally:
             del usage_data_map

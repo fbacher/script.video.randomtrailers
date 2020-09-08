@@ -15,11 +15,11 @@ import random
 import six
 import sys
 
-from .constants import (Constants)
-from .exceptions import AbortException, ShutdownException
-from .logger import (Logger, LazyLogger, Trace)
-from .monitor import Monitor
-from .settings import Settings
+from common.constants import (Constants)
+from common.exceptions import AbortException
+from common.logger import (Logger, LazyLogger, Trace)
+from common.monitor import Monitor
+from common.settings import Settings
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger().getChild(
@@ -362,9 +362,10 @@ class DiskUtils(object):
                 usage['used'] = used
                 block_size = st.f_frsize
                 usage['blocksize'] = block_size
-            except (AbortException, ShutdownException) as e:
+                Monitor.throw_exception_if_abort_requested()
+            except AbortException as e:
                 six.reraise(*sys.exc_info())
-            except (Exception) as e:
+            except Exception as e:
                 cls._logger.exception('')
                 usage = None
         elif os.name == 'nt':  # Windows
@@ -388,9 +389,10 @@ class DiskUtils(object):
                 usage['free'] = free_size
                 usage['used'] = used
                 usage['blocksize'] = 4096  # TODO: fix
-            except (AbortException, ShutdownException) as e:
+                Monitor.throw_exception_if_abort_requested()
+            except AbortException as e:
                 six.reraise(*sys.exc_info())
-            except (Exception) as e:
+            except Exception as e:
                 cls._logger.exception('')
                 usage = None
         # 'cluster_sectors:', cluster_sectors, 'sector_size:',
@@ -484,8 +486,8 @@ class DiskUtils(object):
             found_directories = set()
             for root, dirs, files in os.walk(top):
                 for filename in files:
-                    Monitor.get_instance().throw_exception_if_shutdown_requested()
                     for cache_name in patterns:
+                        Monitor.throw_exception_if_abort_requested()
                         usage_data = usage_data_map[cache_name]
                         pattern = patterns[cache_name]
                         if pattern in filename:
@@ -501,7 +503,7 @@ class DiskUtils(object):
                                                     block_size + 1) * block_size
                                 else:
                                     found_directories.add(path)
-                            except (OSError) as e:
+                            except OSError as e:
                                 continue  # File doesn't exist
                             except (Exception) as e:
                                 cls._logger.exception('')
@@ -532,7 +534,9 @@ class DiskUtils(object):
                                             deleted = True
                                             usage_data.add_to_disk_deleted(
                                                 size_on_disk)
-                            except (Exception) as e:
+                            except AbortException:
+                                six.reraise(*sys.exc_info())
+                            except Exception as e:
                                 cls._logger.exception('')
 
                             if not deleted:
@@ -545,12 +549,13 @@ class DiskUtils(object):
             for directory in found_directories:
                 try:
                     os.rmdir(directory)
-                except (Exception) as e:
+                except Exception as e:
                     pass
 
-        except (AbortException, ShutdownException) as e:
-            pass
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+
+        except Exception as e:
             cls._logger.exception('')
 
         cls._logger.exit()

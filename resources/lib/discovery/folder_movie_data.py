@@ -21,7 +21,7 @@ class FolderMovieData(AbstractMovieData):
     """
 
     def __init__(self, movie_source=''):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param movie_source:

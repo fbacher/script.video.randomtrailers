@@ -21,7 +21,7 @@ from cache.tfh_cache import (TFHCache)
 
 from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from backend.movie_entry_utils import MovieEntryUtils
 from common.logger import (Logger, LazyLogger, Trace)
@@ -138,9 +138,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 self._logger.debug('Time to discover:', duration.seconds, ' seconds',
                                    trace=Trace.STATS)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             return
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def run_worker(self):
@@ -152,12 +152,12 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         :return: #type: None
         """
         try:
-            Monitor.get_instance().throw_exception_if_shutdown_requested()
+            Monitor.throw_exception_if_abort_requested()
 
             self.discover_movies()
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def discover_movies(self):

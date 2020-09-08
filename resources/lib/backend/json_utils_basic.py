@@ -31,7 +31,7 @@ from common.development_tools import (Any, List, Dict, Union,
                                       TextType)
 from common.constants import Constants, Movie
 from common.logger import (Logger, LazyLogger, Trace)
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
@@ -452,7 +452,9 @@ class JsonUtilsBasic(object):
                 else:
                     JsonUtilsBasic._logger.debug_verbose('no requests',
                                                          trace=Trace.TRACE_JSON)
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             JsonUtilsBasic._logger.exception('')
 
     class DestinationData(object):
@@ -658,7 +660,7 @@ class JsonUtilsBasic(object):
                                                  destination_string, 'for', time_delay,
                                                  'seconds',
                                                  trace=[Trace.STATS, Trace.TRACE_JSON])
-            Monitor.get_instance().throw_exception_if_shutdown_requested(delay=time_delay)
+            Monitor.throw_exception_if_abort_requested(timeout=time_delay)
             if time_delay > 0:
                 if JsonUtilsBasic._logger.isEnabledFor(Logger.DEBUG):
                     JsonUtilsBasic._logger.debug('After Waiting for JSON request',
@@ -689,7 +691,7 @@ class JsonUtilsBasic(object):
                         JsonUtilsBasic._logger.debug('compare encodings of response. Equal:',
                                                      json_text == json_text2)
                 returned_header = response.headers
-            except (AbortException, ShutdownException):
+            except AbortException:
                 six.reraise(*sys.exc_info())
             #
             # Possible Exceptions:
@@ -742,7 +744,7 @@ class JsonUtilsBasic(object):
                     if JsonUtilsBasic._logger.isEnabledFor(Logger.DEBUG):
                         JsonUtilsBasic.dump_delay_info(request_index)
 
-                except (AbortException, ShutdownException):
+                except AbortException:
                     six.reraise(*sys.exc_info())
                 except (Exception) as e:
                     JsonUtilsBasic._logger.exception('')
@@ -863,7 +865,9 @@ class JsonUtilsBasic(object):
                                                                          headers=headers,
                                                                          params=params,
                                                                          timeout=0.50)
-                    except (Exception) as e:
+                    except AbortException:
+                        six.reraise(*sys.exc_info())
+                    except Exception as e:
                         status_code = -1
                         json_text = None
                     finally:

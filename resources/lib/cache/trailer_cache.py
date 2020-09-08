@@ -26,8 +26,7 @@ from common.development_tools import (Any, Dict, Union,
                                       TextType, MovieType)
 from common.constants import Constants, Movie
 from common.logger import (Logger, LazyLogger)
-from common.exceptions import (
-    TrailerIdException)
+from common.exceptions import (AbortException, TrailerIdException)
 from common.messages import Messages
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import Settings

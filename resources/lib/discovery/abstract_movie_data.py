@@ -16,7 +16,7 @@ import six
 
 from common.constants import Constants, Movie
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException, DuplicateException
 from common.kodi_queue import (KodiQueue)
 from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -338,11 +338,14 @@ class MovieList(object):
 
                 self._duplicate_check.remove(self.get_key(movie))
                 self._total_removed += 1
-            except (KeyError):
+
+            except AbortException:
+                six.reraise(*sys.exc_info())
+            except KeyError:
                 pass
             try:
                 self._list.remove(movie)
-            except (ValueError):
+            except ValueError:
                 pass
 
     def len(self):
@@ -481,10 +484,10 @@ class MovieList(object):
                         movie_count,
                         self._total_removed,
                         self._number_of_added_movies))
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
 
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     MAX_LINE_LENGTH = 80
@@ -506,10 +509,10 @@ class MovieList(object):
                     logger('   {}'.format(', '.join(movies_in_line)))
                     del movies_in_line[:]
                     line_length = 0
-            except (AbortException, ShutdownException):
+            except AbortException:
                 six.reraise(*sys.exc_info())
 
-            except (Exception) as e:
+            except Exception as e:
                 logger('blew up joining')
 
             movies_in_line.append(movie)
@@ -518,7 +521,7 @@ class MovieList(object):
         if len(movies_in_line) > 0:
             try:
                 logger('   {}'.format(', '.join(movies_in_line)))
-            except (Exception) as e:
+            except Exception as e:
                 logger('blew up joining')
 
     def get_key(self, movie):
@@ -1098,9 +1101,9 @@ class AbstractMovieData(object):
                     self._logger.debug('Queue has:',
                                        self._trailers_to_fetch_queue.qsize(),
                                        'Put in _trailers_to_fetch_queue:', movie_title)
-            except (AbortException, ShutdownException):
+            except AbortException:
                 six.reraise(*sys.exc_info())
-            except (Exception) as e:
+            except Exception as e:
                 self._logger.exception('')
                 # TODO Continue?
 
@@ -1207,10 +1210,10 @@ class AbstractMovieData(object):
             if not self._starvation_queue.empty():
                 movie = self._starvation_queue.get()
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
 
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         title = None

@@ -15,7 +15,7 @@ import string
 from common.constants import Constants, Movie, iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.logger import (Logger, LazyLogger, Trace)
@@ -127,9 +127,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         finished = True
                         self.remove_self()
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             return  # Just exit thread
-        except (Exception):
+        except Exception:
             self._logger.exception('')
 
         self.finished_discovery()
@@ -418,10 +418,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                     Debug.validate_basic_movie_properties(
                                         movie)
                                 self.add_to_discovered_trailers(movie)
+                    except AbortException:
                     except (Exception) as e:
                         self._logger.exception('')
 
-            except (Exception) as e:
+            except AbortException:
+                six.reraise(*sys.exc_info())
+            except Exception as e:
                 self._logger.exception('')
         return
 

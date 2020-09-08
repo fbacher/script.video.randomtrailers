@@ -19,7 +19,7 @@ import six
 from kodi_six import xbmc, xbmcgui
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException, ShutdownException, LogicError
+from common.exceptions import AbortException, LogicError
 from common.logger import (Logger, LazyLogger, Trace, log_entry_exit)
 from common.messages import Messages
 from common.monitor import Monitor
@@ -99,12 +99,14 @@ class MovieManager(object):
             status = MovieStatus.NEXT_MOVIE
             self._play_next_trailer = False
             trailer = self._movie_history.get_next_movie()
+                Monitor.throw_exception_if_abort_requested(timeout=0.1)
             if trailer is None:
                 trailer = self._pre_fetched_trailer_queue.get()
                 self._movie_history.append(trailer)
         else:
             status = MovieStatus.OK
             trailer = self._movie_history.get_next_movie()
+                Monitor.throw_exception_if_abort_requested(timeout=0.1)
             if trailer is None:
                 trailer = self._pre_fetched_trailer_queue.get()
                 self._movie_history.append(trailer)
@@ -148,7 +150,7 @@ class MovieManager(object):
         self._thread.start()
 
     def _pre_fetch_trailer(self):
-        while not Monitor.is_shutdown_requested():
+        while not Monitor.is_abort_requested():
             status, trailer = self.front_end_bridge.get_next_trailer()
             if trailer is not None:
                 added = False
@@ -157,7 +159,7 @@ class MovieManager(object):
                         self._pre_fetched_trailer_queue.put(trailer, timeout=0.1)
                         added = True
                     except queue.Full:
-                        if Monitor.wait_for_shutdown(timeout=1.0):
+                        if Monitor.wait_for_abort(timeout=0.5):
                             break
 
     # Put trailer in recent history. If full, delete oldest

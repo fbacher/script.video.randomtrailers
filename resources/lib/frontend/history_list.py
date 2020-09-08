@@ -15,7 +15,7 @@ from collections import deque
 
 from common.constants import Constants, Movie
 from common.playlist import Playlist
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor

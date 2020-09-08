@@ -20,7 +20,7 @@ from kodi_six import utils
 
 from common.constants import Constants, Movie
 from common.playlist import Playlist
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
 from player.player_container import PlayerContainer
@@ -192,20 +192,17 @@ class StartUI(threading.Thread):
 
             self.start_playing_trailers()
 
-        except (AbortException):
+        except AbortException:
             self._logger.error(
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
-        except (ShutdownException):
-            self._logger.error(
-                'Exiting Random Trailers Screen Saver at addon\'s request')
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         finally:
             if logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('Stopping xbmc.Player')
 
-            Monitor.get_instance().shutdown_requested()
+            Monitor.abort_requested()
             self._logger.exit()
 
     def start_playing_trailers(self):
@@ -275,13 +272,10 @@ class StartUI(threading.Thread):
             else:
                 self._logger.notice(
                     'Exiting Random Trailers Screen Saver Something is playing!!!!!!')
-        except (AbortException):
+        except AbortException:
             self._logger.error(
                 'Exiting Random Trailers Screen Saver due to Kodi Abort!')
-        except (ShutdownException):
-            self._logger.error(
-                'Exiting Random Trailers Screen Saver at addon\'s request')
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         finally:

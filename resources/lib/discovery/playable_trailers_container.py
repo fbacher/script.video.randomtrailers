@@ -140,7 +140,7 @@ class PlayableTrailersContainer(object):
                 finished = True
                 self._number_of_added_trailers += 1
             except (queue.Full):
-                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=0.75)
+                Monitor.throw_exception_if_abort_requested(timeout=0.75)
                 waited += 1
 
         if not PlayableTrailersContainer._any_trailers_available_to_play.isSet():

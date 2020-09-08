@@ -14,7 +14,7 @@ import threading
 from common.development_tools import (Any, Callable, Optional, Dict, Union,
                                       TextType)
 from common.constants import Constants, Movie
-from common.exceptions import (ShutdownException, AbortException)
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.watchdog import WatchDog
 from common.logger import (Logger, Trace, LazyLogger)
@@ -75,10 +75,9 @@ class BaseDiscoverMovies(threading.Thread):
         super().__init__(group=group, target=target, name=thread_name,
                          args=args, kwargs=kwargs)
         if self.__class__.__name__ != 'BaseDiscoverMovies':
-            Monitor.get_instance().register_settings_changed_listener(
+            Monitor.register_settings_changed_listener(
                 self.on_settings_changed)
 
-        WatchDog.register_thread(self)
         self._trailers_discovered = threading.Event()
         self._removed_trailers = 0
         self._movie_data = None  # type: Optional[AbstractMovieData]
@@ -178,7 +177,7 @@ class BaseDiscoverMovies(threading.Thread):
 
         finished = False
         while not finished:
-            Monitor.get_instance().wait_for_shutdown(timeout=1.0)
+            Monitor.wait_for_abort(timeout=1.0)
             self.throw_exception_on_forced_to_stop()
 
     def throw_exception_on_forced_to_stop(self, delay=0):
@@ -189,10 +188,10 @@ class BaseDiscoverMovies(threading.Thread):
         :return:
         """
         try:
-            Monitor.get_instance().throw_exception_if_shutdown_requested(delay=delay)
+            Monitor.throw_exception_if_abort_requested(timeout=delay)
             if self._movie_data.restart_discovery_event.isSet():
                 raise RestartDiscoveryException()
-        except (ShutdownException, AbortException) as e:
+        except AbortException:
             self.get_movie_data().report_play_count_stats()
 
     def prepare_for_restart_discovery(self):
@@ -216,7 +215,7 @@ class BaseDiscoverMovies(threading.Thread):
             The Discoverxx thread is being shutdown, perhaps due to changed
             settings.
         """
-        Monitor.get_instance().unregister_settings_changed_listener(
+        Monitor.unregister_settings_changed_listener(
             self.on_settings_changed)
         self._movie_data.remove()
 

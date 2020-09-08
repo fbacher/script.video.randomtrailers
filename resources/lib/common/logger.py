@@ -21,7 +21,7 @@ import six
 import xbmc
 from kodi_six import utils
 
-from .exceptions import AbortException, ShutdownException
+from .exceptions import AbortException
 from .constants import Constants
 from .critical_settings import CriticalSettings
 
@@ -111,9 +111,9 @@ class Logger(logging.Logger):
         try:
             super().__init__(name, level=level)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             Logger.log_exception()
 
     @staticmethod
@@ -309,9 +309,9 @@ class Logger(logging.Logger):
             super()._log(log_level, format_str, args, exc_info=exc_info,
                          extra=extra)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             Logger.log_exception()
         finally:
             del start_frame
@@ -645,9 +645,9 @@ class Logger(logging.Logger):
 
             s = sio.getvalue()
             sio.close()
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             msg = 'Logger.log_exception raised exception during processing'
             xbmc.log(msg, xbmc.LOGERROR)
 
@@ -832,9 +832,9 @@ class LazyLogger(Logger):
             self.addFilter(
                 MyFilter(enabled_traces=Trace.get_enabled_traces()))
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             LazyLogger.log_exception()
 
     def log(self, *args, **kwargs):
@@ -864,9 +864,9 @@ class LazyLogger(Logger):
             kwargs['ignore_frames'] = ignore_frames
             super()._log(*args, **kwargs)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             LazyLogger.log_exception()
 
     def _log(self, *args, **kwargs):
@@ -902,9 +902,9 @@ class LazyLogger(Logger):
 
             super()._log(*args, **kwargs)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             LazyLogger.log_exception()
 
     def debug(self, *args, **kwargs):

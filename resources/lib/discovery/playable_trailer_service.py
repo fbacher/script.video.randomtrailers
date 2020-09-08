@@ -118,7 +118,7 @@ class PlayableTrailerService(object):
                     movie = self._do_next()
                     finished = True
                 except (RestartDiscoveryException):
-                    Monitor.get_instance().throw_exception_if_shutdown_requested(0.10)
+                    Monitor.throw_exception_if_abort_requested(timeout=0.10)
                     if self._logger.isEnabledFor(Logger.DEBUG):
                         self._logger.debug(
                             'Rediscovery in progress. attempt:', attempt)
@@ -235,7 +235,7 @@ class PlayableTrailerService(object):
                     self._logger.debug('PlayableTrailerService.next trailer_index_to_play:',
                                        trailer_index_to_play)
             except (ValueError) as e:  # Empty range
-                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=0.10)
+                Monitor.throw_exception_if_abort_requested(timeout=0.10)
                 continue
 
             total_number_of_trailers = 0
@@ -336,8 +336,8 @@ class PlayableTrailerService(object):
                 iteration += 1
                 if iteration % len(playable_trailers_list) == 0:
                     second_method_attempts += 1
-                    Monitor.get_instance().throw_exception_if_shutdown_requested(
-                        delay=0.5)
+                    Monitor.throw_exception_if_abort_requested(
+                        timeout=0.5)
 
         if trailer is None:
             self._next_failures += 1
@@ -395,7 +395,7 @@ class PlayableTrailerService(object):
         :param delay:
         :return:
         """
-        Monitor.get_instance().throw_exception_if_shutdown_requested(delay=delay)
+        Monitor.throw_exception_if_abort_requested(timeout=delay)
         if movie_data is not None and movie_data.restart_discovery_event.isSet():
             if self._logger.isEnabledFor(Logger.DEBUG):
                 self._logger.debug('RestartDiscoveryException source:',

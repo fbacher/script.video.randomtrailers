@@ -17,7 +17,7 @@ import six
 from common.constants import Constants, Movie
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.logger import (Logger, Trace, LazyLogger)
 from common.settings import Settings
@@ -148,9 +148,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                         self.remove_self()
                 self._some_movies_discovered_event.set()
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             return  # Just exit thread
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         self.finished_discovery()
@@ -326,7 +326,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             self._selected_genres, self._excluded_genres, self._selected_keywords,
             self._excluded_keywords)
 
-        if Monitor.get_instance().is_shutdown_requested():
+        if Monitor.is_abort_requested():
             return
 
         start_time = datetime.datetime.now()
@@ -433,9 +433,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
                     self._some_movies_discovered_event.set()
 
-            except (AbortException, ShutdownException):
+            except AbortException:
                 six.reraise(*sys.exc_info())
-            except (Exception):
+            except Exception:
                 self._logger.exception('')
         try:
             if len(library_movies) >= 0:
@@ -447,9 +447,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 self._libraryURLManager.add_to_discovered_trailers(
                     library_url_movies)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception):
+        except Exception:
             self._logger.exception('')
 
         if self._logger.isEnabledFor(Logger.DEBUG):
@@ -510,7 +510,9 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
             stop_thread = not Settings.get_include_library_remote_trailers()
             if stop_thread:
                 self.restart_discovery(stop_thread)
-        except (Exception) as e:
+        except AbortException:
+            pass  # don't pass exception to handler
+        except Exception as e:
             self._logger.exception('')
 
     def discover_basic_information(self):
@@ -540,9 +542,9 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                 # Restart discovery
                 self._logger.debug('Restarting discovery')
                 self.prepare_for_restart_discovery()
-            except (ShutdownException, AbortException):
+            except AbortException:
                 return  # Just exit thread
-            except (Exception) as e:
+            except Exception as e:
                 self._logger.exception('')
 
 
@@ -611,14 +613,14 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             try:
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
-            except (RestartDiscoveryException):
+            except RestartDiscoveryException:
                 # Restart discovery
                 if self._logger.isEnabledFor(Logger.DEBUG):
                     self._logger.debug('Restarting discovery')
                 self.prepare_for_restart_discovery()
-            except (ShutdownException, AbortException):
+            except AbortException:
                 return  # Just exit thread
-            except (Exception) as e:
+            except Exception as e:
                 self._logger.exception('')
 
     def get_days_since_last_played(self, last_played_field, movie_name):

@@ -218,7 +218,7 @@ class Playlist(object):
                 self._file = None
                 with Playlist._playlist_lock:
                     del Playlist._playlists[self._playlist_name]
-        except (Exception):
+        except Exception:
             pass
 
     @staticmethod

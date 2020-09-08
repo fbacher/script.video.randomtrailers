@@ -70,8 +70,8 @@ def load_trailers():
             and instances.get(Movie.TFH_SOURCE) is None):
         DiscoverTFHMovies().discover_basic_information()
 
-    Monitor.get_instance().throw_exception_if_shutdown_requested(delay=1.0)
-    Monitor.get_instance().set_startup_complete()
+    Monitor.throw_exception_if_abort_requested(timeout=1.0)
+    Monitor.set_startup_complete()
 
 
 def get_genres_in_library():

@@ -15,7 +15,7 @@ from logging import *
 
 from common.monitor import Monitor
 from common.constants import Constants
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger, Trace, MyHandler, MyFilter)
 from common.watchdog import WatchDog
 from screensaver.screensaver_bridge import ScreensaverBridge
@@ -59,7 +59,7 @@ if REMOTE_DBG:
         try:
             pydevd.settrace('localhost', stdoutToServer=True,
                             stderrToServer=True)
-        except (AbortException, ShutdownException):
+        except AbortException:
             raise sys.exc_info()
         except Exception as e:
             xbmc.log(
@@ -87,9 +87,7 @@ try:
     if __name__ == '__main__':
         if xbmc.Player().isPlaying():
             exit(0)
-        current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-        current_window_id = xbmcgui.getCurrentWindowId()
-        _monitor = Monitor.get_instance()
+        _monitor = Monitor
         Trace.enable_all()
         WatchDog.create()
 
@@ -98,8 +96,7 @@ try:
         # If this is not done, then Kodi will get constipated
         # sending/receiving events to plugins.
 
-        _monitor._waitForAbort(timeout=0.01)
-
+        _monitor.wait_for_abort(timeout=0.01)
         _monitor.set_startup_complete()
 
         if module_logger.isEnabledFor(Logger.DEBUG):
@@ -109,7 +106,7 @@ try:
         screen_saver_bridge = ScreensaverBridge.get_instance()
         message_received = screen_saver_bridge.request_activate_screensaver()
 
-        _monitor._waitForAbort(timeout=0.01)
+        _monitor.wait_for_abort(timeout=0.01)
 
         if not message_received:
             if module_logger.isEnabledFor(Logger.DEBUG):
@@ -119,26 +116,26 @@ try:
                 "params": {"addonid": "script.video.randomtrailers",\
                 "params": "screensaver" }, "id": 1}'
             json_text = xbmc.executeJSONRPC(cmd)
-            _monitor._waitForAbort(timeout=0.01)
+            _monitor.wait_for_abort(timeout=0.01)
 
             if module_logger.isEnabledFor(Logger.DEBUG):
                 module_logger.debug('Got back from starting randomtrailers')
 
         # xbmc.sleep(500)
         WatchDog.shutdown(traceback=False)
-        _monitor._waitForAbort(timeout=0.01)
-        screen_saver_bridge.delete_instance()
-        _monitor._waitForAbort(timeout=0.01)
+        _monitor.wait_for_abort(timeout=0.01)
+        ScreensaverBridge.delete_instance()
+        _monitor.wait_for_abort(timeout=0.01)
         del screen_saver_bridge
 
-except (AbortException, ShutdownException):
+except AbortException:
     pass
-except (Exception) as e:
+except Exception as e:
     module_logger.exception('')
 finally:
     if REMOTE_DBG:
         try:
             pydevd.stoptrace()
-        except (Exception) as e:
+        except Exception as e:
             pass
 exit(0)

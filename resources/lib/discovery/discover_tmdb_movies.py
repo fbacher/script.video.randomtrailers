@@ -18,7 +18,7 @@ from cache.cache_index import (CachedPage, CacheIndex, CacheParameters,
                                CachedPagesData)
 from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.monitor import Monitor
 from backend.movie_entry_utils import MovieEntryUtils
 from common.logger import (Logger, LazyLogger, Trace)
@@ -149,9 +149,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 self._logger.debug('Time to discover:', duration.seconds, ' seconds',
                                    trace=Trace.STATS)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             return
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def run_worker(self):
@@ -163,7 +163,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :return: #type: None
         """
         try:
-            Monitor.get_instance().throw_exception_if_shutdown_requested()
+            Monitor.throw_exception_if_abort_requested()
             tmdb_trailer_type = TmdbSettings.get_instance().get_trailer_type()
 
             #
@@ -208,9 +208,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             self.discover_movies(
                 max_pages, tmdb_trailer_type=tmdb_trailer_type)
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def discover_movies(self, max_pages, tmdb_trailer_type=''):
@@ -313,9 +313,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         tmdb_search_query=tmdb_search_query  # type: TextType
                     )
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception:
             self._logger.exception('')
 
     def configure_search_parameters(self,
@@ -401,9 +401,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     movies.extend(generic_movies)
                     del generic_movies
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         return movies
@@ -500,9 +500,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             })
             """
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         return result
@@ -981,10 +981,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             #
             # ========================
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
 
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
         return
 
@@ -1296,9 +1296,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 data['without_genres'] = []
                 data['without_keywords'] = self._excluded_keywords
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         finally:
@@ -1396,9 +1396,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 if self.is_exceeded_limit_of_trailers():
                     break
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     class AggregateQueryResults(object):
@@ -1540,9 +1540,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     MovieEntryUtils.set_tmdb_id(trailer_entry, trailer_id)
                     movies.append(trailer_entry)
 
-        except (AbortException, ShutdownException, RestartDiscoveryException):
+        except (AbortException, RestartDiscoveryException):
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
         finally:
 

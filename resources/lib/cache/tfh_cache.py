@@ -27,8 +27,10 @@ from common.development_tools import (Any, List,
                                       Dict, Union,
                                       TextType, MovieType)
 from common.constants import (Constants, Movie, RemoteTrailerPreference)
+from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger)
 from common.messages import (Messages)
+from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import (Settings)
 from common.disk_utils import (DiskUtils)
@@ -136,6 +138,8 @@ class TFHCache(object):
             except (Exception) as e:
                 TFHCache.logger().exception('')
 
+        Monitor.throw_exception_if_abort_requested()
+
     @classmethod
     def load_trailer_cache(cls):
         # type: () -> bool
@@ -167,6 +171,7 @@ class TFHCache(object):
         except (Exception) as e:
             TFHCache.logger().exception('')
 
+        Monitor.throw_exception_if_abort_requested()
         cls._cache_complete = False
         for trailer in cls._cached_trailers:
             if trailer[Movie.TFH_ID] == TFHCache.CACHE_COMPLETE_MARKER:

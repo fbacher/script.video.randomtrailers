@@ -6,10 +6,13 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
+import sys
+import six
 
 from common.imports import *
 
 from common.constants import (Constants)
+from common.exceptions import AbortException
 from common.logger import LazyLogger
 
 import os
@@ -58,5 +61,7 @@ class Utils(object):
         try:
             if not os.path.exists(path):
                 os.makedirs(path)
-        except (Exception) as e:
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')

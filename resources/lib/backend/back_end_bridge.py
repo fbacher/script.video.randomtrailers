@@ -18,7 +18,7 @@ from kodi65 import addon
 import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
@@ -76,9 +76,9 @@ class BackendBridge(PluginBridge):
             self._trailer_iterator = iter(playable_trailer_service)
             self._on_settings_changed_callback = Monitor.get_instance().onSettingsChanged
 
-        except (AbortException, ShutdownException):
-            six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
 
     @staticmethod
@@ -154,7 +154,7 @@ class BackendBridge(PluginBridge):
                                                   'status': status},
                              source_id=Constants.FRONTEND_ID)
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
         except (Exception) as e:
             self._logger.exception('')
@@ -171,7 +171,9 @@ class BackendBridge(PluginBridge):
                 name='BackendBridge.on_settings_changed')
 
             thread.start()
-        except (Exception):
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except Exception:
             self._logger.exception('')
 
     def register_listeners(self):

@@ -23,7 +23,7 @@ from common.development_tools import (Any, Callable, Optional, Iterable, List, D
 from common.constants import Constants
 from common.logger import (Logger, LazyLogger, Trace)
 from common.monitor import Monitor
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 
 if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
     module_logger = LazyLogger.get_addon_module_logger(
@@ -101,7 +101,7 @@ class YDStreamExtractorProxy(object):
 
                 trailer['_filename'] = trailer_file
 
-        except (AbortException, ShutdownException) as e:
+        except AbortException as e:
             trailer = None
             to_delete = os.path.join(folder, '_rt_' + str(movie_id) + '*')
             to_delete = glob.glob(to_delete)
@@ -169,7 +169,9 @@ class YDStreamExtractorProxy(object):
                 #   json_text_buffer = '\n\n'.join(json_text)
                 #   self._logger.debug('itunes trailer info:', json_text_buffer)
                 break
-            except (CalledProcessError) as e:
+            except AbortException:
+                six.reraise(*sys.exc_info())
+            except CalledProcessError as e:
                 remaining_attempts -= 1
                 output = e.output
                 stderr = e.stderror
@@ -179,8 +181,8 @@ class YDStreamExtractorProxy(object):
                     self._logger.debug('output:', output)
                     self._logger.debug('stderr:', stderr)
                 trailer_info = None
-                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=70.0)
-            except (Exception) as e:
+                Monitor.throw_exception_if_abort_requested(timeout=70.0)
+            except Exception as e:
                 remaining_attempts -= 1
                 self._logger.exception('')
                 # output = e.output
@@ -254,8 +256,8 @@ class YDStreamExtractorProxy(object):
                     self._logger.debug('output:', output)
                     self._logger.debug('stderr:', stderr)
                 trailer_info = None
-                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=70.0)
-            except (Exception) as e:
+                Monitor.throw_exception_if_abort_requested(timeout=70.0)
+            except Exception as e:
                 remaining_attempts -= 1
                 if remaining_attempts == 0:
                     self._tfh_success = False

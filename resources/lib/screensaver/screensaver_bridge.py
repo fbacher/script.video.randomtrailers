@@ -18,7 +18,7 @@ from kodi_six import xbmc
 import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException, ShutdownException
+from common.exceptions import AbortException
 from common.logger import (LazyLogger, Logger, Trace)
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
@@ -89,7 +89,7 @@ class ScreensaverBridge(PluginBridge):
 
             count = 0
             while count < 30 and self._ack_received is None:
-                Monitor.get_instance().wait_for_shutdown(0.05)
+                Monitor.wait_for_abort(0.05)
                 count += 1
 
             if not self._ack_received:
@@ -98,9 +98,9 @@ class ScreensaverBridge(PluginBridge):
                         'randomtrailers front-end appears inactive')
                 return False
             return True
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
     def receiveAck(self, data):
@@ -120,7 +120,7 @@ class ScreensaverBridge(PluginBridge):
             else:
                 self._ack_received = what
 
-        except (AbortException, ShutdownException):
+        except AbortException:
             six.reraise(*sys.exc_info())
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')

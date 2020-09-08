@@ -25,7 +25,7 @@ import six
 from kodi_six import xbmc, utils
 from kodi65.kodiaddon import Addon
 
-from common.exceptions import (AbortException, ShutdownException)
+from common.exceptions import AbortException
 from common.constants import Constants
 from common.critical_settings import CriticalSettings
 from common.logger import (LazyLogger, Logger, Trace)

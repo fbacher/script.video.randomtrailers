@@ -27,8 +27,7 @@ from common.development_tools import (Any, Dict, Union,
                                       TextType, MovieType)
 from common.constants import Constants, Movie
 from common.logger import (Logger, LazyLogger)
-from common.exceptions import (
-    TrailerIdException)
+from common.exceptions import (AbortException, TrailerIdException)
 from common.messages import Messages
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import Settings
@@ -202,8 +201,10 @@ class Cache(object):
             with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
                 trailer = json.load(cacheFile, encoding='utf-8')
             trailer[Movie.CACHED] = True
-        except (IOError) as e:
-            Cache._logger.exception('')
+        except AbortException:
+            six.reraise(*sys.exc_info())
+        except IOError as e:
+            cls._logger.exception('')
             trailer = None
             exception_occurred = True
         except (Exception) as e:
@@ -215,6 +216,8 @@ class Cache(object):
             # Blow away bad cache file
             if exception_occurred and path is not None:
                 os.remove(path)
+        except AbortException:
+            six.reraise(*sys.exc_info())
         except (Exception) as e:
             Cache._logger.exception('Trying to delete bad cache file.')
         return trailer

@@ -1049,7 +1049,7 @@ class GenreUtils(object):
         self._logger = module_logger.getChild(self.__class__.__name__)
 
         self._settings_stale = True
-        Monitor.get_instance().register_settings_changed_listener(self.on_settings_changed)
+        Monitor.register_settings_changed_listener(self.on_settings_changed)
 
     @staticmethod
     def get_instance():
