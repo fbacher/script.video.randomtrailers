@@ -5,24 +5,19 @@ Created on Feb 12, 2019
 @author: Frank Feuerbacher
 """
 # dummy screensaver will set screen to black and go fullscreen if windowed
-from __future__ import absolute_import, division, print_function, unicode_literals
+
+import sys
 
 from common.imports import *
 import xbmc
 import xbmcgui
 import xbmcaddon
-from logging import *
 
 from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger, Trace, MyHandler, MyFilter)
-from common.watchdog import WatchDog
+from common.logger import (LazyLogger, Trace, MyHandler, MyFilter)
 from screensaver.screensaver_bridge import ScreensaverBridge
-from kodi_six import utils
-
-import sys
-
 
 REMOTE_DBG = False  # True
 
@@ -32,7 +27,7 @@ if REMOTE_DBG:
     # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
     try:
         xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
-        # if module_logger.isEnabledFor(Logger.DEBUG):
+        # if module_logger.isEnabledFor(LazyLogger.DEBUG):
         #     module_logger.debug('Python path:', utils.py2_decode(sys.path))
         # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
         # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
@@ -73,43 +68,32 @@ if REMOTE_DBG:
     except BaseException:
         xbmc.log('Exception occurred Waiting on Debug connection', xbmc.LOGDEBUG)
 
-
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('screensaver')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 addon = xbmcaddon.Addon()
 do_fullscreen = addon.getSetting('do_fullscreen')
 
 try:
-
     if __name__ == '__main__':
         if xbmc.Player().isPlaying():
             exit(0)
         _monitor = Monitor
         Trace.enable_all()
-        WatchDog.create()
 
-        # Using _waitForAbort instead of waiting for shutdown to
+        # Using wait_for_abort to
         # cause Monitor to query Kodi for Abort on the main thread.
         # If this is not done, then Kodi will get constipated
         # sending/receiving events to plugins.
 
         _monitor.wait_for_abort(timeout=0.01)
         _monitor.set_startup_complete()
-
-        if module_logger.isEnabledFor(Logger.DEBUG):
-            module_logger.debug('CurrentDialogId, CurrentWindowId:', current_dialog_id,
-                                current_window_id)
-
-        screen_saver_bridge = ScreensaverBridge.get_instance()
-        message_received = screen_saver_bridge.request_activate_screensaver()
+        ScreensaverBridge()  # Initialize
+        message_received = ScreensaverBridge.request_activate_screensaver()
 
         _monitor.wait_for_abort(timeout=0.01)
 
         if not message_received:
-            if module_logger.isEnabledFor(Logger.DEBUG):
+            if module_logger.isEnabledFor(LazyLogger.DEBUG):
                 module_logger.debug('About to start randomtrailers')
 
             cmd = '{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \
@@ -118,15 +102,12 @@ try:
             json_text = xbmc.executeJSONRPC(cmd)
             _monitor.wait_for_abort(timeout=0.01)
 
-            if module_logger.isEnabledFor(Logger.DEBUG):
+            if module_logger.isEnabledFor(LazyLogger.DEBUG):
                 module_logger.debug('Got back from starting randomtrailers')
 
-        # xbmc.sleep(500)
-        WatchDog.shutdown(traceback=False)
         _monitor.wait_for_abort(timeout=0.01)
         ScreensaverBridge.delete_instance()
         _monitor.wait_for_abort(timeout=0.01)
-        del screen_saver_bridge
 
 except AbortException:
     pass

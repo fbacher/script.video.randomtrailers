@@ -5,50 +5,37 @@ Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import os
 import io
 import sys
-import six
 import stat
 import threading
 from queue import Queue, Empty
 
 import xbmc
 
+from common.imports import *
 from backend.back_end_bridge import BackendBridge
 from common.constants import Constants
-# if Constants.FRONTEND_ADDON_UTIL is None:
-#    xbmc.log('The plugin: ' + Constants.FRONTEND_ID +
-#             ' is not installed. Exiting', xbmc.LOGINFO)
-#    exit(0)
-
 from common.monitor import Monitor
 from common.exceptions import AbortException
 from common.settings import Settings
 from common.critical_settings import CriticalSettings
 from backend.api import load_trailers
-from common.logger import (
-    Logger, LazyLogger, Trace, MyHandler, MyFilter)
+from common.logger import (LazyLogger)
 
 from discovery.playable_trailer_service import PlayableTrailerService
-from discovery.base_discover_movies import BaseDiscoverMovies
 from cache.cache_manager import CacheManager
 
-# config_logger = LazyLogger('random_trailers_main')
-# config_logger.set_addon_name('service.randomtrailers.backend')
 
-
-REMOTE_DBG = False
+REMOTE_DBG = True
 
 if REMOTE_DBG:
     # Make pydev debugger work for auto reload.
     # Note pydevd module needs to be copied in XBMC\system\python\Lib\pysrc
     try:
-        # if config_logger.isEnabledFor((Logger.DEBUG)):
+        # if config_logger.isEnabledFor((LazyLogger.DEBUG)):
         #     config_logger.debug('%s', 'Trying to attach to debugger',
         #                  kwargs={'lazy_logger': False})
         #     config_logger.debug('%s %s', 'Python path:', str(
@@ -80,10 +67,11 @@ if REMOTE_DBG:
             pydevd.settrace('localhost', stdoutToServer=True,
                             stderrToServer=True)
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             xbmc.log(
-                ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
+                ' Looks like remote debugger was not started prior to plugin start',
+                xbmc.LOGDEBUG)
 
     except ImportError:
         msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
@@ -94,13 +82,7 @@ if REMOTE_DBG:
         xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
 
 RECEIVER = None
-
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-        addon_name='service.randomtrailers.backend').getChild('back_end_service')
-else:
-    module_logger = LazyLogger.get_addon_module_logger(
-        'service.randomtrailers.backend')
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class MainThreadLoop(object):
@@ -116,6 +98,7 @@ class MainThreadLoop(object):
 
     _singleton = None
     profiler = None
+    _logger = None
 
     def __init__(self):
         # type: () -> None
@@ -123,13 +106,10 @@ class MainThreadLoop(object):
 
         """
 
-        MainThreadLoop._logger = module_logger.getChild(
+        type(self)._logger = module_logger.getChild(
             self.__class__.__name__)
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-            MainThreadLoop._logger.debug('%s', 'Enter', lazy_logger=False)
-
-        self._back_end_bridge = None
-        self._monitor = Monitor.get_instance()
+        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
 
         # Calls that need to be performed on the main thread
 
@@ -155,8 +135,8 @@ class MainThreadLoop(object):
 
         :return:
         """
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-            MainThreadLoop._logger.debug('%s', 'Enter', lazy_logger=False)
+        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
 
         try:
             # Cheat and start the back_end_bridge here, although this method
@@ -190,21 +170,14 @@ class MainThreadLoop(object):
                     pass
 
             Monitor.throw_exception_if_abort_requested(timeout=timeout)
+
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            MainThreadLoop._logger.exception('')
-        finally:
-            if Monitor.get_instance().is_shutdown_requested():
-                if MainThreadLoop._logger.isEnabledFor((Logger.DEBUG)):
-                    MainThreadLoop._logger.debug('%s',
-                                                 '*********************** SHUTDOWN MAIN **************',
-                                                 lazy_logger=False)
-            WatchDog.shutdown()
+            type(self)._logger.exception('')
 
     def start_back_end_bridge(self):
-        self._back_end_bridge = BackendBridge.get_instance(
-            PlayableTrailerService(), BaseDiscoverMovies())
+        BackendBridge(PlayableTrailerService())
 
     def run_on_main_thread(self, callable_class):
         # type: (Callable[[None], None]) -> None
@@ -216,20 +189,20 @@ class MainThreadLoop(object):
         self._callableTasks.put(callable_class)
 
     def run_task(self, callable_class):
-        # type: (Callable[[None], None]) -> None
+        # type: (Optional[Callable[[None], None]]) -> None
         """
 
         :param callable_class:
         :return:
         """
-        if MainThreadLoop._logger.isEnabledFor((Logger.DEBUG)):
-            MainThreadLoop._logger.debug('%s', 'Enter', lazy_logger=False)
+        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
         try:
             callable_class()
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
-            MainThreadLoop._logger.exception('')
+            type(self)._logger.exception('')
 
 
 def profiler_thread():
@@ -241,7 +214,6 @@ def profiler_thread():
         while not finished:
             num += 1
             MainThreadLoop.profiler.enable()
-            #f = open('/tmp/profile_' + str(num), mode='wt')
             f = io.open('/tmp/profile_' + str(num), mode='wb')
             import pstats
             stats = pstats.Stats(
@@ -252,7 +224,7 @@ def profiler_thread():
             stats.print_stats()
             f.close()
     except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
     except Exception:
         module_logger.exception('')
 
@@ -263,10 +235,9 @@ def startup_non_main_thread():
 
     :return:
     """
-    if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-        MainThreadLoop._logger.debug('%s', 'Enter', lazy_logger=False)
+    if module_logger.isEnabledFor(LazyLogger.DEBUG):
+        module_logger.debug('%s', 'Enter', lazy_logger=False)
 
-    WatchDog.create()
     Settings.save_settings()
     Monitor.register_settings_changed_listener(
         Settings.on_settings_changed)
@@ -274,12 +245,12 @@ def startup_non_main_thread():
         LazyLogger.on_settings_changed)
     try:
         Settings.get_locale()
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             Settings.getLang_iso_639_1()
             Settings.getLang_iso_639_2()
             Settings.getLang_iso_3166_1()
     except AbortException:
-        six.reraise(*sys.exc_info())
+        reraise(*sys.exc_info())
     except Exception:
         pass
     load_trailers()
@@ -308,7 +279,7 @@ def bootstrap_random_trailers():
                 name='back_end_service.profiler_thread')
             thread.start()
 
-        mainLoop = MainThreadLoop.get_instance()
+        main_loop = MainThreadLoop.get_instance()
         try:
             thread = threading.Thread(
                 target=startup_non_main_thread,
@@ -317,7 +288,7 @@ def bootstrap_random_trailers():
         except Exception:
             module_logger.exception('')
 
-        mainLoop.event_processing_loop()
+        main_loop.event_processing_loop()
 
     except AbortException as e:
         pass
@@ -352,28 +323,29 @@ def bootstrap_unit_test():
 
 
 if __name__ == '__main__':  # TODO: need quick exit if backend is not running
-    run_random_trailers = True
-    argc = len(sys.argv) - 1
-    is_unit_test = False
-    for arg in sys.argv[1:]:
-        if arg == 'unittest':
-            is_unit_test = True
-            run_random_trailers = False
-    if run_random_trailers:
-        if Constants.FRONTEND_ADDON_UTIL is None:
-            module_logger.info('The plugin: ', Constants.FRONTEND_ID,
-                               'is not installed. Exiting')
-            exit(0)
+    try:
+        run_random_trailers = True
+        argc = len(sys.argv) - 1
+        is_unit_test = False
+        for arg in sys.argv[1:]:
+            if arg == 'unittest':
+                is_unit_test = True
+                run_random_trailers = False
+        if run_random_trailers:
+            if Constants.FRONTEND_ADDON_UTIL is None:
+                module_logger.info('The plugin: ', Constants.FRONTEND_ID,
+                                   'is not installed. Exiting')
+                exit(0)
 
-        post_install()
-        profile = False
-        if profile:
-            import cProfile
-            MainThreadLoop.profiler = cProfile.Profile()
-            MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
-        else:
-            bootstrap_random_trailers()
-    elif is_unit_test:
-        bootstrap_unit_test()
+            post_install()
+            profile = False
+            if profile:
+                import cProfile
+                MainThreadLoop.profiler = cProfile.Profile()
+                MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
+            else:
+                bootstrap_random_trailers()
+        elif is_unit_test:
+            bootstrap_unit_test()
     except AbortException:
         pass  # Die, Die, Die
