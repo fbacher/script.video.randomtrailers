@@ -42,9 +42,10 @@
                 <control type="label" id="38021">
                     <description>Title</description>
                     <posx>20</posx>
+                    <posy>1</posy>
                     <width>1240</width>
                     <aligny>center</aligny>
-                    <visible>true</visible>
+                    <visible>Skin.HasSetting(SummaryLabel)+!Skin.HasSetting(Notification)</visible>
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
@@ -54,17 +55,15 @@
             </control>
             <control type="group" id="38022">
                 <description>Notification that may appear while trailer is playing</description>
-                <posx>560</posx>
-                <posy>690</posy>
-                <width>720</width>
-                <height>30</height>
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1280</width>
+                <height>45</height>
                 <visible>Skin.HasSetting(Notification)</visible>
                 <control type="image">
                     <description>Shadow Text background</description>
                     <posx>0</posx>
-                    <posy>0</posy>
-                    <width>720</width>
-                    <height>30</height>
+                    <width>1280</width>
                     <visible>true</visible>
                     <aspectratio>stretch</aspectratio>
                     <texture>gray-back.png</texture>
@@ -72,15 +71,16 @@
                 <control type="label" id="38023">
                     <description>Notification</description>
                     <posx>0</posx>
-                    <posy>0</posy>
-                    <width>720</width>
+                    <posy>2</posy>
+                    <width>1280</width>
+                    <height>40</height>
                     <aligny>center</aligny>
-                    <alignx>right</alignx>
+                    <alignx>center</alignx>
                     <visible>true</visible>
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font23</font>
+                    <font>font14</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
@@ -102,6 +102,22 @@
                         <aspectratio>stretch</aspectratio>
                         <texture background="true">solid-black.png</texture>
                     </control>
+                </control>
+                <!-- Notification -->
+                <control type="label" id="38024">
+                    <description>Notification</description>
+                    <posx>0</posx>
+                    <posy>2</posy>
+                    <width>1280</width>
+                    <height>40</height>
+                    <aligny>center</aligny>
+                    <alignx>center</alignx>
+                    <visible>Skin.HasSetting(Notification)</visible>
+                    <scroll>false</scroll>
+                    <haspath>false</haspath>
+                    <wrapmultiline>false</wrapmultiline>
+                    <font>font14</font>
+                    <textcolor>FFFFFFFF</textcolor>
                 </control>
                 <!-- TITLE -->
                 <control type="label" id="38003">
@@ -285,7 +301,7 @@
                     </control>
                     <!--- STUDIO/YEAR -->
                     <control type="label" id="38010">
-                        <description>Studio/Year</description>
+                        <description>Studio</description>
                         <posx>30</posx>
                         <posy>50r</posy>
                         <height>20</height>
@@ -294,6 +310,17 @@
                         <textcolor>FFb4b4b4</textcolor>
                         <scroll>false</scroll>
                     </control>
+
+                    <!-- Star rating -->
+                    <control type="image" id="38012">
+                        <visible>true</visible>
+                        <left>230r</left>
+                        <posy>110r</posy>
+                        <width>223</width>
+                        <height>38</height>
+                        <!-- <animation effect="fade" start="100" end="60" time="0" condition="String.IsEmpty(ListItem.Rating)">Conditional</animation> -->
+                    </control>
+
                     <!-- RATING -->
                     <control type="image" id="38013">
                         <description>Rating</description>

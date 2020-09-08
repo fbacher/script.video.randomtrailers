@@ -4,19 +4,13 @@ Created on Feb 28, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 import xbmc, xbmcaddon
-from .imports import *
-from .constants import Movie, Constants
-from common.logger import (Logger, LazyLogger, Trace, log_entry_exit)
+from common.imports import *
+from common.constants import Movie, Constants
+from common.logger import (LazyLogger, Trace, log_entry_exit)
 
-
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-    ).getChild('common.messages')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Messages(object):
@@ -88,6 +82,21 @@ class Messages(object):
     GENRE_WAR = 'War'
     GENRE_WAR_DOCUMENTARY = 'War Documentary'
     GENRE_WESTERN = 'Western'
+    MOVIE_ADDED_TO_PLAYLIST = 'Movie added to playlist: {}'
+    MOVIE_ALREADY_ON_PLAYLIST = 'Movie already in playlist: {}'
+    SETTING_INCLUDE_THREAD_INFORMATION = "Include thread information"
+    RATING = 'Rating {}'
+    RATING_G = 'G'
+    RATING_PG = 'PG'
+    RATING_PG_13 = 'PG-13'
+    RATING_R = 'R'
+    RATING_NC_17 = 'NC-17'
+    RATING_NR = 'Not Rated'
+
+    # VOICED messages are spoken via TTS engine when available
+
+    VOICED_CERTIFICATION = 'MPAA rating {}'
+    VOICED_STARS = '{} out of five stars'
 
     _msg_id_for_name = {
         TRAILER_EXCEEDS_MAX_PLAY_TIME: 32180,
@@ -152,18 +161,31 @@ class Messages(object):
         GENRE_VARIETY: 32235,
         GENRE_WAR: 32236,
         GENRE_WAR_DOCUMENTARY: 32237,
-        GENRE_WESTERN: 32238
+        GENRE_WESTERN: 32238,
+        MOVIE_ADDED_TO_PLAYLIST: 32239,
+        MOVIE_ALREADY_ON_PLAYLIST: 32240,
+        SETTING_INCLUDE_THREAD_INFORMATION: 32241,
+        RATING: 32242,
+        RATING_G: 32243,
+        RATING_PG: 32244,
+        RATING_PG_13: 32245,
+        RATING_R: 32246,
+        RATING_NC_17: 32247,
+        RATING_NR: 32248,
+        VOICED_CERTIFICATION: 32249,
+        VOICED_STARS: 32250
     }
 
     _instance = None
     _debug_dump = False
+    _logger = None
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        type(self)._logger = module_logger.getChild(type(self).__name__)
 
 
     @staticmethod
@@ -177,55 +199,60 @@ class Messages(object):
             Messages._instance = Messages()
         return Messages._instance
 
-    def get_msg(self, msg_key):
-        # type: (TextType) -> TextType
+    @classmethod
+    def get_msg(cls, msg_key):
+        # type: (str) -> str
         """
 
         :param msg_key:
         :return:
         """
 
-        return self.get_formatted_msg(msg_key)
+        return cls.get_formatted_msg(msg_key)
 
-    def get_formatted_msg(self, msg_key, *args):
-        # type: (TextType, Optional[List[TextType]]) -> TextType
+    @classmethod
+    def get_formatted_msg(cls, msg_key, *args):
+        # type: (str, Optional[Union[List[str], str]]) -> str
         """
 
         :param msg_key:
         :param args
         :return:
         """
-        if not Messages._debug_dump:
-            for msg_number in range(32000, 32238):
+        if Messages._debug_dump:
+            for msg_number in range(32000, 32300):
                 unformatted_msg = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
                     msg_number)
-                if unformatted_msg != "":
-                    self._logger.debug('found msg:', msg_number, unformatted_msg)
-            Messages._debug_dump = True
+                if (unformatted_msg != ""
+                        and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                    cls._logger.debug_extra_verbose('found msg:', msg_number,
+                                                    unformatted_msg)
+            Messages._debug_dump = False
 
         msg_id = Messages._msg_id_for_name.get(msg_key, None)
         unformatted_msg = 'Message not defined'
         if msg_id is None:
-            if self._logger.isEnabledFor(Logger.ERROR):
-                self._logger.error(
+            if cls._logger.isEnabledFor(LazyLogger.ERROR):
+                cls._logger.error(
                     'Can not find msg_id_for_name for message key: {}'.format(msg_key))
                 unformatted_msg = msg_key
         else:
             unformatted_msg = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(msg_id)
             if unformatted_msg == '':
                 unformatted_msg = msg_key
-                if self._logger.isEnabledFor(Logger.ERROR):
-                    self._logger.error(
-                        'Can not find message from strings for message id: {} msg_key: {}'.format(msg_id,
-                                                                                                  msg_key))
+                if cls._logger.isEnabledFor(LazyLogger.ERROR):
+                    cls._logger.error(
+                        'Can not find message from strings for message id: {} msg_key: {}'
+                        .format(msg_id, msg_key))
                     unformatted_msg = msg_key
-                    if self._logger.isEnabledFor(Logger.DEBUG):
+                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                         unformatted_msg += '_dm'
 
         return unformatted_msg.format(*args)
 
-    def get_formated_title(self, movie):
-        # type: (Dict[TextType, TextType]) -> TextType
+    @classmethod
+    def get_formated_title(cls, movie):
+        # type: (Dict[str, str]) -> str
         """
 
         :param movie:
@@ -246,3 +273,7 @@ class Messages(object):
         title_string = (movie[Movie.TITLE] + ' ' + year + ' - ' +
                         sources + ' ' + trailer_type)
         return title_string
+
+
+# Initialize logger
+message_instance = Messages.get_instance()

@@ -994,3 +994,59 @@ msgstr ""
 msgctxt "#32238"
 msgid "Western"
 msgstr ""
+
+msgctxt "#32239"
+msgid "Movie added to playlist: {}"
+msgstr ""
+
+msgctxt "#32240"
+msgid "Movie already in playlist: {}"
+msgstr ""
+
+msgctxt "#32241"
+msgid "Include thread information"
+msgstr ""
+
+# Some locales use the term "Certification" instead of "Rating" for
+# a film's certification
+msgctxt "#32242"
+msgid "Rating {}"
+msgstr ""
+
+msgctxt "#32243"
+msgid "G"
+msgstr ""
+
+msgctxt "#32244"
+msgid "PG"
+msgstr ""
+
+msgctxt "#32245"
+msgid "PG-13"
+msgstr ""
+
+msgctxt "#32246"
+msgid "R"
+msgstr ""
+
+msgctxt "#32247"
+msgid "NC-17"
+msgstr ""
+
+msgctxt "#32248"
+msgid "Not Rated"
+msgstr ""
+
+# A film's certification varies by country and the terminology varies
+# as well. In the US, certification are referred to as a film's "rating"
+# or "MPAA rating"
+# This message will be voiced when service.kodi.tts addon available.
+# The certification authority (MPAA) is different for each country
+msgctxt "#32249"
+msgid "MPAA rating {}"
+msgstr ""
+
+# Voiced message indicating a movie's ranking (i.e. 4.5 out of five stars).
+msgctxt "#32250"
+msgid "{} out of five stars"
+msgstr ""

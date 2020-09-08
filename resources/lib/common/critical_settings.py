@@ -4,22 +4,10 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from .imports import *
 
-from functools import wraps
-from logging import Logger as Python_Logger
-from logging import (Handler, LogRecord, NOTSET)
-import os
-import re
-import sys
-import threading
-import traceback
-
 import xbmc
-import six
-from kodi_six import utils
 from kodi65.kodiaddon import Addon
 
 
@@ -29,10 +17,12 @@ class CriticalSettings(object):
         dependency on Settings.
 
     """
+
+    DEBUG_INCLUDE_THREAD_INFO = 'debug_include_thread_info'
     addon = None
     try:
         addon = Addon('script.video.randomtrailers')
-    except (Exception):
+    except Exception:
         xbmc.log('script.video.randomtrailers was not found.',
                  level=xbmc.LOGERROR)
 
@@ -50,6 +40,20 @@ class CriticalSettings(object):
         return bool(is_debug_enabled)
 
     @staticmethod
+    def is_debug_include_thread_info():
+        # type: () -> bool
+        """
+
+        :return:
+        """
+        if CriticalSettings.addon is None:
+            return False
+
+        is_debug_include_thread_info = CriticalSettings.addon.setting(
+                                            CriticalSettings.DEBUG_INCLUDE_THREAD_INFO)
+        return bool(is_debug_include_thread_info)
+
+    @staticmethod
     def get_logging_level():
         # type: () -> int
         """
@@ -58,6 +62,7 @@ class CriticalSettings(object):
         """
         log_level = 30
         xbmc.log('get_logging_level', level=xbmc.LOGDEBUG)
+        translated_value = None
 
         try:
 
@@ -112,7 +117,7 @@ class CriticalSettings(object):
                 msg = 'get_logging_level got log_level: {!s}'.format(
                     translated_value)
                 xbmc.log(msg, level=xbmc.LOGDEBUG)
-        except (Exception):
+        except Exception:
             xbmc.log('Exception occurred in get_logging_level',
                      level=xbmc.LOGERROR)
 

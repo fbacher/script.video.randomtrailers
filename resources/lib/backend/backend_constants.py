@@ -6,7 +6,7 @@ Created on Feb 11, 2019
 @author: fbacher
 """
 
-from __future__ import absolute_import, division, print_function, unicode_literals
+#from __future__ import absolute_import, division, print_function, unicode_literals
 
 APPLE_URL_PREFIX = 'http://trailers.apple.com'
 APPLE_REQUEST_LIMIT = 20  # Documented limit is 20 / minute

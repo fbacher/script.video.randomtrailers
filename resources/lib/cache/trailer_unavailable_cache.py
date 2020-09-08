@@ -5,8 +5,6 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from common.imports import *
 
 import datetime
@@ -15,26 +13,21 @@ import io
 import simplejson as json
 from simplejson import (JSONDecodeError)
 import os
+import sys
 import threading
 
 import xbmc
 import xbmcvfs
 
-from kodi_six import utils
-
 from backend.statistics import (Statistics)
-from common.development_tools import (Optional, Union,
-                                      TextType)
 from common.constants import Constants, Movie
-from common.logger import (LazyLogger, Logger)
+from common.exceptions import AbortException
+from common.logger import (LazyLogger)
+from common.monitor import Monitor
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'cache.trailer_not_found')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection PyRedundantParentheses
@@ -58,9 +51,9 @@ class TrailerUnavailableCache(object):
     def add_missing_tmdb_trailer(cls,
                                  tmdb_id=None,  # type: int
                                  library_id=None,  # type: Optional[int]
-                                 title=None,  # type: TextType
+                                 title=None,  # type: str
                                  year=None,  # type: int
-                                 source=None  # type TextType
+                                 source=None  # type str
                                  ):
         # type (...) -> None
         """
@@ -75,7 +68,7 @@ class TrailerUnavailableCache(object):
         values = {Movie.UNIQUE_ID_TMDB: tmdb_id,
                   'timestamp': datetime.date.today()
                   }
-        if cls._logger.isEnabledFor(Logger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             values[Movie.MOVIEID] = library_id
             values[Movie.TITLE] = title
             values[Movie.YEAR] = year
@@ -91,9 +84,9 @@ class TrailerUnavailableCache(object):
     def add_missing_library_trailer(cls,
                                     tmdb_id=None,  # type: int
                                     library_id=None,  # type: Optional[int]
-                                    title=None,  # type: TextType
+                                    title=None,  # type: str
                                     year=None,  # type: int
-                                    source=None  # type TextType
+                                    source=None  # type str
                                     ):
         # type (...) -> None
         """
@@ -111,7 +104,7 @@ class TrailerUnavailableCache(object):
             'timestamp': datetime.date.today()
         }
 
-        if cls._logger.isEnabledFor(Logger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             values[Movie.UNIQUE_ID_TMDB] = tmdb_id
             values[Movie.TITLE] = title
             values[Movie.YEAR] = year
@@ -244,20 +237,22 @@ class TrailerUnavailableCache(object):
                         DiskUtils.create_path_if_needed(parent_dir)
                     with io.open(path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
-                        json_text = utils.py2_decode(
+                        json_text = \
                             json.dumps(cls._all_missing_tmdb_trailers,
                                        encoding='utf-8',
                                        ensure_ascii=False,
                                        default=TrailerUnavailableCache.handler,
-                                       indent=3, sort_keys=True))
+                                       indent=3, sort_keys=True)
                         cacheFile.write(json_text)
                         cacheFile.flush()
 
                     cls.tmdb_last_save = datetime.datetime.now()
                     cls.tmdb_unsaved_changes = 0
-                except (IOError) as e:
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except IOError as e:
                     cls._logger.exception('')
-                except (Exception) as e:
+                except Exception as e:
                     cls._logger.exception('')
 
             if cls.library_unsaved_changes > 0:
@@ -284,21 +279,22 @@ class TrailerUnavailableCache(object):
 
                     with io.open(path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
-                        json_text = utils.py2_decode(
+                        json_text = \
                             json.dumps(cls._all_missing_library_trailers,
                                        encoding='utf-8',
                                        ensure_ascii=False,
                                        default=TrailerUnavailableCache.handler,
-                                       indent=3, sort_keys=True))
+                                       indent=3, sort_keys=True)
                         cacheFile.write(json_text)
                         cacheFile.flush()
 
                     cls.library_last_save = datetime.datetime.now()
                     cls.library_unsaved_changes = 0
-
-                except (IOError) as e:
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except IOError as e:
                     cls._logger.exception('')
-                except (Exception) as e:
+                except Exception as e:
                     cls._logger.exception('')
 
     @staticmethod
@@ -343,6 +339,7 @@ class TrailerUnavailableCache(object):
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_tmdb_trailers.json')
         path = xbmcvfs.validatePath(path)
+        Monitor.throw_exception_if_abort_requested()
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -356,14 +353,16 @@ class TrailerUnavailableCache(object):
                         object_hook=TrailerUnavailableCache.datetime_parser)
                     size = len(cls._all_missing_tmdb_trailers)
                     Statistics.missing_tmdb_trailers_initial_size(size)
-
-        except (IOError) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except IOError as e:
             cls._logger.exception('')
-        except (JSONDecodeError) as e:
+        except JSONDecodeError as e:
             os.remove(path)
-        except (Exception) as e:
+        except Exception as e:
             cls._logger.exception('')
 
+        Monitor.throw_exception_if_abort_requested()
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_library_trailers.json')
         path = xbmcvfs.validatePath(path)
@@ -379,11 +378,13 @@ class TrailerUnavailableCache(object):
                         object_hook=TrailerUnavailableCache.datetime_parser)
                     size = len(cls._all_missing_library_trailers)
                     Statistics.missing_library_trailers_initial_size(size)
-        except (JSONDecodeError) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except JSONDecodeError as e:
             os.remove(path)
-        except (IOError) as e:
+        except IOError as e:
             cls._logger.exception('')
-        except (Exception) as e:
+        except Exception as e:
             cls._logger.exception('')
 
         pass

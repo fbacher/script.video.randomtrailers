@@ -4,17 +4,13 @@ Created on Apr 14, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import datetime
 import os
 import requests
-import six
+import resource
 import sys
 
-#from kodi_six import xbmc, xbmcvfs
 import xbmc
 import xbmcvfs
 
@@ -22,20 +18,16 @@ from common.constants import Constants, Movie
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
+from common.imports import *
 from common.monitor import Monitor
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.settings import Settings
-from common.development_tools import (TextType, DEVELOPMENT, resource)
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.folder_movie_data import FolderMovieData
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.discover_folder_trailers')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator,PyArgumentList,PyArgumentList
@@ -48,16 +40,17 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
     """
 
     _singleton_instance = None
+    logger = None
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__)
         thread_name = type(self).__name__
-        kwargs = {}
-        kwargs[Movie.SOURCE] = Movie.FOLDER_SOURCE
+        kwargs = {Movie.SOURCE: Movie.FOLDER_SOURCE}
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
         self._movie_data = FolderMovieData()
@@ -70,8 +63,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         """
         self.start()
         # self._trailer_fetcher.start_fetchers(self)
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug(': started')
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug(': started')
 
     def run(self):
         # type: () -> None
@@ -81,8 +74,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         """
         if DEVELOPMENT:
             memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(': memory: ' + str(memory))
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug(': memory: ' + str(memory))
         start_time = datetime.datetime.now()
         try:
             finished = False
@@ -91,10 +84,10 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     self.discover_basic_information_worker(
                         Settings.get_trailers_paths())
                     self.wait_until_restart_or_shutdown()
-                except (RestartDiscoveryException):
+                except RestartDiscoveryException:
                     # Restart discovery
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Restarting discovery')
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.get_include_trailer_folders():
                         finished = True
@@ -102,17 +95,17 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
         except AbortException:
             return  # Just exit thread
-        except (Exception):
-            self._logger.exception('')
+        except Exception:
+            type(self).logger.exception('')
 
         self.finished_discovery()
         duration = datetime.datetime.now() - start_time
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('Time to discover:', duration.seconds, 'seconds',
-                               trace=Trace.STATS)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('Time to discover:', duration.seconds,
+                                     'seconds', trace=Trace.STATS)
 
     def discover_basic_information_worker(self, path):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param path:
@@ -129,7 +122,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                 folders.append(path)
             DiskUtils.RandomGenerator.shuffle(folders)
             for folder in folders:
-                Monitor.get_instance().throw_exception_if_shutdown_requested()
+                Monitor.throw_exception_if_abort_requested()
 
                 if xbmcvfs.exists(xbmc.translatePath(folder)):
                     # get all files and sub-folders
@@ -157,16 +150,16 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                                            Movie.THUMBNAIL: '',
                                            Movie.FILE: '',
                                            Movie.YEAR: ''}
-                            if self._logger.isEnabledFor(Logger.DEBUG):
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                                 Debug.validate_basic_movie_properties(
                                     new_trailer)
                             self.add_to_discovered_trailers(
                                 new_trailer)
 
                         except AbortException:
-                            six.reraise(*sys.exc_info())
+                            reraise(*sys.exc_info())
                         except Exception as e:
-                            self._logger.exception('')
+                            type(self).logger.exception('')
 
                     for item in dirs:
                         # recursively scan all sub-folders
@@ -175,9 +168,9 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                             sub_tree)
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            type(self).logger.exception('')
         return
 
     def on_settings_changed(self):
@@ -188,11 +181,11 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             settings change, therefore, only do something if we are no longer
             active.
         """
-        self._logger.enter()
+        type(self).logger.enter()
 
         try:
             stop_thread = not Settings.get_include_trailer_folders()
             if stop_thread:
                 self.restart_discovery(stop_thread)
-        except (Exception) as e:
-            self._logger.exception('')
+        except Exception as e:
+            type(self).logger.exception('')

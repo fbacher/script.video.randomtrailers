@@ -5,19 +5,14 @@ Created on Mar 4, 2019
 
 @author: fbacher
 '''
-from __future__ import absolute_import, division, print_function, unicode_literals
 
+import os
 from common.imports import *
-
 from common.constants import (Constants)
 from common.settings import Settings
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'backend.itunes')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class ITunes(object):
@@ -30,8 +25,13 @@ class ITunes(object):
                        }
     '''
 
-    @staticmethod
-    def get_excluded_types():
+    _logger = None
+
+    def __init__(self):
+        type(self)._logger = module_logger.getChild('ITunes')
+
+    @classmethod
+    def get_excluded_types(cls):
         # type: () -> {str}
         '''
 
@@ -39,9 +39,15 @@ class ITunes(object):
         '''
         iso_639_2_name = Settings.getLang_iso_639_2()
         iso_639_1_name = Settings.getLang_iso_639_1()
-        if module_logger.isEnabledFor(Logger.DEBUG):
-            module_logger.getChild('ITunes').debug('iso_639_2:', iso_639_2_name,
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            cls._logger.getChild('ITunes').debug('iso_639_2:', iso_639_2_name,
                                                    'iso_639_1:', iso_639_1_name)
 
-        return {'- JP Sub', 'Interview', '- UK', '- BR Sub', '- FR', '- IT', '- AU', '- MX', '- MX Sub', '- BR', '- RU', '- DE',
-                '- ES', '- FR Sub', '- KR Sub', '- Russian', '- French', '- Spanish', '- German', '- Latin American Spanish', '- Italian'}
+        return {'- JP Sub', 'Interview', '- UK', '- BR Sub', '- FR', '- IT',
+                '- AU', '- MX', '- MX Sub', '- BR', '- RU', '- DE',
+                '- ES', '- FR Sub', '- KR Sub', '- Russian', '- French',
+                '- Spanish', '- German', '- Latin American Spanish', '- Italian'}
+
+
+# Initialize logger
+ITunes()

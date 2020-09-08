@@ -5,29 +5,17 @@ Created on Mar 21, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import sys
-import threading
-import six
 
-from kodi65 import addon
-from kodi_six import xbmc
-import AddonSignals as AddonSignals
-
+from common.imports import *
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Logger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-    ).getChild('screensaver.screensaver_bridge')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class ScreensaverBridgeStatus(PluginBridgeStatus):
@@ -38,33 +26,28 @@ class ScreensaverBridgeStatus(PluginBridgeStatus):
 
 class ScreensaverBridge(PluginBridge):
     """
-        ScreensaverBridge provides support for the random trailers screensaver ervice to
+        ScreensaverBridge provides support for the random trailers screensaver service to
         communicate with the other random trailers plugins. Communication is
         accomplished using the AddonSignals service.
     """
 
     _instance = None
+    _ack_received = None
+    _context = None
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
         super().__init__()
-        self._context = Constants.SCREENSAVER_SERVICE
-        self._ack_received = None
+        type(self).class_init()
 
-    @staticmethod
-    def get_instance():
-        # type: () -> ScreensaverBridge
-        """
-
-        :return:
-        """
-        if ScreensaverBridge._instance is None:
-            ScreensaverBridge._instance = ScreensaverBridge()
-        return ScreensaverBridge._instance
+    @classmethod
+    def class_init(cls):
+        cls._logger = module_logger.getChild(cls.__name__)
+        cls._context = Constants.SCREENSAVER_SERVICE
+        cls._ack_received = None
 
     ###########################################################
     #
@@ -73,37 +56,39 @@ class ScreensaverBridge(PluginBridge):
     #
     ###########################################################
 
-    def request_activate_screensaver(self):
+    @classmethod
+    def request_activate_screensaver(cls):
         # type: () -> bool
         """
             Used by screensaver service to tell front-end to activate
             screensaver
         """
-        self._logger.enter()
+        cls._logger.enter()
         try:
-            self._ack_received = False
-            self.send_signal('activate_screensaver', data={},
-                             source_id=Constants.BACKEND_ID)
+            cls._ack_received = False
+            cls.send_signal('activate_screensaver', data={},
+                            source_id=Constants.BACKEND_ID)
 
             # Wait for response
 
             count = 0
-            while count < 30 and self._ack_received is None:
+            while count < 30 and cls._ack_received is None:
                 Monitor.wait_for_abort(0.05)
                 count += 1
 
-            if not self._ack_received:
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug(
+            if not cls._ack_received:
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls._logger.debug(
                         'randomtrailers front-end appears inactive')
                 return False
             return True
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            cls._logger.exception('')
 
-    def receiveAck(self, data):
+    @classmethod
+    def receiveAck(cls, data):
         # type: (Any) -> None
         """
 
@@ -112,15 +97,28 @@ class ScreensaverBridge(PluginBridge):
         """
         try:
             what = data.get('what', None)
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(self._context, 'received ack for:', what)
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                cls._logger.debug(cls._context, 'received ack for:', what)
             if what != 'screensaver':
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.error('Unexpected response:', what)
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls._logger.error('Unexpected response:', what)
             else:
-                self._ack_received = what
+                cls._ack_received = what
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            cls._logger.exception('')
+
+    @classmethod
+    def register_listeners(cls):
+        # type: () -> None
+        """
+            Register listeners (callbacks) with service. Note that
+            communication is asynchronous
+
+            :return: None
+        """
+
+        cls._logger.enter()
+        cls.register_slot(Constants.FRONTEND_ID, 'ack', cls.receiveAck)

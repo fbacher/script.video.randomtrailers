@@ -1,16 +1,14 @@
 # coding=utf-8
 
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 DEVELOPMENT = True
 try:
     from typing import (Any, Callable, FrozenSet, Optional, Iterable, List, Dict, Set,
                         Tuple,
                         Sequence, Union)
-    TextType = str
-    MovieType = Dict[TextType, Any]
+    MovieType = Dict[str, Any]
 
-except (Exception):
+except Exception:
     DEVELOPMENT = False
     Any = None
     Callable = None
@@ -23,7 +21,6 @@ except (Exception):
     Sequence = None
     Set = None
     Union = None
-    TextType = str
     MovieType = None
 
 RESOURCE_LIB = True

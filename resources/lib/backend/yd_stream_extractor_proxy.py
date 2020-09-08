@@ -3,11 +3,9 @@ Created on Apr 5, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
-import six
 import glob
 import subprocess
 from subprocess import CalledProcessError
@@ -16,20 +14,12 @@ import os
 import sys
 import threading
 
-from kodi_six import utils
-
-from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict, Tuple, Sequence, Union,
-                                      TextType, MovieType, DEVELOPMENT, RESOURCE_LIB)
 from common.constants import Constants
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.exceptions import AbortException
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-    ).getChild('backend.yd_stream_extractor_proxy')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class YDStreamExtractorProxy(object):
@@ -58,7 +48,7 @@ class YDStreamExtractorProxy(object):
         return YDStreamExtractorProxy._instance
 
     def get_video(self, url, folder, movie_id):
-        # type: (TextType, TextType, Union[int, TextType]) -> MovieType
+        # type: (str, str, Union[int, str]) -> MovieType
         """
 
         :param url:
@@ -81,8 +71,7 @@ class YDStreamExtractorProxy(object):
         trailer = None
         try:
             output = subprocess.check_output(
-                args, stdin=None, stderr=None, shell=False, env=env)
-            output = utils.py2_decode(output)
+                args, stdin=None, stderr=None, shell=False, text=True, env=env)
             trailer = json.loads(output)
             trailer_file = os.path.join(folder, '_rt_' + str(movie_id) + '*')
             trailer_file = glob.glob(trailer_file)
@@ -94,7 +83,7 @@ class YDStreamExtractorProxy(object):
             # file extension
 
             if trailer_file != trailer['_filename']:
-                if self._logger.isEnabledFor(Logger.DEBUG):
+                if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('youtube_dl gave incorrect file name:',
                                        trailer['_filename'], 'changing to:',
                                        trailer_file)
@@ -107,10 +96,10 @@ class YDStreamExtractorProxy(object):
             to_delete = glob.glob(to_delete)
             for aFile in to_delete:
                 os.remove(aFile)
-            six.reraise(*sys.exc_info())
-        except (Exception) as e:
+            reraise(*sys.exc_info())
+        except Exception as e:
             trailer = None
-            if self._logger.isEnabledFor(Logger.DEBUG):
+            if self._logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('Failed to download trailer for:', url,
                                    'to folder:', folder)
             to_delete = os.path.join(folder, '_rt_' + str(movie_id) + '*')
@@ -121,7 +110,7 @@ class YDStreamExtractorProxy(object):
             return trailer
 
     def get_info(self, url):
-        # type: (TextType) -> MovieType
+        # type: (str) -> MovieType
         """
 
         :param url:
@@ -154,7 +143,7 @@ class YDStreamExtractorProxy(object):
                     line = commmand_process.stdout.readline()
                     if not line:
                         break
-                    lines.append(utils.py2_decode(line))
+                    lines.append(line)
 
                 trailer_info = []
                 # json_text = []
@@ -165,21 +154,21 @@ class YDStreamExtractorProxy(object):
                     # single_trailer_info, indent=3, sort_keys=True))
                     trailer_info.append(single_trailer_info)
 
-                # if self._logger.isEnabledFor(Logger.DEBUG):
+                # if self._logger.isEnabledFor(LazyLogger.DEBUG):
                 #   json_text_buffer = '\n\n'.join(json_text)
                 #   self._logger.debug('itunes trailer info:', json_text_buffer)
                 break
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except CalledProcessError as e:
                 remaining_attempts -= 1
                 output = e.output
-                stderr = e.stderror
-                if self._logger.isEnabledFor(Logger.DEBUG):
+                #stderr = e.stderror
+                if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
                     self._logger.debug('output:', output)
-                    self._logger.debug('stderr:', stderr)
+                    #self._logger.debug('stderr:', stderr)
                 trailer_info = None
                 Monitor.throw_exception_if_abort_requested(timeout=70.0)
             except Exception as e:
@@ -187,17 +176,17 @@ class YDStreamExtractorProxy(object):
                 self._logger.exception('')
                 # output = e.output
                 # stderr = e.stderror
-                if self._logger.isEnabledFor(Logger.DEBUG):
+                if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
-                    self._logger.debug('output:', output)
-                    self._logger.debug('stderr:', stderr)
+                    #self._logger.debug('output:', output)
+                    #self._logger.debug('stderr:', stderr)
                 trailer_info = None
 
         return trailer_info
 
     def get_tfh_index(self, url, trailer_handler):
-        # type: (TextType) -> bool
+        # type: (str) -> bool
         """
 
         :param url:
@@ -244,13 +233,15 @@ class YDStreamExtractorProxy(object):
                     lines_read += 1
 
                 break
-            except (CalledProcessError) as e:
+            except AbortException:
+                reraise(*sys.exc_info())
+            except CalledProcessError as e:
                 remaining_attempts -= 1
                 if remaining_attempts == 0:
                     self._tfh_success = False
                 output = e.output
                 stderr = e.stderror
-                if self._logger.isEnabledFor(Logger.DEBUG):
+                if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
                     self._logger.debug('output:', output)
@@ -262,7 +253,7 @@ class YDStreamExtractorProxy(object):
                 if remaining_attempts == 0:
                     self._tfh_success = False
                 self._logger.exception('')
-                if self._logger.isEnabledFor(Logger.DEBUG):
+                if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
                     if line:

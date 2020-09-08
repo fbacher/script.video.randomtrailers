@@ -5,24 +5,17 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import threading
 from queue import (Queue)
 
-
+from common.imports import *
 from common.constants import Constants
 from common.exceptions import AbortException
 from common.monitor import Monitor
-from common.logger import (Logger, Trace, LazyLogger)
+from common.logger import (Trace, LazyLogger)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.abstract_movie_data')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class KodiQueue(object):
@@ -31,20 +24,22 @@ class KodiQueue(object):
 
     Full = _Full
     Empty = _Empty
+    _logger = None
 
-    def __init__(self, maxsize=0):
-        # type: (int) -> None
+    def __init__(self, maxsize: int = 0) -> None:
         """
         :param maxsize:
         :return:
         """
         self._lock = threading.RLock()
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        type(self)._logger = module_logger.getChild(type(self).__name__)
 
         self._wrapped_queue = Queue(maxsize=maxsize)
 
-    def put(self, item, block=True, timeout=None):
-        # type: (Any, bool, Optional[float]) -> None
+    def put(self,
+            item: Any,
+            block: bool = True,
+            timeout: Optional[float] = None) -> None:
         """
 
         :param item:
@@ -74,8 +69,9 @@ class KodiQueue(object):
                     if time_remaining <= 0:
                         raise KodiQueue.Full
 
-    def get(self, block=True, timeout=None):
-        # type: (bool, Optional[float]) -> object
+    def get(self,
+            block: bool = True,
+            timeout: Optional[float] = None) -> object:
         """
 
         :param block:
@@ -104,8 +100,7 @@ class KodiQueue(object):
 
         return item
 
-    def clear(self):
-        # type: () -> None
+    def clear(self) -> None:
         """
 
         :return:
@@ -113,12 +108,11 @@ class KodiQueue(object):
         while True:
             try:
                 self.get(block=True, timeout=0.10)
-            except (KodiQueue.Empty):
+            except KodiQueue.Empty:
                 break
-        assert len(self._wrapped_queue.empty())
+        assert self._wrapped_queue.qsize() == 0
 
-    def qsize(self):
-        # type: () -> int
+    def qsize(self) -> int:
         """
 
         :return:
@@ -126,33 +120,25 @@ class KodiQueue(object):
         with self._lock:
             size = int(self._wrapped_queue.qsize())
 
-        # self._logger.exit('size:', size)
         return size
 
-    def empty(self):
-        # type: () -> bool
+    def empty(self) -> bool:
         """
 
         :return:
         """
-        # self._logger = self._logger.get_method_logger('empty')
-
         with self._lock:
             empty = self._wrapped_queue.empty()
 
-        # self._logger.exit('empty:', empty)
         return empty
 
-    def full(self):
-        # type () -> bool
+    def full(self) -> bool:
         """
 
         :return:
         """
-        # self._logger = self._logger.get_method_logger('full')
 
         with self._lock:
             full = self._wrapped_queue.full()
 
-        # self._logger.exit('full:', full)
         return full

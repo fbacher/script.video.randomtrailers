@@ -3,6 +3,7 @@ import re
 import xbmc
 import simplejson as json
 
+
 def say_text(text, interrupt=False):
 
     # {"method": "JSONRPC.NotifyAll",
@@ -29,7 +30,20 @@ def say_text(text, interrupt=False):
 
     json_args = json.dumps(params)
     result = xbmc.executeJSONRPC(json_args)
+
+    params = dict(method='JSONRPC.NotifyAll',
+                  params=dict(sender='service.kodi.tts',
+                              message='SAY',
+                              data=dict(text=text,
+                                        interrupt=interrupt),
+                              ),
+                  id=1,
+                  jsonrpc='2.0')
+
+    json_args = json.dumps(params)
+    result = xbmc.executeJSONRPC(json_args)
     return result
+
 
 def stop():
     xbmc.executebuiltin('XBMC.NotifyAll(service.xbmc.tts,STOP)')

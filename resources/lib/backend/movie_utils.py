@@ -5,22 +5,18 @@ Created on Feb 11, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
 
 from common.imports import *
-
 from common.constants import (Constants, Movie)
 from common.playlist import Playlist
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from backend.json_utils import JsonUtils
 
 from common.settings import Settings
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'backend.movie_utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class LibraryMovieStats(object):
@@ -207,7 +203,6 @@ class LibraryMovieStats(object):
         :param movie:
         :return:
         """
-        # type: (dict) -> None
         genres = movie.get(Movie.GENRE, [])
         movie_name = movie[Movie.TITLE]
         movie_year = movie[Movie.YEAR]

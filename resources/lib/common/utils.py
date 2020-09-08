@@ -5,24 +5,20 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from .imports import *
+from common.imports import *
 
 import os
 import random
 
 from kodi65.kodiaddon import Addon
 
-from .constants import Constants
-from .logger import LazyLogger
-from .settings import Settings
+from common.constants import Constants
+from common.logger import LazyLogger
+from common.settings import Settings
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+
 
 # noinspection PyClassHasNoInit
 class Utils(object):
@@ -37,7 +33,7 @@ class Utils(object):
 
     @staticmethod
     def create_path_if_needed(path):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param path:
@@ -47,12 +43,12 @@ class Utils(object):
         try:
             if not os.path.exists(path):
                 os.makedirs(path)
-        except (Exception) as e:
+        except Exception as e:
             Utils._logger.exception('')
 
     @staticmethod
     def is_url(path):
-        # tpe: (TextType) -> bool
+        # tpe: (str) -> bool
         """
 
         :param path:
@@ -81,7 +77,7 @@ class Utils(object):
             couch_potato_addon = Addon(Constants.COUCH_POTATO_ID)
             version = couch_potato_addon.VERSION
             installed = True
-        except (Exception) as e:
+        except Exception as e:
             pass
 
         return installed

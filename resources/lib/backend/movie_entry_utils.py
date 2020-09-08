@@ -4,28 +4,21 @@ Created on Apr 14, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from common.imports import *
-
+import os
 import sys
 import datetime
 import json
-import six
 
+from common.imports import *
 from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.exceptions import AbortException
 from common.monitor import Monitor
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.settings import Settings
-
 from backend.json_utils_basic import JsonUtilsBasic
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'backend.movie_utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class MovieEntryUtils (object):
@@ -51,7 +44,7 @@ class MovieEntryUtils (object):
         title = movie[Movie.TITLE]
         unique_id = movie.get(Movie.UNIQUE_ID, None)
         if unique_id is not None:
-            # if cls._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+            # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             #     for key in unique_id:
             #         cls._logger.debug_extra_verbose(title, key, unique_id.get(key, ''))
             tmdb_id = unique_id.get(Movie.UNIQUE_ID_TMDB, None)
@@ -100,7 +93,7 @@ class MovieEntryUtils (object):
                             else:
                                 tmdb_id = movie_results[0].get('id', None)
                                 if tmdb_id is None:
-                                    if cls._logger.isEnabledFor(Logger.DEBUG):
+                                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                                         cls._logger.debug('Did not find movie for',
                                                           'imdb_id:', imdb_id,
                                                           'title:', title)
@@ -117,8 +110,8 @@ class MovieEntryUtils (object):
 
     @classmethod
     def get_alternate_titles(cls,
-                             movie_title,  # type: TextType
-                             movie_id,  # type: Union[int, TextType]
+                             movie_title,  # type: str
+                             movie_id,  # type: Union[int, str]
                              ):
         # type: (...) -> MovieType
         """
@@ -128,7 +121,7 @@ class MovieEntryUtils (object):
         :param movie_id:
         :return:
         """
-        if cls._logger.isEnabledFor(Logger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             cls._logger.debug('title:', movie_title, 'movie_id:', movie_id)
 
         data = {}
@@ -153,13 +146,13 @@ class MovieEntryUtils (object):
                 s_code = tmdb_result.get('status_code', None)
                 if s_code is not None:
                     status_code = s_code
-            if status_code != 0 and cls._logger.isEnabledFor(Logger.DEBUG):
+            if status_code != 0 and cls._logger.isEnabledFor(LazyLogger.DEBUG):
                 cls._logger.debug(
                     'Error getting TMDB data for:', movie_title,
                     'status:', status_code)
                 return None
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             cls._logger.exception('Error processing movie: ', movie_title)
             return None
@@ -171,14 +164,14 @@ class MovieEntryUtils (object):
                 year = tmdb_result['release_date'][:-6]
                 year = int(year)
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception:
                 year = 0
 
             parsed_data[Movie.YEAR] = year
 
             title = tmdb_result[Movie.TITLE]
-            if cls._logger.isEnabledFor(Logger.DEBUG):
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                 cls._logger.debug('Processing:', title, 'type:',
                                   type(title).__name__)
             parsed_data[Movie.TITLE] = title
@@ -224,16 +217,17 @@ class MovieEntryUtils (object):
                 parsed_data[Movie.ORIGINAL_TITLE] = original_title
 
         except AbortException as e:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('%s %s'.format(
                 'Error getting info for movie_id:', movie_id))
             try:
-                if cls._logger.isEnabledFor(Logger.DEBUG):
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                     json_text = json.dumps(
                         tmdb_result, indent=3, sort_keys=True)
                     cls._logger.debug(json_text)
             except AbortException:
+                reraise(*sys.exc_info())
             except Exception as e:
                 cls._logger('failed to get Json data')
 
@@ -310,13 +304,15 @@ class MovieEntryUtils (object):
             query_result = JsonUtilsBasic.get_kodi_json(
                 update, dump_results=True)
             Monitor.throw_exception_if_abort_requested()
-            if cls._logger.isEnabledFor(Logger.DEBUG):
+
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                 cls._logger.debug('Update TMDBID for:', trailer[Movie.TITLE],
                                   'update json:', update)
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('')
 
 
-_class_instance = MovieEntryUtils._class_init()
+# Initialize logger
+MovieEntryUtils._class_init()

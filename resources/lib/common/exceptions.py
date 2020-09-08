@@ -5,7 +5,6 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 
 class AbortException(Exception):
@@ -21,4 +20,8 @@ class TrailerIdException(Exception):
 
 
 class LogicError(Exception):
+    pass
+
+
+class DuplicateException(Exception):
     pass

@@ -5,12 +5,11 @@ Created on Mar 4, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from .imports import *
+from common.imports import *
 
-from backend.rating import Rating
-from .settings import Settings
+from common.rating import Rating
+from common.settings import Settings
 
 
 # noinspection PyClassHasNoInit
@@ -47,7 +46,7 @@ class TmdbSettings(object):
         return TmdbSettings._instance
 
     def get_rating_limit_string_from_setting(self):
-        # type: () ->  TextType
+        # type: () ->  str
         """
 
         :return:
@@ -56,7 +55,7 @@ class TmdbSettings(object):
         return TmdbSettings._rating_limit_string_for_setting[rating_limit]
 
     def get_trailer_type(self):
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:

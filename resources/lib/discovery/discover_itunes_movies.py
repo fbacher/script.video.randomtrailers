@@ -4,58 +4,55 @@ Created on Apr 14, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import datetime
 import re
-import string
+import sys
 
 from common.constants import Constants, Movie, iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
 from common.exceptions import AbortException
+from common.imports import *
 from common.messages import Messages
 from common.monitor import Monitor
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.settings import Settings
 from common.utils import Utils
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
-from backend.rating import Rating
+from common.rating import Rating
 from backend.genreutils import GenreUtils
 from backend import backend_constants
 from backend.itunes import ITunes
 from backend.json_utils_basic import JsonUtilsBasic
-from backend.json_utils import JsonUtils
 from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
 
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.itunes_movie_data import ItunesMovieData
 
 STRIP_TZ_PATTERN = ' .[0-9]{4}$'
+DOWNLOADABLE_TYPES = ('trailer', 'clip', 'featurette', 'teaser')
+EPOCH_TIME = datetime.datetime(1970, 1, 1, 0, 1)
 
 # noinspection Annotator,Annotator,PyArgumentList
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.discover_itunes_movies')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class DiscoverItunesMovies(BaseDiscoverMovies):
     """
 
     """
+    logger: LazyLogger = None
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__)
         thread_name = type(self).__name__
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.ITUNES_SOURCE
@@ -76,8 +73,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         """
         self.start()
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug(': started')
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug(': started')
 
     def on_settings_changed(self):
         # type: () -> None
@@ -85,7 +82,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             Rediscover trailers if the changed settings impacts this manager.
         """
 
-        self._logger.enter()
+        type(self).logger.enter()
 
         try:
             if Settings.is_itunes_loading_settings_changed():
@@ -93,8 +90,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 self.restart_discovery(stop_thread)
                 self._duplicate_check.clear()
 
-        except (Exception) as e:
-            self._logger.exception('')
+        except Exception as e:
+            type(self).logger.exception('')
 
     def is_duplicate(self, key):
         result = False
@@ -118,10 +115,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 try:
                     self.run_worker()
                     self.wait_until_restart_or_shutdown()
-                except (RestartDiscoveryException):
+                except RestartDiscoveryException:
                     # Restart discovery
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Restarting discovery')
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.get_include_itunes_trailers():
                         finished = True
@@ -130,13 +127,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         except AbortException:
             return  # Just exit thread
         except Exception:
-            self._logger.exception('')
+            type(self).logger.exception('')
 
         self.finished_discovery()
         duration = datetime.datetime.now() - start_time
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('Time to discover:', duration.seconds, 'seconds',
-                               trace=Trace.STATS)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('Time to discover:', duration.seconds,
+                                     'seconds', trace=Trace.STATS)
 
     def run_worker(self):
         # type: () -> None
@@ -144,7 +141,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         :return:
         """
-        Monitor.get_instance().throw_exception_if_shutdown_requested()
+        Monitor.throw_exception_if_abort_requested()
 
         # self._keywords = ''
         self._selected_genres = set('')
@@ -157,15 +154,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         show_only_itunes_trailers_of_this_type = \
             Settings.get_include_itunes_trailer_type()
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('iTunesTrailer_type:',
-                               show_only_itunes_trailers_of_this_type)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('iTunesTrailer_type:',
+                                     show_only_itunes_trailers_of_this_type)
 
         json_url = iTunes.get_url_for_trailer_type(
-            show_only_itunes_trailers_of_this_type)
+                                        show_only_itunes_trailers_of_this_type)
         json_url = backend_constants.APPLE_URL_PREFIX + json_url
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('iTunes json_url', json_url)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('iTunes json_url', json_url)
         status_code, parsed_content = JsonUtilsBasic.get_json(json_url)
         DiskUtils.RandomGenerator.shuffle(parsed_content)
         # Debug.dump_json(text='parsed_content', data=parsed_content)
@@ -208,17 +205,17 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #
         # Create Kodi movie entries from what iTunes has given us.
         #
-        # if self._logger.isEnabledFor(Logger.DEBUG):
-        #   self._logger.debug('Itunes parsed_content type:',
+        # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+        #   type(self).logger.debug('Itunes parsed_content type:',
         #                type(parsed_content).__name__)
 
         DiskUtils.RandomGenerator.shuffle(parsed_content)
         for itunes_movie in parsed_content:
             try:
-                Monitor.get_instance().throw_exception_if_shutdown_requested()
+                Monitor.throw_exception_if_abort_requested()
 
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('value: ', itunes_movie)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('value: ', itunes_movie)
                 # If we have seen this before, then skip it.
 
                 title = itunes_movie.get(Movie.TITLE, None)
@@ -226,13 +223,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     continue
 
                 title = itunes_movie.get(
-                    Movie.TITLE, Messages.get_instance().get_msg(Messages.MISSING_TITLE))
+                    Movie.TITLE, Messages.get_msg(Messages.MISSING_TITLE))
 
                 # TODO: DELETE ME!
 
                 release_date_string = itunes_movie.get('releasedate', '')
-                # if self._logger.isEnabledFor(Logger.DEBUG):
-                # self._logger.debug('release_date_string: ',
+                # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                # type(self).logger.debug('release_date_string: ',
                 #            release_date_string)
                 if release_date_string != '':
                     strip_tz_pattern = re.compile(STRIP_TZ_PATTERN)
@@ -242,18 +239,17 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     # "Thu, 14 Feb 2019 00:00:00 -0800",
                     release_date = datetime.datetime.strptime(
                         release_date_string, '%a, %d %b %Y %H:%M:%S')
-                    if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
-                        self._logger.debug_extra_verbose('title:', title, 'release_date_string:',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        type(self).logger.debug_extra_verbose('title:', title, 'release_date_string:',
                                                          release_date_string, 'release_date:',
                                                          release_date.strftime('%d-%m-%Y'))
                     #
                 else:
                     release_date = datetime.date.today()
 
-                if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
-                    EPOCH_TIME = datetime.datetime(1970, 1, 1, 0, 1)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if abs((release_date - EPOCH_TIME).total_seconds()) < 3600 * 25:
-                        self._logger.debug_extra_verbose('Suspicious looking release date:',
+                        type(self).logger.debug_extra_verbose('Suspicious looking release date:',
                                                          release_date.strftime('%d-%m-%Y'))
                         #
                         # Force date to be today since it looks like it was never
@@ -264,23 +260,23 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 if isinstance(studio, str):
                     studio = [studio]
 
-                # self._logger.debug('studio:', studio)
+                # type(self).logger.debug('studio:', studio)
 
                 poster = itunes_movie.get('poster', '')
 
-                # self._logger.debug('poster:', poster)
+                # type(self).logger.debug('poster:', poster)
 
                 thumb = poster.replace(
                     'poster.jpg', 'poster-xlarge.jpg')
                 fanart = poster.replace('poster.jpg', 'background.jpg')
 
-                # self._logger.debug('thumb:', thumb, ' fanart:', fanart)
+                # type(self).logger.debug('thumb:', thumb, ' fanart:', fanart)
 
                 # poster_2x = itunes_movie.get('poster_2x', '')
-                # self._logger.debug('poster_2x: ', poster_2x)
+                # type(self).logger.debug('poster_2x: ', poster_2x)
 
                 # location = itunes_movie.get('location', '')
-                # self._logger.debug('location: ', location)
+                # type(self).logger.debug('location: ', location)
 
                 # Normalize rating
                 # We expect the attribute to be named 'mpaa', not 'rating'
@@ -288,24 +284,24 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 itunes_movie[Movie.MPAA] = itunes_movie['rating']
                 rating = Rating.get_mpa_rating(
                     itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('rating: ', rating)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('rating: ', rating)
 
                 genres = itunes_movie.get('genre', '')
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('genres: ', genres)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('genres: ', genres)
 
                 directors = itunes_movie.get('directors', [])
                 if isinstance(directors, str):
                     directors = [directors]
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('directors: ', directors)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('directors: ', directors)
 
                 actors = itunes_movie.get('actors', [])
                 if isinstance(actors, str):
                     actors = [actors]
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('actors: ', actors)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('actors: ', actors)
                 cast = []
                 for actor in actors:
                     fake_cast_entry = {}
@@ -331,50 +327,50 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 exclude_types_set = ITunes.get_excluded_types()
                 itunes_trailers_list = itunes_movie.get('trailers', [])
 
-                # if self._logger.isEnabledFor(Logger.DEBUG):
-                #   self._logger.debug('itunes_trailers_list: ',
+                # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                #   type(self).logger.debug('itunes_trailers_list: ',
                 #                itunes_trailers_list)
                 for itunes_trailer in itunes_trailers_list:
                     try:
-                        Monitor.get_instance().throw_exception_if_shutdown_requested()
+                        Monitor.throw_exception_if_abort_requested()
 
                         keep_promotion = True
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                            type(self).logger.debug(
                                 'itunes_trailer: ', itunes_trailer)
 
                         # post_date = itunes_trailer.get('postdate', '')
-                        # self._logger.debug('post_date: ', post_date)
+                        # type(self).logger.debug('post_date: ', post_date)
 
                         url = itunes_trailer.get('url', '')
                         adult = itunes_trailer.get('adult', False)
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('url: ', url)
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                            type(self).logger.debug('url: ', url)
 
                         trailer_type = itunes_trailer.get('type', '')
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('type: ', trailer_type)
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                            type(self).logger.debug('type: ', trailer_type)
 
                         if trailer_type.startswith('Clip') and not Settings.get_include_clips():
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Rejecting due to clip')
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug('Rejecting due to clip')
                             keep_promotion = False
                         elif trailer_type in exclude_types_set:
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug(
                                     'Rejecting due to exclude Trailer Type')
                             keep_promotion = False
                         elif not Settings.get_include_featurettes() and (
                                 trailer_type == 'Featurette'):
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug(
                                     'Rejecting due to Featurette')
                             keep_promotion = False
                         elif ((Settings.get_include_itunes_trailer_type() ==
                                 iTunes.COMING_SOON) and
                               (release_date < datetime.date.today())):
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug(
                                     'Rejecting due to COMING_SOON and already released')
                             keep_promotion = False
 
@@ -383,18 +379,18 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                             if set(self._selected_genres).isdisjoint(set(genres)):
                                 keep_promotion = False
-                                if self._logger.isEnabledFor(Logger.DEBUG):
-                                    self._logger.debug(
+                                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                    type(self).logger.debug(
                                         'Rejecting due to genre')
                             if set(self._excluded_genres).intersection(set(genres)):
                                 keep_promotion = False
-                                if self._logger.isEnabledFor(Logger.DEBUG):
-                                    self._logger.debug(
+                                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                    type(self).logger.debug(
                                         'Rejecting due to excluded genre')
                         elif not Rating.check_rating(rating):
                             keep_promotion = False
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Rejecting due to rating:',
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug('Rejecting due to rating:',
                                                    rating)
                         if keep_promotion:
                             feature_url = 'https://trailers.apple.com' + \
@@ -412,39 +408,47 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                          fanart=fanart)
 
                             if movie is not None:
-                                if self._logger.isEnabledFor(Logger.DEBUG):
-                                    self._logger.debug(
+                                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                    type(self).logger.debug(
                                         'Adding iTunes trailer: ', movie[Movie.TITLE])
                                     Debug.validate_basic_movie_properties(
                                         movie)
                                 self.add_to_discovered_trailers(movie)
                     except AbortException:
-                    except (Exception) as e:
-                        self._logger.exception('')
+                        reraise(*sys.exc_info())
+                    except Exception as e:
+                        type(self).logger.exception('')
 
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception as e:
-                self._logger.exception('')
+                type(self).logger.exception('')
         return
 
     def get_trailer_url(self,
-                        feature_url,  # type: TextType
-                        title='',  # type: TextType
-                        trailer_type='',  # type: TextType
-                        rating='',  # type: TextType
+                        feature_url,  # type: str
+                        title='',  # type: str
+                        trailer_type='',  # type: str
+                        rating='',  # type: str
                         adult=False,  # type: bool
                         release_date=None,  # type: datetime.datetime
-                        genres=[],  # type: List[TextType]
-                        directors=[],  # type: List[TextType]
-                        cast=[],  # type: List[Dict]
-                        studio='',  # type: TextType
-                        fanart=''  # type: TextType
+                        genres=None,  # type: List[str]
+                        directors=None,  # type: List[str]
+                        cast=None,  # type: List[Dict]
+                        studio='',  # type: str
+                        fanart=''  # type: str
                         ):
 
         # type: (...) -> MovieType
         """
         """
+
+        if genres is None:
+            genres = []
+        if directors is None:
+            directors = []
+        if cast is None:
+            cast = []
 
         movie = None
         trailer_url = ''
@@ -495,7 +499,6 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # Toss every downloadable that does not meet language settings
 
             chosen_promotion = None
-            DOWNLOADABLE_TYPES = ('trailer', 'clip', 'featurette', 'teaser')
             media_types_map = {}
             for media_type in DOWNLOADABLE_TYPES:
                 media_types_map[media_type] = []
@@ -515,34 +518,34 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 if media_type not in DOWNLOADABLE_TYPES:
                     continue
                 if language != '' and language != Settings.getLang_iso_639_1():
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Rejecting:', title, 'media-type:',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Rejecting:', title, 'media-type:',
                                            media_type, 'due to language:',
                                            language)
                     continue
-                elif language == '' and self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Empty language specified for:',
+                elif language == '' and type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('Empty language specified for:',
                                        title, 'from media-type:', media_type)
                 if (not Settings.get_include_clips() and
                         media_type == 'clip'):
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Rejecting due to clip')
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Rejecting due to clip')
                     keep_promotion = False
                 elif not Settings.get_include_featurettes() and (
                         media_type == 'featurette'):
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Rejecting due to Featurette')
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Rejecting due to Featurette')
                     keep_promotion = False
                 elif not Settings.get_include_teasers() and (
                         media_type == 'teaser'):
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Rejecting due to Teaser')
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Rejecting due to Teaser')
                     keep_promotion = False
                 elif ((Settings.get_include_itunes_trailer_type() ==
                        iTunes.COMING_SOON) and
                       (release_date < datetime.date.today())):
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug(
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug(
                             'Rejecting due to COMING_SOON and already released')
                     keep_promotion = False
 
@@ -554,28 +557,28 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                         # TODO: DELETE ME
 
-                        if self._logger.isEnabledFor(Logger.DEBUG):
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                             if type(url).__name__ not in ('unicode', 'newstr'):
-                                self._logger.debug('LEAK: trailer not unicode:',
+                                type(self).logger.debug('LEAK: trailer not unicode:',
                                                    type(url).__name__)
 
                         if Utils.is_trailer_from_cache(url):
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('test passed')
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug('test passed')
 
                         # TODO: End DELETE ME
 
                         if language != '' and language != Settings.getLang_iso_639_1():
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Rejecting:', title,
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug('Rejecting:', title,
                                                    'due to language:',
                                                    language, 'from media-type:',
                                                    media_type, 'format:',
                                                    format)
                                 continue
-                        elif language == '' and self._logger.isEnabledFor(
-                                Logger.DEBUG):
-                            self._logger.debug('Empty language specified for:',
+                        elif language == '' and type(self).logger.isEnabledFor(
+                                LazyLogger.DEBUG):
+                            type(self).logger.debug('Empty language specified for:',
                                                title, 'from media-type:',
                                                media_type, 'format:', format)
 
@@ -1045,7 +1048,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                      Movie.SOURCE:
                      Movie.ITUNES_SOURCE,
                      Movie.ITUNES_ID: itunes_id}
-        except (Exception) as e:
-            self._logger.exception('')
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            type(self).logger.exception('')
 
         return movie

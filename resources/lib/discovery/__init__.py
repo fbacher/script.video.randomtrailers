@@ -6,7 +6,7 @@ from future.builtins import (
     pow, round, super, filter, map, zip)
 
 from common.development_tools import (Any, Callable, Optional, Iterable, List, Dict,
-                                      Tuple, Sequence, Union, TextType, DEVELOPMENT,
+                                      Tuple, Sequence, Union, DEVELOPMENT,
                                       RESOURCE_LIB, MovieType)
 
 __all__ = [absolute_import, division, print_function, unicode_literals,
@@ -14,6 +14,6 @@ __all__ = [absolute_import, division, print_function, unicode_literals,
            ascii, chr, hex, input, next, oct, open,
            pow, round, super, filter, map, zip,
            Any, Callable, Optional, Iterable, List, Dict,
-           Tuple, Sequence, Union, TextType, DEVELOPMENT,
+           Tuple, Sequence, Union, DEVELOPMENT,
            RESOURCE_LIB, MovieType
            ]

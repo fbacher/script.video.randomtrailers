@@ -4,9 +4,6 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from .imports import *
 
 import datetime
 import locale
@@ -15,21 +12,16 @@ import os
 import xbmc
 
 from kodi65.kodiaddon import Addon
-from kodi_six import utils
 
-from .constants import (Constants, DebugLevel,
+from common.imports import *
+from common.constants import (Constants, DebugLevel,
                         RemoteTrailerPreference, GenreEnum)
-from .logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.settings')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+
 
 # noinspection PyClassHasNoInit
-
-
 class Settings(object):
     """
 
@@ -429,8 +421,8 @@ class Settings(object):
             # exist
             try:
                 Settings._addon_singleton = Addon(
-                    'script.video.randomtrailers')
-            except (Exception):
+                    Constants.ADDON_ID)
+            except Exception:
                 pass
 
         return Settings._addon_singleton
@@ -468,12 +460,12 @@ class Settings(object):
             for setting in Settings.ALL_SETTINGS:
                 Settings._previous_settings[setting] = Settings.get_addon(
                 ).setting(setting)
-        except (Exception):
+        except Exception:
             pass
 
     @staticmethod
     def get_saved_settings():
-        # type: () -> Dict[TextType, TextType]
+        # type: () -> Dict[str, str]
         """
 
         :return:
@@ -482,7 +474,7 @@ class Settings(object):
 
     @staticmethod
     def get_changed_settings(settings_to_check):
-        # type: (List[TextType]) -> List[TextType]
+        # type: (List[str]) -> List[str]
         """
 
         :param settings_to_check:
@@ -495,12 +487,12 @@ class Settings(object):
             previous_value = Settings._previous_settings.get(setting, None)
             try:
                 current_value = Settings.get_addon().setting(setting)
-            except (Exception):
+            except Exception:
                 current_value = previous_value
 
             if previous_value != current_value:
                 changed = True
-                if module_logger.isEnabledFor(Logger.DEBUG):
+                if module_logger.isEnabledFor(LazyLogger.DEBUG):
                     Settings._logger.debug('setting changed:', setting, 'previous_value:',
                                            previous_value, 'current_value:', current_value)
             else:
@@ -524,7 +516,7 @@ class Settings(object):
         else:
             result = False
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             Settings._logger.debug('changed:', result)
 
         return result
@@ -541,7 +533,7 @@ class Settings(object):
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             Settings._logger.debug('changed:', result)
         return result
 
@@ -558,7 +550,7 @@ class Settings(object):
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             Settings._logger.debug('changed:', result)
 
         return result
@@ -575,7 +567,7 @@ class Settings(object):
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             Settings._logger.debug('changed:', result)
 
         return result
@@ -592,7 +584,7 @@ class Settings(object):
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             Settings._logger.debug('changed:', result)
 
         return result
@@ -644,7 +636,7 @@ class Settings(object):
 
     @staticmethod
     def get_close_curtain_path():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -654,7 +646,7 @@ class Settings(object):
 
     @staticmethod
     def get_playlist_name(playlist_number):
-        # type: (int) -> TextType
+        # type: (int) -> str
         """
 
         :return:
@@ -692,7 +684,7 @@ class Settings(object):
 
     @staticmethod
     def get_genre(genre_name):
-        # type: (TextType) -> int
+        # type: (str) -> int
         """
 
         :param genre_name:
@@ -704,7 +696,7 @@ class Settings(object):
 
             if Settings.get_filter_genres():
                 value = Settings.get_setting_int(genre_name)
-        except (Exception) as e:
+        except Exception as e:
             LazyLogger.exception('setting: ' + genre_name)
         return value
 
@@ -1234,7 +1226,7 @@ class Settings(object):
 
     @staticmethod
     def getLang_iso_639_1():
-        # type: () -> TextType
+        # type: () -> str
         """
         Gets two-character language code (ex: 'en')
 
@@ -1255,7 +1247,7 @@ class Settings(object):
 
     @staticmethod
     def getLang_iso_639_2():
-        # type: () -> TextType
+        # type: () -> str
         """
         Gets three-character language code. Not sure if this is
         ISO 639-2/T or ISO 639-2/B, but it may not matter for our purposes
@@ -1269,7 +1261,7 @@ class Settings(object):
 
     @staticmethod
     def getLang_iso_3166_1():
-        # type: () -> TextType
+        # type: () -> str
         """
         Country code
 
@@ -1368,7 +1360,7 @@ class Settings(object):
 
     @staticmethod
     def get_media_path():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1378,7 +1370,7 @@ class Settings(object):
 
     @staticmethod
     def get_minimum_days_since_watched():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1418,7 +1410,7 @@ class Settings(object):
 
     @staticmethod
     def get_open_curtain_path():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1438,7 +1430,7 @@ class Settings(object):
     '''
     @staticmethod
     def get_itunes_quality():
-        # type: () -> List[TextType][int]
+        # type: () -> List[str][int]
         """
 
         :return:
@@ -1449,21 +1441,21 @@ class Settings(object):
 
     @staticmethod
     def get_rating_limit_setting():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
         """
         try:
             rating_limit = Settings.get_addon().setting(Settings.RATING_LIMIT)
-        except (Exception):
+        except Exception:
             rating_limit = ''
 
         return rating_limit
 
     @staticmethod
     def get_tmdb_trailer_preference():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1484,7 +1476,7 @@ class Settings(object):
 
     @staticmethod
     def get_resources_path():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1494,7 +1486,7 @@ class Settings(object):
 
     @staticmethod
     def get_rotten_tomatoes_api_key():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1523,7 +1515,7 @@ class Settings(object):
         try:
             minimum_year = Settings.get_setting_int(
                 Settings.TMDB_YEAR_RANGE_MINIMUM)
-        except (Exception):
+        except Exception:
             minimum_year = 1928  # Start of talkies
         return minimum_year
 
@@ -1537,14 +1529,14 @@ class Settings(object):
         try:
             maximum_year = Settings.get_setting_int(
                 Settings.TMDB_YEAR_RANGE_MAXIMUM)
-        except (Exception):
+        except Exception:
             maximum_year = datetime.datetime.now().year
 
         return maximum_year
 
     @staticmethod
     def get_setting_bool(setting):
-        # type: (TextType) -> bool
+        # type: (str) -> bool
         """
 
         :return:
@@ -1552,14 +1544,14 @@ class Settings(object):
         # Kodi returns a bool as a -1 | 0
         try:
             value = Settings.get_addon().bool_setting(setting)
-        except (Exception):
+        except Exception:
             value = False
 
         return bool(value)
 
     @staticmethod
     def set_setting_bool(setting, value):
-        # type: (TextType, bool) -> None
+        # type: (str, bool) -> None
         """
         :setting:
         :value:
@@ -1567,25 +1559,25 @@ class Settings(object):
         """
         try:
             Settings.get_addon().addon.setSettingBool(setting, value)
-        except (Exception):
+        except Exception:
             value = False
 
         return
 
     @staticmethod
     def get_setting_float(setting):
-        # type: (TextType) -> float
+        # type: (str) -> float
         """
 
         :return:
         """
         try:
             value = Settings.get_addon().addon.getSetting(setting)
-        except (Exception) as e:
+        except Exception as e:
             value = 1.0
         try:
             value = float(value)
-        except (Exception) as e:
+        except Exception as e:
             Settings._logger.error('Setting:', setting,
                                    ' value is not an float. Setting to 0')
             value = 0
@@ -1593,18 +1585,18 @@ class Settings(object):
 
     @staticmethod
     def get_setting_int(setting):
-        # type: (TextType) -> int
+        # type: (str) -> int
         """
 
         :return:
         """
         try:
             value = Settings.get_addon().addon.getSetting(setting)
-        except (Exception) as e:
+        except Exception as e:
             value = 1
         try:
             value = int(value)
-        except (Exception) as e:
+        except Exception as e:
             Settings._logger.error('Setting:', setting,
                                    ' value is not an integer. Setting to 0')
             value = 0
@@ -1635,7 +1627,7 @@ class Settings(object):
     #
     @staticmethod
     def getSpokenLanguage():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1658,7 +1650,7 @@ class Settings(object):
 
     @staticmethod
     def get_tmdb_api_key():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1666,7 +1658,7 @@ class Settings(object):
         TMDB_API_KEY = '35f17ee61909355c4b5d5c4f2c967f6c'
         try:
             tmdb_api_key = Settings.get_addon().setting(Settings.TMDB_API_KEY)
-        except (Exception) as e:
+        except Exception as e:
             tmdb_api_key = None
 
         if tmdb_api_key is None or tmdb_api_key == '':
@@ -1675,28 +1667,28 @@ class Settings(object):
 
     @staticmethod
     def get_tmdb_trailer_type():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
         """
         try:
             trailer_type = Settings.get_addon().setting(Settings.TMDB_TRAILER_TYPE)
-        except (Exception) as e:
+        except Exception as e:
             trailer_type = None
 
         return trailer_type
 
     @staticmethod
     def get_trailers_paths():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
         """
         try:
             trailer_path = Settings.get_addon().setting('path')
-        except (Exception) as e:
+        except Exception as e:
             trailer_path = None
 
         return trailer_path
@@ -1806,7 +1798,7 @@ class Settings(object):
 
     @staticmethod
     def get_downloaded_trailer_cache_path():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1814,14 +1806,14 @@ class Settings(object):
         try:
             path = xbmc.translatePath(
                 Settings.get_addon().setting(Settings.TRAILER_CACHE_PATH))
-        except (Exception) as e:
+        except Exception as e:
             path = None
 
         return path
 
     @staticmethod
     def get_remote_db_cache_path():
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -1829,7 +1821,7 @@ class Settings(object):
         try:
             path = xbmc.translatePath(
                 Settings.get_addon().setting(Settings.CACHE_PATH))
-        except (Exception) as e:
+        except Exception as e:
             path = None
             Settings._logger.exception()
 

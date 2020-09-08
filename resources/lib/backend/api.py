@@ -21,10 +21,7 @@ from discovery.discover_itunes_movies import DiscoverItunesMovies
 from discovery.discover_tmdb_movies import DiscoverTmdbMovies
 from discovery.discover_tfh_movies import DiscoverTFHMovies
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('backend.api')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 def load_trailers():

@@ -5,9 +5,6 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import sys
 import datetime
@@ -15,18 +12,14 @@ import io
 import simplejson as json
 import os
 import re
-
 import threading
-import six
 
 import xbmc
 import xbmcvfs
-from kodi_six import utils
 
-from common.development_tools import (Any, Dict, Union,
-                                      TextType, MovieType)
+from common.imports import *
 from common.constants import Constants, Movie
-from common.logger import (Logger, LazyLogger)
+from common.logger import (LazyLogger)
 from common.exceptions import (AbortException, TrailerIdException)
 from common.messages import Messages
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -35,11 +28,7 @@ from backend import backend_constants
 from common.disk_utils import DiskUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'cache.cache')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Cache(object):
@@ -70,33 +59,21 @@ class Cache(object):
         """
         self._garbage_collector_thread = None
         self._garbage_collection_done_event = threading.Event()
-        self._messages = Messages.get_instance()
+        self._messages = Messages
         self._initial_run = True
 
-    @staticmethod
-    def get_instance():
-        # type: () -> Cache
-        """
-            Returns the singleton instance of Cache
-
-        :return:
-        """
-        if Cache._instance is None:
-            Cache._instance = Cache()
-        return Cache._instance
-
-    @staticmethod
-    def get_cached_json(url,  # type; TextType
-                        movie_id=None,  # type: Union[TextType, int, None]
-                        error_msg=None,  # type: Union[TextType, int, None]
-                        source=None,  # type: Union[TextType, None]
+    @classmethod
+    def get_cached_json(cls, url,  # type; str
+                        movie_id=None,  # type: Union[str, int, None]
+                        error_msg=None,  # type: Union[str, int, None]
+                        source=None,  # type: Union[str, None]
                         dump_results=False,  # type: bool
-                        dump_msg='',  # type: TextType
+                        dump_msg='',  # type: str
                         headers=None,  # type: Union[dict, None]
                         params=None,  # type: Union[dict, None]
                         timeout=3.0  # type: int
                         ):
-        # type: (...) -> (int, TextType)
+        # type: (...) -> (int, str)
         """
             Attempt to get cached JSON movie information before using the JSON calls
             to get it remotely.
@@ -124,19 +101,12 @@ class Cache(object):
         trailer_data = None
         status = 0
         if source is None or source not in Movie.LIB_TMDB_ITUNES_SOURCES:
-            Cache._logger.error('Invalid source:', source)
+            cls._logger.error('Invalid source:', source)
 
         if Settings.is_use_tmdb_cache():
-            start = datetime.datetime.now()
             trailer_data = Cache.read_tmdb_cache_json(
                 movie_id, source, error_msg=error_msg)
             status = 0
-            stop = datetime.datetime.now()
-            read_time = stop - start
-            if Cache._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
-                Cache._logger.debug_extra_verbose('json cache read time:',
-                                                  read_time.microseconds / 10000,
-                                                  'ms')
             if trailer_data is not None:
                 trailer_data[Movie.CACHED] = True
 
@@ -153,12 +123,11 @@ class Cache(object):
 
         return status, trailer_data
 
-    @staticmethod
-    def read_tmdb_cache_json(movie_id,  # type: Union[int, TextType]
-                             source,  # type: TextType
-                             error_msg=''  # type: TextType
-                             ):
-        # type: (...) ->  Union[MovieType, None]
+    @classmethod
+    def read_tmdb_cache_json(cls, movie_id: Union[int, str],
+                             source: str,
+                             error_msg: str = ''
+                             ) -> Union[MovieType, None]:
         """
             Attempts to read TMDB detail data for a specific movie
             from local cache.
@@ -179,36 +148,40 @@ class Cache(object):
             path = Cache.get_json_cache_file_path_for_movie_id(movie_id, source,
                                                                error_msg=error_msg)
             if not os.path.exists(path):
-                if Cache._logger.isEnabledFor(Logger.DEBUG):
-                    Cache._logger.debug('cache file not found for:', error_msg,
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls._logger.debug('cache file not found for:', error_msg,
                                         'id:', movie_id, 'source:', source)
                 return None
 
             if not os.access(path, os.R_OK):
-                messages = Messages.get_instance()
-                Cache._logger.error(messages.get_msg(
+                messages = Messages
+                cls._logger.error(messages.get_msg(
                     Messages.CAN_NOT_READ_FILE) % path)
                 return None
 
             file_mod_time = datetime.datetime.fromtimestamp(
                 os.path.getmtime(path))
-            if file_mod_time < Constants.CACHE_FILE_EXPIRED_TIME:
-                if Cache._logger.isEnabledFor(Logger.DEBUG):
-                    Cache._logger.debug('cache file EXPIRED for:', error_msg,
-                                        'id:', movie_id, 'source:', source)
+            now = datetime.datetime.now()
+            expiration_time = now - datetime.timedelta(
+                Settings.get_expire_trailer_cache_days())
+
+            if file_mod_time < expiration_time:
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls._logger.debug('cache file EXPIRED for:', error_msg,
+                                        'id:', movie_id, 'source:', source, 'path:', path)
                 return None
 
             with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
                 trailer = json.load(cacheFile, encoding='utf-8')
             trailer[Movie.CACHED] = True
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except IOError as e:
             cls._logger.exception('')
             trailer = None
             exception_occurred = True
-        except (Exception) as e:
-            Cache._logger.exception('')
+        except Exception as e:
+            cls._logger.exception('')
             trailer = None
             exception_occurred = True
 
@@ -217,14 +190,14 @@ class Cache(object):
             if exception_occurred and path is not None:
                 os.remove(path)
         except AbortException:
-            six.reraise(*sys.exc_info())
-        except (Exception) as e:
-            Cache._logger.exception('Trying to delete bad cache file.')
+            reraise(*sys.exc_info())
+        except Exception as e:
+            cls._logger.exception('Trying to delete bad cache file.')
         return trailer
 
-    @staticmethod
-    def write_tmdb_cache_json(movie_id,  # type: Union[TextType, int]
-                              source,  # type: TextType
+    @classmethod
+    def write_tmdb_cache_json(cls, movie_id,  # type: Union[str, int]
+                              source,  # type: str
                               trailer  # type: MovieType
                               ):
         # type: (...) -> None
@@ -233,8 +206,7 @@ class Cache(object):
         """
         try:
             if source is None or source not in Movie.LIB_TMDB_ITUNES_SOURCES:
-                Cache._logger.error('Invalid source:', source)
-            start = datetime.datetime.now()
+                cls._logger.error('Invalid source:', source)
             movie_id = str(movie_id)
             path = Cache.get_json_cache_file_path_for_movie_id(
                 movie_id, source)
@@ -243,8 +215,8 @@ class Cache(object):
                 DiskUtils.create_path_if_needed(parent_dir)
 
             if os.path.exists(path) and not os.access(path, os.W_OK):
-                messages = Messages.get_instance()
-                Cache._logger.error(messages.get_msg(
+                messages = Messages
+                cls._logger.error(messages.get_msg(
                     Messages.CAN_NOT_WRITE_FILE) % path)
                 return None
             with io.open(path, mode='wt', newline=None,
@@ -255,17 +227,14 @@ class Cache(object):
                                     indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
-                stop = datetime.datetime.now()
-                write_time = stop - start
-                if Cache._logger.isEnabledFor(Logger.DEBUG):
-                    Cache._logger.debug('json cache write time:',
-                                        write_time.microseconds / 10000, 'ms')
-        except (Exception) as e:
-            Cache._logger.exception('')
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            cls._logger.exception('')
 
-    @staticmethod
-    def get_video_id(trailer):
-        # type: (MovieType) -> TextType
+    @classmethod
+    def get_video_id(cls, trailer):
+        # type: (MovieType) -> str
         """
             Gets the unique id to use in the cache for the given movie.
 
@@ -294,22 +263,24 @@ class Cache(object):
                     movie_id = MovieEntryUtils.get_tmdb_id(trailer)
 
                     if movie_id is None:
-                        if Cache._logger.isEnabledFor(Logger.DEBUG):
-                            Cache._logger.debug('TMDBid is None for ITunes movie:',
+                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                            cls._logger.debug('TMDBid is None for ITunes movie:',
                                                 trailer[Movie.TITLE])
                 if movie_id is not None:
                     movie_id = Cache.generate_unique_id_from_source(movie_id,
                                                                     source)
-        except (TrailerIdException):
-            six.reraise(*sys.exc_info())
-        except (Exception) as e:
-            Cache._logger.exception('')
+        except AbortException:
+            reraise(*sys.exc_info())
+        except TrailerIdException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            cls._logger.exception('')
         return movie_id
 
-    @staticmethod
-    def generate_unique_id_from_source(movie_id,  # type: Union[int, TextType]
-                                       source,  # type: TextType
-                                       error_msg=''  # type: TextType
+    @classmethod
+    def generate_unique_id_from_source(cls, movie_id,  # type: Union[int, str]
+                                       source,  # type: str
+                                       error_msg=''  # type: str
                                        ):
         # type: (...) ->  Union[MovieType, None]
         """
@@ -324,7 +295,7 @@ class Cache(object):
         :param source:
         :param error_msg: Optional text to add to error message. Typically
                             movie title
-        :return:TextType: a unique id for the given movie.Typically it is
+        :return:str: a unique id for the given movie.Typically it is
             the TMDBId for the movie with a prefix indicating the source
             of the request (t_ for TMDB, no prefix for local database and
                             a_ for Apple/iTunes).
@@ -333,8 +304,8 @@ class Cache(object):
                          Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
         unique_id = None
         if source not in valid_sources:
-            if Cache._logger.isEnabledFor(Logger.DEBUG):
-                Cache._logger.debug('Unsupported source:', source, 'movie_id:',
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                cls._logger.debug('Unsupported source:', source, 'movie_id:',
                                     movie_id, error_msg)
 
         if source == Movie.LIBRARY_SOURCE:
@@ -351,12 +322,12 @@ class Cache(object):
 
         return unique_id
 
-    @staticmethod
-    def get_json_cache_file_path_for_movie_id(movie_id,  # type: Union[int, TextType]
-                                              source,  # type: TextType
-                                              error_msg=''  # type: TextType
+    @classmethod
+    def get_json_cache_file_path_for_movie_id(cls, movie_id,  # type: Union[int, str]
+                                              source,  # type: str
+                                              error_msg=''  # type: str
                                               ):
-        # type: (...) -> Union[TextType, None]
+        # type: (...) -> Union[str, None]
         """
             Returns the path for a cache JSON file for the given movie_id
             and source.
@@ -370,8 +341,8 @@ class Cache(object):
         try:
             prefix = Cache.generate_unique_id_from_source(movie_id, source,
                                                           error_msg=error_msg)
-            if Cache._logger.isEnabledFor(Logger.DEBUG):
-                Cache._logger.debug('movie_id:', movie_id, 'source:', source,
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                cls._logger.debug('movie_id:', movie_id, 'source:', source,
                                     'prefix:', prefix)
             #
             # To reduce clutter, put cached data into a folder named after the
@@ -408,7 +379,7 @@ class Cache(object):
                 x = prefix.split('_', 1)
                 folder = 'a' + x[1][0]
             else:
-                Cache._logger.error('Unexpected source:', source,
+                cls._logger.error('Unexpected source:', source,
                                     'movie_id:', movie_id)
                 return None
 
@@ -418,13 +389,15 @@ class Cache(object):
             path = xbmcvfs.validatePath(path)
 
             return path
-        except (Exception) as e:
-            Cache._logger.exception('')
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            cls._logger.exception('')
         return None
 
-    @staticmethod
-    def is_trailer_from_cache(path):
-        #  type: (TextType) -> bool
+    @classmethod
+    def is_trailer_from_cache(cls, path):
+        #  type: (str) -> bool
         """
 
         :param path:
@@ -435,10 +408,10 @@ class Cache(object):
             return True
         return False
 
-    @staticmethod
-    def get_trailer_cache_file_path_for_movie_id(trailer, orig_file_name,
+    @classmethod
+    def get_trailer_cache_file_path_for_movie_id(cls, trailer, orig_file_name,
                                                  normalized):
-        # type: (Dict[TextType, Any], TextType, bool) -> Union[TextType, None]
+        # type: (Dict[str, Any], str, bool) -> Union[str, None]
         """
             Generates the path for a file in the cache
             for a trailer for given movie.
@@ -458,8 +431,8 @@ class Cache(object):
                 movie_id = Cache.get_video_id(trailer)
                 source = trailer[Movie.SOURCE]
             else:
-                if Cache._logger.isEnabledFor(Logger.DEBUG):
-                    Cache._logger.debug('Not valid video source title:',
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls._logger.debug('Not valid video source title:',
                                         trailer[Movie.TITLE],
                                         'source:', trailer[Movie.SOURCE])
 
@@ -488,7 +461,7 @@ class Cache(object):
 
                 if normalized:
                     if 'normalized_' in orig_file_name:
-                        Cache._logger.error('Already normalized:',
+                        cls._logger.error('Already normalized:',
                                             trailer.get(
                                                 Movie.TITLE, 'no title'),
                                             'orig_file_name:', orig_file_name)
@@ -503,12 +476,14 @@ class Cache(object):
                 # Should not be needed
                 path = xbmcvfs.validatePath(path)
 
-        except (Exception) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
             title = trailer.get(Movie.TITLE, 'no title')
-            Cache._logger.exception('title:', title)
+            cls._logger.exception('title:', title)
 
             path = None
 
-        if Cache._logger.isEnabledFor(Logger.DEBUG):
-            Cache._logger.debug('Path:', path)
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            cls._logger.debug('Path:', path)
         return path

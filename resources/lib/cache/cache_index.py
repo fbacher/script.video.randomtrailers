@@ -5,31 +5,27 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
 import datetime
 import dateutil.parser
-
 import io
 import simplejson as json
 from simplejson import (JSONDecodeError)
-
 import os
 import sys
 import threading
 
 import xbmc
 import xbmcvfs
-from kodi_six import utils
 
 from common.development_tools import (Any, List,
                                       Dict, Union,
-                                      TextType, MovieType)
+                                      MovieType)
 from common.constants import (Constants, Movie, RemoteTrailerPreference)
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger)
+from common.logger import (LazyLogger)
 from common.messages import Messages
 from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -37,11 +33,7 @@ from common.settings import Settings
 from common.disk_utils import DiskUtils
 from backend.statistics import (Statistics)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'cache.cache')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class CachedPage(object):
@@ -60,6 +52,9 @@ class CachedPage(object):
         """
 
         """
+        if type(self)._logger is None:
+            type(self)._logger = module_logger.getChild(type(self).__name__)
+
         self._page_number = page_number
         self._year = year
         self.processed = processed
@@ -91,7 +86,7 @@ class CachedPage(object):
         return self._total_pages_for_year
 
     def get_cache_key(self):
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -101,18 +96,6 @@ class CachedPage(object):
         else:
             year_str = str(self._year)
         return year_str + '_' + str(self._page_number)
-
-    @classmethod
-    def logger(cls):
-        # type: () -> LazyLogger
-        """
-
-        :return:
-        """
-        if cls._logger is None:
-            cls._logger = module_logger.getChild(cls.__class__.__name__)
-
-        return cls._logger
 
 
 class CacheParameters(object):
@@ -126,7 +109,7 @@ class CacheParameters(object):
     # Used only for comparing cached value to current value
     #
     def __init__(self,
-                 dict_value  # type: Dict[TextType, Any]
+                 dict_value  # type: Dict[str, Any]
                  ):
         """
             Settings with no impact:
@@ -134,6 +117,9 @@ class CacheParameters(object):
             get_tmdb_include_old_movie_movies
 
         """
+        if type(self)._logger is None:
+            type(self)._logger = module_logger.getChild(type(self).__name__)
+
         self._included_genres = dict_value['included_genres']
         self._excluded_genres = dict_value['excluded_genres']
         self._included_tags = dict_value['included_tags']
@@ -152,7 +138,7 @@ class CacheParameters(object):
 
     @classmethod
     def to_json(cls):
-        # () -> TextType
+        # () -> str
         """
 
         :return:
@@ -173,11 +159,11 @@ class CacheParameters(object):
                           'cache_state': cached_value._cache_state
                           }
 
-        json_text = utils.py2_decode(json.dumps(values_in_dict,
-                                                encoding='utf-8',
-                                                ensure_ascii=False,
-                                                default=CacheIndex.handler,
-                                                indent=3, sort_keys=True))
+        json_text = json.dumps(values_in_dict,
+                               encoding='utf-8',
+                               ensure_ascii=False,
+                               default=CacheIndex.handler,
+                               indent=3, sort_keys=True)
         return json_text
 
     @classmethod
@@ -301,7 +287,7 @@ class CacheParameters(object):
                     cacheFile.write(json_text)
                     cacheFile.flush()
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except (IOError) as e:
                 cls._logger.exception('')
             except Exception as e:
@@ -345,7 +331,7 @@ class CacheParameters(object):
 
     @classmethod
     def set_state(cls, value):
-        # type: (TextType) ->None
+        # type: (str) ->None
         """
         :param value:
         :return:
@@ -356,7 +342,7 @@ class CacheParameters(object):
 
     @classmethod
     def get_state(cls):
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -381,24 +367,29 @@ class CacheParameters(object):
         with CacheIndex.lock:
             try:
                 if not os.access(path, os.R_OK):
-                    messages = Messages.get_instance()
-                    cls._logger.error(messages.get_msg(
+                    cls._logger.error(Messages.get_msg(
                         Messages.CAN_NOT_READ_FILE) % path)
                     return None
 
                 file_mod_time = datetime.datetime.fromtimestamp(
                     os.path.getmtime(path))
-                if file_mod_time < Constants.CACHE_FILE_EXPIRED_TIME:
-                    if cls._logger.isEnabledFor(Logger.DEBUG):
+                now = datetime.datetime.now()
+                expiration_time = now - datetime.timedelta(
+                    Settings.get_expire_remote_db_cache_entry_days())
+
+                if file_mod_time < expiration_time:
+                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                         cls._logger.debug('cache file EXPIRED for:', path)
                     return None
+
+                Monitor.throw_exception_if_abort_requested()
 
                 with io.open(path, mode='rt', newline=None,
                              encoding='utf-8') as cacheFile:
                     saved_preferences = json.load(cacheFile, encoding='utf-8')
                     saved_preferences = CacheParameters(saved_preferences)
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except IOError as e:
                 cls._logger.exception('')
                 exception_occurred = True
@@ -408,17 +399,6 @@ class CacheParameters(object):
 
         return saved_preferences
 
-    @classmethod
-    def config_logger(cls):
-        #  type: () -> LazyLogger
-        """
-
-        :return:
-        """
-        if cls._logger is None:
-            cls._logger = module_logger.getChild(cls.__class__.__name__)
-
-        return cls._logger
 
     @staticmethod
     def create_set(a_list):
@@ -435,9 +415,6 @@ class CacheParameters(object):
         return new_set
 
 
-CacheParameters.config_logger()
-
-
 class CachedPagesData(object):
     """
 
@@ -445,7 +422,7 @@ class CachedPagesData(object):
     pages_data = None
 
     def __init__(self,
-                 key='',  # type: TextType
+                 key='',  # type: str
                  total_pages=0,  # type: int
                  query_by_year=False  # type: bool
                  ):
@@ -455,7 +432,7 @@ class CachedPagesData(object):
         :param key:
         :param total_pages:
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        self._logger = module_logger.getChild(type(self).__name__)
         self._number_of_unsaved_changes = 0
         self._time_of_last_save = None
         self._key = key
@@ -469,7 +446,7 @@ class CachedPagesData(object):
                            Settings.get_remote_db_cache_path())
         self._path = os.path.join(Settings.get_remote_db_cache_path(),
                                   'index', self._path)
-        # type:Optional[Dict[TextType, CachedPage]]
+        # type:Optional[Dict[str, CachedPage]]
         self._cached_page_by_key = None
 
     def get_total_pages(self):
@@ -591,7 +568,9 @@ class CachedPagesData(object):
 
             return int(len(self._cached_page_by_key))
 
-        except (Exception) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
 
     def get_undiscovered_search_pages(self):
@@ -611,7 +590,7 @@ class CachedPagesData(object):
                     undiscovered_search_pages.append(search_page)
             Monitor.throw_exception_if_abort_requested()
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             self._logger.exception('')
 
@@ -632,7 +611,7 @@ class CachedPagesData(object):
                 if not search_page.processed:
                     number_of_undiscovered_pages += 1
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             self._logger.exception('')
 
@@ -652,7 +631,9 @@ class CachedPagesData(object):
             for search_page in self._cached_page_by_key.values():
                 if search_page.processed:
                     number_of_discovered_pages += 1
-        except (Exception) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
             self._logger.exception('')
 
         return int(number_of_discovered_pages)
@@ -673,7 +654,7 @@ class CachedPagesData(object):
             key = str(year) + '_' + str(page_number)
 
             cached_page = self._cached_page_by_key.get(key)
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         return cached_page
@@ -728,12 +709,12 @@ class CachedPagesData(object):
                                   'processed': cached_page.processed}
                     json_dict[key] = entry_dict
 
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
         return json_dict
 
     def from_json(self, encoded_values):
-        # type: (Dict[TextType, Any]) -> CachedPagesData
+        # type: (Dict[str, Any]) -> CachedPagesData
         """
 
         :param encoded_values:
@@ -770,7 +751,7 @@ class CachedPagesData(object):
             cached_pages_data._cached_page_by_key = cached_page_by_key
             cached_pages_data._time_of_last_save = datetime.datetime.now()
 
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         return cached_pages_data
@@ -793,24 +774,28 @@ class CachedPagesData(object):
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
 
+            Monitor.throw_exception_if_abort_requested()
             with CacheIndex.lock, io.open(path, mode='wt', newline=None,
                                           encoding='utf-8') as cacheFile:
                 json_dict = self.to_json()
-                json_text = utils.py2_decode(json.dumps(json_dict,
-                                                        encoding='utf-8',
-                                                        ensure_ascii=False,
-                                                        default=CacheIndex.handler,
-                                                        indent=3, sort_keys=True))
+                json_text = json.dumps(json_dict,
+                                        encoding='utf-8',
+                                        ensure_ascii=False,
+                                        default=CacheIndex.handler,
+                                        indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
                 self._number_of_unsaved_changes = 0
                 self._time_of_last_save = datetime.datetime.now()
 
-        except (IOError) as e:
+            Monitor.throw_exception_if_abort_requested()
+        except AbortException:
+            reraise(*sys.exc_info())
+        except IOError as e:
             self._logger.exception('')
-        except (JSONDecodeError) as e:
+        except JSONDecodeError as e:
             os.remove(path)
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         self._logger.debug_verbose("Entries Saved: ", saved_pages)
@@ -830,6 +815,7 @@ class CachedPagesData(object):
             DiskUtils.create_path_if_needed(parent_dir)
 
             if os.path.exists(path):
+                Monitor.throw_exception_if_abort_requested()
                 with CacheIndex.lock, io.open(path, mode='rt', newline=None,
                                               encoding='utf-8') as cacheFile:
                     encoded_values = json.load(
@@ -840,12 +826,14 @@ class CachedPagesData(object):
             else:
                 self._cached_page_by_key = dict()
 
-        except (IOError) as e:
+        except AbortException:
+            reraise(*sys.exc_info())
+        except IOError as e:
             self._logger.exception('')
-        except (JSONDecodeError) as e:
+        except JSONDecodeError as e:
             os.remove(path)
             self._cached_page_by_key = dict()
-        except (Exception) as e:
+        except Exception as e:
             self._logger.exception('')
 
         self._logger.debug_verbose("Loaded entries:", len(self._cached_page_by_key))
@@ -873,9 +861,16 @@ class CacheIndex(object):
     """
     UNINITIALIZED_STATE = 'uninitialized_state'
     CACHE_PARAMETERS_INITIALIZED_STATE = 'cache_parameters_initialized_state'
+    _found_trailers: Set[MovieType] = set()
     lock = threading.RLock()
     last_saved = datetime.datetime.now()
-    unsaved_changes = 0
+    _last_saved_trailer_timestamp = datetime.datetime.now()
+    _last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
+
+    _parameters = None
+    _unprocessed_movies: Dict[int, MovieType] = {}
+    _unprocessed_movie_changes: int = 0
+    _unsaved_trailer_changes: int = 0
     _logger = None
 
     @classmethod
@@ -885,14 +880,8 @@ class CacheIndex(object):
         """
         :return:
         """
-        cls._logger = module_logger.getChild(cls.__class__.__name__)
-        cls._parameters = None
-        cls._unprocessed_movies = {}  # type: Dict[int, MovieType]
-        cls._found_trailers = set()  # type: Set(MovieType)
-        cls._unsaved_trailer_changes = 0
-        cls._unprocessed_movie_changes = 0
-        cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
-        cls._last_saved_trailer_timestamp = datetime.datetime.now()
+        if cls._logger is not None:
+            cls._logger = module_logger.getChild(type(cls).__name__)
 
     @classmethod
     def load_cache(cls,
@@ -908,7 +897,7 @@ class CacheIndex(object):
                 # Replace Cache
                 cls._parameters = CacheParameters.get_parameter_values()
                 cls._unprocessed_movies = {}  # type: Dict[int, MovieType]
-                cls._found_trailers = set()  # type: Set(MovieType)
+                cls._found_trailers: Set(int) = set()
                 cls._unsaved_trailer_changes = 0
                 cls._unprocessed_movie_changes = 0
                 cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
@@ -935,7 +924,7 @@ class CacheIndex(object):
 
     @classmethod
     def add_search_pages(cls,
-                         tmdb_search_query,  # type: TextType
+                         tmdb_search_query,  # type: str
                          search_pages,  # type: List[CachedPage]
                          flush=False  # type: bool
                          ):
@@ -950,7 +939,7 @@ class CacheIndex(object):
 
     @classmethod
     def get_search_pages(cls,
-                         tmdb_search_query  # type: TextType
+                         tmdb_search_query  # type: str
                          ):
         # type: (...) -> List[CachedPage]
         """
@@ -1037,8 +1026,7 @@ class CacheIndex(object):
         cls.save_found_trailer_cache()  # If needed
 
     @classmethod
-    def get_found_tmdb_trailer_ids(cls):
-        #  type: () -> Set[MovieType]
+    def get_found_tmdb_trailer_ids(cls) -> Set[MovieType]:
         """
         :return:
         """
@@ -1053,17 +1041,6 @@ class CacheIndex(object):
         """
         with cls.lock:
             return cls._unprocessed_movies
-
-    @classmethod
-    def get_random_pages(cls):
-        # type: () -> List[List[MovieType]]
-        """
-
-        :return:
-        """
-        random_pages = DiskUtils.RandomGenerator.shuffle(
-            list(cls._page_map.keys()))
-        return random_pages
 
     @classmethod
     def save_parameter_cache(cls):
@@ -1103,19 +1080,23 @@ class CacheIndex(object):
             try:
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
-                    json_text = utils.py2_decode(json.dumps(cls.get_unprocessed_movies(),
-                                                            encoding='utf-8',
-                                                            ensure_ascii=False,
-                                                            default=CacheIndex.handler,
-                                                            indent=3, sort_keys=True))
+                    json_text = json.dumps(cls.get_unprocessed_movies(),
+                                           encoding='utf-8',
+                                           ensure_ascii=False,
+                                           default=CacheIndex.handler,
+                                           indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
                     cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
                     cls._unprocessed_movie_changes = 0
 
-            except (IOError) as e:
+                    Monitor.throw_exception_if_abort_requested()
+
+            except AbortException:
+                reraise(*sys.exc_info())
+            except IOError as e:
                 CacheIndex.logger().exception('')
-            except (Exception) as e:
+            except Exception as e:
                 CacheIndex.logger().exception('')
 
     @classmethod
@@ -1142,12 +1123,14 @@ class CacheIndex(object):
                     cls._unprocessed_movie_changes = 0
             else:
                 cls._unprocessed_movies = {}
-
-        except (IOError) as e:
+            Monitor.throw_exception_if_abort_requested()
+        except AbortException:
+            reraise(*sys.exc_info())
+        except IOError as e:
             CacheIndex.logger().exception('')
-        except (JSONDecodeError) as e:
+        except JSONDecodeError as e:
             os.remove(path)
-        except (Exception) as e:
+        except Exception as e:
             CacheIndex.logger().exception('')
 
     @classmethod
@@ -1181,19 +1164,22 @@ class CacheIndex(object):
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     found_trailers_list = list(cls._found_trailers)
-                    json_text = utils.py2_decode(json.dumps(found_trailers_list,
-                                                            encoding='utf-8',
-                                                            ensure_ascii=False,
-                                                            default=CacheIndex.handler,
-                                                            indent=3, sort_keys=True))
+                    json_text = json.dumps(found_trailers_list,
+                                           encoding='utf-8',
+                                           ensure_ascii=False,
+                                           default=CacheIndex.handler,
+                                           indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
                     cls._unsaved_trailer_changes = 0
 
-            except (IOError) as e:
+                Monitor.throw_exception_if_abort_requested()
+            except AbortException:
+                reraise(*sys.exc_info())
+            except IOError as e:
                 CacheIndex.logger().exception('')
-            except (Exception) as e:
+            except Exception as e:
                 CacheIndex.logger().exception('')
 
     @staticmethod
@@ -1254,11 +1240,14 @@ class CacheIndex(object):
             else:
                 cls._found_trailers = set()
 
-        except (IOError) as e:
+            Monitor.throw_exception_if_abort_requested()
+        except AbortException:
+            reraise(*sys.exc_info())
+        except IOError as e:
             CacheIndex.logger().exception('')
-        except (JSONDecodeError) as e:
+        except JSONDecodeError as e:
             os.remove(path)
-        except (Exception) as e:
+        except Exception as e:
             CacheIndex.logger().exception('')
 
 

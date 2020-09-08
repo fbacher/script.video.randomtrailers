@@ -5,26 +5,19 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import threading
 import queue
 
+from common.imports import *
 from common.debug_utils import Debug
-from common.development_tools import (Dict, TextType, MovieType)
 from common.constants import (Constants, Movie)
 from common.monitor import Monitor
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 
 from discovery.abstract_movie_data import AbstractMovieData
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.playable_trailers_container')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator,PyArgumentList
@@ -43,18 +36,20 @@ class PlayableTrailersContainer(object):
     _any_trailers_available_to_play = threading.Event()
     _singleton_instance = None
     _instances = {}
+    logger = None
 
     def __init__(self,
-                 source  # type: TextType
+                 source  # type: str
                  ):
         # type: (...) -> None
         """
 
         :return:
         """
-        self._logger = module_logger.getChild(
-            self.__class__.__name__ + ':' + source)
-        self._logger.enter()
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__
+                                                       + ':' + source)
+        type(self).logger.enter()
 
         PlayableTrailersContainer._instances[source] = self
         self._movie_data = None
@@ -80,18 +75,6 @@ class PlayableTrailersContainer(object):
 
         return self._movie_data
 
-    def shutdown_thread(self):
-        # type: () -> None
-        # Force waits to end
-        """
-            Called by WatchDog during a plugin shutdown.
-
-            Forces any waits to end
-
-        :return:
-        """
-        pass
-
     def prepare_for_restart_discovery(self, stop_thread):
         # type: (bool) -> None
         """
@@ -99,7 +82,7 @@ class PlayableTrailersContainer(object):
         :param stop_thread
         :return:
         """
-        self._logger.enter()
+        type(self).logger.enter()
         self._number_of_added_trailers = 0
 
         if stop_thread:
@@ -119,15 +102,14 @@ class PlayableTrailersContainer(object):
         """
         pass
 
-    def add_to_ready_to_play_queue(self, movie):
-        # type: (MovieType]) -> None
+    def add_to_ready_to_play_queue(self, movie: MovieType) -> None:
         """
 
         :param movie:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('movie:', movie[Movie.TITLE], 'queue empty:',
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('movie:', movie[Movie.TITLE], 'queue empty:',
                                self._ready_to_play_queue.empty(), 'full:',
                                self._ready_to_play_queue.full())
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
@@ -143,13 +125,16 @@ class PlayableTrailersContainer(object):
                 Monitor.throw_exception_if_abort_requested(timeout=0.75)
                 waited += 1
 
-        if not PlayableTrailersContainer._any_trailers_available_to_play.isSet():
-            PlayableTrailersContainer._any_trailers_available_to_play.set()
+        type(self).logger.debug('Checking _any_trailers_available_to_play.isSet:',
+                           type(self)._any_trailers_available_to_play.isSet())
+        if not type(self)._any_trailers_available_to_play.isSet():
+            type(self).logger.debug('Setting _any_trailers_available_to_play')
+            type(self)._any_trailers_available_to_play.set()
 
         self._is_playable_trailers.set()
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('readyToPlayQueue size:',
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('readyToPlayQueue size:',
                                self._ready_to_play_queue.qsize(), 'waited:',
                                waited)
         return
@@ -187,18 +172,20 @@ class PlayableTrailersContainer(object):
         movie = self._ready_to_play_queue.get(block=False)
         if movie is not None:
             self._movie_data.increase_play_count(movie)
-
-        self._logger.exit('movie:', movie[Movie.TITLE])
+            type(self).logger.exit('movie:', movie[Movie.TITLE])
+        else:
+            type(self).logger.exit('No movie in queue')
         return movie
 
-    @staticmethod
-    def is_any_trailers_available_to_play():
+    @classmethod
+    def is_any_trailers_available_to_play(cls):
         # type: () -> bool
         """
 
         :return:
         """
-        return PlayableTrailersContainer._any_trailers_available_to_play.isSet()
+
+        return cls._any_trailers_available_to_play.isSet()
 
     def is_playable_trailers(self):
         # type: () -> bool
@@ -235,7 +222,7 @@ class PlayableTrailersContainer(object):
 
     @staticmethod
     def get_instances():
-        # type: () -> Dict[TextType, PlayableTrailersContainer]
+        # type: () -> Dict[str, PlayableTrailersContainer]
         """
 
         :return:
@@ -244,10 +231,15 @@ class PlayableTrailersContainer(object):
 
     @staticmethod
     def remove_instance(source):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param source:
         :return:
         """
         del PlayableTrailersContainer._instances[source]
+
+    def clear(self):
+        self._movie_data = None
+        while not self._ready_to_play_queue.empty():
+            self._ready_to_play_queue.get_nowait()

@@ -25,9 +25,10 @@ from .exceptions import AbortException
 from .constants import Constants
 from .critical_settings import CriticalSettings
 
+TOP_PACKAGE_PATH = Constants.PYTHON_ROOT_PATH
+
 if hasattr(sys, '_getframe'):
-    def current_frame(ignore_frames=0):
-        # type: (Union[int, newint]) -> traceback
+    def current_frame(ignore_frames: int = 0) -> traceback:
         """
 
         : ignore_frames: By default, ignore the first frame since it is the line
@@ -44,8 +45,7 @@ if hasattr(sys, '_getframe'):
 
         return frame
 else:
-    def current_frame(ignore_frames=0):
-        # type: (Union[int, newint]) -> traceback
+    def current_frame(ignore_frames: int = 0) -> traceback:
         """
 
         : ignore_frames: Specifies how many frames to ignore.
@@ -97,7 +97,7 @@ class Logger(logging.Logger):
     _addon_logger = None
 
     def __init__(self,
-                 name,  # type: TextType
+                 name,  # type: str
                  level=logging.NOTSET  # type : Optional[int]
                  ):
         # type: (...) -> None
@@ -118,18 +118,18 @@ class Logger(logging.Logger):
 
     @staticmethod
     def set_addon_name(name):
-        # type: (TextType) ->None
+        # type: (str) ->None
         """
             Sets the optional addon name to be added to each log entry
 
-        :param name: TextType
+        :param name: str
         :return:
         """
         Logger._addon_name = name
 
     @staticmethod
     def get_addon_name():
-        # type:() -> TextType
+        # type:() -> str
         """
 
         :return:
@@ -162,23 +162,38 @@ class Logger(logging.Logger):
         return Logger._root_logger
 
     @staticmethod
-    def get_addon_module_logger(addon_name=None):
-        # type: () -> Logger
+    def get_addon_module_logger(file_path: str = None,
+                                addon_name: str = None):
+        #  type () -> Logger
         """
 
         :return:
         """
 
+        logger = None
         if Logger._addon_logger is None:
             if addon_name is None:
                 addon_name = Constants.CURRENT_ADDON_SHORT_NAME
             Logger._addon_logger = Logger.get_root_logger().getChild(addon_name)
             xbmc.log('get_addon_module_logger', xbmc.LOGDEBUG)
 
-        return Logger._addon_logger
+        logger = Logger._addon_logger
+        if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+            if file_path is not None:
+                file_path = file_path.replace('.py', '', 1)
+                suffix = file_path.replace(TOP_PACKAGE_PATH, '', 1)
+                suffix = suffix.replace('/', '.')
+                if suffix.startswith('.'):
+                    suffix = suffix.replace('.', '', 1)
+
+                logger = Logger._addon_logger.getChild(suffix)
+            else:
+                logger.debug('Expected file_path')
+
+        return logger
 
     def log(self, *args, **kwargs):
-        # type: ( *Any, **TextType) -> None
+        # type: ( *Any, **str) -> None
         """
             Creates a log entry
 
@@ -210,7 +225,7 @@ class Logger(logging.Logger):
         self._log(*args, **kwargs)
 
     def _log(self, *args, **kwargs):
-        # type: ( *Any, **TextType) -> None
+        # type: ( *Any, **str) -> None
         """
             Creates a log entry
 
@@ -319,7 +334,7 @@ class Logger(logging.Logger):
                 del kwargs['start_frame']
 
     def debug(self, format, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of format arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
@@ -336,7 +351,7 @@ class Logger(logging.Logger):
         self._log(format, *args, **kwargs)
 
     def debug_verbose(self, text, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
@@ -352,7 +367,7 @@ class Logger(logging.Logger):
         self._log(text, *args, **kwargs)
 
     def debug_extra_verbose(self, text, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
@@ -368,7 +383,7 @@ class Logger(logging.Logger):
         self._log(text, *args, **kwargs)
 
     def info(self, text, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGINFO)
@@ -384,7 +399,7 @@ class Logger(logging.Logger):
         self._log(text, *args, **kwargs)
 
     def notice(self, text, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGNOTICE)
@@ -400,7 +415,7 @@ class Logger(logging.Logger):
         self._log(text, *args, **kwargs)
 
     def warning(self, text, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGWARN)
@@ -416,7 +431,7 @@ class Logger(logging.Logger):
         self._log(text, *args, **kwargs)
 
     def error(self, text, *args, **kwargs):
-        # type: ( TextType, *Any, **TextType ) -> None
+        # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.ERROR)
@@ -432,7 +447,7 @@ class Logger(logging.Logger):
         self._log(text, *args, **kwargs)
 
     def enter(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method to log an "Entering" method entry
 
@@ -446,7 +461,7 @@ class Logger(logging.Logger):
         self.debug('Entering', *args, **kwargs)
 
     def exit(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
                Convenience method to log an "Exiting" method entry
 
@@ -488,7 +503,7 @@ class Logger(logging.Logger):
 
     @classmethod
     def dump_stack(cls, msg='', ignore_frames=0):
-        # type (TextType, Union[int, newint]) -> None
+        # type (str, Union[int, newint]) -> None
         """
             Logs a stack dump of all Python threads
 
@@ -529,7 +544,7 @@ class Logger(logging.Logger):
 
     @staticmethod
     def log_stack(msg, trace_back, thread_name=''):
-        # type: (TextType, List[Any], TextType) -> None
+        # type: (str, List[Any], str) -> None
         """
 
         :param msg:
@@ -549,7 +564,7 @@ class Logger(logging.Logger):
                 string_buffer = string_buffer + '\n' + line
 
             xbmc.log(string_buffer, xbmc.LOGERROR)
-        except (Exception) as e:
+        except Exception as e:
             Logger.log_exception()
 
     FATAL = logging.CRITICAL  # 50
@@ -621,7 +636,7 @@ class Logger(logging.Logger):
 
     @staticmethod
     def log_exception(exc_info=None, msg=None):
-        # type: (BaseException, TextType) -> None
+        # type: (BaseException, str) -> None
         """
             Logs an exception.
 
@@ -654,7 +669,7 @@ class Logger(logging.Logger):
     @staticmethod
     def print_full_stack(frame=None, thread_name='', limit=None,
                          log_file=None):
-        # type: ( Any, TextType, int, cStringIO.StringIO) -> None
+        # type: ( Any, str, int, cStringIO.StringIO) -> None
         """
 
         :param frame:
@@ -805,8 +820,8 @@ class LazyLogger(Logger):
     _log_handler_added = False
 
     def __init__(self,
-                 name='',  # type: TextType
-                 class_name='',  # type: Optional[TextType]
+                 name='',  # type: str
+                 class_name='',  # type: Optional[str]
                  level=logging.NOTSET  # type : Optional[int]
                  ):
         # type: (...) -> None
@@ -908,7 +923,7 @@ class LazyLogger(Logger):
             LazyLogger.log_exception()
 
     def debug(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -924,7 +939,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def debug_verbose(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -940,7 +955,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def debug_extra_verbose(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -956,7 +971,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def info(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGINFO)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -972,7 +987,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def notice(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGNOTICE)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -988,7 +1003,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def warning(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGWARN)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -1004,7 +1019,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def error(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.ERROR)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -1020,7 +1035,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def enter(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
             Convenience method to log an "Entering" method entry
 
@@ -1036,7 +1051,7 @@ class LazyLogger(Logger):
         self.debug('Entering', *args, **kwargs)
 
     def exit(self, *args, **kwargs):
-        # type: ( *Any, **TextType ) -> None
+        # type: ( *Any, **str ) -> None
         """
                Convenience method to log an "Exiting" method entry
 
@@ -1084,7 +1099,7 @@ class LazyLogger(Logger):
 
     @classmethod
     def dump_stack(cls, msg='', ignore_frames=0):
-        # type (TextType, Union[int, newint]) -> None
+        # type (str, Union[int, newint]) -> None
         """
             Logs a stack dump of all Python threads
 
@@ -1109,7 +1124,7 @@ class LazyLogger(Logger):
 
     @staticmethod
     def log_stack(msg, trace_back, thread_name=''):
-        # type: (TextType, List[Any], TextType) -> None
+        # type: (str, List[Any], str) -> None
         """
 
         :param msg:
@@ -1129,7 +1144,7 @@ class LazyLogger(Logger):
                 string_buffer = string_buffer + '\n' + line
 
             xbmc.log(string_buffer, xbmc.LOGERROR)
-        except (Exception) as e:
+        except Exception as e:
             Logger.log_exception()
 
 
@@ -1164,7 +1179,7 @@ class Trace(object):
 
     @staticmethod
     def enable(*flags):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param flags:
@@ -1185,7 +1200,7 @@ class Trace(object):
 
     @staticmethod
     def disable(*flags):
-        # type: (*TextType) -> None
+        # type: (*str) -> None
         """
 
         :param flags:
@@ -1196,7 +1211,7 @@ class Trace(object):
 
     @staticmethod
     def get_enabled_traces():
-        # type: () -> Set[TextType]
+        # type: () -> Set[str]
         """
 
         :return:
@@ -1210,7 +1225,7 @@ class MyHandler(logging.Handler):
     """
 
     def __init__(self, level=logging.NOTSET, trace=None):
-        # type: (int, Optional[Set[TextType]]) -> None
+        # type: (int, Optional[Set[str]]) -> None
         """
 
         :param level:
@@ -1239,7 +1254,7 @@ class MyHandler(logging.Handler):
                 record.exc_text = msg
             msg = self.format(record)
             xbmc.log(msg, kodi_level)
-        except (Exception) as e:
+        except Exception as e:
             pass
 
 
@@ -1249,7 +1264,7 @@ class MyFilter (logging.Filter):
     """
 
     def __init__(self, name='', enabled_traces=None):
-        # type: (TextType, Union[Set[TextType], None]) -> None
+        # type: (str, Union[Set[str], None]) -> None
         """
 
         :param name:
@@ -1260,7 +1275,7 @@ class MyFilter (logging.Filter):
             self._enabled_traces = enabled_traces
             if self._enabled_traces is None:
                 self._enabled_traces = set()
-        except (Exception) as e:
+        except Exception as e:
             pass
 
     def filter(self, record):
@@ -1283,7 +1298,7 @@ class MyFilter (logging.Filter):
                 record.__dict__['trace_string'] = trace_string
 
                 return 1  # Docs say 0 and non-zero
-        except (Exception):
+        except Exception:
             LazyLogger.log_exception()
 
         return 0
@@ -1294,8 +1309,10 @@ class MyFormatter(logging.Formatter):
 
     """
 
+    INCLUDE_THREAD_INFO = CriticalSettings.is_debug_include_thread_info()
+
     def __init__(self, fmt=None, datefmt=None):
-        # type: (Optional[TextType], Optional[TextType]) -> None
+        # type: (Optional[str], Optional[str]) -> None
         """
 
         :param fmt:
@@ -1305,7 +1322,7 @@ class MyFormatter(logging.Formatter):
         super().__init__(fmt=fmt, datefmt=datefmt)
 
     def format(self, record):
-        # type: (logging.LogRecord) -> TextType
+        # type: (logging.LogRecord) -> str
         """
 
         :param record:
@@ -1363,20 +1380,29 @@ class MyFormatter(logging.Formatter):
             suffix = super().format(record)
             passed_traces = record.__dict__.get('trace_string', None)
             if passed_traces is None:
-                prefix = '[Thread {!s} {!s}.{!s}:{!s}]'.format(
-                    record.threadName, record.name, record.funcName, record.lineno)
+                if type(self).INCLUDE_THREAD_INFO:
+                    prefix = '[Thread {!s} {!s}.{!s}:{!s}]'.format(
+                        record.threadName, record.name, record.funcName, record.lineno)
+                else:
+                    prefix = '[{!s}.{!s}:{!s}]'.format(
+                                record.name, record.funcName, record.lineno)
             else:
-                prefix = '[Thread {!s} {!s}.{!s}:{!s} Trace:{!s}]'.format(
-                    record.threadName, record.name, record.funcName,
-                    record.lineno, passed_traces)
+                if type(self).INCLUDE_THREAD_INFO:
+                    prefix = '[Thread {!s} {!s}.{!s}:{!s} Trace:{!s}]'.format(
+                            record.threadName, record.name, record.funcName,
+                            record.lineno, passed_traces)
+                else:
+                    prefix = '[{!s}.{!s}:{!s} Trace:{!s}]'.format(
+                                    record.name, record.funcName,
+                                    record.lineno, passed_traces)
             text = '{} {}'.format(prefix, suffix)
-        except (Exception) as e:
+        except Exception as e:
             pass
 
         return text
 
     def formatException(self, ei, ignore_frames=0):
-        # type: (...) -> TextType
+        # type: (...) -> str
         """
 
         :param ei:
@@ -1397,7 +1423,7 @@ class MyFormatter(logging.Formatter):
     def print_exception(self, etype, value, tb, thread_name='',
                         limit=None, log_file=None):
 
-        # type: ( Any, TextType, int, StringIO) -> None
+        # type: ( Any, str, int, StringIO) -> None
         """
 
         :param frame:

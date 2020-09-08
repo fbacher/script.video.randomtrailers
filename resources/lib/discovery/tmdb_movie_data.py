@@ -5,12 +5,8 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
-
-from common.development_tools import (
-    Callable, List, TextType, MovieType)
 from common.constants import (Constants, Movie)
 from discovery.abstract_movie_data import AbstractMovieData
 
@@ -22,7 +18,7 @@ class TMDBMovieData(AbstractMovieData):
     """
 
     def __init__(self, movie_source=''):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         """
@@ -30,7 +26,7 @@ class TMDBMovieData(AbstractMovieData):
         self.start_trailer_fetchers()
 
     def add_to_discovered_trailers(self, movies):
-        # type: (Union[Dict[TextType], List[Dict[TextType]]]) -> None
+        # type: (Union[Dict[str], List[Dict[str]]]) -> None
         """
 
         :param movies:

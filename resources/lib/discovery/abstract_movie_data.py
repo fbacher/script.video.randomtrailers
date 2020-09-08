@@ -5,14 +5,12 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
 import threading
 import sys
 import datetime
-import six
 
 from common.constants import Constants, Movie
 from common.disk_utils import DiskUtils
@@ -20,13 +18,9 @@ from common.exceptions import AbortException, DuplicateException
 from common.kodi_queue import (KodiQueue)
 from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
-from common.logger import (Logger, Trace, LazyLogger)
+from common.logger import (Trace, LazyLogger)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.abstract_movie_data')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class MovieSourceData(object):
@@ -34,8 +28,10 @@ class MovieSourceData(object):
 
     """
 
+    logger = None
+
     def __init__(self, movie_source):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param movie_source:
@@ -48,26 +44,21 @@ class MovieSourceData(object):
         self.movie_source = movie_source
 
 
-class DuplicateException(Exception):
-    """
-
-    """
-    pass
-
-
 class UniqQueue(object):
     """
 
     """
+    logger: LazyLogger = None
 
     def __init__(self, maxsize=0, movie_source=''):
-        # type: (int, TextType) -> None
+        # type: (int, str) -> None
         """
         :param maxsize:
         :param movie_source:
         :return:
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__)
 
         self._queue = KodiQueue(maxsize)
         self._duplicate_check = set()
@@ -80,7 +71,7 @@ class UniqQueue(object):
 
         :return:
         """
-        self._logger.enter()
+        type(self).logger.enter()
 
         with self._lock:
             self._duplicate_check.clear()
@@ -100,19 +91,20 @@ class UniqQueue(object):
         """
         key = self.get_key(movie)
 
-        # self._logger.debug('movie:', movie[Movie.TITLE], 'source:',
+        # type(self).logger.debug('movie:', movie[Movie.TITLE], 'source:',
         #                    movie[Movie.SOURCE], 'key:', key)
         with self._lock:
             if key in self._duplicate_check:
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Duplicate movie:', movie[Movie.TITLE],
-                                       'source:', movie[Movie.SOURCE],
-                                       'key:', key)
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('Duplicate movie:',
+                                             movie[Movie.TITLE],
+                                             'source:',
+                                             movie[Movie.SOURCE],
+                                             'key:', key)
                 raise DuplicateException()
 
             self._queue.put(movie, False)
             self._duplicate_check.add(key)
-            # self._logger.debug('movie:', movie[Movie.TITLE], 'key:', key)
 
     def get(self, block=True, timeout=None):
         # type: (bool, Optional[float]) -> object
@@ -124,16 +116,16 @@ class UniqQueue(object):
         """
         with self._lock:
             try:
-                movie = None  # type: MovieType
+                movie = None  # type: Union[MovieType, None]
                 movie = self._queue.get(block=block, timeout=timeout)
                 key = self.get_key(movie)
                 self._duplicate_check.remove(key)
-            except (KeyError) as e:
-                self._logger.debug('movie:', movie[Movie.TITLE], 'key:', key)
-                self._logger.dump_stack(movie[Movie.TITLE] +
+            except KeyError as e:
+                type(self).logger.debug('movie:', movie[Movie.TITLE], 'key:', key)
+                type(self).logger.dump_stack(movie[Movie.TITLE] +
                                         ' movie not found in duplicate_check for UniqueQueue')
-        # if self._logger.isEnabledFor(Logger.DEBUG):
-            # self._logger.debug('got movie:', item[Movie.TITLE], 'source:',
+        # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            # type(self).logger.debug('got movie:', item[Movie.TITLE], 'source:',
             #                    item[Movie.SOURCE], 'key:', key)
         return movie
 
@@ -146,11 +138,11 @@ class UniqQueue(object):
         with self._lock:
             size = int(self._queue.qsize())
 
-        # self._logger.exit('size:', size)
+        # type(self).logger.exit('size:', size)
         return size
 
     def get_key(self, movie):
-        # type: (MovieType) -> TextType
+        # type: (MovieType) -> str
         """
 
         :param movie:
@@ -176,12 +168,12 @@ class UniqQueue(object):
 
         :return:
         """
-        # self._logger = self._logger.get_method_logger('empty')
+        # type(self).logger = type(self).logger.get_methodlogger('empty')
 
         with self._lock:
             empty = self._queue.empty()
 
-        # self._logger.exit('empty:', empty)
+        # type(self).logger.exit('empty:', empty)
         return empty
 
     def full(self):
@@ -190,12 +182,12 @@ class UniqQueue(object):
 
         :return:
         """
-        # self._logger = self._logger.get_method_logger('full')
+        # type(self).logger = type(self).logger.get_methodlogger('full')
 
         with self._lock:
             full = self._queue.full()
 
-        # self._logger.exit('full:', full)
+        # type(self).logger.exit('full:', full)
         return full
 
 
@@ -203,15 +195,17 @@ class MovieList(object):
     """
 
     """
+    logger: LazyLogger = None
 
     def __init__(self, movie_source):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
         :param movie_source:
         :return:
         """
 
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__)
 
         self._movie_source = movie_source
         self._list = list()
@@ -233,7 +227,7 @@ class MovieList(object):
 
         :return:
         """
-        self._logger.enter()
+        type(self).logger.enter()
 
         with self._lock:
             if self._iterating:
@@ -245,7 +239,7 @@ class MovieList(object):
             del self._list[:]
             self._number_of_added_movies = 0
 
-        # self._logger.exit()
+        # type(self).logger.exit()
 
     def add(self, movie):
         # type: (MovieType) -> None
@@ -254,8 +248,8 @@ class MovieList(object):
         :param movie:
         :return:
         """
-        # if self._logger.isEnabledFor(Logger.DEBUG):
-        # self._logger.debug('movie:', movie[Movie.TITLE], 'source:',
+        # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+        # type(self).logger.debug('movie:', movie[Movie.TITLE], 'source:',
         #                   movie[Movie.SOURCE])
         key = self.get_key(movie)
         with self._lock:
@@ -272,7 +266,7 @@ class MovieList(object):
             self._play_count.setdefault(key, 0)
             self._number_of_added_movies += 1
 
-        # self._logger.exit()
+        # type(self).logger.exit()
 
     def __iter__(self):
         # type: () -> MovieList
@@ -292,12 +286,12 @@ class MovieList(object):
 
         :return:
         """
-        # self._logger.enter()
+        Monitor.throw_exception_if_abort_requested()
         next_item = None
         with self._lock:
             if self._changed:
                 LazyLogger.log_stack('List changed while iterating',
-                                     self._saved_track_trace,
+                                     self._saved_stack_trace,
                                      thread_name=self._saved_thread_name)
                 self._saved_stack_trace = None
 
@@ -313,12 +307,12 @@ class MovieList(object):
 
     def __getitem__(self, y):
         # type: (Any) -> MovieType
-        # self._logger.enter()
+        # type(self).logger.enter()
         item = None
         with self._lock:
             item = self._list.__getitem__(y)
 
-        # self._logger.exit()
+        # type(self).logger.exit()
         return item
 
     def remove(self, movie):
@@ -328,7 +322,6 @@ class MovieList(object):
         :param movie:
         :return:
         """
-        # self._logger.enter()
         with self._lock:
             try:
                 if self._iterating:
@@ -340,7 +333,7 @@ class MovieList(object):
                 self._total_removed += 1
 
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except KeyError:
                 pass
             try:
@@ -373,7 +366,7 @@ class MovieList(object):
 
         :return:
         """
-        # self._logger.enter()
+        # type(self).logger.enter()
 
         with self._lock:
             if self._iterating:
@@ -395,9 +388,9 @@ class MovieList(object):
         try:
             with self._lock:
                 count = self._play_count.get(self.get_key(movie), 0)
-        except (KeyError) as e:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(
+        except KeyError as e:
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug(
                     'Could not find entry for:', movie[Movie.TITLE])
 
         return count
@@ -415,9 +408,9 @@ class MovieList(object):
                 count = self._play_count.get(key, 0) + 1
                 self._play_count[key] = count
 
-        except (KeyError) as e:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Could not find entry for:',
+        except KeyError as e:
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug('Could not find entry for:',
                                    movie[Movie.TITLE])
 
         # self.report_play_count_stats()
@@ -432,7 +425,7 @@ class MovieList(object):
 
         try:
             with self._lock:
-                Monitor.throw_exception_if_shutdown_requested()
+                Monitor.throw_exception_if_abort_requested()
                 movie_keys = sorted(self._play_count, key=lambda key:
                                     self._play_count[key], reverse=False)
                 # Number of times this set of movies were played
@@ -445,20 +438,20 @@ class MovieList(object):
                 # play_count is number of times a movie was played
                 movies_with_same_count = []
                 for movie_key in movie_keys:
-                    Monitor.throw_exception_if_shutdown_requested()
+                    Monitor.throw_exception_if_abort_requested()
                     play_count = self._play_count[movie_key]
                     if play_count == previous_play_count:
                         movie_count_in_group += 1
                         movies_with_same_count.append(movie_key)
                     else:
                         if previous_play_count != -1:
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                                type(self).logger.debug(
                                     '{} movies played {} times'.format(movie_count_in_group,
                                                                        previous_play_count))
                             if previous_play_count != 0:
                                 self.wrap_text(
-                                    self._logger.debug, movies_with_same_count)
+                                    type(self).logger.debug, movies_with_same_count)
                             del movies_with_same_count[:]
                             movie_count += movie_count_in_group
                             total_play_count += previous_play_count * movie_count_in_group
@@ -471,29 +464,29 @@ class MovieList(object):
             if movie_count_in_group > 0:
                 movie_count += movie_count_in_group
                 total_play_count += previous_play_count * movie_count_in_group
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('{} movies played {} times'.format(movie_count_in_group,
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('{} movies played {} times'.format(movie_count_in_group,
                                                                           previous_play_count))
                 if previous_play_count > 0:
-                    self.wrap_text(self._logger.debug, movies_with_same_count)
+                    self.wrap_text(type(self).logger.debug, movies_with_same_count)
 
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug(
                     'Total movies played: {} Total Movies: {} Total Removed: {} Total Added: {}'.format(
                         total_play_count,
                         movie_count,
                         self._total_removed,
                         self._number_of_added_movies))
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
 
         except Exception as e:
-            self._logger.exception('')
+            type(self).logger.exception('')
 
     MAX_LINE_LENGTH = 80
 
     def wrap_text(self, logger, movies_with_same_count):
-        # type: (Callable, List[TextType]) -> None
+        # type: (Callable, List[str]) -> None
         """
 
         :param logger:
@@ -503,14 +496,14 @@ class MovieList(object):
         movies_in_line = []
         line_length = 0
         for movie in movies_with_same_count:
-            Monitor.throw_exception_if_shutdown_requested()
+            Monitor.throw_exception_if_abort_requested()
             try:
                 if line_length + len(movie) + 2 > MovieList.MAX_LINE_LENGTH:
                     logger('   {}'.format(', '.join(movies_in_line)))
                     del movies_in_line[:]
                     line_length = 0
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
 
             except Exception as e:
                 logger('blew up joining')
@@ -525,7 +518,7 @@ class MovieList(object):
                 logger('blew up joining')
 
     def get_key(self, movie):
-        # type: (MovieType) -> TextType
+        # type: (MovieType) -> str
         """
 
         :param movie:
@@ -566,9 +559,10 @@ class AbstractMovieData(object):
     _discovered_trailers_queue = None
     _trailers_to_fetch_queue = None
     _iterator = None
+    logger: LazyLogger = None
 
     def __init__(self,
-                 movie_source=''  # type: TextType
+                 movie_source=''  # type: str
                  ):
         # type: (...) -> None
         """
@@ -579,11 +573,12 @@ class AbstractMovieData(object):
         :param verbose:
         """
 
-        self._logger = module_logger.getChild(self.__class__.__name__ +
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__ +
                                               ':' + movie_source)
 
         self._trailers_discovered_event = threading.Event()
-        self._movie_source_data = {}  # type: Dict[TextType, MovieSourceData]
+        self._movie_source_data = {}  # type: Dict[str, MovieSourceData]
         self._removed_trailers = 0
         self._number_of_added_movies = 0
         self._load_fetch_total_duration = 0
@@ -613,7 +608,7 @@ class AbstractMovieData(object):
         self._trailer_fetcher.start_fetchers()
 
     def get_movie_source(self):
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -627,10 +622,10 @@ class AbstractMovieData(object):
         :return:
         """
 
-        self._logger.enter()
+        type(self).logger.enter()
 
         with self._discovered_trailers_lock:
-            # self._logger.debug('Have Lock')
+            # type(self).logger.debug('Have Lock')
             self._trailer_fetcher.prepare_for_restart_discovery(stop_thread)
             self._trailers_discovered_event.clear()
             self._removed_trailers = 0
@@ -657,9 +652,9 @@ class AbstractMovieData(object):
         :return:
         """
         with self._discovered_trailers_lock:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                # self._logger.debug('Have discovered_trailers_lock')
-                self._logger.debug('Shuffling because finished_discovery',
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                # type(self).logger.debug('Have discovered_trailers_lock')
+                type(self).logger.debug('Shuffling because finished_discovery',
                                    trace=Trace.TRACE_DISCOVERY)
             self.shuffle_discovered_trailers(mark_unplayed=False)
             self._discovery_complete = True
@@ -691,7 +686,7 @@ class AbstractMovieData(object):
         return cls._aggregate_trailers_by_name_date
 
     def add_to_discovered_trailers(self, movies):
-        # type: (Union[Dict[TextType], List[Dict[TextType]]]) -> None
+        # type: (Union[Dict[str], List[Dict[str]]]) -> None
         """
 
         :param movies:
@@ -704,25 +699,25 @@ class AbstractMovieData(object):
 
         movies_added = False
         with self._discovered_trailers_lock:
-            #  if self._logger.isEnabledFor(Logger.DEBUG):
-                # self._logger.debug('Have discovered_trailers_lock')
+            #  if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                # type(self).logger.debug('Have discovered_trailers_lock')
             for movie in movies:
-                if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
-                    self._logger.debug_verbose(movie.get(Movie.TITLE),
-                                               'source:', movie.get(
-                                                   Movie.SOURCE),
-                                               'discovery_state:',
-                                               movie.get(
-                                                   Movie.DISCOVERY_STATE),
-                                               'length:',
-                                               len(self._discovered_trailers))
+                # if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                #     type(self).logger.debug_extra_verbose(movie.get(Movie.TITLE),
+                #                                'source:', movie.get(
+                #                                    Movie.SOURCE),
+                #                                'discovery_state:',
+                #                                movie.get(
+                #                                    Movie.DISCOVERY_STATE),
+                #                                'length:',
+                #                                len(self._discovered_trailers))
                 # Assume more discovery is required for movie details, etc.
 
                 try:
                     self._discovered_trailers.add(movie)
-                except (DuplicateException) as e:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Ignoring duplicate movie:',
+                except DuplicateException as e:
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Ignoring duplicate movie:',
                                            movie[Movie.TITLE])
                     continue
 
@@ -748,8 +743,8 @@ class AbstractMovieData(object):
             reshuffle = True
 
         if reshuffle:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug(
                     'Shuffling seconds_since_last_shuffle:',
                     seconds_since_last_shuffle,
                     'current size:', current_size,
@@ -773,15 +768,15 @@ class AbstractMovieData(object):
         :param mark_unplayed:
         :return:
         """
-        Monitor.get_instance().throw_exception_if_shutdown_requested()
-        # self._logger.debug('before self.lock')
+        Monitor.throw_exception_if_abort_requested()
+        # type(self).logger.debug('before self.lock')
 
         with self._discovered_trailers_lock:
-            # self._logger.debug('Have discovered_trailers_lock')
+            # type(self).logger.debug('Have discovered_trailers_lock')
 
             if self._discovered_trailers.len() == 0:
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('nothing to shuffle')
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    type(self).logger.debug('nothing to shuffle')
                 return
 
             self._discovered_trailers.shuffle()
@@ -791,26 +786,26 @@ class AbstractMovieData(object):
 
             self._last_shuffled_index = self._discovered_trailers.len() - 1
             self._last_shuffle_time = datetime.datetime.now()
-            # if self._logger.isEnabledFor(Logger.DEBUG):
-            # self._logger.debug('lastShuffledIndex:', self._last_shuffled_index)
+            # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            # type(self).logger.debug('lastShuffledIndex:', self._last_shuffled_index)
 
             # Drain anything previously in queue
 
             self._discovered_trailers_queue.clear()
 
-            Monitor.get_instance().throw_exception_if_shutdown_requested()
-            # self._logger.debug('reloading _discovered_trailers_queue')
+            Monitor.throw_exception_if_abort_requested()
+            # type(self).logger.debug('reloading _discovered_trailers_queue')
             for trailer in self._discovered_trailers:
                 if not trailer[Movie.TRAILER_PLAYED]:
-                    # if self._logger.isEnabledFor(Logger.DEBUG):
-                    #   self._logger.debug('adding', trailer[Movie.TITLE],
+                    # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                    #   type(self).logger.debug('adding', trailer[Movie.TITLE],
                     #                      'id:', hex(id(trailer)),
                     #                      'to discovered_trailers_queue',
                     #                      'state:', trailer[Movie.DISCOVERY_STATE])
                     self._discovered_trailers_queue.put(trailer)
 
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('_discoveredTrailerQueue length:',
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug('_discoveredTrailerQueue length:',
                                    self._discovered_trailers_queue.qsize(),
                                    '_discovered_trailers length:',
                                    len(self._discovered_trailers))
@@ -842,15 +837,15 @@ class AbstractMovieData(object):
         if self._removed_trailers > 100:
             success_ratio = (self._number_of_added_movies - self._removed_trailers) /\
                 self._number_of_added_movies
-            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
-                self._logger.debug_verbose('movies discovered:',
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                type(self).logger.debug_verbose('movies discovered:',
                                            self._number_of_added_movies,
                                            'movies without trailers:',
                                            self._removed_trailers)
         number_of_trailers = self.get_number_of_movies()
         projected_number_of_trailers = success_ratio * number_of_trailers
-        if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
-            self._logger.debug_extra_verbose('removed:', self._removed_trailers,
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            type(self).logger.debug_extra_verbose('removed:', self._removed_trailers,
                                              'projected_number_of_trailers:',
                                              projected_number_of_trailers)
         return int(projected_number_of_trailers)
@@ -882,27 +877,27 @@ class AbstractMovieData(object):
         :return:
         """
         with self._discovered_trailers_lock:
-            # self._logger.debug('Have discovered_trailers_lock')
+            # type(self).logger.debug('Have discovered_trailers_lock')
 
             try:
                 self._discovered_trailers.remove(movie)
-            except (ValueError):  # Already deleted
-                if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
-                    self._logger.debug_verbose('Movie appears to already be removed:',
+            except ValueError:  # Already deleted
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    type(self).logger.debug_verbose('Movie appears to already be removed:',
                                                movie.get(Movie.TITLE))
 
-            if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 try:
                     key = self._discovered_trailers_queue.get_key(movie)
                     if key in self._discovered_trailers_queue._duplicate_check:
-                        self._logger.debug_extra_verbose('Deleted movie still in',
+                        type(self).logger.debug_extra_verbose('Deleted movie still in',
                                                          'fetch queue. Movie:', movie.get(Movie.TITLE))
-                except (ValueError):  # Already deleted
+                except ValueError:  # Already deleted
                     pass
 
         self._removed_trailers += 1
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug(' : ',
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug(' : ',
                                movie.get(Movie.TITLE), 'removed:',
                                self._removed_trailers, 'remaining:',
                                self.get_number_of_movies() - 1)
@@ -938,10 +933,10 @@ class AbstractMovieData(object):
         """
         start_time = datetime.datetime.now()
         if AbstractMovieData._first_load:
-            Monitor.get_instance().wait_for_shutdown(timeout=2.0)
+            Monitor.wait_for_abort(timeout=2.0)
             AbstractMovieData._first_load = False
 
-        Monitor.get_instance().throw_exception_if_shutdown_requested()
+        Monitor.throw_exception_if_abort_requested()
         finished = False
         attempts = 0
         discovery_complete_queue_empty = 0
@@ -951,35 +946,35 @@ class AbstractMovieData(object):
         get_attempts = 0
         put_attempts = 0
         while not finished:
-            trailer = None  # type: MovieType
-            Monitor.get_instance().throw_exception_if_shutdown_requested()
+            trailer = None  # type: Union[MovieType, None]
+            Monitor.throw_exception_if_abort_requested()
             attempts += 1
             shuffle = False
             iteration_successful = False
             try:
                 elapsed = datetime.datetime.now() - start_time
                 if attempts > 0:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Attempt:',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        type(self).logger.debug_verbose('Attempt:',
                                            attempts, 'elapsed:', elapsed.seconds)
 
                 if self._trailers_to_fetch_queue.full():
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('_trailers_to_fetch_queue full',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        type(self).logger.debug_verbose('_trailers_to_fetch_queue full',
                                            trace=Trace.TRACE)
                     finished = True
                     iteration_successful = True
                 elif self._discovery_complete and len(self._discovered_trailers) == 0:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Discovery Complete and nothing found.',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        type(self).logger.debug_verbose('Discovery Complete and nothing found.',
                                            trace=Trace.TRACE)
                     finished = True
                     iteration_successful = True
                 elif self._discovery_complete and self._discovered_trailers_queue.empty():
-                    self._logger.error(
+                    type(self).logger.error(
                         'discoveryComplete,_discovered_trailers_queue empty')
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug(
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        type(self).logger.debug_verbose(
                             'discoveryComplete,_discovered_trailers_queue empty',
                             trace=Trace.TRACE)
                     shuffle = True
@@ -991,8 +986,8 @@ class AbstractMovieData(object):
                       and not self._trailers_to_fetch_queue.empty):
                     discovered_and_fetch_queues_empty += 1
                     # Use what we have
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Discovery incomplete._discovered_trailers_queue',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        type(self).logger.debug_verbose('Discovery incomplete._discovered_trailers_queue',
                                            'empty and _trailers_to_fetch_queue not empty',
                                            trace=Trace.TRACE)
                     finished = True
@@ -1004,13 +999,13 @@ class AbstractMovieData(object):
                     try:
                         discovery_incomplete_fetch_not_empty += 1
                         with self._discovered_trailers_lock:
-                            # self._logger.debug('Have discovered_trailers_lock')
+                            # type(self).logger.debug_verbose('Have discovered_trailers_lock')
 
                             trailer = self._discovered_trailers_queue.get(
                                 timeout=0.25)
 
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(' Got', trailer[Movie.TITLE],
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            type(self).logger.debug_verbose(' Got', trailer[Movie.TITLE],
                                                'from _discoveredTrailerQueue')
                     except (KodiQueue.Empty):
                         pass
@@ -1019,15 +1014,15 @@ class AbstractMovieData(object):
                         try:
                             self.put_in_fetch_queue(
                                 trailer, timeout=1)
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Put in _trailers_to_fetch_queue qsize:',
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                type(self).logger.debug_verbose('Put in _trailers_to_fetch_queue qsize:',
                                                    self._trailers_to_fetch_queue.qsize(),
                                                    trailer.get(Movie.TITLE),
                                                    trace=Trace.TRACE)
                             iteration_successful = True
-                        except (KodiQueue.Full):
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('_trailers_to_fetch_queue.put failed',
+                        except KodiQueue.Full:
+                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                type(self).logger.debug_verbose('_trailers_to_fetch_queue.put failed',
                                                    trace=Trace.TRACE)
                         #
                         # It is not a crisis if the put fails. Since the
@@ -1043,27 +1038,27 @@ class AbstractMovieData(object):
                     # wait until we get an item, or discovery complete
 
                     discovery_incomplete_fetch_queue_empty += 1
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Discovery incomplete,',
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        type(self).logger.debug_verbose('Discovery incomplete,',
                                            '_trailers_to_fetch_queue empty, will wait',
                                            trace=Trace.TRACE)
 
                 if not iteration_successful:
                     if (self._discovered_trailers_queue.empty()
                             and self._discovered_trailers.len() > 0):
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            type(self).logger.debug_verbose(
                                 'Shuffling due to empty _discovered_trailers_queue and',
                                 '_discovered_trailers not empty')
                         shuffle = True
 
                     if shuffle:  # Because we were empty
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            type(self).logger.debug_verbose(
                                 'Shuffling due to empty _discovered_trailers_queue')
-                        Monitor.get_instance().throw_exception_if_shutdown_requested()
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('load_fetch_queue Shuffling because',
+                        Monitor.throw_exception_if_abort_requested()
+                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            type(self).logger.debug_verbose('load_fetch_queue Shuffling because',
                                                'discoveredTrailerQueue empty',
                                                trace=Trace.TRACE_DISCOVERY)
                         self.shuffle_discovered_trailers(mark_unplayed=True)
@@ -1074,13 +1069,13 @@ class AbstractMovieData(object):
                             try:
                                 get_attempts += 1
                                 with self._discovered_trailers_lock:
-                                    # self._logger.debug('Have discovered_trailers_lock')
+                                    # type(self).logger.debug_verbose('Have discovered_trailers_lock')
 
                                     trailer = self._discovered_trailers_queue.get(
                                         timeout=0.5)
                                 get_finished = True
-                            except (KodiQueue.Empty):
-                                Monitor.get_instance().throw_exception_if_shutdown_requested()
+                            except KodiQueue.Empty:
+                                Monitor.throw_exception_if_abort_requested()
 
                     put_finished = False
                     while not put_finished:
@@ -1088,8 +1083,8 @@ class AbstractMovieData(object):
                             put_attempts += 1
                             self.put_in_fetch_queue(trailer, timeout=0.25)
                             put_finished = True
-                        except (KodiQueue.Full):
-                            Monitor.get_instance().throw_exception_if_shutdown_requested()
+                        except KodiQueue.Full:
+                            Monitor.throw_exception_if_abort_requested()
                         iteration_successful = True
 
                 if trailer is not None:
@@ -1097,14 +1092,14 @@ class AbstractMovieData(object):
                 else:
                     movie_title = 'no movie'
 
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Queue has:',
+                if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    type(self).logger.debug_verbose('Queue has:',
                                        self._trailers_to_fetch_queue.qsize(),
                                        'Put in _trailers_to_fetch_queue:', movie_title)
             except AbortException:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception as e:
-                self._logger.exception('')
+                type(self).logger.exception('')
                 # TODO Continue?
 
             if self._trailers_to_fetch_queue.full():
@@ -1115,15 +1110,15 @@ class AbstractMovieData(object):
 
             if not finished:
                 if attempts % 10 == 0:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug(
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug(
                             'hung reloading from._discovered_trailers_queue.',
                             'length of _discovered_trailers:',
                             len(self._discovered_trailers),
                             'length of._discovered_trailers_queue:',
                             self._discovered_trailers_queue.qsize(),
                             trace=Trace.TRACE)
-                Monitor.get_instance().throw_exception_if_shutdown_requested(delay=0.5)
+                Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
         stop_time = datetime.datetime.now()
         duration = stop_time - start_time
@@ -1137,9 +1132,9 @@ class AbstractMovieData(object):
         get_attempts = 0
         put_attempts = 0
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('took',
-                               duration.seconds, 'seconds', trace=Trace.STATS)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            type(self).logger.debug_verbose('took', duration.seconds,
+                                       'seconds', trace=Trace.STATS)
 
     def get_from_fetch_queue(self, player_starving=False):
         # type: (bool) -> MovieType
@@ -1147,24 +1142,24 @@ class AbstractMovieData(object):
 
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('starving:', player_starving)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('starving:', player_starving)
         self.load_fetch_queue()
         trailer = None
         if self._trailers_to_fetch_queue.empty():
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(': empty')
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug(': empty')
         while trailer is None:
             try:
                 if player_starving:
                     trailer = self.get_from_starvation_queue()
                 if trailer is None:
                     trailer = self._trailers_to_fetch_queue.get(timeout=0.5)
-            except (KodiQueue.Empty):
-                Monitor.get_instance().throw_exception_if_shutdown_requested()
+            except KodiQueue.Empty:
+                Monitor.throw_exception_if_abort_requested()
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug(
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug(
                 'Got:', trailer[Movie.TITLE], 'from fetch queue')
 
         return trailer
@@ -1192,7 +1187,7 @@ class AbstractMovieData(object):
         try:
             if self._starvation_queue.empty():
                 with self._discovered_trailers_lock:
-                    # self._logger.debug('Have discovered_trailers_lock')
+                    # type(self).logger.debug('Have discovered_trailers_lock')
 
                     starvation_list = []
                     for movie in self._discovered_trailers:
@@ -1211,16 +1206,16 @@ class AbstractMovieData(object):
                 movie = self._starvation_queue.get()
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
 
         except Exception as e:
-            self._logger.exception('')
+            type(self).logger.exception('')
 
         title = None
         if movie is not None:
             title = movie[Movie.TITLE]
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('movie:', title)
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug('movie:', title)
         return movie
 
     def get_discovered_trailer_queue_size(self):

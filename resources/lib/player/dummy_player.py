@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
 from common.monitor import Monitor
+
 
 class PlayerState(object):
     STATE_STOPPED = 'stopped'
@@ -165,13 +165,11 @@ class DummyPlayer(object):
 
     def waitForIsPlayingVideo(self, timeout=None):
 
-        kodi_monitor = Monitor.get_instance()
-        kodi_monitor.throw_exception_if_shutdown_requested()
+        Monitor.throw_exception_if_abort_requested()
         return False
 
     def waitForIsNotPlayingVideo(self, timeout=None, trace=None):
-        kodi_monitor = Monitor.get_instance()
-        kodi_monitor.throw_exception_if_shutdown_requested()
+        Monitor.throw_exception_if_abort_requested()
         return True
 
     def onAVChange(self):
@@ -235,9 +233,6 @@ class DummyPlayer(object):
         return
 
     def monitor(self):
-        return
-
-    def shutdownThread(self):
         return
 
     def is_activated(self):

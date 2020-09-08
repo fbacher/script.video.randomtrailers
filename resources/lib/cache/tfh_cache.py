@@ -5,9 +5,6 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import datetime
 import dateutil.parser
@@ -16,16 +13,13 @@ import io
 import simplejson as json
 from simplejson import (JSONDecodeError)
 import os
+import sys
 import threading
 
 import xbmc
 import xbmcvfs
+from common.imports import *
 
-from kodi_six import utils
-
-from common.development_tools import (Any, List,
-                                      Dict, Union,
-                                      TextType, MovieType)
 from common.constants import (Constants, Movie, RemoteTrailerPreference)
 from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger)
@@ -34,13 +28,8 @@ from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import (Settings)
 from common.disk_utils import (DiskUtils)
-from backend.statistics import (Statistics)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'cache.cache')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class TFHCache(object):
@@ -51,6 +40,10 @@ class TFHCache(object):
     UNINITIALIZED_STATE = 'uninitialized_state'
     lock = threading.RLock()
     _logger = None
+    _cache_complete: bool = False
+    _cached_trailers: List[MovieType] = list()
+    _last_saved_trailer_timestamp = datetime.datetime.now()
+    _unsaved_trailer_changes: int = 0
 
     @classmethod
     def class_init(cls,
@@ -59,11 +52,7 @@ class TFHCache(object):
         """
         :return:
         """
-        cls._logger = module_logger.getChild(cls.__class__.__name__)
-        cls._cached_trailers = list()  # type: List[MovieType]
-        cls._unsaved_trailer_changes = 0
-        cls._last_saved_trailer_timestamp = datetime.datetime.now()
-        cls._cache_complete = False
+        cls._logger = module_logger.getChild(type(cls).__name__)
 
     @classmethod
     def logger(cls):
@@ -108,7 +97,8 @@ class TFHCache(object):
                                      Movie.PLOT: TFHCache.CACHE_COMPLETE_MARKER,
                                      Movie.THUMBNAIL: TFHCache.CACHE_COMPLETE_MARKER,
                                      Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                                     Movie.MPAA: ''
+                                     Movie.MPAA: '',
+                                     Movie.ADULT: False
                                      }
             cls._cached_trailers.append(cache_complete_marker)
 
@@ -124,18 +114,17 @@ class TFHCache(object):
             try:
                 with io.open(path, mode='at', newline=None,
                              encoding='utf-8', ) as cacheFile:
-                    json_text = utils.py2_decode(json.dumps(cls._cached_trailers,
-                                                            encoding='utf-8',
-                                                            ensure_ascii=False,
-                                                            indent=3, sort_keys=True))
+                    json_text = json.dumps(cls._cached_trailers,
+                                           encoding='utf-8',
+                                           ensure_ascii=False,
+                                           indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
                     cls._unsaved_trailer_changes = 0
-
-            except (IOError) as e:
+            except IOError as e:
                 TFHCache.logger().exception('')
-            except (Exception) as e:
+            except Exception as e:
                 TFHCache.logger().exception('')
 
         Monitor.throw_exception_if_abort_requested()
@@ -164,11 +153,11 @@ class TFHCache(object):
             else:
                 cls._cached_trailers = list()
 
-        except (IOError) as e:
+        except IOError as e:
             TFHCache.logger().exception('')
-        except (JSONDecodeError) as e:
+        except JSONDecodeError as e:
             os.remove(path)
-        except (Exception) as e:
+        except Exception as e:
             TFHCache.logger().exception('')
 
         Monitor.throw_exception_if_abort_requested()

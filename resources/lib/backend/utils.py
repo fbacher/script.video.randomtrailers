@@ -5,24 +5,18 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
+import random
 import sys
-import six
 
 from common.imports import *
-
 from common.constants import (Constants)
 from common.exceptions import AbortException
 from common.logger import LazyLogger
 
-import os
-import random
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'backend.utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Utils(object):
@@ -52,7 +46,7 @@ class Utils(object):
         return Utils._instance
 
     def create_path_if_needed(self, path):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param path:
@@ -62,6 +56,6 @@ class Utils(object):
             if not os.path.exists(path):
                 os.makedirs(path)
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             self._logger.exception('')

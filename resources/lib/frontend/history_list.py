@@ -5,27 +5,21 @@ Created on May 25, 2019
 
 @author: Frank Feuerbacher
 '''
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import sys
 import threading
 from collections import deque
 
 from common.constants import Constants, Movie
-from common.playlist import Playlist
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger, Trace)
+from common.imports import *
+from common.logger import (LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor
 
 from frontend.history_empty import HistoryEmpty
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('frontend.history_list')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class HistoryList(object):
@@ -33,89 +27,99 @@ class HistoryList(object):
 
     """
     MAX_HISTORY = 20
+    logger: LazyLogger = None
+    _buffer: List[MovieType] = []
+    _cursor: int = int(-1)
 
-    def __init__(self):
+    @classmethod
+    def class_init(cls):
         # type: () -> None
         """
 
         """
-        super().__init__()
-        self._logger = module_logger.getChild(self.__class__.__name__)
-        self._buffer = []  # type: List[MovieType]
-        self._cursor = int(-1)  # type: int
+        cls.logger = module_logger.getChild(cls.__class__.__name__)
+        cls._buffer = []  # type: List[MovieType]
+        cls._cursor = int(-1)  # type: int
 
-    def append(self, movie):
+    @classmethod
+    def append(cls, movie):
         # type: (MovieType) -> None
         """
 
         :param movie:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
-                               len(self._buffer), 'cursor:', self._cursor)
-        self._buffer.append(movie)
-        if len(self._buffer) > HistoryList.MAX_HISTORY:
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
+                               len(cls._buffer), 'cursor:', cls._cursor)
+        cls._buffer.append(movie)
+        if len(cls._buffer) > HistoryList.MAX_HISTORY:
             # Delete oldest entry
-            del self._buffer[0]
-        self._cursor = len(self._buffer) - 1
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
-                              len(self._buffer), 'cursor:', self._cursor)
+            del cls._buffer[0]
+        cls._cursor = len(cls._buffer) - 1
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
+                             len(cls._buffer), 'cursor:', cls._cursor)
 
-    def get_previous_movie(self):
+    @classmethod
+    def get_previous_movie(cls):
         # type: () -> MovieType
         """
 
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.enter('len(buffer):',
-                               len(self._buffer), 'cursor:', self._cursor)
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.enter('len(buffer):',
+                               len(cls._buffer), 'cursor:', cls._cursor)
         # cursor points to currently playing movie or -1
-        self._cursor -= 1
-        if self._cursor < 0:
-            self._cursor = -1
+        cls._cursor -= 1
+        if cls._cursor < 0:
+            cls._cursor = -1
             movie = None
             raise HistoryEmpty()
         else:
-            movie = self._buffer[self._cursor]
+            movie = cls._buffer[cls._cursor]
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
-                              len(self._buffer), 'cursor:', self._cursor)
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
+                              len(cls._buffer), 'cursor:', cls._cursor)
         return movie
 
-    def get_next_movie(self):
+    @classmethod
+    def get_next_movie(cls):
         # type: () -> MovieType
         """
         Play the next movie in the history buffer.
         :return: The next movie in the buffer or None, if there are none.
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.enter('len(buffer):',
-                               len(self._buffer), 'cursor:',
-                               self._cursor)  # cursor points to currently playing
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.enter('len(buffer):',
+                               len(cls._buffer), 'cursor:',
+                               cls._cursor)  # cursor points to currently playing
             # movie or -1
-        self._cursor += 1
-        if self._cursor <= -1:
-            self._cursor = 0
-        if len(self._buffer) < (self._cursor + 1):
+        cls._cursor += 1
+        if cls._cursor <= -1:
+            cls._cursor = 0
+        if len(cls._buffer) < (cls._cursor + 1):
             movie = None
             title = 'None'
         else:
-            movie = self._buffer[self._cursor]
+            movie = cls._buffer[cls._cursor]
             title = movie[Movie.TITLE]
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.exit('movie', title, 'len(buffer):',
-                              len(self._buffer), 'cursor:', self._cursor)
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.exit('movie', title, 'len(buffer):',
+                              len(cls._buffer), 'cursor:', cls._cursor)
         return movie
 
-    def remove(self, movie):
+    @classmethod
+    def remove(cls, movie):
         try:
-            i = self._buffer.index(movie)
-            del self._buffer[i]
-            if self._cursor >  len(self._buffer) - 1:
-                self._cursor = len(self._buffer) - 1
-        except (Exception) as e:
+            i = cls._buffer.index(movie)
+            del cls._buffer[i]
+            if cls._cursor >  len(cls._buffer) - 1:
+                cls._cursor = len(cls._buffer) - 1
+        except Exception as e:
             pass # Does not exist in list
+
+
+HistoryList.class_init()

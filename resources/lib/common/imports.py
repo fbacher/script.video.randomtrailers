@@ -9,5 +9,7 @@
 #from future.types import (newint)
 
 from .development_tools import (Any, Callable, FrozenSet, Optional, Iterable, List, Dict,
-                                Tuple, Sequence, Set, Union, TextType, DEVELOPMENT,
+                                Tuple, Sequence, Set, Union, DEVELOPMENT,
                                 RESOURCE_LIB, MovieType)
+from six import reraise
+

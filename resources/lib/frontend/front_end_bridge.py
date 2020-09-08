@@ -5,30 +5,19 @@ Created on Mar 21, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from common.imports import *
 
+import os
 import sys
-import threading
-import six
-
-from kodi65 import addon
-from kodi_six import xbmc
-import AddonSignals as AddonSignals
 
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger, Trace)
+from common.imports import *
+from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-    ).getChild('frontend.front_end_bridge')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
-
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 """
     FrontendBridge provides support for the random trailers front_end_service to
@@ -48,39 +37,37 @@ class FrontendBridge(PluginBridge):
     """
 
     """
-    _instance = None
+    _logger = None
+    _next_trailer = None
+    _trailer_iterator = None
+    _trailer = None
+    _busy_getting_trailer = False
+    _status = FrontendBridgeStatus.IDLE
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
-        self._logger.enter()
-        try:
-            super().__init__()
-            self._next_trailer = None
-            self._context = Constants.FRONTEND_SERVICE
-            self._trailer_iterator = None
-            self._trailer = None
-            self._busy_getting_trailer = False
-            self._status = FrontendBridgeStatus.IDLE
-            self.register_listeners()
+        super().__init__()
+        type(self).class_init()
+
+    @classmethod
+    def class_init(cls):
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+            cls._logger.enter()
+            try:
+                cls._next_trailer = None
+                cls._trailer_iterator = None
+                cls._trailer = None
+                cls._busy_getting_trailer = False
+                cls._status = FrontendBridgeStatus.IDLE
+                cls.register_listeners()
             except AbortException:
-            six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception as e:
-            self._logger.exception('')
-
-    @staticmethod
-    def get_instance():
-        # type: () -> FrontendBridge
-        """
-
-        :return:
-        """
-        if FrontendBridge._instance is None:
-            FrontendBridge._instance = FrontendBridge()
-        return FrontendBridge._instance
+                cls._logger.exception('')
 
     ############################################################
     #
@@ -88,8 +75,9 @@ class FrontendBridge(PluginBridge):
     #
     ###########################################################
 
-    def get_next_trailer(self):
-        # type: () -> (Union[TextType, None], Union[Dict[TextType, Any], None])
+    @classmethod
+    def get_next_trailer(cls):
+        # type: () -> (Union[str, None], Union[Dict[str, Any], None])
         """
          front-end requests a trailer from the back-end and waits for
             response.
@@ -97,9 +85,8 @@ class FrontendBridge(PluginBridge):
         :return:
         """
         try:
-            self._logger.enter('context:', self._context)
             signal_payload = {}
-            self.send_signal('get_next_trailer', data=signal_payload,
+            cls.send_signal('get_next_trailer', data=signal_payload,
                              source_id=Constants.BACKEND_ID)
 
             # It can take some time before we get responses back
@@ -108,46 +95,48 @@ class FrontendBridge(PluginBridge):
             # TODO: handle case where there are NO trailers to play
             # Also, server should send ack on receipt of this request
 
-            self._status = FrontendBridgeStatus.BUSY
+            cls._status = FrontendBridgeStatus.BUSY
             count = 0
-            while self._status == FrontendBridgeStatus.BUSY and count < 300:
+            while cls._status == FrontendBridgeStatus.BUSY and count < 300:
                 Monitor.throw_exception_if_abort_requested(timeout=0.10)
                 count += 1
 
             if count >= 300:
-                self._logger.error('Timed out waiting on get_next_trailer')
-                self._next_trailer = None
-                self._status = FrontendBridgeStatus.TIMED_OUT
+                cls._logger.error('Timed out waiting on get_next_trailer')
+                cls._next_trailer = None
+                cls._status = FrontendBridgeStatus.TIMED_OUT
 
-            trailer = self._next_trailer
-            status = self._status
-            self._next_trailer = None
-            self._status = FrontendBridgeStatus.IDLE
+            trailer = cls._next_trailer
+            status = cls._status
+            cls._next_trailer = None
+            cls._status = FrontendBridgeStatus.IDLE
             if trailer is not None:
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('returning status:',
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls._logger.debug('returning status:',
                                        status, 'title:', trailer[Movie.TITLE])
             return status, trailer
         except AbortException:
-            self.delete_instance()
-            six.reraise(*sys.exc_info())
+            cls.delete_instance()
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            cls._logger.exception('')
 
-    def notify_settings_changed(self):
+    @classmethod
+    def notify_settings_changed(cls):
         # type: () -> None
         """
             Front-end informs others (back-end) that settings may have changed.
 
         :return:
         """
-        self._logger.enter()
+        cls._logger.enter()
         signal_payload = {}
-        self.send_signal('settings_changed', data=signal_payload,
+        cls.send_signal('settings_changed', data=signal_payload,
                          source_id=Constants.BACKEND_ID)
 
-    def ack(self, what):
-        # type: (TextType) -> None
+    @classmethod
+    def ack(cls, what):
+        # type: (str) -> None
         """
             Front-end acknowledges receipt some messages. This is used
             to confirm that the front-end is running and received message.
@@ -158,12 +147,12 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-        self._logger.enter()
+        cls._logger.enter()
         signal_payload = {'what': what}
-        self.send_signal('ack', data=signal_payload,
-                         source_id=Constants.BACKEND_ID)
+        cls.send_signal('ack', data=signal_payload, source_id=Constants.BACKEND_ID)
 
-    def returned_trailer(self, data):
+    @classmethod
+    def returned_trailer(cls, data):
         # type: (Any) -> None
         """
             Front-end receives trailer from back-end
@@ -173,21 +162,22 @@ class FrontendBridge(PluginBridge):
         """
         try:
             Monitor.throw_exception_if_abort_requested()
-            self._next_trailer = data.get('trailer', None)
-            self._status = data.get('status', None)
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                if self._next_trailer is None:
+            cls._next_trailer = data.get('trailer', None)
+            cls._status = data.get('status', None)
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._next_trailer is None:
                     title = 'No Trailer Received'
                 else:
-                    title = self._next_trailer.get(Movie.TITLE, 'No Title')
-                self._logger.debug(self._context, 'status:', self._status,
-                                   'received trailer for:', title)
+                    title = cls._next_trailer.get(Movie.TITLE, 'No Title')
+                cls._logger.debug('status:', cls._status,
+                                  'received trailer for:', title)
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            cls._logger.exception('')
 
-    def activate_screensaver(self):
+    @classmethod
+    def activate_screensaver(cls):
         # type: () -> None
         """
             Front-end receives request from screensaver service
@@ -197,10 +187,27 @@ class FrontendBridge(PluginBridge):
         """
         try:
 
-            self._logger.enter()
+            cls._logger.enter()
             # Inform monitor
-            self.ack('screensaver')
+            cls.ack('screensaver')
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            cls._logger.exception('')
+
+    @classmethod
+    def register_listeners(cls):
+        # type: () -> None
+        """
+            Register listeners (callbacks) with service. Note that
+            communication is asynchronous
+
+            :return: None
+        """
+        cls._logger.enter()
+
+        frontend_id = Constants.FRONTEND_ID
+        cls.register_slot(
+            frontend_id, 'nextTrailer', cls.returned_trailer)
+        cls.register_slot(
+            frontend_id, 'activate_screensaver', cls.activate_screensaver)

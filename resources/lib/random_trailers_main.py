@@ -6,37 +6,26 @@ Created on Feb 12, 2019
 @author: Frank Feuerbacher
 '''
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from common.imports import *
 
 import threading
-import logging
 from logging import *
 import queue
 import sys
 
-
-from kodi_six import utils
-
 import xbmc
 import xbmcgui
-import xbmcaddon
-import xbmcplugin
 
-from kodi65 import addon
 from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.watchdog import WatchDog
 from common.settings import Settings
 from frontend.front_end_bridge import FrontendBridge
-from common.logger import (Logger, LazyLogger, Trace, MyHandler, MyFilter)
-from common.playlist import Playlist
+from common.logger import (LazyLogger, Trace)
 
 from frontend import random_trailers_ui
 
-REMOTE_DBG = False
+REMOTE_DBG = True
 
 # append pydev remote debugger
 if REMOTE_DBG:
@@ -75,20 +64,18 @@ if REMOTE_DBG:
             xbmc.log(
                 ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
-    except (ImportError):
+    except ImportError:
         msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
         sys.exit(1)
-    except (BaseException):
+    except BaseException:
         xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
 
 RECEIVER = None
+xbmc.log('__file__:' + __file__ + 'module:' + __name__ , xbmc.LOGDEBUG)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('random_trailers_main')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class MainThreadLoop(object):
@@ -96,88 +83,67 @@ class MainThreadLoop(object):
         Kodi's Monitor class has some quirks in it that strongly favor creating
         it from the main thread as well as callng xbmc.sleep/xbmc.wait_for_abort.
         The main issue is that a Monitor event can not be received until
-        xbmc.sleep/xbmc.waitForAbort is called FROM THE SAME THREAD THAT THE
+        xbmc.sleep/xbmc.wait_for_abort is called FROM THE SAME THREAD THAT THE
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
         other plugins may be blocked as well. For this reason, the main thread
         should not be blocked for too long.
     """
-
-    _singleton = None
+    _advanced_player = None
+    _callableTasks = None
+    _is_screensaver = None
     _logger = None
+    _start_ui = None
 
-    def __init__(self, is_screensaver):
-        # type: (bool) -> None
+    def __init__(self, is_screensaver: bool) -> None:
         """
 
         :param is_screensaver:
         """
-        MainThreadLoop._logger = module_logger.getChild(
-            self.__class__.__name__)
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-            MainThreadLoop._logger.enter()
-        self._monitor = Monitor.get_instance()
+        pass
+
+    @classmethod
+    def class_init(cls, is_screensaver: bool) -> None:
+        cls._logger = module_logger.getChild(cls.__name__)
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            cls._logger.enter()
         Trace.enable_all()
-        WatchDog.create()
         Settings.save_settings()
-        self._front_end_bridge = None
-        self._advanced_player = None
-        self._is_screensaver = is_screensaver
-        self._start_ui = None
+        cls._advanced_player = None
+        cls._is_screensaver = is_screensaver
+        cls._start_ui = None
+        cls._callableTasks = queue.Queue(maxsize=0)
 
-        # Calls that need to be performed on the main thread
+    # Calls that need to be performed on the main thread
 
-        self._callableTasks = queue.Queue(maxsize=0)
-        MainThreadLoop._singleton = self
-
-    @staticmethod
-    def get_instance(is_screensaver):
-        # type: (bool) -> MainThreadLoop
-        """
-
-        :param self:
-        :return:
-        """
-        if MainThreadLoop._singleton is None:
-            MainThreadLoop._singleton = MainThreadLoop(is_screensaver)
-
-        return MainThreadLoop._singleton
-
-    def startup(self):
-        # type: () -> None
+    @classmethod
+    def startup(cls) -> None:
         """
 
         :return:
         """
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-            current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-            current_window_id = xbmcgui.getCurrentWindowId()
-            MainThreadLoop._logger.debug('CurrentDialogId, CurrentWindowId:',
-                                         current_dialog_id,
-                                         current_window_id)
 
-        self._front_end_bridge = FrontendBridge.get_instance()
-        if not self._is_screensaver and Settings.prompt_for_settings():
-            self.configure_settings()
+        FrontendBridge()  # Initialize
+        if not cls._is_screensaver and Settings.prompt_for_settings():
+            cls.configure_settings()
         try:
-            thread = threading.Thread(
-                target=self.ui_thread_runner,
-                name='ui_thread')
+            thread = threading.Thread(target=cls.ui_thread_runner,
+                                      name='ui_thread')
             thread.start()
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             module_logger.exception('')
 
         Monitor.set_startup_complete()
-        self.event_processing_loop()
+        cls.event_processing_loop()
 
-    def event_processing_loop(self):
-        # type: () -> None
+    @classmethod
+    def event_processing_loop(cls) -> None:
         """
 
         :return:
         """
-        MainThreadLoop._logger.enter()
+        cls._logger.enter()
 
         try:
             # For the first 10 seconds use a short timeout so that initialization
@@ -189,7 +155,7 @@ class MainThreadLoop(object):
             i = 0
             timeout = initial_timeout
 
-            # Using _waitForAbort instead of waiting for shutdown to
+            # Using _wait_for_abort to
             # cause Monitor to query Kodi for Abort on the main thread.
             # If this is not done, then Kodi will get constipated
             # sending/receiving events to plugins.
@@ -200,104 +166,92 @@ class MainThreadLoop(object):
                     timeout = 0.10
 
                 try:
-                    task = self._callableTasks.get(block=False)
-                    self.run_task(task)
-                except (queue.Empty):
+                    task = cls._callableTasks.get(block=False)
+                    cls.run_task(task)
+                except queue.Empty:
                     pass
 
             Monitor.throw_exception_if_abort_requested(timeout=timeout)
+
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
             self._logger.exception(e)
     def ui_thread_runner(self):
         try:
-            self._start_ui = random_trailers_ui.StartUI(self._is_screensaver)
-            self._start_ui.start()
+            cls._start_ui = random_trailers_ui.StartUI(cls._is_screensaver)
+            cls._start_ui.start()
         except AbortException:
             pass  # Thread to die
         except Exception:
-            MainThreadLoop._logger.exception('')
+            cls._logger.exception('')
 
-    def run_on_main_thread(self, callable_class):
-        # type: (Callable) -> None
+    @classmethod
+    def run_on_main_thread(cls, callable_class: Callable) -> None :
         """
 
         :param callable_class:
         :return:
         """
-        self._callableTasks.put(callable_class)
+        cls._callableTasks.put(callable_class)
 
-    def run_task(self, callable_class):
-        # type: (Callable) -> None
+    @classmethod
+    def run_task(cls, callable_class: Callable) -> None:
         """
 
         :param callable_class:
         :return:
         """
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-            MainThreadLoop._logger.enter()
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            cls._logger.enter()
         try:
             callable_class()
         except AbortException:
             pass
         except Exception:
-            MainThreadLoop._logger.exception('')
+            cls._logger.exception('')
 
-    def configure_settings(self):
-        # type: () -> None
+    @classmethod
+    def configure_settings(cls) -> None:
         """
             Allow Settings to be modified inside of addon
         """
 
-        if MainThreadLoop._logger.isEnabledFor(Logger.DEBUG):
-            MainThreadLoop._logger.enter()
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            cls._logger.enter()
         Constants.FRONTEND_ADDON.openSettings()
 
         return
 
-    def setup_front_end_bridge(self):
-        self._front_end_bridge = FrontendBridge.get_instance()
 
-
-def bootstrap_random_trailers(is_screensaver):
-    # type: (bool) -> None
+def bootstrap_random_trailers(is_screensaver: bool) -> None:
     """
     :param is_screensaver: True when launched as a screensaver
     :return:
     """
     try:
-        Monitor.get_instance().register_settings_changed_listener(
+        Monitor.register_settings_changed_listener(
             Settings.on_settings_changed)
-        Monitor.get_instance().register_settings_changed_listener(
-            Logger.on_settings_changed)
+        Monitor.register_settings_changed_listener(
+            LazyLogger.on_settings_changed)
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
-            try:
-                Settings.get_locale()
-                Settings.getLang_iso_639_1()
-                Settings.getLang_iso_639_2()
-                Settings.getLang_iso_3166_1()
-            except (Exception):
-                pass
-
-        main_loop = MainThreadLoop.get_instance(is_screensaver)
-        main_loop.startup()
+        MainThreadLoop.class_init(is_screensaver)
+        MainThreadLoop.startup()
 
         # LazyLogger can be unusable during shutdown
 
-        if module_logger.isEnabledFor(Logger.DEBUG):
+        if module_logger.isEnabledFor(LazyLogger.DEBUG):
             module_logger.exit('Exiting plugin')
 
     except AbortException:
         pass
-    except (Exception) as e:
+    except Exception:
         module_logger.exception('')
     finally:
         if REMOTE_DBG:
             try:
                 pydevd.stoptrace()
-            except (Exception) as e:
+            except Exception:
                 pass
         exit(0)
 
@@ -319,11 +273,6 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
         if arg == 'unittest':
             is_unit_test = True
 
-    current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-    current_window_id = xbmcgui.getCurrentWindowId()
-    if module_logger.isEnabledFor(Logger.DEBUG):
-        module_logger.debug('CurrentDialogId, CurrentWindowId:', current_dialog_id,
-                            current_window_id)
     if run_random_trailers:
         bootstrap_random_trailers(is_screensaver)
     elif is_unit_test:

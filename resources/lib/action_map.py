@@ -4,8 +4,6 @@ Created on Feb 6, 2019
 
 @author: Frank Feuerbacher
 '''
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from common.imports import *
 
 import xbmc

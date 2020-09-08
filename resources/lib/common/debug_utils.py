@@ -5,28 +5,21 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
 
 from .imports import *
 
 import xbmc
-from .constants import Constants, Movie
-from .logger import (Logger, LazyLogger, Trace)
-from .critical_settings import CriticalSettings
+from common.constants import Constants, Movie
+from common.logger import (LazyLogger)
+from common.rating import Rating
 
 import sys
 import json
 import threading
 import traceback
 
-from kodi_six import utils
-
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.debug_utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection PyClassHasNoInit
@@ -35,11 +28,11 @@ class Debug(object):
         Define several methods useful for debugging
     """
     _logger = module_logger.getChild('Debug')
-    _currentAddonName = utils.py2_decode(Constants.CURRENT_ADDON_NAME)
+    _currentAddonName = Constants.CURRENT_ADDON_NAME
 
     @classmethod
     def dump_dictionary_keys(cls, d):
-        # type: (Dict[TextType, Any]) -> None
+        # type: (Dict[str, Any]) -> None
         """
             Dump key and value fields of a dictionary in human
             readable form.
@@ -55,7 +48,7 @@ class Debug(object):
 
     @classmethod
     def dump_json(cls, text='', data=None):
-        # type: (TextType, Union[Dict[TextType, Any], None]) -> None
+        # type: (str, Union[Dict[str, Any], None]) -> None
         """
             Log Json values using the json.dumps utility
 
@@ -232,5 +225,10 @@ class Debug(object):
                 LazyLogger.dump_stack('Missing details property: ' + msg)
             else:
                 cls._logger.debug('Missing properties:', msg)
+
+        if movie[Movie.MPAA] not in Rating.POSSIBLE_RATINGS:
+            cls._logger.debug('Invalid MPAA rating: {} for movie: {} set to NR'
+                              .format(movie[Movie.MPAA], movie[Movie.TITLE]))
+            movie[Movie.MPAA] = Rating.RATING_NR
 
         assert not is_failed, 'LEAK, Invalid property values'

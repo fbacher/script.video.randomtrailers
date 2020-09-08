@@ -4,44 +4,28 @@ Created on Apr 14, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
-import re
 import sys
 import datetime
 import json
-import six
 import xbmc
 
-# from kodi_six import xbmc
-
 from cache.tfh_cache import (TFHCache)
-
-from common.constants import Constants, Movie, RemoteTrailerPreference
-from common.disk_utils import DiskUtils
+from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.monitor import Monitor
-from backend.movie_entry_utils import MovieEntryUtils
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.settings import Settings
-from common.tmdb_settings import TmdbSettings
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
-from backend.genreutils import GenreUtils
-from backend.json_utils_basic import JsonUtilsBasic
-from backend.rating import Rating
+from common.rating import Rating
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.tfh_movie_data import TFHMovieData
 from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
 
-
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.discover_tmdb_movies')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator
@@ -52,13 +36,15 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
     """
 
     _singleton_instance = None
+    logger: LazyLogger = None
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__)
         thread_name = type(self).__name__
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.TMDB_SOURCE
@@ -87,8 +73,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         self.start()
         # self._trailer_fetcher.start_fetchers(self)
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug(': started')
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            type(self).logger.debug(': started')
 
     def on_settings_changed(self):
         # type: () -> None
@@ -98,7 +84,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             By being here, TMDB discover is currently running. Only restart
             if there is a change.
         """
-        self._logger.enter()
+        type(self).logger.enter()
 
         if Settings.is_tfh_loading_settings_changed():
             stop_thread = not Settings.is_include_tfh_trailers()
@@ -125,8 +111,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     self.wait_until_restart_or_shutdown()
                 except (RestartDiscoveryException):
                     # Restart discovery
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Restarting discovery')
+                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                        type(self).logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.is_include_tfh_trailers():
                         finished = True
@@ -134,14 +120,14 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             self.finished_discovery()
             duration = datetime.datetime.now() - start_time
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Time to discover:', duration.seconds, ' seconds',
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                type(self).logger.debug('Time to discover:', duration.seconds, ' seconds',
                                    trace=Trace.STATS)
 
         except AbortException:
             return
         except Exception as e:
-            self._logger.exception('')
+            type(self).logger.exception('')
 
     def run_worker(self):
         # type: () -> None
@@ -156,9 +142,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             self.discover_movies()
         except (AbortException, RestartDiscoveryException):
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            type(self).logger.exception('')
 
     def discover_movies(self):
         # type: () -> None
@@ -233,7 +219,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     None, flush=True, cache_complete=True)
 
     def trailer_handler(self, json_text):
-        #  type: (TextType) -> bool
+        #  type: (str) -> bool
         """
 
         :param json_text:
@@ -272,7 +258,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                              Movie.PLOT: description,
                              Movie.THUMBNAIL: thumbnail,
                              Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                             Movie.MPAA: Rating.RATING_NR
+                             Movie.MPAA: Rating.RATING_NR,
+                             Movie.ADULT: False
                              }
             if Settings.get_max_number_of_tfh_trailers() <= len(TFHCache.get_cached_trailers()):
                 return True

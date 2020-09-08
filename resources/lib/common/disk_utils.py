@@ -5,27 +5,21 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from .imports import *
+from common.imports import *
 
 import datetime
 import os
 import random
-import six
 import sys
 
 from common.constants import (Constants)
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.settings import Settings
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.disk_utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class UsageData(object):
@@ -34,7 +28,7 @@ class UsageData(object):
     """
 
     def __init__(self, cache_name, pattern):
-        # type: (TextType, TextType) -> None
+        # type: (str, str) -> None
         """
 
         :param cache_name
@@ -172,7 +166,7 @@ class UsageData(object):
         :param file_data:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             self._logger.debug_extra_verbose('will delete- path:', file_data.get_path(),
                                              'creation:', file_data.get_creation_date())
         os.remove(file_data.get_path())
@@ -201,7 +195,7 @@ class UsageData(object):
         self._file_data[file_data.get_path()] = file_data
 
     def get_file_data(self):
-        # type: () -> Dict[TextType, FileData]
+        # type: () -> Dict[str, FileData]
         """
 
         :return: Dict of file data indexed by file path
@@ -233,7 +227,6 @@ class UsageData(object):
 
         :return:
         """
-        # type: (str) -> None
         # First sort by number of movies that each genre is
         # in
 
@@ -250,7 +243,7 @@ class FileData(object):
     """
 
     def __init__(self, path, creation_date, size):
-        # type: (TextType, datetime.datetime, int) -> None
+        # type: (str, datetime.datetime, int) -> None
         """
 
         :param path:
@@ -262,7 +255,7 @@ class FileData(object):
         self._size = size
 
     def get_path(self):
-        # type: () -> TextType
+        # type: () -> str
         """
 
         :return:
@@ -310,7 +303,7 @@ class DiskUtils(object):
 
     @classmethod
     def create_path_if_needed(cls, path):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
             Creates as many directories as necessary to make path a valid path
 
@@ -320,12 +313,12 @@ class DiskUtils(object):
         try:
             if not os.path.exists(path):
                 os.makedirs(path)
-        except (Exception) as e:
+        except Exception as e:
             cls._logger.exception('')
 
     @staticmethod
     def is_url(path):
-        # type: (TextType) -> bool
+        # type: (str) -> bool
         """
             Determines whether the path is a URL. Currently a simple test.
 
@@ -339,7 +332,7 @@ class DiskUtils(object):
 
     @classmethod
     def disk_usage(cls, path):
-        # type: (TextType) -> Optional[Dict[TextType, int]]
+        # type: (str) -> Optional[Dict[str, int]]
         """
             Gets disk usage of the filesystem that the given
             path belongs to.
@@ -364,7 +357,7 @@ class DiskUtils(object):
                 usage['blocksize'] = block_size
                 Monitor.throw_exception_if_abort_requested()
             except AbortException as e:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception as e:
                 cls._logger.exception('')
                 usage = None
@@ -391,18 +384,18 @@ class DiskUtils(object):
                 usage['blocksize'] = 4096  # TODO: fix
                 Monitor.throw_exception_if_abort_requested()
             except AbortException as e:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception as e:
                 cls._logger.exception('')
                 usage = None
         # 'cluster_sectors:', cluster_sectors, 'sector_size:',
         # sector_size)
         else:
-            if cls._logger.isEnabledFor(Logger.DEBUG):
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                 cls._logger.debug('Not supported on this platform')
             usage = None
 
-        if cls._logger.isEnabledFor(Logger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             if usage is None:
                 cls._logger.debug('Result: None')
             else:
@@ -414,10 +407,10 @@ class DiskUtils(object):
 
     @classmethod
     def get_stats_for_path(cls,
-                           top,  # type: TextType
-                           patterns  # type: Dict[TextType, TextType]
+                           top,  # type: str
+                           patterns  # type: Dict[str, str]
                            ):
-        # type: (...) -> Dict[TextType, UsageData]
+        # type: (...) -> Dict[str, UsageData]
         """
             Gets disk usage information for a subtree of the filesystem
 
@@ -505,7 +498,7 @@ class DiskUtils(object):
                                     found_directories.add(path)
                             except OSError as e:
                                 continue  # File doesn't exist
-                            except (Exception) as e:
+                            except Exception as e:
                                 cls._logger.exception('')
                                 continue
 
@@ -515,7 +508,7 @@ class DiskUtils(object):
                                     if filename.endswith('.json'):
                                         if ((now - mod_time).total_seconds() >
                                                 db_cache_file_expiration_seconds):
-                                            if cls._logger.isEnabledFor(Logger.DEBUG):
+                                            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                                                 cls._logger.debug(
                                                     'deleting:', path)
                                             os.remove(path)
@@ -527,7 +520,7 @@ class DiskUtils(object):
                                     if '-trailer.' in filename:
                                         if ((now - mod_time).total_seconds() >
                                                 trailer_cache_file_expiration_seconds):
-                                            if cls._logger.isEnabledFor(Logger.DEBUG):
+                                            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                                                 cls._logger.debug(
                                                     'deleting:', path)
                                             os.remove(path)
@@ -535,7 +528,7 @@ class DiskUtils(object):
                                             usage_data.add_to_disk_deleted(
                                                 size_on_disk)
                             except AbortException:
-                                six.reraise(*sys.exc_info())
+                                reraise(*sys.exc_info())
                             except Exception as e:
                                 cls._logger.exception('')
 
@@ -553,7 +546,7 @@ class DiskUtils(object):
                     pass
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
 
         except Exception as e:
             cls._logger.exception('')
@@ -563,7 +556,7 @@ class DiskUtils(object):
 
     @staticmethod
     def sizeof_fmt(num, suffix='B'):
-        # type: (Union[int, float], TextType) -> TextType
+        # type: (Union[int, float], str) -> str
         """
             Convert a disk size to a human friendly format
 

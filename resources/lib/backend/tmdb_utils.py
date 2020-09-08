@@ -5,43 +5,23 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
+import sys
 
 from common.imports import *
 
-import sys
-import datetime
-import glob
-import json
-import os
-import re
-import shutil
-import subprocess
-import six
-
-from kodi_six import xbmc
-
-from common.monitor import Monitor
-from common.constants import Constants, Movie, RemoteTrailerPreference
-from common.disk_utils import DiskUtils
-from common.playlist import Playlist
-from common.exceptions import AbortException, ShutdownException
-from common.watchdog import WatchDog
+from common.constants import Constants, Movie
+from common.exceptions import AbortException
 from common.settings import Settings
-from common.logger import (Logger, Trace, LazyLogger)
-from common.messages import Messages
+from common.logger import (LazyLogger)
 from backend.movie_entry_utils import (MovieEntryUtils)
 
-from discovery.abstract_movie_data import AbstractMovieData
-from backend.rating import Rating
+from common.rating import Rating
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'backend.tmdb_utils')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class TMDBUtils(object):
@@ -56,7 +36,7 @@ class TMDBUtils(object):
     def __init__(self,
                  kodi_id,  # type: int
                  tmdb_id,  # type int
-                 kodi_file  # type TextType
+                 kodi_file  # type str
                  ):
         self._kodi_id = kodi_id
         self._tmdb_id = tmdb_id
@@ -68,7 +48,7 @@ class TMDBUtils(object):
         return self._kodi_id
 
     def get_kodi_file(self):
-        # type() -> TextType
+        # type() -> str
         """
 
         :return:
@@ -93,7 +73,7 @@ class TMDBUtils(object):
         if cls.kodi_data_for_tmdb_id is not None:
             return
 
-        cls._logger = module_logger.getChild(cls.__class__.__name__)
+        cls._logger = module_logger.getChild(type(cls).__name__)
 
         cls.kodi_data_for_tmdb_id = {}
 
@@ -124,7 +104,7 @@ class TMDBUtils(object):
 
     @classmethod
     def get_kodi_id_for_tmdb_id(cls, tmdb_id):
-        # type: (int) -> TextType
+        # type: (int) -> str
         """
 
         :param tmdb_id:
@@ -151,7 +131,7 @@ class TMDBUtils(object):
 
     @staticmethod
     def get_tmdb_id_from_title_year(title, year):
-        # type: (TextType, int) -> int
+        # type: (str, int) -> int
         """
 
         :param title:
@@ -169,7 +149,10 @@ class TMDBUtils(object):
                 trailer_id = TMDBUtils._get_tmdb_id_from_title_year(
                     title, year - 1)
 
-        except (Exception):
+        except AbortException:
+            reraise(*sys.exc_info())
+
+        except Exception:
             TMDBUtils._logger.exception('Error finding tmdb_id for movie:', title,
                                         'year:', year)
 
@@ -177,7 +160,7 @@ class TMDBUtils(object):
 
     @staticmethod
     def _get_tmdb_id_from_title_year(title, year):
-        # type: (TextType, int) -> int
+        # type: (str, int) -> int
         """
             When we don't have a trailer for a movie, we can
             see if TMDB has one.
@@ -186,7 +169,7 @@ class TMDBUtils(object):
         :return:
         """
         year_str = str(year)
-        if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+        if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
             TMDBUtils._logger.debug('title:', title, 'year:', year)
 
         found_movie = None
@@ -214,7 +197,7 @@ class TMDBUtils(object):
             if _info_string is not None:
                 results = _info_string.get('results', [])
                 if len(results) > 1:
-                    if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
                         TMDBUtils._logger.debug('Got multiple matching movies:', title,
                                                 'year:', year)
 
@@ -239,14 +222,14 @@ class TMDBUtils(object):
                 if len(matches) == 1:
                     found_movie = matches[0]
                 elif len(matches) > 1:
-                    if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
                         TMDBUtils._logger.debug('More than one matching movie in same year',
                                                 'choosing first one matching current language.',
                                                 'Num choices:', len(matches))
                     found_movie = matches[0]
 
                 if movie is None:
-                    if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
                         TMDBUtils._logger.debug('Could not find movie:', title, 'year:', year,
                                                 'at TMDB. found', len(results), 'candidates')
                     for a_movie in results:
@@ -255,7 +238,7 @@ class TMDBUtils(object):
                         found_year = release_date[:-6]
                         found_title = a_movie.get('title', '')
                         tmdb_id = a_movie.get('id', None)
-                        if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+                        if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
                             TMDBUtils._logger.debug('found:', found_title,
                                                     '(', found_year, ')',
                                                     'tmdb id:', tmdb_id)
@@ -270,7 +253,7 @@ class TMDBUtils(object):
                                  parsed_data[Movie.YEAR] = year
     
                         title = tmdb_result[Movie.TITLE]
-                        if cls._logger.isEnabledFor(Logger.DEBUG):
+                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                             cls._logger.debug('Processing:', title, 'type:',
                                                type(title).__name__)
                         parsed_data[Movie.TITLE] = title
@@ -317,15 +300,18 @@ class TMDBUtils(object):
     
                             '''
             else:
-                if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+                if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
                     TMDBUtils._logger.debug('Could not find movie:', title, 'year:', year,
                                             'at TMDB. found no candidates')
-        except (Exception):
+        except AbortException:
+            reraise(*sys.exc_info())
+
+        except Exception:
             TMDBUtils._logger.exception('')
 
         tmdb_id = None
         if found_movie is not None:
             tmdb_id = found_movie.get('id', None)
-        if TMDBUtils._logger.isEnabledFor(Logger.DEBUG):
+        if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
             TMDBUtils._logger.exit('title:', title, 'tmdb_id:', tmdb_id)
         return tmdb_id

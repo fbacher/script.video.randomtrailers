@@ -5,7 +5,6 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from .imports import *
 
@@ -16,14 +15,13 @@ import os
 import xbmc
 from kodi65 import addon
 from kodi65.kodiaddon import Addon
-from kodi_six import utils
 
 
 class Constants(object):
     """
         Constants common to all Random Trailers plugins
     """
-    INCLUDE_MODULE_PATH_IN_LOGGER = False
+    INCLUDE_MODULE_PATH_IN_LOGGER = True
     TOO_MANY_TMDB_REQUESTS = 25
     addonName = 'script.video.randomtrailers'
     CURRENT_ADDON_NAME = None
@@ -35,6 +33,7 @@ class Constants(object):
     FRONTEND_ADDON = None
     FRONTEND_ADDON_UTIL = None
     ADDON_PATH = None
+    PYTHON_ROOT_PATH = None
     MEDIA_PATH = None
     SCRIPT_PATH = None
     REJECTED_STATUS = 1
@@ -45,7 +44,7 @@ class Constants(object):
     PLAY_LIST_LOOKBACK_WINDOW_SIZE = 10
     MAX_PLAY_TIME_WARNING_TIME = 5  # seconds
     # BACKEND_SERVICE = 'randomTrailers.backend'
-    FRONTEND_SERVICE = 'randomTrailers.frontend'
+    FRONTEND_SERVICE = 'randomTrailers'
     BACKEND_SERVICE = FRONTEND_SERVICE
     SCREENSAVER_SERVICE = 'randomTrailers.screensaver.service'
     ADDON_ID = 'script.video.randomtrailers'
@@ -67,9 +66,11 @@ class Constants(object):
     PLAYLIST_PATH = ''
     LOCALE = ''
 
-    plugin_short_names = {'service.randomtrailers.backend': 'randomtrailers.backend',
-                          'script.video.randomtrailers.screensaver': 'randomtrailers.screensaver',
-                          'script.video.randomtrailers': 'randomtrailers.frontend'}
+    plugin_short_names = {
+        'service.randomtrailers.backend': 'randomtrailers.backend',
+        'script.video.randomtrailers.screensaver': 'randomtrailers.screensaver',
+        'script.video.randomtrailers': 'randomtrailers'
+    }
 
     VIDEO_TYPE_TRAILER = 'Trailer'
     VIDEO_TYPE_FEATURETTE = 'Featurette'
@@ -93,34 +94,34 @@ class Constants(object):
         try:
             Constants.BACKEND_ADDON_UTIL = Addon(Constants.BACKEND_ID)
             Constants.BACKEND_ADDON = Constants.BACKEND_ADDON_UTIL.addon
-        except (Exception) as e:
+        except Exception as e:
             pass
 
-        Constants.YOUTUBE_DL_ADDON_UTIL = Addon(
-            'script.module.youtube.dl')
+        Constants.YOUTUBE_DL_ADDON_UTIL = Addon('script.module.youtube.dl')
         Constants.YOUTUBE_DL_ADDON = Constants.YOUTUBE_DL_ADDON_UTIL.addon
-        Constants.YOUTUBE_DL_ADDON_PATH = utils.py2_decode(Constants.YOUTUBE_DL_ADDON.getAddonInfo(
-            'path'))
+        Constants.YOUTUBE_DL_ADDON_PATH = Constants.YOUTUBE_DL_ADDON.getAddonInfo('path')
         Constants.YOUTUBE_DL_ADDON_LIB_PATH = os.path.join(
             Constants.YOUTUBE_DL_ADDON_PATH, 'lib')
 
         try:
             Constants.FRONTEND_ADDON_UTIL = Addon(Constants.FRONTEND_ID)
             Constants.FRONTEND_ADDON = Constants.FRONTEND_ADDON_UTIL.addon
-        except (Exception):
+        except Exception:
             pass
 
-        Constants.ADDON_PATH = utils.py2_decode(Constants.ADDON.getAddonInfo(
-            'path'))
+        Constants.ADDON_PATH = Constants.ADDON.getAddonInfo('path')
+        Constants.PYTHON_ROOT_PATH = os.path.join(Constants.ADDON_PATH,
+                                                  'resources',
+                                                  'lib')
         Constants.USER_DATA_PATH = xbmc.translatePath("special://userdata")
         Constants.MEDIA_PATH = addon.MEDIA_PATH
         Constants.SCRIPT_PATH = os.path.join(
             Constants.ADDON_PATH, 'resources', 'skins', 'Default', '720p')
         now = datetime.datetime.now()
-        secondsInMonth = datetime.timedelta(30)
-        Constants.CACHE_FILE_EXPIRED_TIME = now - secondsInMonth
-        Constants.FRONTEND_DATA_PATH = utils.py2_decode(xbmc.translatePath(
-            "special://profile/addon_data/%s" % Constants.FRONTEND_ID))
+        seconds_in_month = datetime.timedelta(30)
+        Constants.CACHE_FILE_EXPIRED_TIME = now - seconds_in_month
+        Constants.FRONTEND_DATA_PATH = xbmc.translatePath(
+            'special://profile/addon_data/{}'.format(Constants.FRONTEND_ID))
         Constants.PLAYLIST_PATH = Constants.USER_DATA_PATH + '/playlists/video'
         Constants.LOCALE = locale.getdefaultlocale()
 
@@ -354,8 +355,8 @@ List.Sort
     DETAIL_ACTORS = 'rts.actors'
     DETAIL_DIRECTORS = 'rts.directors'
     DETAIL_GENRES = 'rts.genres'
-    DETAIL_RATING = 'rts.rating'
-    DETAIL_RATING_IMAGE = 'rts.ratingImage'
+    DETAIL_CERTIFICATION = 'rts.certification'
+    DETAIL_CERTIFICATION_IMAGE = 'rts.certificationImage'
     DETAIL_RUNTIME = 'rts.runtime'
     DETAIL_STUDIOS = 'rts.studios'
     DETAIL_TITLE = 'rts.title'
@@ -449,7 +450,7 @@ class iTunes(object):
 
     @staticmethod
     def get_url_for_trailer_type(trailerType):
-        # type: (TextType) -> TextType
+        # type: (int) -> str
         url = iTunes._trailerForTypeMap.get(trailerType, None)
         return url
 

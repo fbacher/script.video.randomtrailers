@@ -5,8 +5,6 @@ Created on Dec 3, 2019
 '''
 # -*- coding: utf-8 -*-
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from common.imports import *
 
 import sys
@@ -20,12 +18,9 @@ import threading
 import six
 
 import xbmc
-from kodi_six import utils
 
-from common.development_tools import (Any, Dict, Union,
-                                      TextType, MovieType)
 from common.constants import Constants, Movie
-from common.logger import (Logger, LazyLogger)
+from common.logger import (LazyLogger)
 from common.exceptions import (AbortException, TrailerIdException)
 from common.messages import Messages
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -34,16 +29,12 @@ from backend import backend_constants
 from common.disk_utils import DiskUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'cache.cache')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class TrailerCache(object):
     """
-    Manages the optional cache for movie trailers. Also manages the cache 
+    Manages the optional cache for movie trailers. Also manages the cache
     for trailers which have had their volume normalized.
     """
 
@@ -73,7 +64,7 @@ class TrailerCache(object):
                 if not os.path.exists(movie[Movie.CACHED_TRAILER]):
                     movie[Movie.CACHED_TRAILER] = None
                     cache_file_missing = True
-            except (Exception):
+            except Exception:
                 cls._logger.error('Movie:', movie[Movie.TITLE],
                                   'cached_trailer:', movie[Movie.CACHED_TRAILER])
                 movie[Movie.CACHED_TRAILER] = None
@@ -84,7 +75,7 @@ class TrailerCache(object):
                 if not os.path.exists(movie[Movie.NORMALIZED_TRAILER]):
                     movie[Movie.NORMALIZED_TRAILER] = None
                     normalized_file_missing = True
-            except (Exception):
+            except Exception:
                 cls._logger.error('Movie:', movie[Movie.TITLE],
                                   'normalized_trailer:', movie[Movie.NORMALIZED_TRAILER])
                 movie[Movie.NORMALIZED_TRAILER] = None

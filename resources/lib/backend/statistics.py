@@ -5,18 +5,15 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
+
+import os
 
 from common.imports import *
-
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.constants import Constants, Movie
 from common.settings import Settings
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild('backend.api')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Statistics(object):
@@ -63,6 +60,8 @@ class Statistics(object):
     _total_number_of_normalized_trailers = 0
     _tmdb_total_number_of_unprocessed_movies = 0
     _tmdb_total_number_of_removed_unprocessed_movies = 0
+    _tmdb_trailer_found = 0
+    _tmdb_trailer_not_found = 0
 
     # For Discovery Modules
 
@@ -74,7 +73,7 @@ class Statistics(object):
         :param movie_count:
         :return:
         """
-        cls._library_movies += movie_count
+        cls._library_movies_found += movie_count
 
     @classmethod
     def add_library_movies_filtered_out(cls):
@@ -129,7 +128,7 @@ class Statistics(object):
 
         :return:
         """
-        cls.library_trailer_url_query_successes += 1
+        cls._library_trailer_url_query_successes += 1
 
     @classmethod
     def add_library_trailer_url_query_failures(cls):
@@ -138,7 +137,7 @@ class Statistics(object):
 
         :return:
         """
-        cls.library_trailer_url_query_failures += 1
+        cls._library_trailer_url_query_failures += 1
 
     @classmethod
     def add_library_trailer_found(cls):
@@ -286,7 +285,7 @@ class Statistics(object):
 
         :return:
         """
-        cls.total_number_of_tmdb_cached_trailers += number_of_trailers
+        cls._total_number_of_tmdb_cached_trailers += number_of_trailers
 
     @classmethod
     def add_total_number_of_normalized_trailers(cls, number_of_trailers=1):
@@ -400,7 +399,7 @@ class Statistics(object):
 
         :return:
         """
-        cls.missing_tmdb_id_not_in_cache += 1
+        cls._missing_tmdb_id_not_in_cache += 1
 
     @classmethod
     def add_missing_tmdb_cache_hit(cls):

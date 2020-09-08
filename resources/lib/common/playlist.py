@@ -5,10 +5,8 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from .imports import *
-
+import copy
 import datetime
 import io
 import os
@@ -16,19 +14,17 @@ import threading
 
 import xbmc
 import xbmcvfs
-from kodi_six import utils
+import xmltodict
 
-from .constants import Constants, Movie
-from .logger import (Logger, LazyLogger, Trace)
-from .messages import Messages
-from .disk_utils import DiskUtils
-from .settings import (Settings)
+from common.imports import *
+from common.constants import Constants, Movie
+from common.logger import (LazyLogger, Trace)
+from common.messages import Messages
+from common.monitor import Monitor
+from common.disk_utils import DiskUtils
+from common.settings import (Settings)
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.playlist')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Playlist(object):
@@ -50,24 +46,45 @@ class Playlist(object):
     MISSING_TRAILERS_PLAYLIST = 'missingTrailers.playlist'
     PLAYLIST_PREFIX = 'RandomTrailer_'
     PLAYLIST_SUFFIX = '.m3u'
+    SMART_PLAYLIST_SUFFIX = '.xsp'
     PLAYLIST_HEADER = '#EXTCPlayListM3U::M3U'
     PLAYLIST_ENTRY_PREFIX = '#EXTINF:0,'
+
+    SMART_PLAYLIST_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
+    SMART_PLAYLIST_MOVIE_HEADER = '<smartplaylist type="movies">'
+    SMART_PLAYLIST_NAME = '<name>{}</name>'
+    SMART_PLAYLIST_MATCH = '<match>all</match>'
+    SMART_PLALIST_RULE_HEADER = '<rule field="filename" operator="is">'
+    SMART_PLAYLIST_RULE_ENTRY = '<value>{}</value>'
+    SMART_PLAYLIST_RULE_TAIL = '</rule>'
+    SMART_PLAYLIST_TAIL = '<order direction="ascending">random</order>/' \
+                          '</smartplaylist>'
+
+    smart_playlist_skeleton = {
+        'smartplaylist': {'@type': 'movies',
+                          'name': ['{0}'],
+                          'match': ['one'],
+                          'order': {'@direction': 'ascending',
+                                    '#text': 'random'}
+                          }
+    }
 
     _playlist_lock = threading.RLock()
     _playlists = {}
 
     def __init__(self, *args, **kwargs):
-        # type: (*TextType, **Any) -> None
+        # type: (*str, **Any) -> None
         """
 
         :param args:
         :param kwargs:
         """
         self._logger = module_logger.getChild(self.__class__.__name__)
+        self._file = None
 
         if len(args) == 0:
             self._logger.error(
-                ' Playlist constructor requires an argument')
+                'Playlist constructor requires an argument')
             return
 
         playlist_name = args[0]
@@ -78,47 +95,107 @@ class Playlist(object):
         self.playlist_format = kwargs.get('playlist_format', False)
 
         if self.playlist_format:
-            path = Constants.PLAYLIST_PATH + '/' + playlist_name
+            self.path = Constants.PLAYLIST_PATH + '/' + \
+                playlist_name + Playlist.SMART_PLAYLIST_SUFFIX
         else:
-            path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name
-        path = xbmcvfs.validatePath(path)
-        path = xbmc.translatePath(path)
-        already_exists = False
-        if append:
-            mode = 'at'
-            if os.path.exists(path):
-                already_exists = True
-        else:
-            mode = 'wt'
+            self.path = Constants.FRONTEND_DATA_PATH + '/' + \
+                playlist_name  # + Playlist.PLAYLIST_SUFFIX
+        self.path = xbmcvfs.validatePath(self.path)
+        self.path = xbmc.translatePath(self.path)
         DiskUtils.create_path_if_needed(Constants.FRONTEND_DATA_PATH)
-        if rotate:
+        if not self.playlist_format:
+            self.mode = 'wt'
+            if append:
+                self.mode = 'at'
+            else:
+                self.mode = 'wt'
+            if rotate:
+                try:
+                    save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
+                    save_path = xbmcvfs.validatePath(save_path)
+                    try:
+                        if os.path.exists(save_path):
+                            os.remove(save_path)
+                    except Exception as e:
+                        self._logger.exception('')
+                    try:
+                        if os.path.exists(self.path):
+                            os.rename(self.path, save_path)
+                    except Exception as e:
+                        self._logger.exception('')
+                except Exception as e:
+                    self._logger.exception('')
+
             try:
-                save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
-                save_path = xbmcvfs.validatePath(save_path)
-                try:
-                    os.remove(save_path)
-                except (Exception) as e:
-                    self._logger.exception('')
-                try:
-                    os.rename(path, save_path)
-                except (Exception) as e:
-                    self._logger.exception('')
-            except (Exception) as e:
+                self._file = io.open(self.path, mode=self.mode, buffering=1, newline=None,
+                                     encoding='utf-8')
+            except Exception as e:
                 self._logger.exception('')
 
+    def load_smart_playlist(self):
+        playlist_dict = None
         try:
-            self._file = io.open(path, mode=mode, buffering=1, newline=None,
-                                 encoding='utf-8')
-        except (Exception) as e:
+            if os.path.exists(self.path):
+                with io.open(self.path, mode='rt', newline=None,
+                             encoding='utf-8') as playlist_file:
+                    buffer = playlist_file.read()
+                    playlist_dict = xmltodict.parse(buffer)
+        except Exception as e:
             self._logger.exception('')
 
-        if not already_exists and self.playlist_format:
-            line = Playlist.PLAYLIST_HEADER + '\n'
-            self._file.writelines(line)
+        return playlist_dict
+
+    def add_to_smart_playlist(self, trailer):
+        movie_filename = trailer.get(Movie.FILE, None)
+        if movie_filename is not None:
+            movie_filename = os.path.basename(movie_filename)
+        playlist_dict = self.load_smart_playlist()
+        if playlist_dict is None:
+            playlist_dict = copy.deepcopy(Playlist.smart_playlist_skeleton)
+            name = playlist_dict['smartplaylist']['name'][0].format(
+                self._playlist_name)
+            playlist_dict['smartplaylist']['name'][0] = name
+
+        #   SMART_PLAYLIST_RULE_HEADER = '<rule field="filename" operator="is">'
+        #     SMART_PLAYLIST_RULE_ENTRY = '<value>{}</value>'
+
+        rule_list = playlist_dict['smartplaylist'].get('rule', [])
+
+        if not isinstance(rule_list, list):
+            rule_list = [rule_list]
+
+        for rule in rule_list:
+            if rule['value'] == movie_filename:
+                return False
+
+        new_rule = {
+            '@field': 'filename',
+            '@operator': 'is',
+            'value': [movie_filename]
+        }
+        rule_list.append(new_rule)
+        playlist_dict['smartplaylist']['rule'] = rule_list
+        try:
+            with io.open(self.path, mode='wt', buffering=1, newline=None,
+                         encoding='utf-8') as file:
+                file.write(xmltodict.unparse(playlist_dict, pretty=True))
+
+        except Exception as e:
+            self._logger.exception('')
+        return True
+
+    def write_playlist(self, playlist_dict):
+        try:
+            with io.open(self.path, mode=self.mode, buffering=1, newline=None,
+                         encoding='utf-8') as file:
+                file.write(xmltodict.unparse(playlist_dict, pretty=True))
+
+        except Exception as e:
+            self._logger.exception('')
 
     @staticmethod
     def get_playlist(playlist_name, append=True, rotate=False, playlist_format=False):
-        # type: (TextType, bool, bool, bool) -> Playlist
+        # type: (str, bool, bool, bool) -> Playlist
         """
 
         :param playlist_name:
@@ -146,7 +223,7 @@ class Playlist(object):
         self.writeLine('random trailers started: {!s}'.format(now))
 
     def record_played_trailer(self, trailer, use_movie_path=False, msg=''):
-        # type: (Dict[TextType, Any], bool, TextType) -> None
+        # type: (Dict[str, Any], bool, str) -> None
         """
 
         :param trailer:
@@ -162,13 +239,13 @@ class Playlist(object):
         movie_type = trailer.get(Movie.TYPE, 'Unknown MovieType')
         movie_path = trailer.get(Movie.FILE, None)
         if movie_path is None:
-            if use_movie_path: # Nothing to do if there is no movie path
+            if use_movie_path:  # Nothing to do if there is no movie path
                 return
             movie_path = 'Unknown movie path'
         trailer_path = trailer.get(Movie.TRAILER, '')
         cache_path_prefix = Settings.get_downloaded_trailer_cache_path()
         trailer_path = trailer_path.replace(cache_path_prefix, '<cache_path>')
-        missing_detail_msg = Messages.get_instance().get_msg(Messages.MISSING_DETAIL)
+        missing_detail_msg = Messages.get_msg(Messages.MISSING_DETAIL)
         if trailer_path == missing_detail_msg:
             trailer_path = ''
         if name is None:
@@ -182,7 +259,7 @@ class Playlist(object):
         if use_movie_path:
             path = movie_path
 
-        formatted_title = Messages.get_instance().get_formated_title(trailer)
+        formatted_title = Messages.get_formated_title(trailer)
 
         with Playlist._playlist_lock:
             # file closed
@@ -198,7 +275,7 @@ class Playlist(object):
         self._file.writelines(line)
 
     def writeLine(self, line):
-        # type: (TextType) -> None
+        # type: (str) -> None
         """
 
         :param line:
@@ -235,3 +312,5 @@ class Playlist(object):
         finally:
             with Playlist._playlist_lock:
                 Playlist._playlists = {}
+
+Monitor.register_abort_listener(Playlist.shutdown)

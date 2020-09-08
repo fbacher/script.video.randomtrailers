@@ -5,28 +5,20 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from common.imports import *
-
+import sys
 import threading
 
-from common.development_tools import (Any, Callable, Optional, Dict, Union,
-                                      TextType)
+from common.imports import *
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.monitor import Monitor
-from common.watchdog import WatchDog
-from common.logger import (Logger, Trace, LazyLogger)
+from common.logger import (Trace, LazyLogger)
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.abstract_movie_data import AbstractMovieData
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.base_discover_movies')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator,PyArgumentList
@@ -44,12 +36,13 @@ class BaseDiscoverMovies(threading.Thread):
     """
 
     _instance_map = {}
+    logger = None
 
     def __init__(self,
                  group=None,  # type: None
                  # type: Callable[Union[None, Any], Union[Any, None]]
                  target=None,
-                 thread_name=None,  # type: TextType
+                 thread_name=None,  # type: str
                  args=(),  # type: Optional[Any]
                  kwargs=None  # type: Optional[Any]
                  ):
@@ -62,8 +55,9 @@ class BaseDiscoverMovies(threading.Thread):
         :param args:
         :param kwargs:
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
-        self._logger.enter()
+        if type(self).logger is None:
+            type(self).logger = module_logger.getChild(type(self).__name__)
+        type(self).logger.enter()
         movie_source = None
         if kwargs is not None:
             movie_source = kwargs.pop(Movie.SOURCE, None)
@@ -74,7 +68,7 @@ class BaseDiscoverMovies(threading.Thread):
             thread_name = Constants.ADDON_PATH + '.BaseDiscoverMovies'
         super().__init__(group=group, target=target, name=thread_name,
                          args=args, kwargs=kwargs)
-        if self.__class__.__name__ != 'BaseDiscoverMovies':
+        if type(self).__name__ != 'BaseDiscoverMovies':
             Monitor.register_settings_changed_listener(
                 self.on_settings_changed)
 
@@ -85,18 +79,6 @@ class BaseDiscoverMovies(threading.Thread):
         self._stop_thread = False
         if movie_source is not None:
             BaseDiscoverMovies._instance_map['movie_source'] = movie_source
-
-    def shutdown_thread(self):
-        # type: () -> None
-        # Force waits to end
-        """
-            Called by WatchDog during a plugin shutdown.
-
-            Forces any waits to end
-
-        :return:
-        """
-        pass
 
     def on_settings_changed(self):
         # type:() -> None
@@ -110,7 +92,7 @@ class BaseDiscoverMovies(threading.Thread):
         """
         # TODO: Rework
 
-        self._logger.enter()
+        type(self).logger.enter()
 
     def restart_discovery(self, stop_thread):
         # type: (bool) -> None
@@ -119,7 +101,7 @@ class BaseDiscoverMovies(threading.Thread):
         :return:
         """
 
-        self._logger.enter()
+        type(self).logger.enter()
 
         # TODO: REWORK
 
@@ -132,24 +114,24 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
-        # self._logger.debug('before self._movie_data.lock')
+        # type(self).logger.debug('before self._movie_data.lock')
 
         with self._movie_data._discovered_trailers_lock:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                # self._logger.debug('got self._movie_data.lock')
-                self._logger.debug('Shuffling because finished_discovery',
+            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+                # type(self).logger.debug('got self._movie_data.lock')
+                type(self).logger.debug('Shuffling because finished_discovery',
                                    trace=Trace.TRACE_DISCOVERY)
             self._movie_data.shuffle_discovered_trailers(mark_unplayed=False)
             self._discovery_complete = True
 
     def add_to_discovered_trailers(self, movies):
-        # type: (Union[Dict[TextType], List[Dict[TextType]]]) -> None
+        # type: (Union[Dict[str], List[Dict[str]]]) -> None
         """
 
         :param movies:
         :return:
         """
-        self._logger.enter()
+        type(self).logger.enter()
         self._movie_data.add_to_discovered_trailers(movies)
 
     def get_number_of_movies(self):
@@ -193,6 +175,7 @@ class BaseDiscoverMovies(threading.Thread):
                 raise RestartDiscoveryException()
         except AbortException:
             self.get_movie_data().report_play_count_stats()
+            reraise(*sys.exc_info())
 
     def prepare_for_restart_discovery(self):
         # type: () -> None
@@ -201,7 +184,7 @@ class BaseDiscoverMovies(threading.Thread):
         :return:
         """
 
-        self._logger.enter()
+        type(self).logger.enter()
         with self._movie_data._discovered_trailers_lock:
             self._movie_data.prepare_for_restart_discovery(self._stop_thread)
             self._trailers_discovered.clear()
@@ -221,7 +204,7 @@ class BaseDiscoverMovies(threading.Thread):
 
     @staticmethod
     def get_instances():
-        # type: () -> Dict[TextType, BaseDiscoverMovies]
+        # type: () -> Dict[str, BaseDiscoverMovies]
         """
 
         :return:

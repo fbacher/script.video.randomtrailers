@@ -5,29 +5,20 @@ Created on Mar 21, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from .imports import *
 
 import sys
 import threading
-import six
 
-import xbmc
+from .imports import *
 from kodi65 import addon
-# from kodi_six import xbmc
 import AddonSignals as AddonSignals
 
-from .constants import Constants, Movie
-from .exceptions import AbortException, ShutdownException
-from .logger import (Logger, LazyLogger, Trace)
-from .monitor import Monitor
+from common.constants import Constants, Movie
+from common.exceptions import AbortException
+from common.logger import (LazyLogger, Trace)
+from common.monitor import Monitor
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'common.plugin_bridge')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class PluginBridgeStatus(object):
@@ -47,42 +38,25 @@ class PluginBridge(object):
         communicate with one another. Communication is accomplished using
         the AddonSignals service.
     """
-    _instance = None
+    _logger = None
+    _registered_slots = None
 
     def __init__(self):
         # type: () -> None
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
-        # super().__init__()
+        if PluginBridge._logger is not None:
+            return
+
+        PluginBridge._logger = module_logger.getChild(type(self).__name__)
         try:
-            self._monitor = Monitor.get_instance()
-            self._monitor.register_shutdown_listener(self.on_shutdown_event)
+            PluginBridge._registered_slots = []
+            Monitor.register_abort_listener(type(self).on_abort_event)
         except AbortException:
-            six.reraise(*sys.exc_info())
-        except (Exception) as e:
-            self._logger.exception('')
-
-    def register_listeners(self):
-        # type: () -> None
-        """
-            Register listeners (callbacks) with service. Note that
-            communication is asynchronous
-
-            :return: None
-        """
-
-        self._logger.enter()
-
-        if self._context == Constants.FRONTEND_SERVICE:
-            self.register_slot(
-                addon.ID, 'nextTrailer', self.returned_trailer)
-            self.register_slot(
-                addon.ID, 'activate_screensaver', self.activate_screensaver)
-
-        elif self._context == Constants.SCREENSAVER_SERVICE:
-            self.register_slot(addon.ID, 'ack', self.receiveAck)
+            reraise(*sys.exc_info())
+        except Exception as e:
+            PluginBridge._logger.exception('')
 
     ###########################################################
     #
@@ -90,30 +64,19 @@ class PluginBridge(object):
     #
     ###########################################################
 
-    def notify_settings_changed(self):
+    @classmethod
+    def notify_settings_changed(cls):
         # type: () -> None
         """
             Front-end informs others (back-end) that settings may have changed.
 
         :return:
         """
-        self._logger.enter('Override me')
+        PluginBridge._logger.enter('Override me')
 
-    def send_data(self, data):
-        # type: (Any) -> None
-        """
-        Send arbitrary data to remove service
-
-        :param data:
-        :return:
-        """
-
-        # Uses xbmc.notifyAll
-        self.send_signal(self._signalName, data=data,
-                         source_id=None)  # default is plugin id
-
-    def send_signal(self, signal, data=None, source_id=None):
-        # type: (str, Any, str) -> None
+    @classmethod
+    def send_signal(cls, signal, data=None, source_id=None):
+        # type: (str, Any, Union[str, None]) -> None
         """
 
         :param signal:
@@ -123,18 +86,19 @@ class PluginBridge(object):
         """
         try:
             thread = threading.Thread(
-                target=self.send_signal_worker,
+                target=PluginBridge.send_signal_worker,
                 args=(signal,),
                 kwargs={'data': data, 'source_id': source_id},
-                name='BackendBridge.on_settings_changed')
+                name='BackendBridge.' + signal)
 
             thread.start()
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
-            self._logger.exception('')
+            PluginBridge._logger.exception('')
 
-    def send_signal_worker(self, signal, data=None, source_id=None):
+    @classmethod
+    def send_signal_worker(cls, signal, data=None, source_id=None):
         # type: (str, Any, str) -> None
         """
 
@@ -143,15 +107,16 @@ class PluginBridge(object):
         :param source_id:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('context:', self._context, 'signal:', signal,
-                               'source_id:', source_id)
-        self._monitor.throw_exception_if_shutdown_requested()
+        if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG):
+            PluginBridge._logger.debug('signal:', signal,
+                                       'source_id:', source_id)
+        Monitor.throw_exception_if_abort_requested()
 
         AddonSignals.sendSignal(signal, data=data,
                                 source_id=source_id)
 
-    def register_slot(self, signaler_id, signal, callback):
+    @classmethod
+    def register_slot(cls, signaler_id, signal, callback):
         # type: (str, str, Callable[[Any], None]) -> None
         """
 
@@ -160,14 +125,15 @@ class PluginBridge(object):
         :param callback:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('signaler_id:', signaler_id,
-                               'signal:', signal, 'callback:', callback.__name__)
-        self._monitor.throw_exception_if_shutdown_requested()
+        if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG):
+            PluginBridge._logger.debug('signaler_id:', signaler_id,
+                                       'signal:', signal, 'callback:', callback.__name__)
+        Monitor.throw_exception_if_abort_requested()
         AddonSignals.registerSlot(signaler_id, signal, callback)
+        PluginBridge._registered_slots.append((signaler_id, signal))
 
-    @staticmethod
-    def un_register_slot(signaler_id, signal):
+    @classmethod
+    def unregister_slot(cls, signaler_id, signal):
         # type: (str, str) -> None
         """
 
@@ -176,10 +142,14 @@ class PluginBridge(object):
         :return:
         """
 
-        Monitor.get_instance().throw_exception_if_shutdown_requested()
-        AddonSignals.unRegisterSlot(signaler_id, signal)
+        Monitor.throw_exception_if_abort_requested()
+        try:
+            AddonSignals.unRegisterSlot(signaler_id, signal)
+        except Exception:
+            pass
 
-    def return_call(self, signal, data=None, source_id=None):
+    @classmethod
+    def return_call(cls, signal, data=None, source_id=None):
         # type: (str, Any, str) -> None
         """
 
@@ -192,31 +162,37 @@ class PluginBridge(object):
         pass
         # send_signal('_return.{0}'.format(signal), data, source_id)
 
-    def on_shutdown_event(self):
+    @classmethod
+    def on_abort_event(cls):
         # type: () -> None
         """
 
         :return:
         """
-        self.delete_instance()
+        PluginBridge.delete_instance()
 
-    def delete_instance(self):
+    @classmethod
+    def delete_instance(cls):
         # type: () -> None
         """
 
         :return:
         """
         try:
-            PluginBridge.un_register_slot(addon.ID, 'get_next_trailer')
-            PluginBridge.un_register_slot(addon.ID, 'nextTrailer')
-            PluginBridge.un_register_slot(addon.ID, 'settings_changed')
-            PluginBridge.un_register_slot(addon.ID, 'ack')
-            monitor = Monitor.get_instance()
-            if monitor is not None:
-                monitor.unregister_shutdown_listener(self)
+            PluginBridge.unregister_slots()
+            try:
+                Monitor.unregister_abort_listener(PluginBridge.on_abort_event)
+            except Exception:
+                pass
 
             del AddonSignals.RECEIVER
             AddonSignals.RECEIVER = None
-            PluginBridge._instance = None
-        except (Exception) as e:
+        except Exception as e:
             pass
+
+    @classmethod
+    def unregister_slots(cls):
+        for signaler_id, signal in PluginBridge._registered_slots:
+            PluginBridge.unregister_slot(signaler_id, signal)
+
+        del PluginBridge._registered_slots[:]

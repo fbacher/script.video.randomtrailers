@@ -5,7 +5,6 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
 from common.imports import *
 
@@ -17,10 +16,8 @@ import os
 import re
 import shutil
 import subprocess
-import six
+import threading
 import xbmc
-
-#from kodi_six import xbmc
 
 from common.monitor import Monitor
 from common.constants import Constants, Movie, RemoteTrailerPreference
@@ -33,9 +30,8 @@ from common.messages import Messages
 from backend.tmdb_utils import (TMDBUtils)
 from backend.movie_entry_utils import (MovieEntryUtils)
 
-# from backend.base_movie_data import AbstractMovieData
 from discovery.abstract_movie_data import AbstractMovieData
-from backend.rating import Rating
+from common.rating import Rating
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 from cache.cache import (Cache)
@@ -50,11 +46,7 @@ from discovery.trailer_fetcher_interface import TrailerFetcherInterface
 from discovery.playable_trailers_container import PlayableTrailersContainer
 from discovery.restart_discovery_exception import RestartDiscoveryException
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-        'discovery.trailer_fetcher')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator
@@ -65,10 +57,10 @@ class TrailerFetcher(TrailerFetcherInterface):
 
     NUMBER_OF_FETCHERS = 1
     _trailer_fetchers = []
+    _logger = None
 
-    def __init__(self, movie_data,
-                 thread_name='No TrailerFetcher Thread Name'):
-        # type: (AbstractMovieData, TextType, TextType)-> None
+    def __init__(self, movie_data: AbstractMovieData,
+                 thread_name: str='No TrailerFetcher Thread Name') -> None :
         """
 
                  :param movie_data
@@ -76,9 +68,9 @@ class TrailerFetcher(TrailerFetcherInterface):
         """
 
         movie_source = movie_data.get_movie_source()
-        self._logger = module_logger.getChild(
-            self.__class__.__name__ + ':' + movie_source)
-        self._logger.enter()
+        type(self)._logger = module_logger.getChild(type(self).__name__ +
+                                                    ':' + movie_source)
+        type(self)._logger.enter()
         thread_name = thread_name
         super().__init__(thread_name=thread_name)
         self._movie_data = movie_data  # type: AbstractMovieData
@@ -91,14 +83,13 @@ class TrailerFetcher(TrailerFetcherInterface):
         self._stop_fetch_time = None
         self._stop_add_ready_to_play_time = None
 
-    def start_fetchers(self):
-        # type: () ->None
+    def start_fetchers(self) -> None:
         """
 
         :return:
         """
-        self._logger.enter()
-        WatchDog.register_thread(self)
+        type(self)._logger.enter()
+        Monitor.register_abort_listener(self.shutdown_thread)
         i = 0
         while i < self.NUMBER_OF_FETCHERS:
             i += 1
@@ -106,39 +97,35 @@ class TrailerFetcher(TrailerFetcherInterface):
                 self._movie_data,
                 thread_name='TrailerFetcher_' +
                 self._movie_data.get_movie_source() + ':' + str(i))
+            Monitor.register_abort_listener(trailer_fetcher.shutdown_thread)
             TrailerFetcher._trailer_fetchers.append(trailer_fetcher)
-            WatchDog.register_thread(trailer_fetcher)
             trailer_fetcher.start()
-            if self._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
-                self._logger.debug_verbose('trailer fetcher started')
+            if type(self)._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                type(self)._logger.debug_verbose('trailer fetcher started')
 
-    def shutdown_thread(self):
-        # type: () -> None
+    def shutdown_thread(self) -> None:
         """
 
         :return:
         """
         TrailerUnavailableCache.tmdb_cache_changed(flush=True)
         TrailerUnavailableCache.library_cache_changed(flush=True)
-        self._movie_data = None
-        self._playable_trailers = None
+        self._playable_trailers.clear()
 
-    def prepare_for_restart_discovery(self, stop_thread):
-        # type: (bool) -> None
+    def prepare_for_restart_discovery(self, stop_thread: bool) -> None:
         """
 
         :param stop_thread
         :return:
         """
-        self._logger.enter()
+        type(self)._logger.enter()
         self._playable_trailers.prepare_for_restart_discovery(stop_thread)
 
         if stop_thread:
             self._movie_data = None
             self._playable_trailers = None
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
 
         :return:
@@ -148,54 +135,52 @@ class TrailerFetcher(TrailerFetcherInterface):
         except AbortException:
             return  # Just exit thread
         except Exception:
-            self._logger.exception('')
+            type(self)._logger.exception('')
 
-    def run_worker(self):
-        # type: () -> None
+    def run_worker(self) -> None:
         """
 
         :param self:
         :return:
         """
         while not self._movie_data.have_trailers_been_discovered():
-            Monitor.throw_exception_if_shutdown_requested(delay=0.5)
+            Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
         # Wait one second after something has been discovered so that
         # there are more entries to process. This way the list is a bit more
         # randomized at the beginning.
 
-        Monitor.throw_exception_if_shutdown_requested(delay=1.0)
+        Monitor.throw_exception_if_abort_requested(timeout=1.0)
         self._movie_data.shuffle_discovered_trailers(mark_unplayed=False)
 
         while True:
             try:
-                Monitor.throw_exception_if_shutdown_requested()
+                Monitor.throw_exception_if_abort_requested()
 
                 if (self._movie_data.is_discovery_complete() and
                         self._movie_data.get_number_of_movies() == 0):
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Shutting down Trailer Fetcher',
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('Shutting down Trailer Fetcher',
                                            'due to no movies after discovery complete.')
                     break
 
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('waiting to fetch')
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('waiting to fetch')
                 player_starving = self._playable_trailers.is_starving()
                 trailer = self._movie_data.get_from_fetch_queue(
                     player_starving)
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('got movie from fetch queue:',
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('got movie from fetch queue:',
                                        trailer[Movie.TITLE])
                 self.fetch_trailer_to_play(trailer)
             except AbortException as e:
-                six.reraise(*sys.exc_info())
+                reraise(*sys.exc_info())
             except Exception as e:
-                self._logger.exception('')
+                type(self)._logger.exception('')
 
     def fetch_trailer_to_play(self,
-                              trailer  # type: MovieType
-                              ):
-        # type: (...) -> None
+                              trailer: MovieType
+                              ) -> None:
         """
 
         :param trailer:
@@ -235,20 +220,19 @@ class TrailerFetcher(TrailerFetcherInterface):
                 else:
                     self._fetch_trailer_to_play_worker(trailer)
                 finished = True
-            except (RestartDiscoveryException):
-                Monitor.throw_exception_if_shutdown_requested(0.10)
+            except RestartDiscoveryException:
+                Monitor.throw_exception_if_abort_requested(timeout=0.10)
 
     def _fetch_trailer_to_play_worker(self,
-                                      trailer  # type: MovieType
-                                      ):
-        # type: ( ...) -> None
+                                      trailer: MovieType
+                                      ) -> None:
         """
 
         :param trailer:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.enter('title:', trailer[Movie.TITLE],
+        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+            type(self)._logger.enter('title:', trailer[Movie.TITLE],
                                'source:', trailer[Movie.SOURCE],
                                'discovery_state:', trailer[Movie.DISCOVERY_STATE],
                                'trailer:', trailer[Movie.TRAILER])
@@ -284,8 +268,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 # this movie.
                 self._missing_trailers_playlist.record_played_trailer(
                     trailer, use_movie_path=True, msg='No Trailer')
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('No valid trailer found for TMDB trailer:',
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('No valid trailer found for TMDB trailer:',
                                        trailer[Movie.TITLE],
                                        'removed:',
                                        self._movie_data.get_number_of_removed_trailers() + 1,
@@ -300,8 +284,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 # Not sure what happened. Reject movie anyway.
                 self._missing_trailers_playlist.record_played_trailer(
                     trailer, use_movie_path=True, msg='No Trailer')
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('No trailer found for TMDB trailer:',
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('No trailer found for TMDB trailer:',
                                        trailer[Movie.TITLE],
                                        'removed:',
                                        self._movie_data.get_number_of_removed_trailers() + 1,
@@ -329,8 +313,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         self.throw_exception_on_forced_to_stop()
 
                         if tmdb_id is None:
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Can not get TMDB id for Library movie:',
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug('Can not get TMDB id for Library movie:',
                                                    trailer[Movie.TITLE], 'year:',
                                                    trailer[Movie.YEAR])
                             self._missing_trailers_playlist.record_played_trailer(
@@ -360,16 +344,16 @@ class TrailerFetcher(TrailerFetcherInterface):
                             keep_new_trailer = False
                             # Give up playing this trailer this time around. It will
                             # still be available for display later.
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(trailer[Movie.TITLE],
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug(trailer[Movie.TITLE],
                                                    'could not get trailer due to status:',
                                                    status)
                             return
 
                         elif status == Constants.REJECTED_STATUS:
                             keep_new_trailer = False
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug(
                                     'Unexpected REJECTED_STATUS. Ignoring')
 
                         elif (new_trailer_data is None
@@ -382,8 +366,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 title=trailer[Movie.TITLE],
                                 year=trailer[Movie.YEAR],
                                 source=source)
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug(
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug(
                                     'No valid trailer found for Library trailer:',
                                     trailer[Movie.TITLE],
                                     'removed:',
@@ -406,8 +390,8 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                 self.throw_exception_on_forced_to_stop()
                 if tmdb_id is None:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Can not get TMDB id for iTunes movie:',
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('Can not get TMDB id for iTunes movie:',
                                            trailer[Movie.TITLE], 'year:',
                                            trailer[Movie.YEAR])
                     self._missing_trailers_playlist.record_played_trailer(
@@ -417,13 +401,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                 else:
                     MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
 
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('Finished second discovery level for movie:',
+        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+            type(self)._logger.debug('Finished second discovery level for movie:',
                                trailer.get(Movie.TITLE),
                                '(tentatively) keep:', keep_new_trailer)
 
         # If no trailer possible then remove it from further consideration
 
+        movie_id = None
         if keep_new_trailer:
             if Movie.YEAR not in trailer:
                 pass
@@ -435,8 +420,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             with AbstractMovieData.get_aggregate_trailers_by_name_date_lock():
                 if trailer[Movie.TRAILER] == '':
                     keep_new_trailer = False
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Not keeping:', trailer[Movie.TITLE],
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('Not keeping:', trailer[Movie.TITLE],
                                            'because trailer is empty')
                 elif movie_id in AbstractMovieData.get_aggregate_trailers_by_name_date():
                     keep_new_trailer = False
@@ -445,8 +430,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         AbstractMovieData.get_aggregate_trailers_by_name_date()[movie_id])
                     source_of_trailer_in_dictionary = trailerInDictionary[Movie.SOURCE]
 
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Duplicate Movie id:', movie_id,
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('Duplicate Movie id:', movie_id,
                                            'source:', source_of_trailer_in_dictionary)
 
                     # Always prefer the local trailer
@@ -457,8 +442,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                             # Joy, two copies, both with trailers. Toss the new one.
                             #
 
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Not keeping:',
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug('Not keeping:',
                                                    trailer[Movie.TITLE],
                                                    'because dupe and both in library')
                         else:
@@ -471,15 +456,15 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                         # TODO: Verify
 
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('Duplicate:', trailer[Movie.TITLE],
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug('Duplicate:', trailer[Movie.TITLE],
                                                'original source:',
                                                source_of_trailer_in_dictionary,
                                                'new source:', source)
                     elif source_of_trailer_in_dictionary == source:
                         keep_new_trailer = False
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('Not keeping:', trailer[Movie.TITLE],
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug('Not keeping:', trailer[Movie.TITLE],
                                                'because duplicate source')
                     elif source == Movie.FOLDER_SOURCE:
                         keep_new_trailer = True
@@ -493,12 +478,12 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         if keep_new_trailer:
             trailer[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_COMPLETE
-            AbstractMovieData.get_aggregate_trailers_by_name_date()[
-                movie_id] = trailer
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(trailer[Movie.TITLE], 'added to AggregateTrailers',
-                                   'trailer:', trailer[Movie.TRAILER],
-                                   'source:', trailer[Movie.SOURCE])
+            AbstractMovieData.get_aggregate_trailers_by_name_date()[movie_id] = trailer
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug(trailer[Movie.TITLE],
+                                         'added to AggregateTrailers',
+                                         'trailer:', trailer[Movie.TRAILER],
+                                         'source:', trailer[Movie.SOURCE])
 
         else:
             self._movie_data.remove_discovered_movie(trailer)
@@ -521,23 +506,22 @@ class TrailerFetcher(TrailerFetcherInterface):
         discovery_time = self._stop_fetch_time - self._start_fetch_time
         queue_time = self._stop_add_ready_to_play_time - self._stop_fetch_time
         trailer_type = trailer.get(Movie.TYPE, '')
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('took:', discovery_time.microseconds / 10000,
-                               'ms',
-                               'QueueTime:', queue_time.microseconds / 10000,
-                               'ms',
-                               'movie:', trailer.get(Movie.TITLE),
-                               'type:', trailer_type,
-                               'Kept:', keep_new_trailer, trace=Trace.STATS)
+        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+            type(self)._logger.debug('took:', discovery_time.microseconds / 10000,
+                                     'ms',
+                                     'QueueTime:', queue_time.microseconds / 10000,
+                                     'ms',
+                                     'movie:', trailer.get(Movie.TITLE),
+                                     'type:', trailer_type,
+                                     'Kept:', keep_new_trailer, trace=Trace.STATS)
 
-    def throw_exception_on_forced_to_stop(self, delay=0):
-        # type: (float) -> None
+    def throw_exception_on_forced_to_stop(self, delay: float = 0) -> None:
         """
 
         :param delay:
         :return:
         """
-        Monitor.throw_exception_if_shutdown_requested(delay=delay)
+        Monitor.throw_exception_if_abort_requested(timeout=delay)
         if self._movie_data.restart_discovery_event.isSet():
             raise RestartDiscoveryException()
 
@@ -549,8 +533,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             trailer_ok = self.cache_remote_trailer(movie)
 
         else:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Not caching:', movie[Movie.TITLE],
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug('Not caching:', movie[Movie.TITLE],
                                    'trailer:', movie[Movie.TRAILER],
                                    'source:', movie[Movie.SOURCE],
                                    'state:', movie[Movie.DISCOVERY_STATE])
@@ -562,8 +546,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 self.normalize_trailer_sound(movie)
                 normalized = True
 
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(movie[Movie.TITLE], 'audio normalized:',
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug(movie[Movie.TITLE], 'audio normalized:',
                                    normalized,
                                    'trailer:', movie.get(
                                        Movie.NORMALIZED_TRAILER),
@@ -573,13 +557,13 @@ class TrailerFetcher(TrailerFetcherInterface):
 
     # noinspection SyntaxError
     def get_tmdb_trailer(self,
-                         movie_title,  # type: TextType
-                         tmdb_id,  # type: Union[int, TextType]
-                         source,  # type: TextType
+                         movie_title,  # type: str
+                         tmdb_id,  # type: Union[int, str]
+                         source,  # type: str
                          ignore_failures=False,  # type: bool
-                         library_id=None  # type: Union[None, TextType]
+                         library_id=None  # type: Union[None, str]
                          ):
-        # type: (...) -> MovieType
+        # type: (...) -> (int, MovieType)
         """
             Called in two situations:
                 1) When a local movie does not have any trailer information
@@ -597,15 +581,15 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param library_id:
         :return:
         """
-        if self._logger.isEnabledFor(Logger.DEBUG):
-            self._logger.debug('title:', movie_title, 'tmdb_id:', tmdb_id,
+        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+            type(self)._logger.debug('title:', movie_title, 'tmdb_id:', tmdb_id,
                                'library_id:', library_id, 'ignore_failures:',
                                ignore_failures)
 
         if TrailerUnavailableCache.is_tmdb_id_missing_trailer(tmdb_id):
             CacheIndex.remove_unprocessed_movie(tmdb_id)
             if not ignore_failures:
-                self._logger.exit(
+                type(self)._logger.exit(
                     'No trailer found for movie:', movie_title)
                 return Constants.REJECTED_STATUS, None
 
@@ -626,7 +610,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         vote_comparison, vote_value = Settings.get_tmdb_avg_vote_preference()
 
         # Since we may leave early, populate with dummy data
-        messages = Messages.get_instance()
+        messages = Messages
         missing_detail = messages.get_msg(Messages.MISSING_DETAIL)
         dict_info = {}
         dict_info[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
@@ -634,7 +618,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         dict_info[Movie.ORIGINAL_TITLE] = ''
         dict_info[Movie.YEAR] = 0
         dict_info[Movie.STUDIO] = [missing_detail]
-        dict_info[Movie.MPAA] = 'NR'
+        dict_info[Movie.MPAA] = Rating.RATING_NR
         dict_info[Movie.THUMBNAIL] = ''
         dict_info[Movie.TRAILER] = ''
         dict_info[Movie.FANART] = ''
@@ -679,19 +663,19 @@ class TrailerFetcher(TrailerFetcherInterface):
                     status_code = s_code
             if status_code != 0:
                 if ignore_failures:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Ignore_failures getting TMDB data for:,'
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('Ignore_failures getting TMDB data for:,'
                                            'movie_title')
                     return status_code, dict_info
-                self._logger.debug(
+                type(self)._logger.debug(
                     'Error getting TMDB data for:', movie_title,
                     'status:', status_code)
                 return Constants.REJECTED_STATUS, None
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
-            self._logger.exception('')
-            self._logger.exit('Error processing movie: ', movie_title)
+            type(self)._logger.exception('')
+            type(self)._logger.exit('Error processing movie: ', movie_title)
             if ignore_failures:
                 return -1, dict_info
             return -1, None
@@ -725,16 +709,16 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                 # TODO: if Settings.is_allow_foreign_languages(), then get primary
                 # lang
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('iso_639)1:', tmdb_trailer['iso_639_1'])
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('iso_639)1:', tmdb_trailer['iso_639_1'])
                 if tmdb_trailer['iso_639_1'] != Settings.getLang_iso_639_1():
                     continue
 
                 trailer_type = tmdb_trailer['type']
                 size = tmdb_trailer['size']
                 if trailer_type not in best_size_map:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('Unrecognized trailer type:',
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('Unrecognized trailer type:',
                                            trailer_type)
 
                 if best_size_map.get(trailer_type, None) is None:
@@ -760,14 +744,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             dict_info[Movie.TYPE] = trailer_type
             MovieEntryUtils.set_tmdb_id(dict_info, tmdb_id)
 
-            if self._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+            if type(self)._logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
                 tmdb_countries = tmdb_result['releases']['countries']
                 mpaa = ''
                 for c in tmdb_countries:
                     if c['iso_3166_1'] == Settings.getLang_iso_3166_1():
                         mpaa = c['certification']
                 if mpaa == '':
-                    self._logger.debug('No certification. Title:',
+                    type(self)._logger.debug('No certification. Title:',
                                        tmdb_result[Movie.TITLE],
                                        'year:', year, 'trailer:', trailer_key)
 
@@ -788,12 +772,12 @@ class TrailerFetcher(TrailerFetcherInterface):
                         source=source)
                 CacheIndex.remove_unprocessed_movie(tmdb_id)
                 if not ignore_failures:
-                    self._logger.exit(
+                    type(self)._logger.exit(
                         'No trailer found for movie:', movie_title)
                     return Constants.REJECTED_STATUS, None
                 else:
-                    if self._logger.isEnabledFor(Logger.DEBUG):
-                        self._logger.debug('No trailer found for movie:',
+                    if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                        type(self)._logger.debug('No trailer found for movie:',
                                            movie_title,
                                            'Continuing to process other data')
             else:
@@ -809,7 +793,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             for c in tmdb_countries:
                 if c['iso_3166_1'] == Settings.getLang_iso_3166_1():
                     mpaa = c['certification']
-            if mpaa == '':
+            if mpaa == '' or mpaa is None:
                 mpaa = Rating.RATING_NR
             dict_info[Movie.MPAA] = mpaa
 
@@ -822,8 +806,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             dict_info[Movie.THUMBNAIL] = thumbnail
 
             title = tmdb_result[Movie.TITLE]
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Processing:', title, 'rating:',
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug('Processing:', title, 'rating:',
                                    mpaa)
 
             if title is not None:
@@ -909,29 +893,29 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             if not ignore_failures and not (original_language_found
                                             or Settings.is_allow_foreign_languages()):
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Rejecting due to language')
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('Rejecting due to language')
                 add_movie = False
 
             if Settings.get_filter_genres() and not tag_found and not genre_found:
                 add_movie = False
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Rejected due to GenreUtils or Keyword')
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('Rejected due to GenreUtils or Keyword')
 
             if vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
                 if vote_comparison == \
                         RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
                     if vote_average < vote_value:
                         add_movie = False
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug(
                                 'Rejected due to vote_average <')
                 elif vote_comparison == \
                         RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
                     if vote_average > vote_value:
                         add_movie = False
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug(
                                 'Rejected due to vote_average >')
 
             original_title = tmdb_result['original_title']
@@ -941,8 +925,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             adult_movie = tmdb_result['adult'] == 'true'
             if adult_movie and not include_adult:
                 add_movie = False
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Rejected due to adult')
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('Rejected due to adult')
 
             dict_info[Movie.ADULT] = adult_movie
             dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
@@ -952,27 +936,29 @@ class TrailerFetcher(TrailerFetcherInterface):
             mpaa = Rating.get_mpa_rating(mpaa_rating=mpaa, adult_rating=None)
             if not Rating.check_rating(mpaa):
                 add_movie = False
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('Rejected due to rating')
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('Rejected due to rating')
                     # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
 
         except AbortException as e:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('%s %s'.format(
+            type(self)._logger.exception('%s %s'.format(
                 'Error getting info for tmdb_id:', tmdb_id))
             try:
-                if self._logger.isEnabledFor(Logger.DEBUG):
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
                     json_text = json.dumps(
                         tmdb_result, indent=3, sort_keys=True)
-                    self._logger.debug(json_text)
-            except (Exception) as e:
-                self._logger('failed to get Json data')
+                    type(self)._logger.debug(json_text)
+            except AbortException:
+                reraise(*sys.exc_info())
+            except Exception as e:
+                type(self)._logger('failed to get Json data')
 
             if not ignore_failures:
                 dict_info = None
 
-        self._logger.exit('Finished processing movie: ', movie_title, 'year:',
+        type(self)._logger.exit('Finished processing movie: ', movie_title, 'year:',
                           year, 'add_movie:', add_movie)
         if add_movie:
             return 0, dict_info
@@ -980,9 +966,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             return Constants.REJECTED_STATUS, dict_info
 
     def get_detail_info(self,
-                        trailer  # type: MovieType
-                        ):
-        # type: (...) -> MovieType
+                        trailer: MovieType
+                        ) -> MovieType:
         """
 
         :param trailer:
@@ -995,7 +980,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             tmdb_id = MovieEntryUtils.get_tmdb_id(trailer)
 
             if source == Movie.ITUNES_SOURCE and tmdb_id is None:
-                Monitor.throw_exception_if_shutdown_requested()
+                Monitor.throw_exception_if_abort_requested()
                 if not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
                     tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                         trailer[Movie.TITLE], trailer[Movie.YEAR])
@@ -1009,7 +994,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             trailer.setdefault(Movie.THUMBNAIL, '')
             tmdb_detail_movie_info = None
             if source == Movie.ITUNES_SOURCE:
-                Monitor.throw_exception_if_shutdown_requested()
+                Monitor.throw_exception_if_abort_requested()
                 status, tmdb_detail_movie_info = self.get_tmdb_trailer(
                     trailer[Movie.TITLE], tmdb_id, source, ignore_failures=True)
 
@@ -1059,7 +1044,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             movie_studios = ', '.join(trailer.get(Movie.STUDIO, []))
 
-            title_string = Messages.get_instance().get_formated_title(trailer)
+            title_string = Messages.get_formated_title(trailer)
             trailer[Movie.DETAIL_TITLE] = title_string
 
             trailer[Movie.DETAIL_STUDIOS] = movie_studios
@@ -1072,10 +1057,10 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             rating = Rating.get_mpa_rating(trailer.get(
                 Movie.MPAA), trailer.get(Movie.ADULT))
-            trailer[Movie.DETAIL_RATING] = rating
+            trailer[Movie.DETAIL_CERTIFICATION] = rating
 
             img_rating = Rating.get_image_for_rating(rating)
-            trailer[Movie.DETAIL_RATING_IMAGE] = img_rating
+            trailer[Movie.DETAIL_CERTIFICATION_IMAGE] = img_rating
 
             trailer[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_READY_TO_DISPLAY
             if tmdb_id is not None:
@@ -1086,15 +1071,15 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             return trailer
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            type(self)._logger.exception('')
             return {}
 
     def clone_fields(self,
                      trailer,  # type: MovieType
                      detail_trailer,  # type: MovieType
-                     *argv  # type: TextType
+                     *argv  # type: str
                      ):
         # type: (...) -> None
         """
@@ -1109,16 +1094,16 @@ class TrailerFetcher(TrailerFetcherInterface):
             for arg in argv:
                 detail_trailer[arg] = trailer.get(arg, None)
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception('')
+            type(self)._logger.exception('')
 
     def get_writers(self,
                     trailer,  # type: MovieType
                     tmdb_info,  # type: MovieType
-                    source  # type: TextType
+                    source  # type: str
                     ):
-        # type: (...) ->  TextType
+        # type: (...) ->  str
         """
 
         :param self:
@@ -1149,7 +1134,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         return movie_writers
 
     def get_actors(self, trailer, info, source, max_actors=6):
-        # type: ( MovieType, MovieType, TextType, int) -> TextType
+        # type: ( MovieType, MovieType, str, int) -> str
         """
 
         :param self:
@@ -1159,6 +1144,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param max_actors:
         :return:
         """
+        movie_actors = ''
         actors = trailer.get(Movie.CAST, [])
         if len(actors) > max_actors:
             actors = actors[:(max_actors - 1)]
@@ -1168,15 +1154,17 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if actor.get('name') is not None:
                     actors_list.append(actor['name'])
             movie_actors = ', '.join(actors_list)
-        except (Exception):
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception:
             movie_actors = ''
-            self._logger.error('Movie:', trailer[Movie.TITLE],
+            type(self)._logger.error('Movie:', trailer[Movie.TITLE],
                                'cast:', trailer[Movie.CAST])
 
         return movie_actors
 
     def get_plot(self, trailer, info, source):
-        # type: ( MovieType, MovieType, TextType) -> TextType
+        # type: ( MovieType, MovieType, str) -> str
         """
 
         :param self:
@@ -1197,7 +1185,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         return plot
 
     def get_runtime(self, trailer, info, source):
-        # type: ( MovieType, MovieType, TextType) -> TextType
+        # type: ( MovieType, MovieType, str) -> str
         """
 
         :param self:
@@ -1214,7 +1202,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         if isinstance(trailer.get(Movie.RUNTIME), int):
             runtime = str(
                 int(trailer[Movie.RUNTIME] / 60))
-            runtime = Messages.get_instance().get_formatted_msg(
+            runtime = Messages.get_formatted_msg(
                 Messages.MINUTES_DETAIL, runtime)
 
         return runtime
@@ -1236,8 +1224,8 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         try:
             start = datetime.datetime.now()
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug(movie[Movie.TITLE], movie[Movie.TRAILER])
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug(movie[Movie.TITLE], movie[Movie.TRAILER])
 
             movie_id = ''
             trailer_path = movie[Movie.TRAILER]
@@ -1301,8 +1289,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         movie[Movie.CACHED_TRAILER] = cached_trailers[0]
                         stop = datetime.datetime.now()
                         locate_time = stop - start
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('time to locate movie:',
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug('time to locate movie:',
                                                locate_time.seconds, 'path:',
                                                movie[Movie.CACHED_TRAILER])
                 else:
@@ -1364,26 +1352,28 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                             stop = datetime.datetime.now()
                             locate_time = stop - start
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('movie download to cache time:',
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug('movie download to cache time:',
                                                    locate_time.seconds)
-                        except (Exception) as e:
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Failed to move movie to cache.',
+                        except AbortException:
+                            reraise(*sys.exc_info())
+                        except Exception as e:
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug('Failed to move movie to cache.',
                                                    'movie:', trailer_path,
                                                    'cachePath:', download_path)
-                            # self._logger.exception(
+                            # type(self)._logger.exception(
                             #                          'Failed to move movie to
                             #                          cache: ' +
                             #                        trailer_path)
 
         except AbortException as e:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Exception. Movie:', movie[Movie.TITLE],
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug('Exception. Movie:', movie[Movie.TITLE],
                                    'ID:', movie_id, 'Path:', cached_path)
-            self._logger.exception('')
+            type(self)._logger.exception('')
 
         return trailer_ok
 
@@ -1448,8 +1438,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 return
 
             cached_normalized_trailer = None
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('trailer', movie.get(Movie.TRAILER, ''),
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug('trailer', movie.get(Movie.TRAILER, ''),
                                    'cached trailer:', movie.get(Movie.CACHED_TRAILER, ''))
 
             # NORMALIZED_TRAILER is not automatically discovered from disk
@@ -1478,8 +1468,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         if trailer_creation_time <= normalized_trailer_creation_time:
                             return
                         else:
-                            if self._logger.isEnabledFor(Logger.DEBUG):
-                                self._logger.debug('Trailer newer than normalized file',
+                            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                                type(self)._logger.debug('Trailer newer than normalized file',
                                                    'title:', movie[Movie.TITLE])
 
             # TODO: Handle the case where files are NOT cached
@@ -1499,36 +1489,47 @@ class TrailerFetcher(TrailerFetcherInterface):
                     DiskUtils.create_path_if_needed(
                         os.path.dirname(normalized_path))
 
-                    # TODO: terminate process if Shutdown occurs
+                    # TODO: terminate process if Abort occurs
 
                     cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                             'resources', 'lib', 'shell',
                                             'ffmpeg_normalize.sh')
                     args = [cmd_path, trailer_path, normalized_path]
+                    rc = -1
                     try:
-                        rc = subprocess.call(args, stdin=None, stdout=None,
-                                             stderr=None, shell=False)
-                    except (ProcessLookupError):
+                        normalize_process = subprocess.Popen(
+                            args, bufsize=1, stdin=None, stdout=None,
+                            stderr=None, shell=False)
+                        normalize_process.terminate()
+                        while not Monitor.wait_for_abort(timeout=0.1):
+                            try:
+                                rc = normalize_process.wait(0.0)
+                                break  # Complete
+                            except subprocess.TimeoutExpired:
+                                pass
+                        Monitor.throw_exception_if_abort_requested(timeout=0.0)
+                        # If abort did not occur, then process finished
+                    except ProcessLookupError:
                         rc = -1
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('ProcessLookupError Movie:', movie[Movie.TITLE],
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug('ProcessLookupError Movie:', movie[Movie.TITLE],
                                                'Path:', normalized_path)
-                        self._logger.exception('')
+                        type(self)._logger.exception('')
 
                     if rc == 0:
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug(
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug(
                                 'Normalized:', movie[Movie.TITLE])
                         cached_normalized_trailer = normalized_path
                         normalized_used = True
                     else:
-                        if self._logger.isEnabledFor(Logger.DEBUG):
-                            self._logger.debug('Normalize failed:',
+                        if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                            type(self)._logger.debug('Normalize failed:',
                                                movie[Movie.TITLE])
 
             if cached_normalized_trailer is not None:
                 assert 'normalized_normalized' not in cached_normalized_trailer,\
-                    self._logger.error('Invalid normalized path name. Movie:',
+                    type(self)._logger.error('Invalid normalized path name. Movie:',
                                        movie[Movie.TITLE],
                                        'trailer_path:', trailer_path,
                                        'cached_normalized_trailer:',
@@ -1541,27 +1542,27 @@ class TrailerFetcher(TrailerFetcherInterface):
                         os.remove(trailer_path)
                 movie[Movie.NORMALIZED_TRAILER] = cached_normalized_trailer
                 normalized_used = True
-            if normalized_used and self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Used Normalized:', normalized_used)
+            if normalized_used and type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug('Used Normalized:', normalized_used)
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
-            if self._logger.isEnabledFor(Logger.DEBUG):
-                self._logger.debug('Exception. Movie:', movie[Movie.TITLE],
+            if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                type(self)._logger.debug('Exception. Movie:', movie[Movie.TITLE],
                                    'Path:', normalized_path)
-            self._logger.exception('')
+            type(self)._logger.exception('')
         finally:
             stop = datetime.datetime.now()
             elapsed_time = stop - start
             if normalized_used:
-                if self._logger.isEnabledFor(Logger.DEBUG):
-                    self._logger.debug('time to normalize movie:',
+                if type(self)._logger.isEnabledFor(Logger.DEBUG):
+                    type(self)._logger.debug('time to normalize movie:',
                                        elapsed_time.seconds)
         return
 
 
 def get_tmdb_id_from_title_year(title, year):
-    # type: (TextType, int) -> int
+    # type: (str, int) -> int
     """
 
     :param title:
@@ -1578,7 +1579,7 @@ def get_tmdb_id_from_title_year(title, year):
             trailer_id = _get_tmdb_id_from_title_year(title, year - 1)
 
     except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
     except Exception:
         module_logger.exception('Error finding tmdbid for movie:', title,
                                 'year:', year)
@@ -1587,7 +1588,7 @@ def get_tmdb_id_from_title_year(title, year):
 
 
 def _get_tmdb_id_from_title_year(title, year):
-    # type: (TextType, int) -> int
+    # type: (str, int) -> int
     """
         When we don't have a trailer for a movie, we can
         see if TMDB has one.
@@ -1730,7 +1731,9 @@ def _get_tmdb_id_from_title_year(title, year):
             if logger.isEnabledFor(Logger.DEBUG):
                 logger.debug('Could not find movie:', title, 'year:', year,
                              'at TMDB. found no candidates')
-    except (Exception):
+    except AbortException:
+            reraise(*sys.exc_info())
+    except Exception:
         logger.exception('')
 
     tmdb_id = None
@@ -1742,7 +1745,7 @@ def _get_tmdb_id_from_title_year(title, year):
 
 
 def is_language_present(tmdb_json, title):
-    # type: (MovieType, TextType) -> (bool, bool, bool)
+    # type: (MovieType, str) -> (bool, bool, bool)
     """
 
     :param tmdb_json:

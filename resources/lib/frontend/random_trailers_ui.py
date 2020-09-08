@@ -4,9 +4,6 @@ Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import sys
 import os
@@ -16,24 +13,18 @@ import xbmcgui
 
 from xml.dom import minidom
 
-from kodi_six import utils
-
 from common.constants import Constants, Movie
+from common.imports import *
 from common.playlist import Playlist
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from player.player_container import PlayerContainer
 from common.settings import Settings
-from common.watchdog import WatchDog
 from frontend.trailer_dialog import TrailerDialog, DialogState
 from frontend.black_background import BlackBackground
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-    ).getChild('frontend.random_trailers_ui')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 '''
@@ -79,18 +70,22 @@ else:
 
 # TODO: Move to ui_utils
 
-logger = module_logger
+if not Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
+    # Need module name for logging outside of class
+    logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
+else:
+    logger = module_logger
 
 # noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
 
 
 def get_title_font():
-    # type: () -> TextType
+    # type: () -> str
     """
 
     :return:
     """
-    if logger.isEnabledFor(Logger.DEBUG):
+    if logger.isEnabledFor(LazyLogger.DEBUG):
         logger.debug('In randomtrailer.get_title_font')
     title_font = 'font13'
     base_size = 20
@@ -149,10 +144,10 @@ def play_trailers():
             del black_background
             black_background = None
         if exiting_playing_movie:
-            if logger.isEnabledFor(Logger.DEBUG):
+            if logger.isEnabledFor(LazyLogger.DEBUG):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
-        if logger.isEnabledFor(Logger.DEBUG):
+        if logger.isEnabledFor(LazyLogger.DEBUG):
             logger.debug('About to local_monitor.exit()')
             logger.exit()
 
@@ -171,12 +166,11 @@ class StartUI(threading.Thread):
         """
         super().__init__(name='startUI')
         self._logger = module_logger.getChild(self.__class__.__name__)
-        if self._logger.isEnabledFor(Logger.DEBUG):
+        if self._logger.isEnabledFor(LazyLogger.DEBUG):
             self._logger.enter()
 
         self._player_container = None
         self._started_as_screensaver = started_as_screesaver
-        WatchDog.register_thread(self)
 
     # Don't start if Kodi is busy playing something
 
@@ -187,7 +181,7 @@ class StartUI(threading.Thread):
         :return:
         """
         try:
-            if self._logger.isEnabledFor(Logger.DEBUG):
+            if self._logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
             self.start_playing_trailers()
@@ -199,7 +193,7 @@ class StartUI(threading.Thread):
             self._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(Logger.DEBUG):
+            if logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('Stopping xbmc.Player')
 
             Monitor.abort_requested()
@@ -213,13 +207,13 @@ class StartUI(threading.Thread):
         """
         # black_background = None
         try:
-            if logger.isEnabledFor(Logger.DEBUG):
+            if logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
 
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
-                if logger.isEnabledFor(Logger.DEBUG_EXTRA_VERBOSE):
+                if logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     self._logger.debug_extra_verbose(
-                        'Python path:', utils.py2_decode(sys.path))
+                        'Python path:', sys.path)
 
                 if (self._started_as_screensaver and
                         Settings.is_set_fullscreen_when_screensaver()):
@@ -230,7 +224,7 @@ class StartUI(threading.Thread):
 
                 current_dialog_id = xbmcgui.getCurrentWindowDialogId()
                 current_window_id = xbmcgui.getCurrentWindowId()
-                if logger.isEnabledFor(Logger.DEBUG):
+                if logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('CurrentDialogId, CurrentWindowId:',
                                        current_dialog_id,
                                        current_window_id)
@@ -266,7 +260,7 @@ class StartUI(threading.Thread):
                         xbmc.executebuiltin(
                             'XBMC.SetVolume(' + str(current_volume) + ')')
 
-                if logger.isEnabledFor(Logger.DEBUG):
+                if logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Shutting down')
                 Playlist.shutdown()
             else:
@@ -279,7 +273,7 @@ class StartUI(threading.Thread):
             self._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(Logger.DEBUG):
+            if logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
@@ -289,7 +283,7 @@ class StartUI(threading.Thread):
                     and self._player_container.get_player() is not None):
                 self._player_container.get_player().stop()
 
-            if logger.isEnabledFor(Logger.DEBUG):
+            if logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('Deleting black screen')
 
             black_background = BlackBackground.get_instance()
@@ -313,11 +307,3 @@ class StartUI(threading.Thread):
             return True
         else:
             return False
-
-    def shutdown_thread(self):
-        # type: () -> None
-        """
-
-        :return:
-        """
-        pass
