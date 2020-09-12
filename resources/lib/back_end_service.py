@@ -224,7 +224,7 @@ def profiler_thread():
             stats.print_stats()
             f.close()
     except AbortException:
-            reraise(*sys.exc_info())
+        reraise(*sys.exc_info())
     except Exception:
         module_logger.exception('')
 
