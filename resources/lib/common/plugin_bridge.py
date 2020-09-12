@@ -112,8 +112,11 @@ class PluginBridge(object):
                                        'source_id:', source_id)
         Monitor.throw_exception_if_abort_requested()
 
-        AddonSignals.sendSignal(signal, data=data,
-                                source_id=source_id)
+        try:
+            AddonSignals.sendSignal(signal, data=data,
+                                    source_id=source_id)
+        except Exception as e:
+            cls._logger.exception(e)
 
     @classmethod
     def register_slot(cls, signaler_id, signal, callback):
