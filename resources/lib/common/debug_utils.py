@@ -6,18 +6,19 @@ Created on Feb 19, 2019
 @author: Frank Feuerbacher
 """
 
-
-from .imports import *
-
-import xbmc
-from common.constants import Constants, Movie
-from common.logger import (LazyLogger)
-from common.rating import Rating
-
 import sys
 import json
 import threading
 import traceback
+
+
+import xbmc
+from common.constants import Constants, Movie
+from common.imports import *
+from common.logger import (LazyLogger)
+from common.rating import WorldCertifications
+from common.settings import Settings
+
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -226,9 +227,12 @@ class Debug(object):
             else:
                 cls._logger.debug('Missing properties:', msg)
 
-        if movie[Movie.MPAA] not in Rating.POSSIBLE_RATINGS:
+        country_id = Settings.getLang_iso_3166_1().lower()
+        certifications = WorldCertifications.get_certifications(country_id)
+        if not certifications.is_valid(movie[Movie.MPAA]):
             cls._logger.debug('Invalid MPAA rating: {} for movie: {} set to NR'
                               .format(movie[Movie.MPAA], movie[Movie.TITLE]))
-            movie[Movie.MPAA] = Rating.RATING_NR
+            movie[Movie.MPAA] = certifications.get_unrated_certification()\
+                .get_preferred_id()
 
         assert not is_failed, 'LEAK, Invalid property values'

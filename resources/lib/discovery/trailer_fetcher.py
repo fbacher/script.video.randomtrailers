@@ -24,6 +24,8 @@ from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.disk_utils import DiskUtils
 from common.playlist import Playlist
 from common.exceptions import AbortException
+from common.imports import *
+from common.rating import WorldCertifications
 from common.settings import Settings
 from common.logger import (Logger, Trace, LazyLogger)
 from common.messages import Messages
@@ -31,7 +33,6 @@ from backend.tmdb_utils import (TMDBUtils)
 from backend.movie_entry_utils import (MovieEntryUtils)
 
 from discovery.abstract_movie_data import AbstractMovieData
-from common.rating import Rating
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 from cache.cache import (Cache)
@@ -596,9 +597,10 @@ class TrailerFetcher(TrailerFetcherInterface):
         trailer_type = ''
         you_tube_base_url = YOUTUBE_URL_PREFIX
         image_base_url = 'http://image.tmdb.org/t/p/'
-        include_adult = 'false'
-        if Rating.check_rating(Rating.RATING_NC_17):
-            include_adult = 'true'
+        country_id = Settings.getLang_iso_3166_1().lower()
+        certifications = WorldCertifications.get_certifications(country_id)
+        adult_certification = certifications.get_adult_certification()
+        include_adult = certifications.filter(adult_certification)
 
         allowed_genres = []
         allowed_tags = []
@@ -610,6 +612,9 @@ class TrailerFetcher(TrailerFetcherInterface):
         vote_comparison, vote_value = Settings.get_tmdb_avg_vote_preference()
 
         # Since we may leave early, populate with dummy data
+
+        unrated_id = certifications.get_unrated_certification().get_preferred_id()
+
         messages = Messages
         missing_detail = messages.get_msg(Messages.MISSING_DETAIL)
         dict_info = {}
@@ -618,7 +623,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         dict_info[Movie.ORIGINAL_TITLE] = ''
         dict_info[Movie.YEAR] = 0
         dict_info[Movie.STUDIO] = [missing_detail]
-        dict_info[Movie.MPAA] = Rating.RATING_NR
+        dict_info[Movie.MPAA] = unrated_id
         dict_info[Movie.THUMBNAIL] = ''
         dict_info[Movie.TRAILER] = ''
         dict_info[Movie.FANART] = ''
@@ -794,7 +799,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if c['iso_3166_1'] == Settings.getLang_iso_3166_1():
                     mpaa = c['certification']
             if mpaa == '' or mpaa is None:
-                mpaa = Rating.RATING_NR
+                mpaa = unrated_id
             dict_info[Movie.MPAA] = mpaa
 
             fanart = image_base_url + 'w380' + \
@@ -931,10 +936,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             dict_info[Movie.ADULT] = adult_movie
             dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
 
-            # Normalize rating
+            # Normalize certification
 
-            mpaa = Rating.get_mpa_rating(mpaa_rating=mpaa, adult_rating=None)
-            if not Rating.check_rating(mpaa):
+            country_id = Settings.getLang_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            certification = certifications.get_certification(
+                dict_info.get(Movie.MPAA), dict_info.get(Movie.ADULT))
+
+            if not certifications.filter(certification):
                 add_movie = False
                 if type(self)._logger.isEnabledFor(Logger.DEBUG):
                     type(self)._logger.debug('Rejected due to rating')
@@ -1055,11 +1064,13 @@ class TrailerFetcher(TrailerFetcherInterface):
             runTime = self.get_runtime(trailer, tmdb_detail_movie_info, source)
             trailer[Movie.DETAIL_RUNTIME] = runTime
 
-            rating = Rating.get_mpa_rating(trailer.get(
-                Movie.MPAA), trailer.get(Movie.ADULT))
-            trailer[Movie.DETAIL_CERTIFICATION] = rating
+            country_id = Settings.getLang_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            certification = certifications.get_certification(
+                trailer.get(Movie.MPAA), trailer.get(Movie.ADULT))
+            trailer[Movie.DETAIL_CERTIFICATION] = certification.get_label()
 
-            img_rating = Rating.get_image_for_rating(rating)
+            img_rating = certifications.get_image_for_rating(certification)
             trailer[Movie.DETAIL_CERTIFICATION_IMAGE] = img_rating
 
             trailer[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_READY_TO_DISPLAY
@@ -1611,8 +1622,12 @@ def _get_tmdb_id_from_title_year(title, year):
     data['primary_release_year'] = year
 
     try:
+        country_id = Settings.getLang_iso_3166_1().lower()
+        certifications = WorldCertifications.get_certifications(country_id)
+        adult_certification = certifications.get_adult_certification()
+
         include_adult = 'false'
-        if Rating.check_rating(Rating.RATING_NC_17):
+        if certifications.filter(adult_certification):
             include_adult = 'true'
         data['include_adult'] = include_adult
 

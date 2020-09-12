@@ -1273,16 +1273,20 @@ class Settings(object):
             the time) to determine the certification body (mpaa) then
             should change name. Also, only US is supported.
         """
-        return 'US'
+        language_code = Settings.get_locale()
+        return language_code.split('_')[0]
 
     @staticmethod
     def get_locale():
-        # type: () -> None
+        # type: () -> str
         """
 
         :return:
         """
-        locale.setlocale(locale.LC_ALL, 'en_US')
+        #locale.setlocale(locale.LC_ALL, 'en_US')
+        language_code, encoding = locale.getdefaultlocale()
+
+        return language_code
 
     @staticmethod
     def get_max_tmdb_trailers():
@@ -1441,15 +1445,15 @@ class Settings(object):
 
     @staticmethod
     def get_rating_limit_setting():
-        # type: () -> str
+        # type: () -> int
         """
 
         :return:
         """
         try:
-            rating_limit = Settings.get_addon().setting(Settings.RATING_LIMIT)
+            rating_limit = Settings.get_setting_int(Settings.RATING_LIMIT)
         except Exception:
-            rating_limit = ''
+            rating_limit = 0
 
         return rating_limit
 

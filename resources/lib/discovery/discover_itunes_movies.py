@@ -12,6 +12,7 @@ import sys
 from common.constants import Constants, Movie, iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
+from common.rating import WorldCertifications
 from common.exceptions import AbortException
 from common.imports import *
 from common.messages import Messages
@@ -21,7 +22,6 @@ from common.settings import Settings
 from common.utils import Utils
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
-from common.rating import Rating
 from backend.genreutils import GenreUtils
 from backend import backend_constants
 from backend.itunes import ITunes
@@ -210,6 +210,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #                type(parsed_content).__name__)
 
         DiskUtils.RandomGenerator.shuffle(parsed_content)
+        country_id = Settings.getLang_iso_3166_1().lower()
+        certifications = WorldCertifications.get_certifications(country_id)
+        unrated_id = certifications.get_unrated_certification().get_preferred_id()
         for itunes_movie in parsed_content:
             try:
                 Monitor.throw_exception_if_abort_requested()
@@ -282,10 +285,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 # We expect the attribute to be named 'mpaa', not 'rating'
 
                 itunes_movie[Movie.MPAA] = itunes_movie['rating']
-                rating = Rating.get_mpa_rating(
+                certification = certifications.get_certification(
                     itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
+                #  rating = Certifications.get_certification(
+                #      itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
                 if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('rating: ', rating)
+                    type(self).logger.debug('certification: ',
+                                            certification.get_label())
 
                 genres = itunes_movie.get('genre', '')
                 if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
@@ -387,18 +393,18 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                 if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                                     type(self).logger.debug(
                                         'Rejecting due to excluded genre')
-                        elif not Rating.check_rating(rating):
+                        elif not certifications.filter(certification):
                             keep_promotion = False
                             if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                                 type(self).logger.debug('Rejecting due to rating:',
-                                                   rating)
+                                                        certification.get_label())
                         if keep_promotion:
                             feature_url = 'https://trailers.apple.com' + \
                                 itunes_movie.get('location')
                             movie = self.get_trailer_url(feature_url,
                                                          title=title,
                                                          trailer_type=trailer_type,
-                                                         rating=rating,
+                                                         rating=certification.get_label(),
                                                          adult=adult,
                                                          release_date=release_date,
                                                          genres=genres,

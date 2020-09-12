@@ -8,7 +8,7 @@ Created on Mar 4, 2019
 
 from common.imports import *
 
-from common.rating import Rating
+#  from common.rating import Rating
 from common.settings import Settings
 
 
@@ -19,12 +19,12 @@ class TmdbSettings(object):
     """
     _instance = None
 
-    _rating_limit_string_for_setting = {'0': Rating.RATING_NC_17,
-                                    '1': Rating.RATING_G,
-                                    '2': Rating.RATING_PG,
-                                    '3': Rating.RATING_PG_13,
-                                    '4': Rating.RATING_R,
-                                    '5': Rating.RATING_NC_17}
+    #_rating_limit_string_for_setting = {'0': Rating.RATING_NC_17,
+    #                                '1': Rating.RATING_G,
+    #                                '2': Rating.RATING_PG,
+    #                                '3': Rating.RATING_PG_13,
+    #                                '4': Rating.RATING_R,
+    #                                '5': Rating.RATING_NC_17}
 
     _trailer_type_string_for_setting_map = {'0': 'popular',
                                        '1': 'top_rated',
@@ -52,7 +52,8 @@ class TmdbSettings(object):
         :return:
         """
         rating_limit = Settings.get_rating_limit_setting()
-        return TmdbSettings._rating_limit_string_for_setting[rating_limit]
+        # return TmdbSettings._rating_limit_string_for_setting[rating_limit]
+        return 'R'
 
     def get_trailer_type(self):
         # type: () -> str

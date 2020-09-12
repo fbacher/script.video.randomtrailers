@@ -10,6 +10,10 @@ from common.imports import *
 import os
 import re
 import sys
+import threading
+from contextlib import closing
+import xmltodict
+import xbmcvfs
 
 from common.exceptions import AbortException
 from common.constants import (Constants)
@@ -21,188 +25,346 @@ from common.settings import Settings
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class Rating(object):
+class LoadCertificationDefinitions:
+    '''
+    Load certification information from XML files. Each file contains the
+    certifications used by typically one country (although certifications
+    for multiple countries can be in the same file).
+    '''
 
-    RATING_G = 'G'
-    RATING_PG = 'PG'
-    RATING_PG_13 = 'PG-13'
-    RATING_R = 'R'
-    RATING_NC_17 = 'NC-17'
-    RATING_NR = 'NR'
     _logger = None
-    ALLOWED_RATINGS = None
-    POSSIBLE_RATINGS = (RATING_G,
-                        RATING_PG,
-                        RATING_PG_13,
-                        RATING_R,
-                        RATING_NC_17,
-                        RATING_NR)
 
-    MESSAGE_IDS = {RATING_G: Messages.RATING_G,
-                   RATING_PG: Messages.RATING_PG,
-                   RATING_PG_13: Messages.RATING_PG_13,
-                   RATING_R: Messages.RATING_R,
-                   RATING_NC_17: Messages.RATING_NC_17,
-                   RATING_NR: Messages.RATING_NR}
+    def __init__(self):
+        cls = type(self)
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+        try:
+            path = os.path.join(Constants.ADDON_PATH,
+                                'resources', 'certifications')
+            for file in os.listdir(path):
+                xml_file = os.path.join(path, file)
+                if (file.endswith('.xml') and
+                        os.path.isfile(xml_file)):
+                    try:
+                        with closing(xbmcvfs.File(xml_file)) as content_file:
+                            rules = xmltodict.parse(
+                                bytes(content_file.readBytes()))
+                            self._create_certifications(xml_file, rules)
+                    except AbortException:
+                        reraise(*sys.exc_info())
+                    except Exception as e:
+                        type(self)._logger.exception(e)
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            type(self)._logger.exception(e)
 
-    def __init__(self, pattern, mpaa_rating_label):
-        self._pattern = pattern
-        self._mpaa_rating_label = mpaa_rating_label
+        pass
 
-    @classmethod
-    def _init_class(cls):
-        cls._logger = module_logger.getChild(cls.__name__)
+    def _create_certifications(self, pathname, rules: dict):
+        cls = type(self)
+        if rules is None:
+            cls._logger.error('{} contains invalid XML.'.format(pathname))
+            return
+        certifications_element = rules.get('certifications', None)
+        if certifications_element is None:
+            cls._logger.error('Can not find "certifications" entity in {}'
+                              .format(pathname))
+            return
 
-        cls.ALLOWED_RATINGS = (
+        countries_element = certifications_element.get('country', None)
+        if countries_element is None:
+            cls._logger.error('Can not find "country" entity in {}'
+                              .format(pathname))
+            return
+        if not isinstance(countries_element, list):
+            countries_element = [countries_element]
 
-            # General Audience
-            Rating(re.compile('^A$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^Approved$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^Rating Approved$'), Rating.RATING_G),
-            Rating(re.compile('^Rated Approved$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^Passed$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^Rated Passed$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^P$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^G$'), Rating.RATING_G),  # Hays
-            Rating(re.compile('^G .*$'), Rating.RATING_G),
-            Rating(re.compile('^Rated G.*$'), Rating.RATING_G),
-            Rating(re.compile('^TV-G.*$'), Rating.RATING_G),
-            Rating(re.compile('^Rated TV-G.*$'), Rating.RATING_G),
-            Rating(re.compile('^Rated$'), Rating.RATING_G),  # Hays
+        for country_element in countries_element:
+            country_label = country_element.get('@name', None)
+            if country_label is None:
+                cls._logger.error('Missing country "name" attribute in {}'
+                                  .format(pathname))
+                country_label = 'Missing'
 
-            # For young teens
+            country_id = country_element.get('@id', None)
+            if country_id is None:
+                cls._logger.error('Missing "country_id" attribute in {}'
+                                  .format(pathname))
+                country_id = 'Missing'
 
-            Rating(re.compile('^PG$'), Rating.RATING_PG),
-            Rating(re.compile('^PG .*$'), Rating.RATING_PG),  # PG with comment
-            Rating(re.compile('^Rated PG.*$'), Rating.RATING_PG),
-            Rating(re.compile('^TV-PG.*$'), Rating.RATING_PG),
-            Rating(re.compile('^Rated TV-PG.*$'), Rating.RATING_PG),
+            certification_label = country_element.get(
+                '@certification_name', None)
+            if certification_label is None:
+                cls._logger.error('Missing "certification_name" attribute in {}'
+                                  .format(pathname))
+                certification_label = 'Missing'
 
-            # For older teens, more mature
+            certifications = Certifications(country_id, country_label,
+                                            certification_label)
 
-            Rating(re.compile('^M$'), Rating.RATING_PG_13),  # Early MPAA
-            Rating(re.compile('^GP$'), Rating.RATING_PG_13),  # Replaced M
-            Rating(re.compile('^PG-13$'), Rating.RATING_PG_13),  # Replaced M
-            # PG-13 with comment
-            Rating(re.compile('^PG-13 .*$'), Rating.RATING_PG_13),
-            Rating(re.compile('^Rated PG-13.*$'), Rating.RATING_PG_13),
-            # Restricted
-            Rating(re.compile('^R$'), Rating.RATING_R),
-            Rating(re.compile('^R .*$'), Rating.RATING_R),  # R with comment
-            Rating(re.compile('^Rated R.*$'),
-                   Rating.RATING_R),  # R with comment
-            # Adult
-            Rating(re.compile('^NC-17.*$'), Rating.RATING_NC_17),
-            Rating(re.compile('^Rated NC-17.*$'), Rating.RATING_NC_17),
-            Rating(re.compile('^X.*$'), Rating.RATING_NC_17),
+            ranking: int = 0
+            display: str = ''
+            age: int = 0
+            adult: bool = False
+            preferred_id: str = ''
+            image_id: str = ''
 
-            Rating(re.compile('^NR$'), Rating.RATING_NR),
-            Rating(re.compile('^Rated NR$'), Rating.RATING_NR),
-            Rating(re.compile('^Not Rated$'), Rating.RATING_NR),
-            Rating(re.compile('^Rated Not Rated$'), Rating.RATING_NR),
-            Rating(re.compile('^Rated UR$'), Rating.RATING_NR),
-            Rating(re.compile('^Unrated$'), Rating.RATING_NR),
-            Rating(re.compile('^Rated Unrated$'), Rating.RATING_NR)
-        )
+            certification_element_list = country_element.get(
+                'certification', None)
+            if certification_element_list is None:
+                cls._logger.error('Missing "certification element in {}'
+                                  .format(pathname))
+            else:
+                if not isinstance(certification_element_list, list):
+                    certification_element_list = [certification_element_list]
 
-    @classmethod
-    def get_mpa_rating(cls, mpaa_rating='', adult_rating=False):
+                for certification_element in certification_element_list:
+                    ranking = certification_element.get('@ranking', None)
+                    display = certification_element.get('@display', None)
+                    adult = certification_element.get('@adult', None)
+                    age = certification_element.get('@age', None)
+                    preferred_id = certification_element.get(
+                        '@preferred_id', None)
+                    image_id = certification_element.get(
+                        '@image_id', None)
+                    if 'patterns' not in certification_element:
+                        cls._logger.error('Missing "patterns" element in {}'
+                                          .format(pathname))
+                        break
+                    patterns = []
+                    patterns_element = certification_element['patterns']
+                    pattern_element_list = patterns_element.get(
+                        'pattern', None)
+                    if pattern_element_list is None:
+                        cls._logger.error('Missing "pattern" elements in {}'
+                                          .format(pathname))
+                        break
+                    if not isinstance(pattern_element_list, list):
+                        pattern_element_list = [pattern_element_list]
 
-        rating = cls.RATING_NR
+                    for pattern_element in pattern_element_list:
+                        pattern = re.compile(pattern_element)
+                        patterns.append(pattern)
+
+                    certifications.add_certification(
+                        Certification(ranking, display, age, patterns, adult,
+                                      preferred_id, image_id))
+                WorldCertifications.add_certifications(country_id,
+                                                       certifications)
+
+
+LoadCertificationDefinitions()
+
+
+class Certification:
+    """
+    Represents a single certification (i.e. 'G', General Admission). Includes
+    Regex patterns which are used to parse Kodi's 'mpaa' field to determine
+    a film's certification. Since Kodi gets certification information from
+    various sources, different notations are used. Further, at least in the
+    'Hays' rating system, inconsistent terms were used for the same rating.
+    Further, there were some unofficial self-ratings (X, XXX).
+
+    """
+    UNRATED_RANK = 0
+    NOT_YET_RATED_RANK = 1
+    _logger = None
+
+    def __init__(self, rank: int, label: str, age: int, patterns,
+                 adult: bool = False,
+                 preferred_id: str = None, image_id: str = None):
+        self._rank: int = rank
+        self._label: str = label
+        self._age: int = age
+        self._patterns = patterns
+        self._adult: bool = adult
+        self._preferred_id: str = preferred_id
+        self._image_id: str = image_id
+        self._certifications = None
+
+    def add_certifications(self, certifications):
+        self._certifications = certifications
+
+    def get_patterns(self):
+        return self._patterns
+
+    def get_age(self) -> int:
+        """
+        Age is not used at the moment, but may be more useful that 'rank' in
+        filtering films. Basically certifications represent the minimum age
+        that someone should be before seeing a film.
+
+        :return:
+        """
+        return self._age
+
+    def get_rank(self) -> int:
+        return self._rank
+
+    def is_adult(self) -> bool:
+        return self._adult
+
+    def get_certifications(self):
+        return self._certifications
+
+    def get_label(self) -> str:
+        return self._label
+
+    def get_preferred_id(self) -> str:
+        return self._preferred_id
+
+    def get_image_id(self) -> str:
+        return self._image_id
+
+
+class Certifications:
+
+    _logger = None
+
+    def __init__(self, country_id: str, country_label: str, certification_label: str):
+        cls = type(self)
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+
+        self._country_id = country_id
+        self._country_label = country_label
+        self._label = certification_label
+        self._certifications: List[Certification] = []
+
+    def add_certification(self, certification: Certification) -> None:
+        certification.add_certifications(self)
+        self._certifications.append(certification)
+        # inefficient, but these are small lists
+        self._certifications.sort(key=lambda cert: cert.get_rank())
+
+    def get_certification(self, kodi_rating='', adult_rating=False):
+
+        # Certifications are ordered by increasing restriction or age
+
+        cls = type(self)
+        certification = self._certifications[1]  # Default / Not Rated
         if adult_rating is not None:
             if adult_rating:
-                rating = cls.RATING_NC_17
-
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            Rating._logger.debug_extra_verbose(
-                'rating:',
-                mpaa_rating, 'adult:', adult_rating)
+                # Last certification is adult
+                certification = self._certifications[-1]
+                return certification
 
         found_rating = False
-        for rating_pattern in cls.ALLOWED_RATINGS:
-            if rating_pattern._pattern.match(mpaa_rating):
-                found_rating = True
-                rating = rating_pattern._mpaa_rating_label
+        for cert in self._certifications:
+            for pattern in cert.get_patterns():
+                if pattern.match(kodi_rating):
+                    found_rating = True
+                    certification = cert
+                    break
+            if found_rating:
                 break
 
         if not found_rating:
-            if Rating._logger.isEnabledFor(LazyLogger.DEBUG):
-                Rating._logger.debug('MPAA rating not found for:',
-                                     mpaa_rating, 'assuming Not Rated')
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                cls._logger.debug('Certification not found for:',
+                                  kodi_rating, 'assuming Not Rated')
 
-        return rating
+        return certification
+
+    def get_unrated_certification(self):
+        return self._certifications[1]  # Default / Not Rated
+
+    def get_adult_certification(self):
+        return self._certifications[-1]
+
+    def is_valid(self, kodi_rating=''):
+
+        # Certifications are ordered by increasing restriction or age
+
+        cls = type(self)
+
+        found_rating = False
+        for cert in self._certifications:
+            for pattern in cert.get_patterns():
+                if pattern.match(kodi_rating):
+                    found_rating = True
+                    break
+
+        return found_rating
+
+    def get_country_id(self):
+        return self._country_id
 
     @classmethod
-    def get_image_for_rating(cls, rating):
-        if rating == Rating.RATING_G:
-            img_rating = 'ratings/g.png'
-        elif rating == Rating.RATING_PG:
-            img_rating = 'ratings/pg.png'
-
-        elif rating == Rating.RATING_PG_13:
-            img_rating = 'ratings/pg13.png'
-
-        elif rating == Rating.RATING_R:
-            img_rating = 'ratings/r.png'
-
-        elif rating == Rating.RATING_NC_17:
-            img_rating = 'ratings/nc17.png'
-
-        elif rating == Rating.RATING_NR:
-            img_rating = 'ratings/notrated.png'
-        return img_rating
+    def get_image_for_rating(cls, certification) -> str:
+        # ex: ratings/us/g.png
+        image = 'ratings/{}/{}.png'\
+            .format(certification._certifications.get_country_id(),
+                    certification.get_image_id())
+        return image
 
     '''
        Does the given movie rating pass the configured limit?
     '''
 
     @staticmethod
-    def check_rating(rating):
+    def filter(certification) -> bool:
+        '''
+        Checks whether a film's certification is within the configured
+        allowable range of certifications. The configurable settings
+        are:
+            The maximum age/maturity of a film allowed.
+            Are unrated films allowed.
+            Are Not-Yet-Rated films allowed (for new/pre-release trailers).
 
+        :param certification:
+        :return:
+        '''
         passed = False
-        max_rating = Settings.get_rating_limit_setting()
+        #
+        maximum_allowed_certification = Settings.get_rating_limit_setting()
 
         # if Rating._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-        #    Rating._logger.enter('rating:', rating, 'limit:', max_rating)
+        #    Rating._logger.enter('rating:', rating, 'limit:', maximum_allowed_certification)
 
-        if max_rating == '0':
+        if maximum_allowed_certification == Certification.UNRATED_RANK:
+            # All films are allowed
             passed = True
-        else:
-            do_nr = Settings.get_do_not_rated_setting()
-            nyr = ''
-            nr = ''
-
-            if Settings.get_include_not_yet_rated_trailers():
-                nyr = 'Not yet rated'
-
-            if do_nr:
-                nr = 'NR'
-
-            allowed_ratings = ''
-            if max_rating == '1':
-                allowed_ratings = ('G', nr, nyr)
-            elif max_rating == '2':
-                allowed_ratings = ('G', 'PG', nr, nyr)
-            elif max_rating == '3':
-                allowed_ratings = ('G', 'PG', 'PG-13', nr, nyr)
-            elif max_rating == '4':
-                allowed_ratings = ('G', 'PG', 'PG-13', 'R', nr, nyr)
-            elif max_rating == '5':
-                allowed_ratings = ('G', 'PG', 'PG-13', 'R',
-                                   'NC-17', 'NC17', nr, nyr)
-
-            if rating in allowed_ratings:
-                passed = True
+        elif certification.get_rank() <= maximum_allowed_certification:
+            passed = True
+        elif certification.get_rank() == Certification.NOT_YET_RATED_RANK:
+            passed = True
 
         return passed
 
-    @staticmethod
-    def get_message_for_rating(rating):
-        msg_id = Rating.MESSAGE_IDS[rating]
-        return Messages.get_msg(msg_id)
+
+class WorldCertifications:
+    _certifications_by_country = {}
+    _initialized = False
+    _lock = threading.RLock()
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def class_init(cls):
+        with cls._lock:
+            if not cls._initialized:
+                cls._initialized = True
+                LoadCertificationDefinitions()
+
+    @classmethod
+    def add_certifications(cls, country_id: str,
+                           certifications: Certifications):
+
+        cls._certifications_by_country[country_id] = certifications
+
+    @classmethod
+    def get_certifications(cls, country_id: str) -> Certifications:
+        with cls._lock:
+            if not cls._initialized:
+                cls.class_init()
+
+        return cls._certifications_by_country.get(country_id)
 
 
-Rating._init_class()
+WorldCertifications()
 
 '''
 TMDB ratings

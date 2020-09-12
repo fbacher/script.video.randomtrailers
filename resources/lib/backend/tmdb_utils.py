@@ -17,7 +17,7 @@ from common.settings import Settings
 from common.logger import (LazyLogger)
 from backend.movie_entry_utils import (MovieEntryUtils)
 
-from common.rating import Rating
+from common.rating import WorldCertifications
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 
@@ -183,7 +183,11 @@ class TMDBUtils(object):
 
         try:
             include_adult = 'false'
-            if Rating.check_rating(Rating.RATING_NC_17):
+
+            country_id = Settings.getLang_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            adult_certification = certifications.get_certification('dummy', True)
+            if certifications.filter(adult_certification):
                 include_adult = 'true'
             data['include_adult'] = include_adult
 

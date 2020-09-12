@@ -21,7 +21,7 @@ from common.exceptions import AbortException
 from common.logger import (LazyLogger, Trace, log_entry_exit)
 from common.messages import Messages
 from common.monitor import Monitor
-from common.rating import Rating
+from common.rating import WorldCertifications
 from common.utils import Utils
 from action_map import Action
 from common.settings import Settings
@@ -973,7 +973,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             # MPAA rating
             certification = self._movie[Movie.DETAIL_CERTIFICATION]
-            certification = Rating.get_message_for_rating(certification)
             text_to_speech.say_text(
                 Messages.get_formatted_msg(
                     Messages.VOICED_CERTIFICATION, certification))

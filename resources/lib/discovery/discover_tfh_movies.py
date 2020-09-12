@@ -5,8 +5,6 @@ Created on Apr 14, 2019
 @author: Frank Feuerbacher
 """
 
-from common.imports import *
-
 import sys
 import datetime
 import json
@@ -15,12 +13,13 @@ import xbmc
 from cache.tfh_cache import (TFHCache)
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
+from common.imports import *
 from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
 from common.settings import Settings
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
-from common.rating import Rating
+from common.rating import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.tfh_movie_data import TFHMovieData
 from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
@@ -249,6 +248,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             thumbnail = tfh_trailer['thumbnail']
             original_language = ''
             description = tfh_trailer['description']
+            country_id = Settings.getLang_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            unrated_id = certifications.get_unrated_certification().get_preferred_id()
             trailer_entry = {Movie.SOURCE: Movie.TFH_SOURCE,
                              Movie.TFH_ID: trailer_id,
                              Movie.TITLE: movie_title,
@@ -258,7 +260,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                              Movie.PLOT: description,
                              Movie.THUMBNAIL: thumbnail,
                              Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                             Movie.MPAA: Rating.RATING_NR,
+                             Movie.MPAA: unrated_id,
                              Movie.ADULT: False
                              }
             if Settings.get_max_number_of_tfh_trailers() <= len(TFHCache.get_cached_trailers()):

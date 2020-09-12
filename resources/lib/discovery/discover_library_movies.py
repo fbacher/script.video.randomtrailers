@@ -20,7 +20,7 @@ from common.logger import (Trace, LazyLogger)
 from common.settings import Settings
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
-from common.rating import Rating
+from common.rating import (WorldCertifications, Certifications)
 from backend.genreutils import GenreUtils
 from backend.movie_utils import LibraryMovieStats
 from backend.json_utils_basic import JsonUtilsBasic
@@ -347,10 +347,14 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         if Settings.is_enable_movie_stats():
             movie_data = LibraryMovieStats()
 
+        country_id = Settings.getLang_iso_3166_1().lower()
+        certifications = WorldCertifications.get_certifications(country_id)
+        unrated_id = certifications.get_unrated_certification().get_preferred_id()
+
         for movie in movies:
             self.throw_exception_on_forced_to_stop()
             try:
-                type(self).logger.debug('movie:', movie)
+                #type(self).logger.debug('movie:', movie)
                 movies_found += 1
                 if Settings.get_hide_watched_movies() and Movie.LAST_PLAYED in movie:
                     if (self.get_days_since_last_played(movie[Movie.LAST_PLAYED],
@@ -363,14 +367,16 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                                                'Watched Movies')
                         continue
 
-                # Normalize rating
+                # Normalize certification
 
                 # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                 #     type(self).logger.debug('mpaa:', movie[Movie.MPAA],
                 #                        'movie:', movie[Movie.TITLE])
-                if movie.get(Movie.MPAA, '') not in Rating.POSSIBLE_RATINGS:
-                    movie[Movie.MPAA] = Rating.RATING_NR
-                rating = Rating.get_mpa_rating(
+
+                if certifications.is_valid(movie.get(Movie.MPAA, '')):
+                    movie[Movie.MPAA] = unrated_id
+
+                certification = certifications.get_certification(
                     movie.get(Movie.MPAA), movie.get(Movie.ADULT))
                 movie[Movie.ADULT] = movie.get(Movie.ADULT, False)
                 if not isinstance(movie[Movie.ADULT], bool):
@@ -393,7 +399,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 # DiscoverLibraryNoTrailerMovies while
                 # those with trailer URLs to DiscoverLibraryURLTrailerMovies
 
-                if Rating.check_rating(rating):
+                if certifications.filter(certification):
                     trailer = movie[Movie.TRAILER]
                     if trailer == '':
                         movies_without_trailer_info += 1

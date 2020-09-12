@@ -5,7 +5,6 @@ Created on Apr 14, 2019
 @author: Frank Feuerbacher
 """
 
-
 import sys
 import datetime
 import json
@@ -26,7 +25,7 @@ from common.tmdb_settings import TmdbSettings
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from backend.genreutils import GenreUtils
 from backend.json_utils_basic import JsonUtilsBasic
-from common.rating import Rating
+from common.rating import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.tmdb_movie_data import TMDBMovieData
 
@@ -168,7 +167,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             self._language = Settings.getLang_iso_639_1()
             self._country = Settings.getLang_iso_3166_1()
             self._tmdb_api_key = Settings.get_tmdb_api_key()
-            self._include_adult = Rating.check_rating(Rating.RATING_NC_17)
+
+            country_id = Settings.getLang_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            adult_certification = certifications.get_adult_certification()
+            self._include_adult = certifications.filter(adult_certification)
 
             self._selected_keywords = ''
             self._selected_genres = ''
@@ -432,9 +435,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 result = False
             # if Settings.getLang_iso_3166_1() != movie[Movie.COUNTRY]:
             #     break
-            elif movie.get(Movie.MPAA) is not None and \
-                    not Rating.check_rating(movie[Movie.MPAA]):
-                result = False
+            elif movie.get(Movie.MPAA) is not None:
+                country_id = Settings.getLang_iso_3166_1().lower()
+                certifications = WorldCertifications.get_certifications(country_id)
+                certification = certifications.get_certification(
+                    movie.get(Movie.MPAA), movie.get(Movie.ADULT))
+
+                if not certifications.filter(certification):
+                    result = False
             # if self._vote_value
 
             elif not Settings.is_allow_foreign_languages() \
@@ -477,8 +485,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             # Normalize rating
 
-            mpaa = Rating.get_mpa_rating(mpaa_rating=mpaa, adult_rating=None)
-            if not Rating.check_rating(mpaa):
+            mpaa = Rating.get_certification(mpaa_rating=mpaa, adult_rating=None)
+            if not Rating.filter(mpaa):
                 add_movie = False
                 if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                     type(self).logger.debug('Rejected due to rating')

@@ -176,8 +176,10 @@ class MainThreadLoop(object):
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            self._logger.exception(e)
-    def ui_thread_runner(self):
+            cls._logger.exception(e)
+
+    @classmethod
+    def ui_thread_runner(cls):
         try:
             cls._start_ui = random_trailers_ui.StartUI(cls._is_screensaver)
             cls._start_ui.start()
