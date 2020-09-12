@@ -189,7 +189,7 @@ class MainThreadLoop(object):
             cls._logger.exception('')
 
     @classmethod
-    def run_on_main_thread(cls, callable_class: Callable) -> None :
+    def run_on_main_thread(cls, callable_class: Callable) -> None:
         """
 
         :param callable_class:
