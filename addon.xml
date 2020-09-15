@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <addon id="script.video.randomtrailers"
        name="Random Trailers"
-       version="2.0.2"
+       version="2.0.3"
        provider-name="fbacher">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -31,10 +31,7 @@
         <summary lang="en_GB">Plays Random Trailers from Multiple Sources</summary>
         <description lang="en_GB">
 Plays random movie trailers from a variety of sources:
- - Movie Library
- - Apple iTunes
- - Themoviedb.org
- - Specified folder
+ - Movie Library, Apple iTunes, Themoviedb.org, Specified folder
 
 Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations.
 
@@ -59,7 +56,7 @@ Experimental:
         <forum>http://forum.xbmc.org/showthread.php?tid=167276</forum>
         <website></website>
         <email>fbacher@brisbin.net</email>
-        <source>https://github.com/fbacher/script.video.randomtrailers</source>
+        <source>https://github.com/fbacher/Kodi-script.video.randomtrailers</source>
         <news>v1.2.3 (01/02/201x)
             [new] some new feature
             [fix] some fix
