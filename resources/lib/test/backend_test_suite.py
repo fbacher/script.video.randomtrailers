@@ -4,12 +4,10 @@ Created on Aug 18, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
-
 import unittest
 import sys
+
+from common.imports import *
 from test.common.test_logger import (LazyLoggerTestCase)
 
 

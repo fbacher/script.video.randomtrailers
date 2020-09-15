@@ -6,14 +6,7 @@ Created on Apr 17, 2019
 @author: Frank Feuerbacher
 """
 
-
-from common.imports import *
-
 import unittest
-from functools import wraps
-from logging import Logger as Python_Logger
-from logging import (Handler, LogRecord, NOTSET)
-import logging
 import os
 import re
 import sys
@@ -21,14 +14,14 @@ import threading
 import traceback
 import cStringIO
 
-import six
 from kodi_six import xbmc, utils
 from kodi65.kodiaddon import Addon
 
-from common.exceptions import AbortException
 from common.constants import Constants
 from common.critical_settings import CriticalSettings
-from common.logger import (LazyLogger, Logger, Trace)
+from common.exceptions import AbortException
+from common.imports import *
+from common.logger import (LazyLogger, Trace)
 import common.logger as logger
 
 lazy_module_logger = LazyLogger.get_addon_module_logger()
