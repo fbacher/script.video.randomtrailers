@@ -1,731 +1,1344 @@
-# XBMC Media Center language file
+# Kodi Media Center language file
 # Addon Name: Random Trailers
 # Addon id: script.video.randomtrailers
-# Addon version: 2.0.2
+# Addon version: 2.0.3
 # Addon Provider: fbacher
 msgid ""
 msgstr ""
-"Project-Id-Version: XBMC-Addons\n"
-"Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
+"Project-Id-Version: KODI-Addons\n"
+"Report-Msgid-Bugs-To: https://github.com/fbacher/Kodi-script.video.randomtrailers\n"
 "POT-Creation-Date: 2019-01-29 13:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: English (Great Britain)\n"
+"Language-Team: English-GB\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Language: en_GB\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
-msgctxt "Addon Summary"
-msgid "Plays Random Trailers from Multiple Sources"
-msgstr "Plays Random Trailers from Multiple Sources"
+#msgctxt "Addon Summary"
+#msgid "Plays Random Trailers from Multiple Sources"
+#msgstr ""
 
-msgctxt "Addon Description"
-msgid ""
-"Plays random movie trailers from a variety of sources:[CR]"
-"-The Users Movie Library[CR]
-"-Apple iTunes[CR]"
-"-YouTube(via themoviedb.org)[CR]"
-"-A user specified folder[CR]"
-"[CR]"
-"Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating,"
-"select number of trailers, hide trailers of watched movies, and display opening / closing animations.[CR]"
-"When viewing trailers you can press UP or I to view movie information and DOWN or I to hide."
-"RIGHT or X will display next trailer. LEFT or ESC will exit. If the current playing trailer is from[CR]"
-"the users movie library hitting enter or return will play the associated movie."
-msgstr ""
-"Plays random movie trailers from a variety of sources:[CR]"
-"-The Users Movie Library[CR]
-"-Apple iTunes[CR]"
-"-YouTube(via themoviedb.org)[CR]"
-"-A user specified folder[CR]"
-"[CR]"
-"Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating,"
-"select number of trailers, hide trailers of watched movies, and display opening / closing animations.[CR]"
-"When viewing trailers you can press UP or I to view movie information and DOWN or I to hide."
-"RIGHT or X will display next trailer. LEFT or ESC will exit. If the current playing trailer is from[CR]"
-"the users movie library hitting enter or return will play the associated movie."
+#msgctxt "Addon Description"
+#msgid ""
+#"Plays random movie trailers from a variety of sources:[CR]"
+#"-The Users Movie Library[CR]
+#"-Apple iTunes[CR]"
+#"-YouTube(via themoviedb.org)[CR]"
+#"-A user specified folder[CR]"
+#"[CR]"
+#"Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating,"
+#"select number of trailers, hide trailers of watched movies, and display opening / closing animations.[CR]"
+#"When viewing trailers you can press UP or I to view movie information and DOWN or I to hide."
+#"RIGHT or X will display next trailer. LEFT or ESC will exit. If the current playing trailer is from[CR]"
+#"the users movie library hitting enter or return will play the associated movie."
 
-#All %s must remain in string but can change position
+#All {} must remain in string but can change position
 
 msgctxt "#32000"
 msgid "Number Of Trailers to Play (0 for Continuous)"
-msgstr "Translated Number Of Trailers to Play (0 for Continuous)"
+msgstr ""
 
 msgctxt "#32001"
 msgid "Play Opening and Closing Animation"
-msgstr "Play Opening and Closing Animation"
+msgstr ""
 
 msgctxt "#32002"
 msgid "Filter by Genre"
-msgstr "Filter by Genre
+msgstr ""
 
 msgctxt "#32003"
 msgid "Hide Movie Info"
-msgstr "Hide Movie Info"
+msgstr ""
 
+# settings.xml
+# library tab
 msgctxt "#32004"
 msgid "Hide Trailers of Watched Movies"
-msgstr "Hide Trailers of Watched Movies"
+msgstr ""
 
+# settings.xml
+# library tab
 msgctxt "#32005"
 msgid "Number of Days to Hide Watched Trailers"
-msgstr "Number of Days to Hide Watched Trailers"
+msgstr ""
 
+# settings.xml
+# Common settings tab, Adjust Volume of Media group (#32061)
+# Reduces the volume of trailers. Label 32011 is for setting the
+# reduced volume
 msgctxt "#32006"
 msgid "Reduce Volume During Playback"
-msgstr "Reduce Volume During Playback"
+msgstr ""
 
 msgctxt "#32007"
 msgid "Force Full Screen"
-msgstr "Force Full Screen"
+msgstr ""
 
 msgctxt "#32008"
 msgid "Show Movie Title During Playback"
-msgstr "Show Movie Title During Playback"
+msgstr ""
 
 msgctxt "#32009"
 msgid "Folder Settings"
-msgstr "Folder Settings"
+msgstr ""
 
 msgctxt "#32010"
 msgid "Path to Trailers"
-msgstr "Path to Trailers"
+msgstr ""
 
+# settings.xml
+# Reduces the volume of trailers to the given percent
 msgctxt "#32011"
 msgid "Volume (0-100)"
-msgstr "Volume (0-100)"
+msgstr ""
 
 msgctxt "#32012"
 msgid "Library Settings"
-msgstr "Library Settings"
+msgstr ""
 
 msgctxt "#32013"
 msgid "Apple iTunes Settings"
-msgstr "Apple iTunes Settings"
+msgstr ""
 
 msgctxt "#32014"
 msgid "Quality"
-msgstr "Quality"
+msgstr ""
 
 msgctxt "#32015"
 msgid "Library"
-msgstr "Library"
+msgstr ""
 
+# settings.xml
+# First tab, for settings common to trailers from local db, TMDB, TFH, iTunes
 msgctxt "#32016"
 msgid "Common"
-msgstr "Common"
+msgstr ""
 
 msgctxt "#32017"
 msgid "Source of Trailers"
-msgstr "Source of Trailers"
+msgstr ""
 
 msgctxt "#32018"
 msgid "Include Clips"
-msgstr "Include Clips"
+msgstr ""
 
 msgctxt "#32019"
 msgid "Include Featurettes"
-msgstr "Include Featurettes"
+msgstr ""
 
 msgctxt "#32020"
 msgid "Multiple Source Settings (Configure Each First)"
-msgstr "Multiple Source Settings (Configure Each First)"
+msgstr ""
 
 msgctxt "#32021"
 msgid "Include Trailers From Library"
-msgstr "Include Trailers From Library"
+msgstr ""
 
 msgctxt "#32022"
 msgid "Include Trailers From Folder"
-msgstr "Include Trailers From Folder"
+msgstr ""
 
 msgctxt "#32023"
 msgid "Include Trailers From Apple iTunes"
-msgstr "Include Trailers From Apple iTunes"
+msgstr ""
 
 msgctxt "#32024"
 msgid "Folder"
-msgstr "Folder"
+msgstr ""
 
 msgctxt "#32025"
 msgid "Apple iTunes"
-msgstr "Apple iTunes"
+msgstr ""
 
 #msgctxt "#32026"
 #msgid "Common Settings"
-#msgstr "Common Settings"
+#msgstr ""
 
 msgctxt "#32027"
 msgid "Selected Genres"
-msgstr "Selected Genres"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32028"
 msgid "Action and Adventure"
-msgstr "Action and Adventure"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32029"
 msgid "Comedy"
-msgstr "Comedy"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32030"
 msgid "Documentary"
-msgstr "Documentary"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32031"
 msgid "Drama"
-msgstr "Drama"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32032"
 msgid "Family"
-msgstr "Family"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32033"
 msgid "Fantasy"
-msgstr "Fantasy"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32034"
 msgid "Foreign"
-msgstr "Foreign"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32035"
 msgid "Horror"
-msgstr "Horror"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32036"
 msgid "Musical"
-msgstr "Musical"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32037"
 msgid "Romance"
-msgstr "Romance"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32038"
 msgid "Science Fiction"
-msgstr "Science Fiction"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32039"
 msgid "Thriller"
-msgstr "Thriller"
+msgstr ""
 
 msgctxt "#32040"
 msgid "Rating Limit"
-msgstr "Rating Limit"
+msgstr ""
 
 msgctxt "#32041"
 msgid "Include Not Yet Rated"
-msgstr "Include Not Yet Rated"
+msgstr ""
 
 msgctxt "#32042"
 msgid "Include Not Rated (NR)"
-msgstr "Include Not Rated (NR)"
+msgstr ""
 
 msgctxt "#32043"
 msgid "Type of Trailers to Include"
-msgstr "Type of Trailers to Include"
+msgstr ""
 
 msgctxt "#32044"
 msgid "Include Trailers from Themoviedb.org (YouTube)"
-msgstr "Include Trailers from Themoviedb.org (YouTube)"
+msgstr ""
 
 msgctxt "#32045"
 msgid "Themoviedb.org"
-msgstr "Themoviedb.org"
+msgstr ""
 
 msgctxt "#32046"
 msgid "Themoviedb.org Settings"
-msgstr "Themoviedb.org Settings"
+msgstr ""
 
 msgctxt "#32047"
 msgid "Popular"
-msgstr "Popular"
+msgstr ""
 
 msgctxt "#32048"
 msgid "Top Rated"
-msgstr "Top Rated"
+msgstr ""
 
 msgctxt "#32049"
 msgid "Upcoming"
-msgstr "Upcoming"
+msgstr ""
 
 msgctxt "#32050"
 msgid "Now Playing"
-msgstr "Now Playing"
+msgstr ""
 
 msgctxt "#32051"
 msgid "All"
-msgstr "All"
+msgstr ""
 
 # Msg 32052 is not in use
 msgctxt "#32052"
 msgid "New DVD Releases"
-msgstr "New DVD Releases"
+msgstr ""
 
 msgctxt "#32053"
 msgid "Play Trailers in Groups"
-msgstr "Play Trailers in Groups"
+msgstr ""
 
 msgctxt "#32054"
 msgid "Number of Trailers in Each Group"
-msgstr "Number of Trailers in Each Group"
+msgstr ""
 
 msgctxt "#32055"
 msgid "Minutes Between Groups"
-msgstr "Minutes Between Groups"
+msgstr ""
 
+# settings.xml
+# First group under "Common" tab
+# Allows trailers to be played as a screen saver instead of
+# manually launching plugin
 msgctxt "#32056"
 msgid "Configure as Screensaver using Skin Interface Settings."
-msgstr "Configure as Screensaver using Skin Interface Settings."
+msgstr ""
 
+# settings.xml
+# Force trailer to be played on entire Kodi screen, not some sub-window
+# of Kodi. Does NOT change Kodi application's window size.
 msgctxt "#32057"
 msgid "When Started as Screensaver, Switch to FullScreen Mode"
-msgstr "When Started as Screensaver, Switch to FullScreen Mode"
+msgstr ""
 
 msgctxt "#32058"
 msgid "Ratings Filters"
-msgstr "Ratings Filters"
+msgstr ""
 
 msgctxt "#32059"
 msgid "Playing Options"
-msgstr "Playing Options"
+msgstr ""
 
 msgctxt "#32060"
 msgid "Seconds to Display Movie Information"
-msgstr "Seconds to Display Movie Information"
+msgstr ""
 
+# settings.xml
+# Common Settings tab, label of first group in tab
 msgctxt "#32061"
 msgid "Adjust Volume of Media"
-msgstr "Adjust Volume of Media"
+msgstr ""
 
+# settings.xml
+# Common Settings tab, first group (32061)
+# Normalize volume of local trailers (runs through ffmpeg)
+# Addresses the problem with youtube (and other) trailers with
+# volumes that vary widely).
 msgctxt "#32062"
 msgid "Normalize Volume of Local Media"
-msgstr "Normalize Volume of Local Media"
+msgstr ""
 
+# settings.xml
+# Similar to 32062
 msgctxt "#32063"
 msgid "Normalize Volume of Downloaded Media"
-msgstr "Normalize Volume of Downloaded Media"
+msgstr ""
 
+# settings.xml
+# Label for first group in Genre tab
+# Allows users to filter trailers by Genre.
+# For each genre, user can choose "Ignore", "Exclude" or "Include"
+# See definitions for 32066 - 32068 for details
 msgctxt "#32064"
 msgid "Only show trailers for movies in the following Genres/Sub-Genres"
-msgstr "Only show trailers for movies in the following Genres/Sub-Genres"
+msgstr ""
 
+# settings.xml
+# Label for second group in Genre tab specifies first set of genres to filter
 msgctxt "#32065"
 msgid "Major Genres"
-msgstr "Major Genres"
+msgstr ""
 
+# settings.xml
+# Specifies filter to apply for a genre
+# Trailers with this genre will not impact filtering,
+# unless all filters are set to Ignore, then any trailer
+# can play.
+# If any filter is not Ignore, then played trailers have genres:
+# (Include_Genre1 OR Include_Genre2...) AND NOT (Exclude_Genre1 OR Exclude_Genre2...)
 msgctxt "#32066"
 msgid "Ignore"
-msgstr "Ignore"
+msgstr ""
 
+# settings.xml
+# Specifies filter to apply for a genre
+# Trailers with this genre will be included for playing.
+# Note that movies can have more than one genre.
 msgctxt "#32067"
 msgid "Include"
-msgstr "Include"
+msgstr ""
 
+# settings.xml
+# Specifies filter to  apply for a genre
+# Trailers with this genre will be excluded for playing
 msgctxt "#32068"
 msgid "Exclude"
-msgstr "Exclude"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32069"
 msgid "Western"
-msgstr "Western"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Label for group of secondary, less common genres
 msgctxt "#32070"
 msgid "Secondary Genres"
-msgstr "Secondary Genres"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32071"
 msgid "Animation"
-msgstr "Animation"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32072"
 msgid "Biography"
-msgstr "Biography"
+msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32073"
 msgid "Crime"
-msgstr "Crime"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32074"
 msgid "History"
-msgstr "History"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32075"
 msgid "Mystery"
-msgstr "Mystery"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32076"
 msgid "War"
-msgstr "War"
+msgstr ""
 
+# settings.xml
+# Label for third, less common genres
 msgctxt "#32077"
 msgid "Sub-Genres"
-msgstr "Sub-Genres"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32078"
 msgid "Dark Comedy"
-msgstr "Dark Comedy"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32079"
 msgid "Epic"
-msgstr "Epic"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32080"
 msgid "Film Noir"
-msgstr "Film Noir"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32081"
 msgid "Melodrama"
-msgstr "Melodrama"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32082"
 msgid "Music"
-msgstr "Music"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32083"
 msgid "Pre-Code"
-msgstr "Pre-Code"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32084"
 msgid "Satire"
-msgstr "Satire"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32085"
 msgid "Screwball Comedy"
-msgstr "Screwball Comedy"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32086"
 msgid "Swashbuckler"
-msgstr "Swashbuckler"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32087"
 msgid "TV Movie"
-msgstr "TV Movie"
+msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32088"
 msgid "War Documentary"
-msgstr "War Documentary"
+msgstr ""
 
+# settngs.xml
+# Under library tab
+# Allow remote trailer paths (urls) to be downloaded
 msgctxt "#32089"
 msgid "Include movies with remote trailers"
-msgstr "Include movies with remote trailers"
+msgstr ""
 
+# settings.xml
+# Under library tab
+# When now trailer info is present, query TMDB (and perhaps other)
+# sources for the trailer.
 msgctxt "#32090"
 msgid "Include Movies with no Trailer Info"
-msgstr "Include Movies with no Trailer Info"
+msgstr ""
 
 msgctxt "#32091"
 msgid "When Media Is Downloaded..."
-msgstr "When Media Is Downloaded..."
+msgstr ""
 
 msgctxt "#32092"
 msgid "Include Trailers"
-msgstr "Include Trailers"
+msgstr ""
 
 msgctxt "#32093"
 msgid "Include Teasers"
-msgstr "Include Teasers"
+msgstr ""
 
 msgctxt "#32094"
 msgid "Allow foreign languages"
-msgstr "Allow foreign languages"
+msgstr ""
 
 msgctxt "#32095"
 msgid "Prefer Trailers with"
-msgstr "Prefer Trailers with"
+msgstr ""
 
 msgctxt "#32096"
 msgid "Filter based on average rating"
-msgstr "Filter based on average rating"
+msgstr ""
 
 msgctxt "#32097"
 msgid "None"
-msgstr "None"
+msgstr ""
 
 msgctxt "#32098"
 msgid "Greater or Equal"
-msgstr "Greater or Equal"
+msgstr ""
 
 msgctxt "#32099"
 msgid "Less or Equal"
-msgstr "Less or Equal"
+msgstr ""
 
 msgctxt "#32100"
 msgid "Newest"
-msgstr "Newest"
+msgstr ""
 
 msgctxt "#32101"
 msgid "Oldest"
-msgstr "Oldest"
+msgstr ""
 
 msgctxt "#32102"
 msgid "Highest Rated"
-msgstr "Highest Rated"
+msgstr ""
 
 msgctxt "#32103"
 msgid "Lowest Rated"
-msgstr "Lowest Rated"
+msgstr ""
 
 msgctxt "#32104"
 msgid "Most Votes"
-msgstr "Most Votes"
+msgstr ""
 
 msgctxt "#32105"
 msgid "Least Votes"
-msgstr "Least Votes"
+msgstr ""
 
 msgctxt "#32106"
 msgid "Rating to compare against (0-10)"
-msgstr "Rating to compare against (0-10)"
+msgstr ""
 
 msgctxt "#32107"
 msgid "Download trailers for old movies"
-msgstr "Download trailers for old movies"
+msgstr ""
 
 msgctxt "#32108"
 msgid "Filter by year range"
-msgstr "Filter by year range"
+msgstr ""
 
 msgctxt "#32109"
 msgid "Minimum year"
-msgstr "Minimum year"
+msgstr ""
 
 msgctxt "#32110"
 msgid "Maximum year"
-msgstr "Maximum year"
+msgstr ""
 
 msgctxt "#32111"
 msgid "Maximum Number of trailers"
-msgstr "Maximum Number of trailers"
+msgstr ""
 
 msgctxt "#32112"
 msgid "Maximum Number of movies to search for trailers"
-msgstr "Maximum Number of movies to search for trailers"
+msgstr ""
 
 msgctxt "#32113"
 msgid "Coming Soon"
-msgstr "Coming Soon"
+msgstr ""
 
 msgctxt "#32114"
 msgid "Just Added"
-msgstr "Just Added"
+msgstr ""
 
 msgctxt "#32115"
 msgid "Popular"
-msgstr "Popular"
+msgstr ""
 
 msgctxt "#32116"
 msgid "Exclusive"
-msgstr "Exclusive"
+msgstr ""
 
 msgctxt "#32117"
 msgid "All"
-msgstr "All"
+msgstr ""
 
 msgctxt "#32118"
-msgid "Playlists/Reports"
-msgstr "Playlists/Reports"
+msgid "Playlists"
+msgstr ""
 
 msgctxt "#32119"
 msgid "Cache"
-msgstr "Cache"
+msgstr ""
 
 msgctxt "#32120"
 msgid "Downloaded Data Cache"
-msgstr "Downloaded Data Cache"
+msgstr ""
 
 msgctxt "#32121"
 msgid "Cache Remote Query Results"
-msgstr "Cache Remote Query Results"
+msgstr ""
 
 msgctxt "#32122"
 msgid "Data Cache Path"
-msgstr "Data Cache Path"
+msgstr ""
 
 msgctxt "#32123"
 msgid "Maximum Days to Keep Cached Movie Data"
-msgstr "Maximum Days to Keep Cached Movie Data"
+msgstr ""
 
 msgctxt "#32124"
 msgid "Downloaded Media Cache"
-msgstr "Downloaded Media Cache"
+msgstr ""
 
 msgctxt "#32125"
 msgid "Cache Downloaded Media"
-msgstr "Cache Downloaded Media"
+msgstr ""
 
 msgctxt "#32126"
 msgid "Media Cache Path"
-msgstr "Media Cache Path"
+msgstr ""
 
 msgctxt "#32127"
 msgid "Maximum Days to Keep Cached Media"
-msgstr "Maximum Days to Keep Cached Media"
+msgstr ""
 
 msgctxt "#32128"
-msgid "Recheck Movies without Trailers"
-msgstr "Recheck Movies without Trailers"
+msgid "Number of days to wait before trying to find missing trailer"
+msgstr ""
 
 msgctxt "#32129"
 msgid "Data Cache Size Limits"
-msgstr "Data Cache Size Limits"
+msgstr ""
 
 msgctxt "#32130"
 msgid "Limit Data Disk Usage"
-msgstr "Limit Data Disk Usage"
+msgstr ""
 
 msgctxt "#32131"
 msgid "Limit Number of Data Files"
-msgstr "Limit Number of Data Files"
+msgstr ""
 
 msgctxt "#32132"
 msgid "Maximum Number of Data Files"
-msgstr "Maximum Number of Data Files"
+msgstr ""
 
 msgctxt "#32133"
 msgid "Limit Size of Data Cache"
-msgstr "Limit Size of Data Cache"
+msgstr ""
 
 msgctxt "#32134"
 msgid "Maximum Size of Data Cache (MB)"
-msgstr "Maximum Size of Data Cache (MB)"
+msgstr ""
 
 msgctxt "#32135"
-msgid "Limit Filesystem \% for Data Cache"
-msgstr "Limit Filesystem \% for Data Cache"
+msgid "Limit Filesystem % for Data Cache"
+msgstr ""
 
 msgctxt "#32136"
 msgid "Maximum % of Filesystem for Data Cache"
-msgstr "Maximum % of Filesystem for Data Cache"
+msgstr ""
 
 msgctxt "#32137"
 msgid "Media Cache Size Limits"
-msgstr "Media Cache Size Limits"
+msgstr ""
 
 msgctxt "#32138"
 msgid "Limit Trailer Disk Usage"
-msgstr "Limit Trailer Disk Usage"
+msgstr ""
 
 msgctxt "#32139"
 msgid "Limit Number of Media Files"
-msgstr "Limit Number of Media Files"
+msgstr ""
 
 msgctxt "#32140"
 msgid "Maximum Number of Media Files"
-msgstr "Maximum Number of Media Files"
+msgstr ""
 
 msgctxt "#32141"
 msgid "Limit Size of Media Cache"
-msgstr "Limit Size of Media Cache"
+msgstr ""
 
 msgctxt "#32142"
 msgid "Maximum Size of Media Cache (MB)"
-msgstr "Maximum Size of Media Cache (MB)"
+msgstr ""
 
 msgctxt "#32143"
-msgid "Limit Filesystem \% for Media Cache"
-msgstr "Limit Filesystem \% for Media Cache"
+msgid "Limit Filesystem % for Media Cache"
+msgstr ""
 
 msgctxt "#32144"
-msgid "Maximum \% of Filesystem for Media Cache"
-msgstr "Maximum \% of Filesystem for Media Cache"
+msgid "Maximum % of Filesystem for Media Cache"
+msgstr ""
 
 msgctxt "#32145"
 msgid "Advanced"
-msgstr "Advanced"
+msgstr ""
 
 msgctxt "#32146"
 msgid "A Personal API Key can reduce rejected requests due to traffic"
-msgstr "A Personal API Key can reduce rejected requests due to traffic"
+msgstr ""
 
 msgctxt "#32147"
-msgid "Personal API key for TMDB, The Movie Database. See themoviedatabase.org for more information"
-msgstr "Personal API key for TMDB, The Movie Database. See themoviedatabase.org for more information"
+msgid "Personal API key- See themoviedatabase.org"
+msgstr ""
 
 msgctxt "#32148"
-msgid "Storing the Movie's TMDB ID in The Database Reduces Requests to TMDB."
-msgstr "Storing the Movie's TMDB ID in The Database Reduces Requests to TMDB."
+msgid "Store Movie's TMDB ID in Database (Reduces Requests to TMDB)"
+msgstr ""
 
 msgctxt "#32149"
 msgid "Miscellaneous"
-msgstr "Miscellaneous"
+msgstr ""
 
 msgctxt "#32150"
 msgid "Configure Settings on Manual Startup"
-msgstr "Configure Settings on Manual Startup"
+msgstr ""
 
 msgctxt "#32151"
 msgid "Maximum Trailer Length (seconds)"
-msgstr "Maximum Trailer Length (seconds)"
+msgstr ""
 
 msgctxt "#32152"
 msgid "Experimental"
-msgstr "Experimental"
+msgstr ""
 
 msgctxt "#32153"
 msgid "Reporting Options"
-msgstr "Reporting Options"
+msgstr ""
 
 msgctxt "#32154"
 msgid "Number of top billed actors to include in hidden report"
-msgstr "Number of top billed actors to include in hidden report"
+msgstr ""
 
 msgctxt "#32155"
 msgid "Debug Options"
-msgstr "Debug Options"
+msgstr ""
 
 msgctxt "#32156"
 msgid "Enable Debug"
-msgstr "Enable Debug"
+msgstr ""
 
 msgctxt "#32157"
 msgid "Logging Level"
-msgstr "Logging Level"
+msgstr ""
 
 msgctxt "#32158"
 msgid "WARNING"
-msgstr "WARNING"
+msgstr ""
 
 msgctxt "#32159"
 msgid "NOTICE"
-msgstr "NOTICE"
+msgstr ""
 
 msgctxt "#32160"
 msgid "INFO"
-msgstr "INFO"
+msgstr ""
 
 msgctxt "#32161"
 msgid "DEBUG"
-msgstr "DEBUG"
+msgstr ""
 
 msgctxt "#32162"
 msgid "VERBOSE DEBUG"
-msgstr "VERBOSE DEBUG"
+msgstr ""
 
 msgctxt "#32163"
 msgid "EXTRA VERBOSE DEBUG"
-msgstr "EXTRA VERBOSE DEBUG"
+msgstr ""
 
 msgctxt "#32164"
 msgid "Enable Debug Trace"
-msgstr "Enable Debug Trace"
+msgstr ""
 
 msgctxt "#32165"
 msgid "Enable Debug Stats"
-msgstr "Enable Debug Stats"
+msgstr ""
 
 msgctxt "#32166"
 msgid "Generate Actor_Frequency.report"
-msgstr "Generate Actor_Frequency.report"
+msgstr ""
 
 msgctxt "#32167"
 msgid "Generate Genre_Frequency.report"
-msgstr "Generate Genre_Frequency.report"
+msgstr ""
 
 msgctxt "#32168"
 msgid "Generate Tag_Frequency.report"
-msgstr "Generate Tag_Frequency.report"
+msgstr ""
 
 msgctxt "#32169"
 msgid "Enable Movie Statistics Reporting"
-msgstr "Enable Movie Statistics Reporting"
+msgstr ""
+
+msgctxt "#32170"
+msgid "TFH"
+msgstr ""
+
+msgctxt "#32171"
+msgid "Include Trailers From Hell"
+msgstr ""
+
+msgctxt "#32172"
+msgid "Maximum Number of TFH trailers"
+msgstr ""
+
+msgctxt "#32173"
+msgid "Genres"
+msgstr ""
+
+msgctxt "#32174"
+msgid "Remote Trailers"
+msgstr ""
+
+# Keep in sync with script-trailerwindow. Used for Text To Speech
+msgctxt "#32175"
+msgid "Title"
+msgstr ""
+
+msgctxt "#32176"
+msgid "Director"
+msgstr ""
+
+msgctxt "#32177"
+msgid "Writer"
+msgstr ""
+
+msgctxt "#32178"
+msgid "Stars"
+msgstr ""
+
+msgctxt "#32179"
+msgid "Plot"
+msgstr ""
+
+msgctxt "#32180"
+msgid "This trailer exceeds the maximum play time. Terminating"
+msgstr ""
+
+msgctxt "#32181"
+msgid "TMDB"
+msgstr ""
+
+msgctxt "#32182"
+msgid "iTunes"
+msgstr ""
+
+msgctxt "#32183"
+msgid "Missing movie title"
+msgstr ""
+
+msgctxt "#32184"
+msgid "Unavailable"
+msgstr ""
+
+msgctxt "#32185"
+msgid "Can not read file: {}"
+msgstr ""
+
+msgctxt "#32186"
+msgid "Can not write file: {}"
+msgstr ""
+
+msgctxt "#32187"
+msgid "There are no trailers to play"
+msgstr ""
+
+msgctxt "#32188"
+msgid "Info"
+msgstr ""
+
+msgctxt "#32189"
+msgid "There is no movie associated with this trailer to play"
+msgstr ""
+
+msgctxt "#32190"
+msgid "Idle"
+msgstr ""
+
+msgctxt "#32191"
+msgid "Waiting to play next group of trailers"
+msgstr ""
+
+msgctxt "#32192"
+msgid "unlimited"
+msgstr ""
+
+msgctxt "#32193"
+msgid "No previous movie to play"
+msgstr ""
+
+msgctxt "#32194"
+msgid "Playing: {}"
+msgstr ""
+
+msgctxt "#32195"
+msgid "Genre: "
+msgstr ""
+
+msgctxt "#32196"
+msgid "{} [B]Minutes[/B] - "
+msgstr ""
+
+msgctxt "#32197"
+msgid "{} [B]Genre:[/B] {}"
+msgstr ""
+
+msgctxt "#32198"
+msgid "Action"
+msgstr ""
+
+msgctxt "#32199"
+msgid "Allegory"
+msgstr ""
+
+msgctxt "#32200"
+msgid "Anthology"
+msgstr ""
+
+msgctxt "#32201"
+msgid "Adventure"
+msgstr ""
+
+msgctxt "#32202"
+msgid "Animation"
+msgstr ""
+
+msgctxt "#32203"
+msgid "Biography"
+msgstr ""
+
+msgctxt "#32204"
+msgid "Dark Comedy"
+msgstr ""
+
+msgctxt "#32205"
+msgid "Children's"
+msgstr ""
+
+msgctxt "#32206"
+msgid "Comedy"
+msgstr ""
+
+msgctxt "#32207"
+msgid "Comedy Drama"
+msgstr ""
+
+msgctxt "#32208"
+msgid "Crime"
+msgstr ""
+
+msgctxt "#32209"
+msgid "Documentary"
+msgstr ""
+
+msgctxt "#32210"
+msgid "Drama"
+msgstr ""
+
+msgctxt "#32211"
+msgid "Epic"
+msgstr ""
+
+msgctxt "#32212"
+msgid "Experimental"
+msgstr ""
+
+msgctxt "#32213"
+msgid "Family"
+msgstr ""
+
+msgctxt "#32214"
+msgid "Fantasy"
+msgstr ""
+
+msgctxt "#32215"
+msgid "Film Noir'"
+msgstr ""
+
+msgctxt "#32216"
+msgid "Game Show"
+msgstr ""
+
+msgctxt "#32217"
+msgid "History"
+msgstr ""
+
+msgctxt "#32218"
+msgid "Horror"
+msgstr ""
+
+msgctxt "#32219"
+msgid "Melodrama"
+msgstr ""
+
+msgctxt "#32220"
+msgid "Music"
+msgstr ""
+
+msgctxt "#32221"
+msgid "Musical"
+msgstr ""
+
+msgctxt "#32222"
+msgid "Musical Comedy"
+msgstr ""
+
+msgctxt "#32223"
+msgid "Mystery"
+msgstr ""
+
+msgctxt "#32224"
+msgid "Science Fiction"
+msgstr ""
+
+msgctxt "#32225"
+msgid "Performance"
+msgstr ""
+
+msgctxt "#32226"
+msgid "Pre-Code"
+msgstr ""
+
+msgctxt "#32227"
+msgid "Romance"
+msgstr ""
+
+msgctxt "#32228"
+msgid "Romantic Comedy"
+msgstr ""
+
+msgctxt "#32229"
+msgid "Satire"
+msgstr ""
+
+msgctxt "#32230"
+msgid "Science Fiction"
+msgstr ""
+
+msgctxt "#32231"
+msgid "Screwball Comedy'"
+msgstr ""
+
+msgctxt "#32232"
+msgid "Schwashbuckler"
+msgstr ""
+
+msgctxt "#32233"
+msgid "Thriller"
+msgstr ""
+
+msgctxt "#32234"
+msgid "TV Movie"
+msgstr ""
+
+msgctxt "#32235"
+msgid "Variety"
+msgstr ""
+
+msgctxt "#32236"
+msgid "War"
+msgstr ""
+
+msgctxt "#32237"
+msgid "War Documentary"
+msgstr ""
+
+msgctxt "#32238"
+msgid "Western"
+msgstr ""
+
+msgctxt "#32239"
+msgid "Movie added to playlist: {}"
+msgstr ""
+
+msgctxt "#32240"
+msgid "Movie already in playlist: {}"
+msgstr ""
+
+msgctxt "#32241"
+msgid "Include thread information"
+msgstr ""
+
+# Some locales use the term "Certification" instead of "Rating" for
+# a film's certification
+msgctxt "#32242"
+msgid "Rating {}"
+msgstr ""
+
+msgctxt "#32243"
+msgid "G"
+msgstr ""
+
+msgctxt "#32244"
+msgid "PG"
+msgstr ""
+
+msgctxt "#32245"
+msgid "PG-13"
+msgstr ""
+
+msgctxt "#32246"
+msgid "R"
+msgstr ""
+
+msgctxt "#32247"
+msgid "NC-17"
+msgstr ""
+
+msgctxt "#32248"
+msgid "Not Rated"
+msgstr ""
+
+# A film's certification varies by country and the terminology varies
+# as well. In the US, certification are referred to as a film's "rating"
+# or "MPAA rating"
+# This message will be voiced when service.kodi.tts addon available.
+# The certification authority (MPAA) is different for each country
+msgctxt "#32249"
+msgid "MPAA rating {}"
+msgstr ""
+
+# Voiced message indicating a movie's ranking (i.e. 4.5 out of five stars).
+msgctxt "#32250"
+msgid "{} out of five stars"
+msgstr ""
+
+# settings.xml  & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32251"
+msgid "Talk-Show"
+msgstr ""
+
+# settings.xml  & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Short-film
+msgctxt "#32252"
+msgid "Short"
+msgstr ""
+
+# settings.xml  & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32253"
+msgid "Sport"
+msgstr ""
+
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32254"
+msgid "Reality-TV"
+msgstr ""
+
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32255"
+msgid "News"
+msgstr ""
+
+# settings.xml
+# When a trailer is playing, pressing a remote or keyboard's
+# number keys (0-9) will save the corresponding movie into a
+# playlist. These playlists can be named here.
+msgctxt "#32256"
+msgid "Name playlists that playing trailer is saved to by number keys."
+msgstr ""
+
+# settings.xml
+msgctxt "#32257"
+msgid "Saved by key_1"
+msgstr ""
+
+# settings.xml
+msgctxt "#32258"
+msgid "Saved by key_2"
+msgstr ""
+
+# settings.xml
+msgctxt "#32259"
+msgid "Saved by key_3"
+msgstr ""
+
+# settings.xml
+msgctxt "#32260"
+msgid "Saved by key_4"
+msgstr ""
+
+# settings.xml
+msgctxt "#32260"
+msgid "Saved by key_4"
+msgstr ""
+
+# settings.xml
+msgctxt "#32261"
+msgid "Saved by key_5"
+msgstr ""
+
+# settings.xml
+msgctxt "#32262"
+msgid "Saved by key_6"
+msgstr ""
+
+# settings.xml
+msgctxt "#32263"
+msgid "Saved by key_7"
+msgstr ""
+
+# settings.xml
+msgctxt "#32264"
+msgid "Saved by key_8"
+msgstr ""
+
+# settings.xml
+msgctxt "#32265"
+msgid "Saved by key_9"
+msgstr ""
+
+# settings.xml
+msgctxt "#32266"
+msgid "Saved by key_0"
+msgstr ""
+
+# settings.xml
+# Include thread information for each logged entry in kodi.log
+msgctxt "#32267"
+msgid "Include thread info"
+msgstr ""
+
+# settings.xml
+# Add the TMDB ID of movies as they are discovered. This
+# eliminates extra requests to themoviedatabase.org
+msgctxt "#32268"
+msgid "Update TMDB ID in database"
+msgstr ""

@@ -5,21 +5,17 @@ Created on May 25, 2019
 
 @author: Frank Feuerbacher
 '''
-from __future__ import absolute_import, division, print_function, unicode_literals
-
-from common.imports import *
 
 import datetime
-import sys
-import threading
 import queue
-import six
-
-from kodi_six import xbmc, xbmcgui
+import sys
+import os
+import threading
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException, ShutdownException, LogicError
-from common.logger import (Logger, LazyLogger, Trace, log_entry_exit)
+from common.exceptions import AbortException, LogicError
+from common.imports import *
+from common.logger import (LazyLogger, Trace, log_entry_exit)
 from common.messages import Messages
 from common.monitor import Monitor
 from frontend.front_end_bridge import FrontendBridge, FrontendBridgeStatus
@@ -27,18 +23,13 @@ from common.settings import Settings
 from frontend.history_list import HistoryList
 from frontend.history_empty import HistoryEmpty
 
-from frontend.utils import ReasonEvent, BaseWindow, ScreensaverManager, ScreensaverState
-
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger(
-    ).getChild('frontend.movie_manager')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class MovieStatus(FrontendBridgeStatus):
     PREVIOUS_MOVIE = 'PREVIOUS_MOVIE'
     NEXT_MOVIE = 'NEXT_MOVIE'
+
 
 class MovieManager(object):
 
@@ -51,12 +42,10 @@ class MovieManager(object):
         """
         self._logger = module_logger.getChild(self.__class__.__name__)
         super().__init__()
-        self._movie_history = None
         self._play_open_curtain_next = None
         self._play_close_curtain_next = None
-        self._movie_history = HistoryList()
         self._movie_history_cursor = None
-        self.front_end_bridge = FrontendBridge.get_instance()
+        FrontendBridge()
         self._play_open_curtain_next = Settings.get_show_curtains()
         self._play_next_trailer = False
         self._play_previous_trailer = False
@@ -67,7 +56,7 @@ class MovieManager(object):
         self.pre_fetch_trailer()
 
     def get_next_trailer(self):
-        # type: () -> (TextType, MovieType)
+        # type: () -> (str, MovieType)
         """
 
         :return:
@@ -91,39 +80,83 @@ class MovieManager(object):
             status = MovieStatus.PREVIOUS_MOVIE
             self._play_previous_trailer = False
             try:
-                trailer = self._movie_history.get_previous_movie()
-            except (HistoryEmpty):
-                six.reraise(*sys.exc_info())
+                trailer = HistoryList.get_previous_movie()
+            except HistoryEmpty:
+                reraise(*sys.exc_info())
         elif self._play_next_trailer:
             status = MovieStatus.NEXT_MOVIE
             self._play_next_trailer = False
-            trailer = self._movie_history.get_next_movie()
+            trailer = HistoryList.get_next_movie()
+            countdown = 50
+            while trailer is None and countdown >= 0:
+                countdown -= 1
+                if not self._pre_fetched_trailer_queue.empty():
+                    trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
+                Monitor.throw_exception_if_abort_requested(timeout=0.1)
             if trailer is None:
-                trailer = self._pre_fetched_trailer_queue.get()
-                self._movie_history.append(trailer)
+                status = MovieStatus.TIMED_OUT
+            else:
+                HistoryList.append(trailer)
         else:
             status = MovieStatus.OK
-            trailer = self._movie_history.get_next_movie()
+            trailer = HistoryList.get_next_movie()
+            countdown = 50
+            while trailer is None and countdown >= 0:
+                countdown -= 1
+                if not self._pre_fetched_trailer_queue.empty():
+                    trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
+                Monitor.throw_exception_if_abort_requested(timeout=0.1)
             if trailer is None:
-                trailer = self._pre_fetched_trailer_queue.get()
-                self._movie_history.append(trailer)
+                status = MovieStatus.TIMED_OUT
+            else:
+                HistoryList.append(trailer)
 
         title = None
         if trailer is not None:
+            if self.purge_removed_cached_trailers(trailer):
+                HistoryList.remove(trailer)
+                return self.get_next_trailer()
+
+        if trailer is not None:
             title = trailer.get(Movie.TITLE)
-        if self._logger.isEnabledFor(Logger.DEBUG):
+        if self._logger.isEnabledFor(LazyLogger.DEBUG):
             self._logger.exit('status:', status, 'trailer', title)
 
         return status, trailer
 
+    def purge_removed_cached_trailers(self, trailer):
+        trailer_path = None
+        if trailer.get(Movie.NORMALIZED_TRAILER) is not None:
+            trailer_path = trailer[Movie.NORMALIZED_TRAILER]
+            if not os.path.exists(trailer_path):
+                trailer[Movie.NORMALIZED_TRAILER] = None
+                self._logger.debug('Does not exist:', trailer_path)
+        elif trailer.get(Movie.CACHED_TRAILER) is not None:
+            trailer_path = trailer[Movie.CACHED_TRAILER]
+            if not os.path.exists(trailer_path):
+                trailer[Movie.CACHED_TRAILER] = None
+                self._logger.debug('Does not exist:', trailer_path)
+        else:
+            trailer_path = trailer[Movie.TRAILER]
+            if trailer_path is None or not os.path.exists(trailer_path):
+                trailer[Movie.TRAILER] = None
+                self._logger.debug('Does not exist:', trailer_path)
+                trailer_path = None
+        return trailer_path is None
+
     def pre_fetch_trailer(self):
+        self._logger.debug('About to start Pre-Fetch trailer thread')
+
         self._thread = threading.Thread(
             target=self._pre_fetch_trailer, name='Pre-Fetch trailer')
         self._thread.start()
+        self._logger.debug('Pre-Fetch trailer thread started')
 
     def _pre_fetch_trailer(self):
-        while not Monitor.is_shutdown_requested():
-            status, trailer = self.front_end_bridge.get_next_trailer()
+        while not Monitor.is_abort_requested():
+            self._logger.debug('getting next trailer')
+            status, trailer = FrontendBridge.get_next_trailer()
+            self._logger.debug('status:', str(status))
             if trailer is not None:
                 added = False
                 while not added:
@@ -131,7 +164,7 @@ class MovieManager(object):
                         self._pre_fetched_trailer_queue.put(trailer, timeout=0.1)
                         added = True
                     except queue.Full:
-                        if Monitor.wait_for_shutdown(timeout=1.0):
+                        if Monitor.wait_for_abort(timeout=0.5):
                             break
 
     # Put trailer in recent history. If full, delete oldest
@@ -168,6 +201,6 @@ class MovieManager(object):
             self._play_open_curtain_next = False
             self._play_close_curtain_next = True
         else:
-            if self._logger.isEnabledFor(Logger.DEBUG):
+            if self._logger.isEnabledFor(LazyLogger.DEBUG):
                 self._logger.debug('Must specify OPEN or CLOSE curtain')
             raise LogicError()

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<certifications version="1">
+    <country name="gb" id="gb" certification_name="MPAA">
+          <!-- ranking of 0 means "not yet rated" -->
+         <!-- The different sources of certificat/rating information
+                (TMDB, IMDB, iTunes, etc.) return different values. Further,
+                certifications change over time. In the U.S., the Hays
+                code was in effect through mid 1968. This code only had a
+                rating of "Passed" (or "Approved"). The MPAA rating system
+                started in 1968 and has had mulitple changes over time. For
+                a while, there was an "M" (Mature) rating which later became
+                "PG-13". There was a GP rating which later became "PG". TMDB
+                currently only supports the current rating system.
+
+                TMDB has no representation for older certification values
+                    (i.e. 'M' for Mature or 'GP' now 'PG' or 'Passed' from pre-1968.
+
+                The rules here provide a means to "scrape" the ratings stored
+                in Kodi and convert them into a something which can be used to
+                filter and compare with. The certification for a particular movie
+                will come from Kodi. Each certification specifies a suggested
+                approprate "age" of the viewer. This could be used for comparison,
+                even between different country's rating systems (although
+                different cultures have very different attitudes about what is
+                appropriate for viewing). -->
+
+                <!-- Patterns are python regex -->
+        <certification ranking="0" display="Not Yet Rated" adult="false" age="0"
+            preferred_id="Not yet rated" image_id="unrated">
+            <patterns>
+                <pattern>^Not yet rated$</pattern>
+            </patterns>
+        </certification>
+        <!-- ranking of 1 means "unrated" -->
+        <!-- preferred_id should perhaps be called preferred_pattern, since
+            it is used to when the certification must be saved as a kodi
+             MPAA rating field and eventually matched against one of the
+             patterns here. -->
+        <certification ranking="1" display="Unrated" adult="false" age="0"
+        preferred_id="NR" image_id="unrated">
+            <patterns>
+                <pattern>^NR$</pattern>
+                <pattern>^Rated NR$</pattern>
+                <pattern>^Not Rated$</pattern>
+                <pattern>^Rated Not Rated$</pattern>
+                <pattern>^Rated UR$</pattern>
+                <pattern>^Unrated$</pattern>
+                <pattern>^Rated Unrated$</pattern>
+            </patterns>
+        </certification>
+        <certification ranking="2" display="G" adult="false" age="0"
+            preferred_id="U" image_id="u">
+            <patterns>
+
+                <!-- All ages admitted, there is nothing unsuitable for children.  -->
+
+                <pattern>^U$</pattern>
+            </patterns>
+        </certification>
+
+        <!-- All ages admitted, but certain scenes may be unsuitable for
+             young children. May contain mild language and sex/drugs
+             references. May contain moderate violence if justified by
+             context (e.g. fantasy). -->
+        <certification ranking="3" display="PG" adult="false" age="8"
+            preferred_id="PG" image_id="pg">
+            <patterns>
+                <pattern>^PG$</pattern>
+            </patterns>
+        </certification>
+        <!-- Films under this category are considered to be unsuitable for very
+             young people. Those aged under 12 years are only admitted if
+             accompanied by an adult, aged at least 18 years, at all times
+             during the motion picture. However, it is generally not recommended
+             that children under 12 years should watch the film. Films under
+             this category can contain mature themes, discrimination, soft drugs,
+             moderate swear words, infrequent strong language and moderate
+             violence, sex references and nudity. Sexual activity may be briefly
+             and discreetly portrayed. Sexual violence may be implied or briefly indicated. -->
+        <certification ranking="4" display="12A" adult="false" age="12"
+        preferred_id="12A" image_id="12a">
+            <patterns>
+                <pattern>^12A$</pattern>
+            </patterns>
+        </certification>
+
+        <!-- Home media only since 2002. 12A-rated films are usually given
+             a 12 certificate for the VHS/DVD version unless extra material
+             has been added that requires a higher rating. Nobody younger
+             than 12 can rent or buy a 12-rated VHS, DVD, Blu-ray Disc,
+             UMD or game. The content guidelines are identical to those
+             used for the 12A certificate. -->
+        <certification ranking="5" display="12" adult="false" age="12"
+        preferred_id="12" image_id="12">
+            <patterns>
+                <pattern>^12$</pattern>
+            </patterns>
+        </certification>
+
+        <!-- Only those over 15 years are admitted. Nobody younger than
+             15 can rent or buy a 15-rated VHS, DVD, Blu-ray Disc, UMD
+             or game, or watch a film in the cinema with this rating.
+             Films under this category can contain adult themes, hard drugs,
+             frequent strong language and limited use of very strong
+             language, strong violence and strong sex references, and
+             nudity without graphic detail. Sexual activity may be
+             portrayed but without any strong detail. Sexual violence
+             may be shown if discreet and justified by context. -->
+        <certification ranking="6" display="15" adult="false" age="15"
+        preferred_id="15" image_id="15">
+            <patterns>
+                <pattern>^15$</pattern>
+            </patterns>
+        </certification>
+
+        <!-- Only adults are admitted. Nobody younger than 18 can rent
+             or buy an 18-rated VHS, DVD, Blu-ray Disc, UMD or game,
+             or watch a film in the cinema with this rating. Films under
+             this category do not have limitation on the bad language
+             that is used. Hard drugs are generally allowed, and
+             explicit sex references along with detailed sexual
+             activity are also allowed. Scenes of strong real sex
+             may be permitted if justified by the context. Very
+             strong, gory, and/or sadistic violence is usually permitted.
+             Strong sexual violence is permitted unless it is
+             eroticised or excessively graphic.  -->
+        <certification ranking="7" display="18" adult="true" age="18"
+        preferred_id="18" image_id="18">
+            <patterns>
+                <pattern>^18$</pattern>
+            </patterns>
+        </certification>
+
+        <!-- Can only be shown at licensed adult cinemas or sold at
+             licensed sex shops, and only to adults, those aged 18
+             or over. Films under this category are always hard-core
+             pornography, defined as material intended for sexual
+             stimulation and containing clear images of real sexual
+             activity, strong fetish material, explicit animated
+             images, or sight of certain acts such as triple
+             simultaneous penetration and snowballing. There remains
+             a range of material that is often cut from the R18 rating:
+             strong images of injury in BDSM or spanking works,
+             urolagnia, scenes suggesting incest even if staged,
+             references to underage sex or childhood sexual
+             development and aggressive behaviour such as hair-pulling
+             or spitting on a performer are not permitted. More cuts
+             are demanded in this category than any other category.  -->
+        <certification ranking="8" display="R18" adult="true" age="18"
+        preferred_id="R18" image_id="r18">
+            <patterns>
+                <pattern>^R18$</pattern>
+            </patterns>
+        </certification>
+    </country>
+</certifications>

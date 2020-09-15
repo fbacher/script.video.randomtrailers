@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<genres version="1" source="tmdb">
+    <!-- Note that the Settings id for a genre is 'g_' + id -->
+    <genre id="action" name="Action" name_id="32198">
+        <external_genre id="action" name="Action" external_id="28"/>
+    </genre>
+    <genre id="adventure" name="Adventure" name_id="32201">
+        <external_genre id="adventure" name="Adventure" external_id="12"/>
+    </genre>
+    <genre id="animation" name="Animation" name_id="32202">
+        <external_genre id="animation" name="Animation" external_id="16"/>
+    </genre>
+    <genre id="anthology" name="Anthology" name_id="32200">
+        <external_tag id="anthology" name="Anthology" external_id="9706"/>
+    </genre>
+    <genre id="biography" name="Biography" name_id="32203">
+        <external_tag id="biography" name="Biography" external_id="5565"/>
+    </genre>
+    <genre id="comedy" name="Comedy" name_id="32029">
+        <external_genre id="comedy" name="Comedy" external_id="35"/>
+    </genre>
+    <genre id="crime" name="Crime" name_id="32208">
+        <external_genre id="crime" name="Crime" extneral_id="80"/>
+    </genre>
+    <genre id="black_comedy" name="Dark Comedy" name_id="32204">
+        <external_tag id="black_comedy" name="Dark Comedy" external_id="10123"/>
+    </genre>
+    <genre id="documentary" name="Documentary" name_id="32030">
+        <external_genre id="documentary" name="Documentary" external_id="99"/>
+    </genre>
+    <genre id="drama" name="Drama" name_id="32031">
+        <external_genre id="drama" name="Drama" external_id="18"/>
+    </genre>
+    <genre id="epic" name="Epic" name_id="32211">
+        <external_tag id="epic" name="Epic" external_id="6917"/>
+    </genre>
+    <genre id="family" name="Family" name_id="32032">
+        <external_tag id="family" name="Family" external_id="10751"/>
+    </genre>
+    <genre id="fantasy" name="Fantasy" name_id="32033">
+        <external_genre id="fantasy" name="Fantasy" external_id="14"/>
+    </genre>
+    <genre id="film_noir" name="Film Noir" name_id="32080">
+        <external_tag id="noir" name="noir" external_id="9807"/>
+        <external_tag id="film noir" name="film noir" external_id="195402"/>
+        <exteranl_tag id="french noir" name="french noir" external_id="155845"/>
+        <external_tag id="brit noir" name="brit noir" external_id="155451"/>
+        <external_tag id="british noir" name="british noir" external_id="229206"/>
+        <external_tag id="neonoir" name="neonoir" external_id="207268"/>
+        <external_tag id="japanese noir" name="japanese noir" external_id="180533"/>
+        <external_tag id="action noir" name="action noir" external_id="247245"/>
+        <external_tag id="nordic noir" name="nordic noir" external_id="191820"/>
+        <external_tag id="country noir" name="country noir" external_id="211067"/>
+        <external_tag id="monochrome noir" name="monochrome noir" external_id="231989"/>
+        <external_tag id="swamp noir" name="swamp noir" external_id="222827"/>
+        <external_tag id="tech noir" name="tech noir" external_id="178657"/>
+        <external_tag id="future noir" name="future noir" external_id="236189"/>
+        <external_tag id="matière noir" name="matière noir" external_id="238044"/>
+        <external_tag id="mexican noir" name="mexican noir" external_id="246824"/>
+        <external_tag id="noir &amp; blanc" name="noir &amp; blanc" external_id="230784"/>
+        <external_id id="scandi noir" name="scandi noir" external_id="249631"/>
+    </genre>
+    <genre id="history" name="History" name_id="32217">
+        <external_genre id="history" name="History" external_id="36"/>
+    </genre>
+    <genre id="horror" name="Horror" name_id="32035">
+        <external_genre id="Horror" name="horror" external_id="27"/>
+    </genre>
+    <genre id="melodrama" name="Melodrama" name_id="32219">
+        <external_tag id="melodrama" name="Melodrama" external_id="241094"/>
+    </genre>
+    <genre id="music" name="Music" name_id="32220">
+        <external_genre id="music" name="Music" external_id="10402"/>
+    </genre>
+    <genre id="musical" name="Musical" name_id="32036">
+        <external_tag id="musical" name="Musical" external_id="4344"/>
+    </genre>
+    <genre id="mystery" name="Mystery" name_id="32223">
+        <external_genre id="mystery" name="Mystery" external_id="9648"/>
+    </genre>
+    <genre id="pre_code" name="Pre-Code" name_id="32226">
+        <external_tag id="pre_code" name="Pre-Code" external_id="156764"/>
+        <external_tag id="hayscode" name="Hays Code" external_id="1315"/>
+    </genre>
+    <genre id="romance" name="Romance" name_id="32037">
+        <external_genre id="romance" name="Romance" external_id="10749"/>
+    </genre>
+    <!-- <genre id="romantic_comedy" name="Romantic Comedy" name_id="32228">
+        <external_tag id="romantic_comedy" name="Romantic Comedy" external_id="9799"/>
+    </genre> -->
+    <genre id="satire" name="Satire" name_id="32229">
+        <external_tag id="satire" name_id="Satire" external_id="8201"/>
+    </genre>
+    <genre id="scifi" name="Science Fiction" name_id="32038">
+        <external_genre id="scifi" name="Science Fiction" external_id="878"/>
+    </genre>
+    <genre id="screwball_comedy" name="Screwball Comedy" name_id="32231">
+        <external_tag id="screwball" name="Screwball" external_id="160362"/>
+        <external_tag id="screwball_comedy" name="Screwball Comedy" external_id="155457"/>
+    </genre>
+    <genre id="swashbuckler" name="Swashbuckler" name_id="32232">
+        <external_tag id="swashbuckler" name="Swashbuckler" external_id="157186"/>
+    </genre>
+    <genre id="thriller" name="Thriller" name_id="32039">
+        <external_genre id="thriller" name="Thriller" external_id="53"/>
+    </genre>
+    <genre id="tv_movie" name="TV Movie" name_id="32234">
+        <external_genre id="tv_movie" name="TV Movie" external_id="10770"/>
+    </genre>
+    <genre id="war" name="War" name_id="32236">
+        <external_genre id="war" name="War" external_id="10752"/>
+    </genre>
+    <genre id="western" name="Western" name_id="32238">
+        <external_genre id="western" name="Western" external_id="37"/>
+    </genre>
+</genres>

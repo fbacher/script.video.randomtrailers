@@ -5,25 +5,17 @@ Created on Apr 17, 2019
 
 @author: Frank Feuerbacher
 '''
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from common.imports import *
 
 from common.constants import Constants, Movie
-from common.exceptions import (AbortException, ShutdownException)
-from common.logger import (Logger, LazyLogger, Trace)
-from common.messages import Messages
-from common.monitor import Monitor
-from action_map import Action
-from common.settings import Settings
+from common.exceptions import AbortException
+from common.imports import *
+from common.logger import (LazyLogger, Trace)
 
-from kodi_six import xbmc, xbmcgui
+import xbmc
+import xbmcgui
 
-if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    module_logger = LazyLogger.get_addon_module_logger().getChild(
-                                                    'frontend.black_background')
-else:
-    module_logger = LazyLogger.get_addon_module_logger()
+module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator,Annotator
@@ -36,6 +28,7 @@ class BlackBackground(xbmcgui.WindowXML):
 
     _instance = None
     _destroyed = False
+    _window_id: str = None
 
     @staticmethod
     def get_instance():
@@ -57,9 +50,9 @@ class BlackBackground(xbmcgui.WindowXML):
         :param kwargs:
         """
         super().__init__(*args)
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        self._logger = module_logger.getChild(type(self).__name__)
         BlackBackground._instance = self
-        self._windowId = xbmcgui.getCurrentWindowId()
+        type(self)._window_id = xbmcgui.getCurrentWindowId()
         self.set_visibility(opaque=True)
 
     def onInit(self):
@@ -68,8 +61,6 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        # self._windowId = xbmcgui.getCurrentWindowId()
-        # self.set_visibility(opaque=True)
 
     def close(self):
         # type: () -> None
@@ -108,10 +99,12 @@ class BlackBackground(xbmcgui.WindowXML):
             command = "Skin.Reset(Opaque)"
         xbmc.executebuiltin(command)
 
-    def get_window_id(self):
-        # type: () -> TextType
+    @classmethod
+    def get_window_id(cls):
+        # type: () -> str
         """
 
         :return:
         """
-        return str(self._windowId)
+        return str(cls._window_Id)
+
