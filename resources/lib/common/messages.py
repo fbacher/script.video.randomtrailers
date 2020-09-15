@@ -5,7 +5,8 @@ Created on Feb 28, 2019
 @author: fbacher
 """
 
-import xbmc, xbmcaddon
+import xbmc
+import xbmcaddon
 from common.imports import *
 from common.constants import Movie, Constants
 from common.logger import (LazyLogger, Trace, log_entry_exit)
@@ -187,7 +188,6 @@ class Messages(object):
         """
         type(self)._logger = module_logger.getChild(type(self).__name__)
 
-
     @staticmethod
     def get_instance():
         # type: () -> Messages
@@ -229,15 +229,22 @@ class Messages(object):
                                                     unformatted_msg)
             Messages._debug_dump = False
 
-        msg_id = Messages._msg_id_for_name.get(msg_key, None)
         unformatted_msg = 'Message not defined'
+        try:
+            msg_id = int(msg_key)
+        except:
+            msg_id = None
+
+        if msg_id is None:
+            msg_id = Messages._msg_id_for_name.get(msg_key, None)
         if msg_id is None:
             if cls._logger.isEnabledFor(LazyLogger.ERROR):
                 cls._logger.error(
                     'Can not find msg_id_for_name for message key: {}'.format(msg_key))
                 unformatted_msg = msg_key
         else:
-            unformatted_msg = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(msg_id)
+            unformatted_msg = xbmcaddon.Addon(
+                Constants.ADDON_ID).getLocalizedString(msg_id)
             if unformatted_msg == '':
                 unformatted_msg = msg_key
                 if cls._logger.isEnabledFor(LazyLogger.ERROR):
@@ -248,7 +255,13 @@ class Messages(object):
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                         unformatted_msg += '_dm'
 
-        return unformatted_msg.format(*args)
+        try:
+            msg = unformatted_msg.format(*args)
+        except Exception as e:
+            cls._logger.exception(e)
+            msg = unformatted_msg
+
+        return msg
 
     @classmethod
     def get_formated_title(cls, movie):
