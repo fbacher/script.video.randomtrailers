@@ -6,10 +6,10 @@
 #     ascii, chr, hex, input, next, oct, open,
 #     pow, round, super, filter, map, zip)
 
-#from future.types import (newint)
 
-from .development_tools import (Any, Callable, FrozenSet, Optional, Iterable, List, Dict,
-                                Tuple, Sequence, Set, Union, DEVELOPMENT,
-                                RESOURCE_LIB, MovieType)
+from common.development_tools import (Any, Callable, FrozenSet, Optional, Iterable,
+                                      List, Dict, Tuple, Sequence, Set, Union,
+                                      DEVELOPMENT, RESOURCE_LIB, MovieType,
+                                      ClassVar)
 from six import reraise
 

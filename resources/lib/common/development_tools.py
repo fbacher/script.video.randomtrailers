@@ -4,7 +4,7 @@
 DEVELOPMENT = True
 try:
     from typing import (Any, Callable, FrozenSet, Optional, Iterable, List, Dict, Set,
-                        Tuple,
+                        Tuple, ClassVar,
                         Sequence, Union)
     MovieType = Dict[str, Any]
 
