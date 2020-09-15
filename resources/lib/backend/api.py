@@ -5,10 +5,7 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 from common.imports import *
-
 from common.logger import (Logger, LazyLogger, Trace)
 from common.constants import Constants, Movie
 from common.settings import Settings

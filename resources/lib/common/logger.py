@@ -5,8 +5,6 @@ Created on Apr 17, 2019
 
 @author: Frank Feuerbacher
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
-from .imports import *
 
 from functools import wraps
 import inspect
@@ -21,9 +19,10 @@ import six
 import xbmc
 from kodi_six import utils
 
-from .exceptions import AbortException
-from .constants import Constants
-from .critical_settings import CriticalSettings
+from common.exceptions import AbortException
+from common.constants import Constants
+from common.critical_settings import CriticalSettings
+from common.imports import *
 
 TOP_PACKAGE_PATH = Constants.PYTHON_ROOT_PATH
 
