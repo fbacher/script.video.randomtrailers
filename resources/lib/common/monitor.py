@@ -245,11 +245,12 @@ class Monitor(xbmc.Monitor):
         with cls._screen_saver_listener_lock:
             del cls._screen_saver_listeners[:]
 
-        xbmc.sleep(1000)
-        from common.debug_utils import Debug
-        Debug.dump_all_threads()
-        xbmc.sleep(1000)
-        Debug.dump_all_threads()
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            xbmc.sleep(250)
+            from common.debug_utils import Debug
+            Debug.dump_all_threads()
+            xbmc.sleep(250)
+            Debug.dump_all_threads()
 
     @classmethod
     def _inform_settings_changed_listeners(cls):
