@@ -157,7 +157,7 @@
 					</dependencies>
 					<control format="string" type="spinner"/>
 				</setting>
-				<setting help="" id="g_adventure" label="Adventure" type="integer">
+				<setting help="" id="g_adventure" label="32201" type="integer">
 					<level>0</level>
 					<default>0</default>
 					<constraints>
@@ -363,7 +363,7 @@
 					</dependencies>
 					<control format="string" type="spinner"/>
 				</setting>
-				<setting help="" id="g_docu" label="32030" type="integer">
+				<setting help="" id="g_documentary" label="32030" type="integer">
 					<level>0</level>
 					<default>0</default>
 					<constraints>
@@ -654,23 +654,6 @@
 					</dependencies>
 					<control format="string" type="spinner"/>
 				</setting>
-				<setting help="" id="g_war_documentary" label="32088" type="integer">
-					<level>0</level>
-					<default>0</default>
-					<constraints>
-						<options>
-							<option label="32066">0</option>
-							<option label="32067">1</option>
-							<option label="32068">2</option>
-						</options>
-					</constraints>
-					<dependencies>
-						<dependency type="enable">
-							<condition operator="is" setting="do_genre">true</condition>
-						</dependency>
-					</dependencies>
-					<control format="string" type="spinner"/>
-				</setting>
 			</group>
 		</category>
 		<category help="" id="library" label="32015">
@@ -831,7 +814,7 @@
 						<dependency type="enable">
 							<and>
 								<condition operator="is" setting="do_tmdb">true</condition>
-								<condition name="InfoBool" on="property"> gt(-1,0)</condition>
+								<condition operator="gt" setting="tmdb_vote_filter">0</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -859,7 +842,7 @@
 						<dependency type="enable">
 							<and>
 								<condition operator="is" setting="do_tmdb">true</condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+								<condition operator="is" setting="tmdb_include_old_movie_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -867,12 +850,13 @@
 				</setting>
 				<setting help="" id="tmdb_year_range_minimum" label="32109" type="integer">
 					<level>0</level>
-					<default>0</default>
+					<default>1928</default>
 					<dependencies>
 						<dependency type="enable">
 							<and>
 								<condition operator="is" setting="do_tmdb">true</condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+								<condition operator="is" setting="tmdb_include_old_movie_trailers">true</condition>
+								<condition operator="is" setting="tmdb_enable_select_by_year_range">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -887,7 +871,8 @@
 						<dependency type="enable">
 							<and>
 								<condition operator="is" setting="do_tmdb">true</condition>
-								<condition name="InfoBool" on="property"> eq(-2,true)</condition>
+								<condition operator="is" setting="tmdb_include_old_movie_trailers">true</condition>
+								<condition operator="is" setting="tmdb_enable_select_by_year_range">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -990,72 +975,72 @@
 				</setting>
 			</group>
 		</category>
-		<category help="" id="playlists/reports" label="32118">
-			<group id="1" label="32170">
-				<setting help="" id="playlist_name_1" label="32171" type="string">
+		<category help="this is help, stupid" id="playlists" label="32118">
+			<group id="1" label="32256">
+				<setting help="more help, genius" id="playlist_name_1" label="32257" type="string">
 					<level>0</level>
 					<default>Watch Later</default>
 					<control format="string" type="edit">
 						<heading>32171</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_2" label="32172" type="string">
+				<setting help="" id="playlist_name_2" label="32258" type="string">
 					<level>0</level>
 					<default>Dislike</default>
 					<control format="string" type="edit">
 						<heading>32172</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_3" label="32173" type="string">
+				<setting help="" id="playlist_name_3" label="32259" type="string">
 					<level>0</level>
 					<default>Random_Trailers_3</default>
 					<control format="string" type="edit">
 						<heading>32173</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_4" label="32174" type="string">
+				<setting help="" id="playlist_name_4" label="32260" type="string">
 					<level>0</level>
 					<default>Random_Trailers_4</default>
 					<control format="string" type="edit">
 						<heading>32174</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_5" label="32175" type="string">
+				<setting help="" id="playlist_name_5" label="32261" type="string">
 					<level>0</level>
 					<default>Random_Trailers_5</default>
 					<control format="string" type="edit">
 						<heading>32175</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_6" label="32176" type="string">
+				<setting help="" id="playlist_name_6" label="32262" type="string">
 					<level>0</level>
 					<default>Random_Trailers_6</default>
 					<control format="string" type="edit">
 						<heading>32176</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_7" label="32177" type="string">
+				<setting help="" id="playlist_name_7" label="32263" type="string">
 					<level>0</level>
 					<default>Random_Trailers_7</default>
 					<control format="string" type="edit">
 						<heading>32177</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_8" label="32178" type="string">
+				<setting help="" id="playlist_name_8" label="32264" type="string">
 					<level>0</level>
 					<default>Random_Trailers_8</default>
 					<control format="string" type="edit">
 						<heading>32178</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_9" label="32179" type="string">
+				<setting help="" id="playlist_name_9" label="32265" type="string">
 					<level>0</level>
 					<default>Random_Trailers_9</default>
 					<control format="string" type="edit">
 						<heading>32179</heading>
 					</control>
 				</setting>
-				<setting help="" id="playlist_name_10" label="32180" type="string">
+				<setting help="" id="playlist_name_10" label="32266" type="string">
 					<level>0</level>
 					<default>Random_Trailers_10</default>
 					<control format="string" type="edit">
@@ -1159,7 +1144,7 @@
 					<default>false</default>
 					<dependencies>
 						<dependency type="enable">
-							<condition operator="is" setting="remote_db_cache_path">true</condition>
+							<condition operator="is" setting="use_remote_data_cache">true</condition>
 						</dependency>
 					</dependencies>
 					<control type="toggle"/>
@@ -1170,8 +1155,8 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="remote_db_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+								<condition operator="is" setting="use_remote_data_cache">true</condition>
+								<condition operator="is" setting="limit_cached_json">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1183,9 +1168,9 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="remote_db_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-2,true) </condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+								<condition operator="is" setting="use_remote_data_cache">true</condition>
+								<condition operator="is" setting="limit_cached_json">true</condition>
+								<condition operator="is" setting="limit_number_of_cached_json_files">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1199,8 +1184,8 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="remote_db_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-3,true)</condition>
+								<condition operator="is" setting="use_remote_data_cache">true</condition>
+								<condition operator="is" setting="limit_cached_json">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1212,9 +1197,9 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="remote_db_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-4,true) </condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+								<condition operator="is" setting="use_remote_data_cache">true</condition>
+								<condition operator="is" setting="limit_cached_json">true</condition>
+								<condition operator="is" setting="limit_size_of_cached_json_disk">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1228,8 +1213,8 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="remote_db_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-5,true)</condition>
+								<condition operator="is" setting="use_remote_data_cache">true</condition>
+								<condition operator="is" setting="limit_cached_json">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1241,9 +1226,9 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="remote_db_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-6,true) </condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+								<condition operator="is" setting="use_remote_data_cache">true</condition>
+								<condition operator="is" setting="limit_cached_json">true</condition>
+								<condition operator="is" setting="limit_percent_of_cached_json_disk">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1258,7 +1243,7 @@
 					<default>false</default>
 					<dependencies>
 						<dependency type="enable">
-							<condition operator="is" setting="trailer_cache_path">true</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
 						</dependency>
 					</dependencies>
 					<control type="toggle"/>
@@ -1269,8 +1254,8 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="trailer_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
+							<condition operator="is" setting="limit_cached_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1282,9 +1267,9 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="trailer_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-2,true) </condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
+							<condition operator="is" setting="limit_cached_trailers">true</condition>
+							<condition operator="is" setting="limit_number_of_cached_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1298,8 +1283,8 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="trailer_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-3,true)</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
+							<condition operator="is" setting="limit_cached_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1311,9 +1296,9 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="trailer_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-4,true) </condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
+							<condition operator="is" setting="limit_cached_trailers">true</condition>
+							<condition operator="is" setting="limit_size_of_cached_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1327,8 +1312,8 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="trailer_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-5,true)</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
+							<condition operator="is" setting="limit_cached_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1340,9 +1325,9 @@
 					<dependencies>
 						<dependency type="enable">
 							<and>
-								<condition operator="is" setting="trailer_cache_path">true</condition>
-								<condition name="InfoBool" on="property"> eq(-6,true) </condition>
-								<condition name="InfoBool" on="property"> eq(-1,true)</condition>
+							<condition operator="is" setting="use_trailer_cache">true</condition>
+							<condition operator="is" setting="limit_cached_trailers">true</condition>
+							<condition operator="is" setting="limit_percent_of_cached_trailers">true</condition>
 							</and>
 						</dependency>
 					</dependencies>
@@ -1366,7 +1351,7 @@
 				</setting>
 			</group>
 			<group id="2" label="32148">
-				<setting help="" id="updateTmdbId" label="Update TMDB ID in database" type="boolean">
+				<setting help="" id="updateTmdbId" label="32268" type="boolean">
 					<level>0</level>
 					<default>true</default>
 					<control type="toggle"/>
@@ -1412,6 +1397,7 @@
 					<default>6</default>
 					<dependencies>
 						<dependency type="enable">
+							<condition operator="is" setting="enable_movie_stats">true</condition>
 							<condition operator="is" setting="report_actor_stats">true</condition>
 						</dependency>
 					</dependencies>
@@ -1461,9 +1447,14 @@
 							<option label="32163">5</option>
 						</options>
 					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="do_debug">true</condition>
+						</dependency>
+					</dependencies>
 					<control format="string" type="spinner"/>
 				</setting>
-				<setting help="" id="debug_include_thread_info" label="32157" type="boolean">
+				<setting help="" id="debug_include_thread_info" label="32267" type="boolean">
 					<level>0</level>
 					<default>true</default>
 					<control type="toggle"/>
@@ -1472,11 +1463,21 @@
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle"/>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="do_debug">true</condition>
+						</dependency>
+					</dependencies>
 				</setting>
 				<setting help="" id="do_trace_stats" label="32165" type="boolean">
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle"/>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="do_debug">true</condition>
+						</dependency>
+					</dependencies>
 				</setting>
 			</group>
 		</category>

@@ -1,12 +1,12 @@
-# XBMC Media Center language file
+# Kodi Media Center language file
 # Addon Name: Random Trailers
 # Addon id: script.video.randomtrailers
-# Addon version: 2.0.2
+# Addon version: 2.0.3
 # Addon Provider: fbacher
 msgid ""
 msgstr ""
-"Project-Id-Version: XBMC-Addons\n"
-"Report-Msgid-Bugs-To: alanwww1@xbmc.org\n"
+"Project-Id-Version: KODI-Addons\n"
+"Report-Msgid-Bugs-To: https://github.com/fbacher/Kodi-script.video.randomtrailers\n"
 "POT-Creation-Date: 2019-01-29 13:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
@@ -53,14 +53,22 @@ msgctxt "#32003"
 msgid "Hide Movie Info"
 msgstr ""
 
+# settings.xml
+# library tab
 msgctxt "#32004"
 msgid "Hide Trailers of Watched Movies"
 msgstr ""
 
+# settings.xml
+# library tab
 msgctxt "#32005"
 msgid "Number of Days to Hide Watched Trailers"
 msgstr ""
 
+# settings.xml
+# Common settings tab, Adjust Volume of Media group (#32061)
+# Reduces the volume of trailers. Label 32011 is for setting the
+# reduced volume
 msgctxt "#32006"
 msgid "Reduce Volume During Playback"
 msgstr ""
@@ -81,6 +89,8 @@ msgctxt "#32010"
 msgid "Path to Trailers"
 msgstr ""
 
+# settings.xml
+# Reduces the volume of trailers to the given percent
 msgctxt "#32011"
 msgid "Volume (0-100)"
 msgstr ""
@@ -101,6 +111,8 @@ msgctxt "#32015"
 msgid "Library"
 msgstr ""
 
+# settings.xml
+# First tab, for settings common to trailers from local db, TMDB, TFH, iTunes
 msgctxt "#32016"
 msgid "Common"
 msgstr ""
@@ -149,50 +161,98 @@ msgctxt "#32027"
 msgid "Selected Genres"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32028"
 msgid "Action and Adventure"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32029"
 msgid "Comedy"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32030"
 msgid "Documentary"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32031"
 msgid "Drama"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32032"
 msgid "Family"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32033"
 msgid "Fantasy"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32034"
 msgid "Foreign"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32035"
 msgid "Horror"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32036"
 msgid "Musical"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32037"
 msgid "Romance"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32038"
 msgid "Science Fiction"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32039"
 msgid "Thriller"
 msgstr ""
@@ -262,10 +322,17 @@ msgctxt "#32055"
 msgid "Minutes Between Groups"
 msgstr ""
 
+# settings.xml
+# First group under "Common" tab
+# Allows trailers to be played as a screen saver instead of
+# manually launching plugin
 msgctxt "#32056"
 msgid "Configure as Screensaver using Skin Interface Settings."
 msgstr ""
 
+# settings.xml
+# Force trailer to be played on entire Kodi screen, not some sub-window
+# of Kodi. Does NOT change Kodi application's window size.
 msgctxt "#32057"
 msgid "When Started as Screensaver, Switch to FullScreen Mode"
 msgstr ""
@@ -282,122 +349,235 @@ msgctxt "#32060"
 msgid "Seconds to Display Movie Information"
 msgstr ""
 
+# settings.xml
+# Common Settings tab, label of first group in tab
 msgctxt "#32061"
 msgid "Adjust Volume of Media"
 msgstr ""
 
+# settings.xml
+# Common Settings tab, first group (32061)
+# Normalize volume of local trailers (runs through ffmpeg)
+# Addresses the problem with youtube (and other) trailers with
+# volumes that vary widely).
 msgctxt "#32062"
 msgid "Normalize Volume of Local Media"
 msgstr ""
 
+# settings.xml
+# Similar to 32062
 msgctxt "#32063"
 msgid "Normalize Volume of Downloaded Media"
 msgstr ""
 
+# settings.xml
+# Label for first group in Genre tab
+# Allows users to filter trailers by Genre.
+# For each genre, user can choose "Ignore", "Exclude" or "Include"
+# See definitions for 32066 - 32068 for details
 msgctxt "#32064"
 msgid "Only show trailers for movies in the following Genres/Sub-Genres"
 msgstr ""
 
+# settings.xml
+# Label for second group in Genre tab specifies first set of genres to filter
 msgctxt "#32065"
 msgid "Major Genres"
 msgstr ""
 
+# settings.xml
+# Specifies filter to apply for a genre
+# Trailers with this genre will not impact filtering,
+# unless all filters are set to Ignore, then any trailer
+# can play.
+# If any filter is not Ignore, then played trailers have genres:
+# (Include_Genre1 OR Include_Genre2...) AND NOT (Exclude_Genre1 OR Exclude_Genre2...)
 msgctxt "#32066"
 msgid "Ignore"
 msgstr ""
 
+# settings.xml
+# Specifies filter to apply for a genre
+# Trailers with this genre will be included for playing.
+# Note that movies can have more than one genre.
 msgctxt "#32067"
 msgid "Include"
 msgstr ""
 
+# settings.xml
+# Specifies filter to  apply for a genre
+# Trailers with this genre will be excluded for playing
 msgctxt "#32068"
 msgid "Exclude"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32069"
 msgid "Western"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Label for group of secondary, less common genres
 msgctxt "#32070"
 msgid "Secondary Genres"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32071"
 msgid "Animation"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32072"
 msgid "Biography"
 msgstr ""
 
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32073"
 msgid "Crime"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32074"
 msgid "History"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32075"
 msgid "Mystery"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32076"
 msgid "War"
 msgstr ""
 
+# settings.xml
+# Label for third, less common genres
 msgctxt "#32077"
 msgid "Sub-Genres"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32078"
 msgid "Dark Comedy"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32079"
 msgid "Epic"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32080"
 msgid "Film Noir"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32081"
 msgid "Melodrama"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32082"
 msgid "Music"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32083"
 msgid "Pre-Code"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32084"
 msgid "Satire"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32085"
 msgid "Screwball Comedy"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32086"
 msgid "Swashbuckler"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32087"
 msgid "TV Movie"
 msgstr ""
 
+# settings.xml & resoures/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Can appear on screen as movie data
 msgctxt "#32088"
 msgid "War Documentary"
 msgstr ""
 
+# settngs.xml
+# Under library tab
+# Allow remote trailer paths (urls) to be downloaded
 msgctxt "#32089"
 msgid "Include movies with remote trailers"
 msgstr ""
 
+# settings.xml
+# Under library tab
+# When now trailer info is present, query TMDB (and perhaps other)
+# sources for the trailer.
 msgctxt "#32090"
 msgid "Include Movies with no Trailer Info"
 msgstr ""
@@ -511,7 +691,7 @@ msgid "All"
 msgstr ""
 
 msgctxt "#32118"
-msgid "Playlists/Reports"
+msgid "Playlists"
 msgstr ""
 
 msgctxt "#32119"
@@ -551,7 +731,7 @@ msgid "Maximum Days to Keep Cached Media"
 msgstr ""
 
 msgctxt "#32128"
-msgid "Recheck Movies without Trailers"
+msgid "Number of days to wait before trying to find missing trailer"
 msgstr ""
 
 msgctxt "#32129"
@@ -579,7 +759,7 @@ msgid "Maximum Size of Data Cache (MB)"
 msgstr ""
 
 msgctxt "#32135"
-msgid "Limit Filesystem %% for Data Cache"
+msgid "Limit Filesystem % for Data Cache"
 msgstr ""
 
 msgctxt "#32136"
@@ -611,11 +791,11 @@ msgid "Maximum Size of Media Cache (MB)"
 msgstr ""
 
 msgctxt "#32143"
-msgid "Limit Filesystem %% for Media Cache"
+msgid "Limit Filesystem % for Media Cache"
 msgstr ""
 
 msgctxt "#32144"
-msgid "Maximum %% of Filesystem for Media Cache"
+msgid "Maximum % of Filesystem for Media Cache"
 msgstr ""
 
 msgctxt "#32145"
@@ -627,11 +807,11 @@ msgid "A Personal API Key can reduce rejected requests due to traffic"
 msgstr ""
 
 msgctxt "#32147"
-msgid "Personal API key for TMDB, The Movie Database. See themoviedatabase.org for more information"
+msgid "Personal API key- See themoviedatabase.org"
 msgstr ""
 
 msgctxt "#32148"
-msgid "Storing the Movie's TMDB ID in The Database Reduces Requests to TMDB."
+msgid "Store Movie's TMDB ID in Database (Reduces Requests to TMDB)"
 msgstr ""
 
 msgctxt "#32149"
@@ -856,7 +1036,7 @@ msgid "Biography"
 msgstr ""
 
 msgctxt "#32204"
-msgid "Black Comedy"
+msgid "Dark Comedy"
 msgstr ""
 
 msgctxt "#32205"
@@ -952,7 +1132,7 @@ msgid "Romance"
 msgstr ""
 
 msgctxt "#32228"
-msgid "Romance Comedy"
+msgid "Romantic Comedy"
 msgstr ""
 
 msgctxt "#32229"
@@ -995,3 +1175,170 @@ msgctxt "#32238"
 msgid "Western"
 msgstr ""
 
+msgctxt "#32239"
+msgid "Movie added to playlist: {}"
+msgstr ""
+
+msgctxt "#32240"
+msgid "Movie already in playlist: {}"
+msgstr ""
+
+msgctxt "#32241"
+msgid "Include thread information"
+msgstr ""
+
+# Some locales use the term "Certification" instead of "Rating" for
+# a film's certification
+msgctxt "#32242"
+msgid "Rating {}"
+msgstr ""
+
+msgctxt "#32243"
+msgid "G"
+msgstr ""
+
+msgctxt "#32244"
+msgid "PG"
+msgstr ""
+
+msgctxt "#32245"
+msgid "PG-13"
+msgstr ""
+
+msgctxt "#32246"
+msgid "R"
+msgstr ""
+
+msgctxt "#32247"
+msgid "NC-17"
+msgstr ""
+
+msgctxt "#32248"
+msgid "Not Rated"
+msgstr ""
+
+# A film's certification varies by country and the terminology varies
+# as well. In the US, certification are referred to as a film's "rating"
+# or "MPAA rating"
+# This message will be voiced when service.kodi.tts addon available.
+# The certification authority (MPAA) is different for each country
+msgctxt "#32249"
+msgid "MPAA rating {}"
+msgstr ""
+
+# Voiced message indicating a movie's ranking (i.e. 4.5 out of five stars).
+msgctxt "#32250"
+msgid "{} out of five stars"
+msgstr ""
+
+# settings.xml  & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32251"
+msgid "Talk-Show"
+msgstr ""
+
+# settings.xml  & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+# Short-film
+msgctxt "#32252"
+msgid "Short"
+msgstr ""
+
+# settings.xml  & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32253"
+msgid "Sport"
+msgstr ""
+
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32254"
+msgid "Reality-TV"
+msgstr ""
+
+# settings.xml & resourcs/genre/*.xml
+# Genre/subgenre
+# Definitions specified in resources/genre
+msgctxt "#32255"
+msgid "News"
+msgstr ""
+
+# settings.xml
+# When a trailer is playing, pressing a remote or keyboard's
+# number keys (0-9) will save the corresponding movie into a
+# playlist. These playlists can be named here.
+msgctxt "#32256"
+msgid "Name playlists that playing trailer is saved to by number keys."
+msgstr ""
+
+# settings.xml
+msgctxt "#32257"
+msgid "Saved by key_1"
+msgstr ""
+
+# settings.xml
+msgctxt "#32258"
+msgid "Saved by key_2"
+msgstr ""
+
+# settings.xml
+msgctxt "#32259"
+msgid "Saved by key_3"
+msgstr ""
+
+# settings.xml
+msgctxt "#32260"
+msgid "Saved by key_4"
+msgstr ""
+
+# settings.xml
+msgctxt "#32260"
+msgid "Saved by key_4"
+msgstr ""
+
+# settings.xml
+msgctxt "#32261"
+msgid "Saved by key_5"
+msgstr ""
+
+# settings.xml
+msgctxt "#32262"
+msgid "Saved by key_6"
+msgstr ""
+
+# settings.xml
+msgctxt "#32263"
+msgid "Saved by key_7"
+msgstr ""
+
+# settings.xml
+msgctxt "#32264"
+msgid "Saved by key_8"
+msgstr ""
+
+# settings.xml
+msgctxt "#32265"
+msgid "Saved by key_9"
+msgstr ""
+
+# settings.xml
+msgctxt "#32266"
+msgid "Saved by key_0"
+msgstr ""
+
+# settings.xml
+# Include thread information for each logged entry in kodi.log
+msgctxt "#32267"
+msgid "Include thread info"
+msgstr ""
+
+# settings.xml
+# Add the TMDB ID of movies as they are discovered. This
+# eliminates extra requests to themoviedatabase.org
+msgctxt "#32268"
+msgid "Update TMDB ID in database"
+msgstr ""
