@@ -245,10 +245,6 @@ def startup_non_main_thread():
         LazyLogger.on_settings_changed)
     try:
         Settings.get_locale()
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings.getLang_iso_639_1()
-            Settings.getLang_iso_639_2()
-            Settings.getLang_iso_3166_1()
     except AbortException:
         reraise(*sys.exc_info())
     except Exception:

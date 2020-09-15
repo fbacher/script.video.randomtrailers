@@ -178,13 +178,13 @@ class TMDBUtils(object):
         data['api_key'] = Settings.get_tmdb_api_key()
         data['page'] = '1'
         data['query'] = title
-        data['language'] = Settings.getLang_iso_639_1()
+        data['language'] = Settings.get_lang_iso_639_1()
         data['primary_release_year'] = year
 
         try:
             include_adult = 'false'
 
-            country_id = Settings.getLang_iso_3166_1().lower()
+            country_id = Settings.get_country_iso_3166_1().lower()
             certifications = WorldCertifications.get_certifications(country_id)
             adult_certification = certifications.get_certification('dummy', True)
             if certifications.filter(adult_certification):
@@ -209,7 +209,7 @@ class TMDBUtils(object):
                 # TODO: find best trailer_id
 
                 matches = []
-                current_language = Settings.getLang_iso_639_1()
+                current_language = Settings.get_lang_iso_639_1()
                 movie = None
                 for movie in results:
                     release_date = movie.get('release_date', '')  # 1932-04-22

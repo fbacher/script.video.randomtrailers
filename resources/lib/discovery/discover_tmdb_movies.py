@@ -164,31 +164,31 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # TMDB accepts iso-639-1 but adding an iso-3166- suffix
             # would be better (en_US)
             #
-            self._language = Settings.getLang_iso_639_1()
-            self._country = Settings.getLang_iso_3166_1()
+            self._language = Settings.get_lang_iso_639_1()
+            self._country = Settings.get_country_iso_3166_1()
             self._tmdb_api_key = Settings.get_tmdb_api_key()
 
-            country_id = Settings.getLang_iso_3166_1().lower()
+            country_id = Settings.get_country_iso_3166_1().lower()
             certifications = WorldCertifications.get_certifications(country_id)
-            adult_certification = certifications.get_adult_certification()
-            self._include_adult = certifications.filter(adult_certification)
+            if certifications is None:
+                adult_certification = False
+                self._include_adult = False
+            else:
+                adult_certification = certifications.get_adult_certification()
+                self._include_adult = certifications.filter(adult_certification)
 
             self._selected_keywords = ''
             self._selected_genres = ''
             self._excluded_genres = ''
             self._excluded_keywords = ''
             if Settings.get_filter_genres():
-                self._selected_genres = GenreUtils.get_instance(
-                ).get_external_genre_ids_as_query(
+                self._selected_genres = GenreUtils.get_external_genre_ids_as_query(
                     GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
-                self._selected_keywords = GenreUtils.get_instance(
-                ).get_external_keywords_as_query(
+                self._selected_keywords = GenreUtils.get_external_keywords_as_query(
                     GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
-                self._excluded_genres = GenreUtils.get_instance(
-                ).get_external_genre_ids_as_query(
+                self._excluded_genres = GenreUtils.get_external_genre_ids_as_query(
                     GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
-                self._excluded_keywords = GenreUtils.get_instance(
-                ).get_external_keywords_as_query(
+                self._excluded_keywords = GenreUtils.get_external_keywords_as_query(
                     GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
             self._remote_trailer_preference = Settings.get_tmdb_trailer_preference()
             self._vote_comparison, self._vote_value = Settings.get_tmdb_avg_vote_preference()
@@ -433,10 +433,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     and Settings.get_include_clips() \
                     and movie[Movie.TYPE] != Constants.VIDEO_TYPE_CLIP:
                 result = False
-            # if Settings.getLang_iso_3166_1() != movie[Movie.COUNTRY]:
+            # if Settings.get_country_iso_3166_1() != movie[Movie.COUNTRY]:
             #     break
             elif movie.get(Movie.MPAA) is not None:
-                country_id = Settings.getLang_iso_3166_1().lower()
+                country_id = Settings.get_country_iso_3166_1().lower()
                 certifications = WorldCertifications.get_certifications(country_id)
                 certification = certifications.get_certification(
                     movie.get(Movie.MPAA), movie.get(Movie.ADULT))
@@ -446,7 +446,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # if self._vote_value
 
             elif not Settings.is_allow_foreign_languages() \
-                    and movie[Movie.ORIGINAL_LANGUAGE] != Settings.getLang_iso_639_1():
+                    and movie[Movie.ORIGINAL_LANGUAGE] != Settings.get_lang_iso_639_1():
                 result = False
             """
             if Settings.get_filter_genres() and not tag_found and not genre_found:
@@ -1281,7 +1281,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # different languages spoken in the original movie, not to indicate
             # translations.
 
-            data['with_original_language'] = Settings.getLang_iso_639_1()
+            data['with_original_language'] = Settings.get_lang_iso_639_1()
 
             if tmdb_trailer_type == 'all':
                 url = 'http://api.themoviedb.org/3/discover/movie'

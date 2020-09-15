@@ -37,8 +37,8 @@ class ITunes(object):
 
         :return:
         '''
-        iso_639_2_name = Settings.getLang_iso_639_2()
-        iso_639_1_name = Settings.getLang_iso_639_1()
+        iso_639_2_name = Settings.get_lang_iso_639_2()
+        iso_639_1_name = Settings.get_lang_iso_639_1()
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             cls._logger.getChild('ITunes').debug('iso_639_2:', iso_639_2_name,
                                                    'iso_639_1:', iso_639_1_name)

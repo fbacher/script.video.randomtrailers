@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Probably incomplete -->
+<genres version="1" source="itunes">
+    <genre id="action" name="Action" name_id="32028">
+        <external_genre id="action and adventure" external_id="Action and Adventure"/>
+    </genre>
+    <!-- Action and Adventure is not a genre in TMDB or IMDB, so make show up
+        both as Action as well as Adventure -->
+    <genre id="adventure" name="Adventure" name_id="32028">
+        <external_genre id="action and adventure" external_id="Action and Adventure"/>
+    </genre>
+    <genre id="comedy" name="Comedy" name_id="32029">
+        <external_genre id="comedy" external_id="Comedy"/>
+    </genre>
+    <genre id="documentary" name="Documentary" name_id="32030">
+        <external_genre id="documentary" external_id="Documentary"/>
+    </genre>
+    <genre id="drama" name="Drama" name_id="32031">
+        <external_genre id="drama" external_id="Drama"/>
+    </genre>
+    <genre id="family" name="family" name_id="32032">
+        <external_genre id="family" external_id="Family"/>
+    </genre>
+    <genre id="history" name="History" name_id="32217">
+        <external_genre id="history" external_id="History"/>
+    </genre>
+    <genre id="horror" name="Horror" name_id="32035">
+        <external_genre id="horror" external_id="Horror"/>
+    </genre>
+    <genre id="romance" name="Romance" name_id="32037">
+        <external_genre id="romance" external_id="Romance"/>
+    </genre>
+    <genre id="scifi" name="Science Fiction" name_id="32038">
+        <external_genre id="scifi" external_id="Science Fiction"/>
+    </genre>
+    <genre id="thriller" name="Thriller" name_id="32039">
+        <external_genre id="thriller" external_id="Thriller"/>
+    </genre>
+</genres>

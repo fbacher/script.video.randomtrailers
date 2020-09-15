@@ -66,7 +66,7 @@ class MovieEntryUtils (object):
 
                     # TODO: iso-639-1 gives two char lang. Prefer en-US
 
-                    data['language'] = Settings.getLang_iso_639_1()
+                    data['language'] = Settings.get_lang_iso_639_1()
                     data['api_key'] = Settings.get_tmdb_api_key()
                     url = 'http://api.themoviedb.org/3/find/' + str(imdb_id)
                     try:
@@ -126,7 +126,7 @@ class MovieEntryUtils (object):
 
         data = {}
         # data['append_to_response'] = 'credits,releases'
-        data['language'] = Settings.getLang_iso_639_1()
+        data['language'] = Settings.get_lang_iso_639_1()
         data['api_key'] = Settings.get_tmdb_api_key()
         data['append_to_response'] = 'alternative_titles'
         url = 'http://api.themoviedb.org/3/movie/' + str(movie_id)

@@ -100,7 +100,7 @@ class Debug(object):
         string_buffer = string_buffer + '\n*** STACKTRACE - END ***\n'
 
         msg = Debug._currentAddonName + ' : dump_all_threads'
-        xbmc.log(msg, xbmc.LOGERROR)
+        xbmc.log(msg, xbmc.LOGDEBUG)
         xbmc.log(string_buffer, xbmc.LOGDEBUG)
 
     @classmethod
@@ -227,7 +227,7 @@ class Debug(object):
             else:
                 cls._logger.debug('Missing properties:', msg)
 
-        country_id = Settings.getLang_iso_3166_1().lower()
+        country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         if not certifications.is_valid(movie[Movie.MPAA]):
             cls._logger.debug('Invalid MPAA rating: {} for movie: {} set to NR'

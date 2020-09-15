@@ -301,13 +301,13 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         self._selected_genres = []
         self._excluded_genres = []
         if Settings.get_filter_genres():
-            self._selected_genres = GenreUtils.get_instance().get_internal_kodi_genre_ids(
+            self._selected_genres = GenreUtils.get_internal_kodi_genre_ids(
                 GenreUtils.LOCAL_DATABASE, exclude=False)
-            self._excluded_genres = GenreUtils.get_instance().get_internal_kodi_genre_ids(
+            self._excluded_genres = GenreUtils.get_internal_kodi_genre_ids(
                 GenreUtils.LOCAL_DATABASE, exclude=True)
-            self._selected_keywords = GenreUtils.get_instance().get_internal_kodi_keyword_ids(
+            self._selected_keywords = GenreUtils.get_internal_kodi_keyword_ids(
                 GenreUtils.LOCAL_DATABASE, exclude=False)
-            self._excluded_keywords = GenreUtils.get_instance().get_internal_kodi_keyword_ids(
+            self._excluded_keywords = GenreUtils.get_internal_kodi_keyword_ids(
                 GenreUtils.LOCAL_DATABASE, exclude=True)
 
         query = self.create_query(
@@ -347,7 +347,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         if Settings.is_enable_movie_stats():
             movie_data = LibraryMovieStats()
 
-        country_id = Settings.getLang_iso_3166_1().lower()
+        country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         unrated_id = certifications.get_unrated_certification().get_preferred_id()
 

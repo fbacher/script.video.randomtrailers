@@ -596,7 +596,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         trailer_type = ''
         you_tube_base_url = YOUTUBE_URL_PREFIX
         image_base_url = 'http://image.tmdb.org/t/p/'
-        country_id = Settings.getLang_iso_3166_1().lower()
+        country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         adult_certification = certifications.get_adult_certification()
         include_adult = certifications.filter(adult_certification)
@@ -604,9 +604,9 @@ class TrailerFetcher(TrailerFetcherInterface):
         allowed_genres = []
         allowed_tags = []
         if Settings.get_filter_genres():
-            allowed_genres = GenreUtils.get_instance().get_external_genre_ids(
+            allowed_genres = GenreUtils.get_external_genre_ids(
                 GenreUtils.TMDB_DATABASE, exclude=False)
-            allowed_tags = GenreUtils.get_instance().get_external_keyword_ids(
+            allowed_tags = GenreUtils.get_external_keyword_ids(
                 GenreUtils.TMDB_DATABASE, exclude=False)
         vote_comparison, vote_value = Settings.get_tmdb_avg_vote_preference()
 
@@ -645,7 +645,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         data = {}
         data['append_to_response'] = 'credits,releases,keywords,videos,alternative_titles'
-        data['language'] = Settings.getLang_iso_639_1()
+        data['language'] = Settings.get_lang_iso_639_1()
         data['api_key'] = Settings.get_tmdb_api_key()
         url = 'http://api.themoviedb.org/3/movie/' + str(tmdb_id)
 
@@ -715,7 +715,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 # lang
                 if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
                     type(self)._logger.debug('iso_639)1:', tmdb_trailer['iso_639_1'])
-                if tmdb_trailer['iso_639_1'] != Settings.getLang_iso_639_1():
+                if tmdb_trailer['iso_639_1'] != Settings.get_lang_iso_639_1():
                     continue
 
                 trailer_type = tmdb_trailer['type']
@@ -752,7 +752,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 tmdb_countries = tmdb_result['releases']['countries']
                 mpaa = ''
                 for c in tmdb_countries:
-                    if c['iso_3166_1'] == Settings.getLang_iso_3166_1():
+                    if c['iso_3166_1'] == Settings.get_country_iso_3166_1():
                         mpaa = c['certification']
                 if mpaa == '':
                     type(self)._logger.debug('No certification. Title:',
@@ -795,7 +795,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             tmdb_countries = tmdb_result['releases']['countries']
             mpaa = ''
             for c in tmdb_countries:
-                if c['iso_3166_1'] == Settings.getLang_iso_3166_1():
+                if c['iso_3166_1'] == Settings.get_country_iso_3166_1():
                     mpaa = c['certification']
             if mpaa == '' or mpaa is None:
                 mpaa = unrated_id
@@ -937,7 +937,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             # Normalize certification
 
-            country_id = Settings.getLang_iso_3166_1().lower()
+            country_id = Settings.get_country_iso_3166_1().lower()
             certifications = WorldCertifications.get_certifications(country_id)
             certification = certifications.get_certification(
                 dict_info.get(Movie.MPAA), dict_info.get(Movie.ADULT))
@@ -1063,7 +1063,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             runTime = self.get_runtime(movie, tmdb_detail_movie_info, source)
             movie[Movie.DETAIL_RUNTIME] = runTime
 
-            country_id = Settings.getLang_iso_3166_1().lower()
+            country_id = Settings.get_country_iso_3166_1().lower()
             certifications = WorldCertifications.get_certifications(country_id)
             certification = certifications.get_certification(
                 movie.get(Movie.MPAA), movie.get(Movie.ADULT))
@@ -1617,11 +1617,11 @@ def _get_tmdb_id_from_title_year(title, year):
     data['api_key'] = Settings.get_tmdb_api_key()
     data['page'] = '1'
     data['query'] = title
-    data['language'] = Settings.getLang_iso_639_1()
+    data['language'] = Settings.get_lang_iso_639_1()
     data['primary_release_year'] = year
 
     try:
-        country_id = Settings.getLang_iso_3166_1().lower()
+        country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         adult_certification = certifications.get_adult_certification()
 
@@ -1648,7 +1648,7 @@ def _get_tmdb_id_from_title_year(title, year):
             # TODO: find best trailer_id
 
             matches = []
-            current_language = Settings.getLang_iso_639_1()
+            current_language = Settings.get_lang_iso_639_1()
             movie = None
             for movie in results:
                 release_date = movie.get('release_date', '')  # 1932-04-22
@@ -1783,7 +1783,7 @@ def is_language_present(tmdb_json, title):
     #  for language_entry in tmdb_json.get('spoken_languages', {}):
     #     languages_found = True
     #     language_information_found = True
-    #     if language_entry['iso_639_1'] == Settings.getLang_iso_639_1():
+    #     if language_entry['iso_639_1'] == Settings.get_lang_iso_639_1():
     #         # current_language_found = True
     #         spoken_language_matches = True
     #         break
@@ -1795,7 +1795,7 @@ def is_language_present(tmdb_json, title):
     if len(original_language) > 0:
         language_information_found = True
 
-    if original_language == Settings.getLang_iso_639_1():
+    if original_language == Settings.get_lang_iso_639_1():
         original_language_matches = True
 
     if logger.isEnabledFor(LazyLogger.DEBUG) and not original_language_matches:

@@ -15,7 +15,7 @@ from kodi65.kodiaddon import Addon
 
 from common.imports import *
 from common.constants import (Constants, DebugLevel,
-                        RemoteTrailerPreference, GenreEnum)
+                              RemoteTrailerPreference, GenreEnum)
 from common.logger import (LazyLogger, Trace)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -1225,29 +1225,20 @@ class Settings(object):
         return Settings.get_setting_bool(Settings.SET_FULLSCREEN_WHEN_SCREENSAVER)
 
     @staticmethod
-    def getLang_iso_639_1():
-        # type: () -> str
+    def get_lang_iso_639_1() -> str:
         """
         Gets two-character language code (ex: 'en')
 
         :return:_included_genres
         """
-        # TODO: Resolve this Kodi bug:
 
         iso_639_1_name = xbmc.getLanguage(format=xbmc.ISO_639_1, region=True)
-        iso_639_2_name = xbmc.getLanguage(format=xbmc.ISO_639_2, region=True)
+        iso_639_1_name = iso_639_1_name[0:2]
 
-        full_name = xbmc.getLanguage(format=xbmc.ENGLISH_NAME, region=True)
-
-        Settings._logger.debug('iso_639_1:', iso_639_1_name)
-        Settings._logger.debug('iso_639_2:', iso_639_2_name)
-        Settings._logger.debug('ENGLISH_NAME:', full_name)
-        # return iso_639_1_name
-        return 'en'
+        return iso_639_1_name
 
     @staticmethod
-    def getLang_iso_639_2():
-        # type: () -> str
+    def get_lang_iso_639_2() -> str:
         """
         Gets three-character language code. Not sure if this is
         ISO 639-2/T or ISO 639-2/B, but it may not matter for our purposes
@@ -1260,7 +1251,7 @@ class Settings(object):
         return iso_639_2_name
 
     @staticmethod
-    def getLang_iso_3166_1():
+    def get_country_iso_3166_1():
         # type: () -> str
         """
         Country code
@@ -1274,7 +1265,9 @@ class Settings(object):
             should change name. Also, only US is supported.
         """
         language_code = Settings.get_locale()
-        return language_code.split('_')[0]
+        # en_US
+        lang, country = language_code.split('_')
+        return country
 
     @staticmethod
     def get_locale():

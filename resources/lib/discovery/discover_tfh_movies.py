@@ -248,7 +248,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             thumbnail = tfh_trailer['thumbnail']
             original_language = ''
             description = tfh_trailer['description']
-            country_id = Settings.getLang_iso_3166_1().lower()
+            country_id = Settings.get_country_iso_3166_1().lower()
             certifications = WorldCertifications.get_certifications(country_id)
             unrated_id = certifications.get_unrated_certification().get_preferred_id()
             trailer_entry = {Movie.SOURCE: Movie.TFH_SOURCE,

@@ -147,9 +147,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         self._selected_genres = set('')
         self._excluded_genres = set('')
         if Settings.get_filter_genres():
-            self._selected_genres = set(GenreUtils.get_instance().get_external_genre_ids(
+            self._selected_genres = set(GenreUtils.get_external_genre_ids(
                 GenreUtils.ITUNES_DATABASE, exclude=False))
-            self._excluded_genres = set(GenreUtils.get_instance().get_external_genre_ids(
+            self._excluded_genres = set(GenreUtils.get_external_genre_ids(
                 GenreUtils.ITUNES_DATABASE, exclude=True))
 
         show_only_itunes_trailers_of_this_type = \
@@ -210,7 +210,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #                type(parsed_content).__name__)
 
         DiskUtils.RandomGenerator.shuffle(parsed_content)
-        country_id = Settings.getLang_iso_3166_1().lower()
+        country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         unrated_id = certifications.get_unrated_certification().get_preferred_id()
         for itunes_movie in parsed_content:
@@ -523,7 +523,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                 if media_type not in DOWNLOADABLE_TYPES:
                     continue
-                if language != '' and language != Settings.getLang_iso_639_1():
+                if language != '' and language != Settings.get_lang_iso_639_1():
                     if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                         type(self).logger.debug('Rejecting:', title, 'media-type:',
                                            media_type, 'due to language:',
@@ -574,7 +574,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                         # TODO: End DELETE ME
 
-                        if language != '' and language != Settings.getLang_iso_639_1():
+                        if language != '' and language != Settings.get_lang_iso_639_1():
                             if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                                 type(self).logger.debug('Rejecting:', title,
                                                    'due to language:',
