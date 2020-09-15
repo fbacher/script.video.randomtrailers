@@ -31,3 +31,5 @@ Work Items:
  * (LIMITED) Create test bed
  * Internal and external documentation
  * Get code review
+ * Review, document any licensing requirements (TFH, iTunes, TMDB, dependent plugins)
+ * Plugin review
