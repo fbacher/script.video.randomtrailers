@@ -107,9 +107,9 @@ class PluginBridge(object):
         :param source_id:
         :return:
         """
-        if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG):
-            PluginBridge._logger.debug('signal:', signal,
-                                       'source_id:', source_id)
+        if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            PluginBridge._logger.debug_extra_verbose('signal:', signal,
+                                                     'source_id:', source_id)
         Monitor.throw_exception_if_abort_requested()
 
         try:
@@ -128,8 +128,8 @@ class PluginBridge(object):
         :param callback:
         :return:
         """
-        if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG):
-            PluginBridge._logger.debug('signaler_id:', signaler_id,
+        if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            PluginBridge._logger.debug_extra_verbose('signaler_id:', signaler_id,
                                        'signal:', signal, 'callback:', callback.__name__)
         Monitor.throw_exception_if_abort_requested()
         AddonSignals.registerSlot(signaler_id, signal, callback)

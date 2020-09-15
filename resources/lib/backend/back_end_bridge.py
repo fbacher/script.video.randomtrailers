@@ -45,9 +45,7 @@ class BackendBridge(PluginBridge):
     _busy_getting_trailer = False
     _status = BackendBridgeStatus.IDLE
 
-    def __init__(self, playable_trailer_service):
-        # type: () -> None
-
+    def __init__(self, playable_trailer_service) -> None:
         super().__init__()
         type(self).class_init(playable_trailer_service)
 
@@ -108,8 +106,8 @@ class BackendBridge(PluginBridge):
             waits for response.
         """
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            cls._logger.enter()
+        # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        #    cls._logger.enter()
 
         #
         # Don't want to recurse on onMonitor event stack or
@@ -132,9 +130,10 @@ class BackendBridge(PluginBridge):
             Send trailer to front-end
         """
         try:
-            cls.send_signal('nextTrailer', data={'trailer': trailer,
-                                                  'status': status},
-                             source_id=Constants.FRONTEND_ID)
+            cls.send_signal('nextTrailer',
+                            data={'trailer': trailer,
+                                  'status': status},
+                            source_id=Constants.FRONTEND_ID)
 
         except AbortException:
             reraise(*sys.exc_info())
