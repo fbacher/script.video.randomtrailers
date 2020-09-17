@@ -8,10 +8,8 @@ Created on Apr 14, 2019
 import datetime
 import os
 import requests
-import resource
 import sys
 
-import xbmc
 import xbmcvfs
 
 from common.constants import Constants, Movie
@@ -47,9 +45,10 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         """
 
         """
-        if type(self).logger is None:
-            type(self).logger = module_logger.getChild(type(self).__name__)
-        thread_name = type(self).__name__
+        cls = type(self)
+        if cls.logger is None:
+            cls.logger = module_logger.getChild(cls.__name__)
+        thread_name = cls.__name__
         kwargs = {Movie.SOURCE: Movie.FOLDER_SOURCE}
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
@@ -72,10 +71,15 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
         :return:
         """
-        if DEVELOPMENT:
-            memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            try:
+                import resource
+
+                memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 type(self).logger.debug(': memory: ' + str(memory))
+            except ImportError:
+                pass
+
         start_time = datetime.datetime.now()
         try:
             finished = False
@@ -124,7 +128,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             for folder in folders:
                 Monitor.throw_exception_if_abort_requested()
 
-                if xbmcvfs.exists(xbmc.translatePath(folder)):
+                if xbmcvfs.exists(xbmcvfs.translatePath(folder)):
                     # get all files and sub-folders
                     dirs, files = xbmcvfs.listdir(folder)
 
@@ -136,7 +140,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                             file_path = os.path.join(
                                 folder, item)
 
-                            title = xbmc.translatePath(file_path)
+                            title = xbmcvfs.translatePath(file_path)
                             # TODO: DELETE ME
 
                             title = os.path.basename(title)

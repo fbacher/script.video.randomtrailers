@@ -8,21 +8,23 @@ Created on Feb 12, 2019
 import sys
 import os
 import threading
+from xml.dom import minidom
+
 import xbmc
 import xbmcgui
-
-from xml.dom import minidom
+import xbmcvfs
 
 from common.constants import Constants, Movie
 from common.imports import *
-from common.playlist import Playlist
 from common.exceptions import AbortException
 from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
-from player.player_container import PlayerContainer
+from common.playlist import Playlist
 from common.settings import Settings
+
 from frontend.trailer_dialog import TrailerDialog, DialogState
 from frontend.black_background import BlackBackground
+from player.player_container import PlayerContainer
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -90,7 +92,7 @@ def get_title_font():
     title_font = 'font13'
     base_size = 20
     multiplier = 1
-    skin_dir = xbmc.translatePath("special://skin/")
+    skin_dir = xbmcvfs.translatePath("special://skin/")
     list_dir = os.listdir(skin_dir)
     fonts = []
     fontxml_path = ''
@@ -264,7 +266,7 @@ class StartUI(threading.Thread):
                     self._logger.debug('Shutting down')
                 Playlist.shutdown()
             else:
-                self._logger.notice(
+                self._logger.info(
                     'Exiting Random Trailers Screen Saver Something is playing!!!!!!')
         except AbortException:
             self._logger.error(
@@ -301,7 +303,7 @@ class StartUI(threading.Thread):
         :return:
         """
         self._logger.enter()
-        key_map_dest_file = os.path.join(xbmc.translatePath(
+        key_map_dest_file = os.path.join(xbmcvfs.translatePath(
             'special://userdata/keymaps'), "xsqueeze.xml")
         if os.path.isfile(key_map_dest_file):
             return True

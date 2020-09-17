@@ -6,16 +6,15 @@ Created on Feb 10, 2019
 @author: Frank Feuerbacher
 """
 
-from .imports import *
-
 import datetime
 import locale
 import os
 
-import xbmc
+import xbmcvfs
 from kodi65 import addon
 from kodi65.kodiaddon import Addon
 
+from common.imports import *
 
 class Constants(object):
     """
@@ -113,14 +112,14 @@ class Constants(object):
         Constants.PYTHON_ROOT_PATH = os.path.join(Constants.ADDON_PATH,
                                                   'resources',
                                                   'lib')
-        Constants.USER_DATA_PATH = xbmc.translatePath("special://userdata")
+        Constants.USER_DATA_PATH = xbmcvfs.translatePath("special://userdata")
         Constants.MEDIA_PATH = addon.MEDIA_PATH
         Constants.SCRIPT_PATH = os.path.join(
             Constants.ADDON_PATH, 'resources', 'skins', 'Default', '720p')
         now = datetime.datetime.now()
         seconds_in_month = datetime.timedelta(30)
         Constants.CACHE_FILE_EXPIRED_TIME = now - seconds_in_month
-        Constants.FRONTEND_DATA_PATH = xbmc.translatePath(
+        Constants.FRONTEND_DATA_PATH = xbmcvfs.translatePath(
             'special://profile/addon_data/{}'.format(Constants.FRONTEND_ID))
         Constants.PLAYLIST_PATH = Constants.USER_DATA_PATH + '/playlists/video'
         Constants.LOCALE = locale.getdefaultlocale()

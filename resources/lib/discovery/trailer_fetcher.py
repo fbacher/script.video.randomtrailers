@@ -15,8 +15,8 @@ import os
 import re
 import shutil
 import subprocess
-import threading
-import xbmc
+
+import xbmcvfs
 
 from common.monitor import Monitor
 from common.constants import Constants, Movie, RemoteTrailerPreference
@@ -1310,7 +1310,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     download_info = None
                     youtube_data_stream_extractor_proxy = \
                         YDStreamExtractorProxy.get_instance()
-                    trailer_folder = xbmc.translatePath(
+                    trailer_folder = xbmcvfs.translatePath(
                         'special://temp')
                     download_info = youtube_data_stream_extractor_proxy.get_video(
                         trailer_path, trailer_folder, movie_id)

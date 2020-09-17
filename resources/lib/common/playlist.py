@@ -12,7 +12,6 @@ import io
 import os
 import threading
 
-import xbmc
 import xbmcvfs
 import xmltodict
 
@@ -101,7 +100,7 @@ class Playlist(object):
             self.path = Constants.FRONTEND_DATA_PATH + '/' + \
                 playlist_name  # + Playlist.PLAYLIST_SUFFIX
         self.path = xbmcvfs.validatePath(self.path)
-        self.path = xbmc.translatePath(self.path)
+        self.path = xbmcvfs.translatePath(self.path)
         DiskUtils.create_path_if_needed(Constants.FRONTEND_DATA_PATH)
         if not self.playlist_format:
             self.mode = 'wt'

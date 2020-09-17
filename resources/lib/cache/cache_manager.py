@@ -13,10 +13,11 @@ import os
 import locale
 import threading
 
-from common.imports import *
 import xbmc
+import xbmcvfs
 
 from common.constants import Constants, Movie
+from common.imports import *
 from common.logger import (LazyLogger, Trace)
 from common.exceptions import AbortException
 from common.messages import Messages
@@ -428,7 +429,7 @@ class CacheManager(object):
         type(self)._logger.enter()
 
         # Purge off any stray undeleted temp files
-        folder = xbmc.translatePath('special://temp')
+        folder = xbmcvfs.translatePath('special://temp')
         to_delete = os.path.join(folder, '_rt_*')
         to_delete = glob.glob(to_delete)
         for a_file in to_delete:

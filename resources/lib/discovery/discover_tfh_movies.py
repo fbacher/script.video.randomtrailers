@@ -8,19 +8,20 @@ Created on Apr 14, 2019
 import sys
 import datetime
 import json
-import xbmc
+
+import xbmcvfs
 
 from cache.tfh_cache import (TFHCache)
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.imports import *
-from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
+from common.monitor import Monitor
+from common.rating import WorldCertifications
 from common.settings import Settings
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
-from common.rating import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
+from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.tfh_movie_data import TFHMovieData
 from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
 
@@ -208,7 +209,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             youtube_data_stream_extractor_proxy = \
                 YDStreamExtractorProxy.get_instance()
-            trailer_folder = xbmc.translatePath(
+            trailer_folder = xbmcvfs.translatePath(
                 'special://temp')
             url = "https://www.youtube.com/user/trailersfromhell/videos"
             success = youtube_data_stream_extractor_proxy.get_tfh_index(

@@ -10,6 +10,7 @@ import locale
 import os
 
 import xbmc
+import xbmcvfs
 
 from kodi65.kodiaddon import Addon
 
@@ -641,7 +642,7 @@ class Settings(object):
 
         :return:
         """
-        return xbmc.translatePath(os.path.join(
+        return xbmcvfs.translatePath(os.path.join(
             Settings.get_media_path(), 'CurtainClosingSequence.flv'))
 
     @staticmethod
@@ -1362,7 +1363,7 @@ class Settings(object):
 
         :return:
         """
-        return xbmc.translatePath(os.path.join(
+        return xbmcvfs.translatePath(os.path.join(
             Settings.get_resources_path(), 'media'))
 
     @staticmethod
@@ -1412,7 +1413,7 @@ class Settings(object):
 
         :return:
         """
-        return xbmc.translatePath(os.path.join(
+        return xbmcvfs.translatePath(os.path.join(
             Settings.get_media_path(), 'CurtainOpeningSequence.flv'))
 
     @staticmethod
@@ -1478,7 +1479,7 @@ class Settings(object):
 
         :return:
         """
-        return xbmc.translatePath(
+        return xbmcvfs.translatePath(
             os.path.join(Constants.ADDON_PATH, 'resources'))
 
     @staticmethod
@@ -1801,7 +1802,7 @@ class Settings(object):
         :return:
         """
         try:
-            path = xbmc.translatePath(
+            path = xbmcvfs.translatePath(
                 Settings.get_addon().setting(Settings.TRAILER_CACHE_PATH))
         except Exception as e:
             path = None
@@ -1816,7 +1817,7 @@ class Settings(object):
         :return:
         """
         try:
-            path = xbmc.translatePath(
+            path = xbmcvfs.translatePath(
                 Settings.get_addon().setting(Settings.CACHE_PATH))
         except Exception as e:
             path = None
