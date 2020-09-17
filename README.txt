@@ -18,11 +18,11 @@ Work Items:
 
  * (DONE) Support for non-English languages (text processing)
  * (DONE) Messages for non-English
- * (NEEDS genre/rating support) Non-English movies
+ * (Done) genre/certification/rating support Non-English movies (Kodi does not store certification country with movie, needs exploration)
  * (DONE) Investigate non-US movie attributes (genres, ratings, etc.)
 
  * (DONE) Better define filtering capabilities (genre(s), dates, etc.)
- * (SOME) Consider generating/reading playlists
+ * (DONE) Save playing movie to user defined smart playlists
  * (DONE) Consider randomizing over a larger universe of on-line movies rather than
    a fixed number of pages
 
@@ -31,3 +31,5 @@ Work Items:
  * (LIMITED) Create test bed
  * Internal and external documentation
  * Get code review
+ * Review, document any licensing requirements (TFH, iTunes, TMDB, dependent plugins)
+ * Plugin review
