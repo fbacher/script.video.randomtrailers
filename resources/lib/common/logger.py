@@ -397,22 +397,6 @@ class Logger(logging.Logger):
 
         self._log(text, *args, **kwargs)
 
-    def notice(self, text, *args, **kwargs):
-        # type: ( str, *Any, **str ) -> None
-        # TODO: Get rid of text arg
-        """
-            Convenience method for log(xxx kwargs['log_level' : xbmc.LOGNOTICE)
-        :param text: Arbitrary text to add to log
-        :param args: Any (almost) arbitrary arguments. Typically "msg:", value
-        :param kwargs: str  Meant for Trace usage:
-        :return:
-        """
-        kwargs['log_level'] = Logger.NOTICE
-        if kwargs.get('start_frame', None) is None:
-            kwargs.setdefault('start_frame', current_frame())
-
-        self._log(text, *args, **kwargs)
-
     def warning(self, text, *args, **kwargs):
         # type: ( str, *Any, **str ) -> None
         # TODO: Get rid of text arg
@@ -578,29 +562,29 @@ class Logger(logging.Logger):
     NOTSET = logging.NOTSET     # 0
 
     # XBMC levels
-    LOGDEBUG = 0
-    LOGINFO = 1
-    LOGNOTICE = 2
-    LOGWARNING = 3
-    LOGERROR = 4
-    LOGSEVERE = 5
-    LOGFATAL = 6
-    LOGNONE = 7
+    LOGDEBUG = xbmc.LOGDEBUG
+    LOGINFO = xbmc.LOGINFO
+    LOGWARNING = xbmc.LOGWARNING
+    LOGERROR = xbmc.LOGERROR
+    # LOGSEVERE = 5 Removed in Kodi 19
+    LOGFATAL = xbmc.LOGFATAL
+    LOGNONE = xbmc.LOGNONE
 
     logging_to_kodi_level = {FATAL: xbmc.LOGFATAL,
-                             SEVERE: xbmc.LOGSEVERE,
+                             SEVERE: xbmc.LOGERROR,
                              ERROR: xbmc.LOGERROR,
                              WARNING: xbmc.LOGWARNING,
-                             NOTICE: xbmc.LOGNOTICE,
+                             NOTICE: xbmc.LOGINFO,
                              INFO: xbmc.LOGINFO,
                              DEBUG_EXTRA_VERBOSE: xbmc.LOGDEBUG,
                              DEBUG_VERBOSE: xbmc.LOGDEBUG,
                              DEBUG: xbmc.LOGDEBUG}
 
     kodi_to_logging_level = {xbmc.LOGDEBUG: DEBUG,
-                             xbmc.LOGINFO: INFO, xbmc.LOGNOTICE: NOTICE,
-                             xbmc.LOGWARNING: WARNING, xbmc.LOGERROR: ERROR,
-                             xbmc.LOGSEVERE: SEVERE, xbmc.LOGFATAL: FATAL}
+                             xbmc.LOGINFO: INFO,
+                             xbmc.LOGWARNING: WARNING,
+                             xbmc.LOGERROR: ERROR,
+                             xbmc.LOGFATAL: FATAL}
 
     @staticmethod
     def get_python_log_level(kodi_log_level):
@@ -978,22 +962,6 @@ class LazyLogger(Logger):
         :return:
         """
         kwargs['log_level'] = Logger.INFO
-        kwargs.setdefault('lazy_logger', True)
-        kwargs.setdefault('ignore_frames', 0)
-        ignore_frames = kwargs['ignore_frames'] + 1
-        kwargs['ignore_frames'] = ignore_frames
-
-        self._log(*args, **kwargs)
-
-    def notice(self, *args, **kwargs):
-        # type: ( *Any, **str ) -> None
-        """
-            Convenience method for log(xxx kwargs['log_level' : xbmc.LOGNOTICE)
-        :param args: Any (almost) arbitrary arguments. Typically "msg:", value
-        :param kwargs: str  Meant for Trace usage:
-        :return:
-        """
-        kwargs['log_level'] = Logger.NOTICE
         kwargs.setdefault('lazy_logger', True)
         kwargs.setdefault('ignore_frames', 0)
         ignore_frames = kwargs['ignore_frames'] + 1
