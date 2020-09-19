@@ -364,11 +364,12 @@ class CacheParameters(object):
         if not os.path.exists(parent_dir):
             DiskUtils.create_path_if_needed(parent_dir)
 
+        saved_preferences = None
         with CacheIndex.lock:
             try:
                 if not os.access(path, os.R_OK):
-                    cls._logger.error(Messages.get_msg(
-                        Messages.CAN_NOT_READ_FILE) % path)
+                    cls._logger.error(Messages.get_formatted_msg(
+                        Messages.CAN_NOT_READ_FILE, path))
                     return None
 
                 file_mod_time = datetime.datetime.fromtimestamp(
