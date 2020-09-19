@@ -926,7 +926,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                                self._movie[Movie.DETAIL_GENRES])
             self.getControl(38011).setLabel(label)
 
-            image = 'stars/{:.1f}.png'.format(self._movie[Movie.RATING])
+            image = 'stars/{:.1f}.png'.format(self._movie.get(Movie.RATING, 0.0))
             rating_control = self.getControl(38012)
             rating_control.setImage(image)
             rating_control.setColorDiffuse('0xC0FFD700')
