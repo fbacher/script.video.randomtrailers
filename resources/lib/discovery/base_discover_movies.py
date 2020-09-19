@@ -131,7 +131,7 @@ class BaseDiscoverMovies(threading.Thread):
         :param movies:
         :return:
         """
-        type(self).logger.enter()
+        # type(self).logger.enter()
         self._movie_data.add_to_discovered_trailers(movies)
 
     def get_number_of_movies(self):

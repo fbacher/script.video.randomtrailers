@@ -261,7 +261,8 @@ class Certifications:
                 break
 
         if not found_rating:
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            if (kodi_rating != ''
+                    and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
                 cls._logger.debug('Certification not found for:',
                                   kodi_rating, 'assuming Not Rated')
 

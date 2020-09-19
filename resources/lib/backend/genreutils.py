@@ -799,17 +799,17 @@ class GenreUtils(object):
             for genre in domain_selected_genres:
                 genre_ids.add(genre.get_external_id())
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                genre_strings = []
-                for genre in domain_selected_genres:
-                    genre_strings.append('{}/{}'
-                                        .format(genre.get_kodi_id(),
-                                                genre.get_external_id()))
-
-                domain_str = GenreUtils.domain_str[genre_domain]
-                cls._logger.debug_extra_verbose('external {} exclude: {} {}'
-                                                .format(domain_str, exclude,
-                                                        ': '.join(genre_strings)))
+            # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            #    genre_strings = []
+            #    for genre in domain_selected_genres:
+            #        genre_strings.append('{}/{}'
+            #                             .format(genre.get_kodi_id(),
+            #                                    genre.get_external_id()))
+            #
+            #    domain_str = GenreUtils.domain_str[genre_domain]
+            #    cls._logger.debug_extra_verbose('external {} exclude: {} {}'
+            #                                    .format(domain_str, exclude,
+            #                                            ': '.join(genre_strings)))
 
         except AbortException:
             reraise(*sys.exc_info())

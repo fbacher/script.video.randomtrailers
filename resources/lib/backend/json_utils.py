@@ -12,15 +12,14 @@ import random
 from common.imports import *
 
 from backend.json_utils_basic import (JsonUtilsBasic)
+from backend.statistics import Statistics
 from cache.cache import (Cache)
 from common.development_tools import (Any, List, Dict, Union)
 from common.constants import Constants, Movie
 from common.logger import (LazyLogger, Trace)
 from common.exceptions import AbortException
 from common.messages import Messages
-from common.monitor import Monitor
 from common.settings import Settings
-from backend import backend_constants
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -136,10 +135,11 @@ class JsonUtils(JsonUtilsBasic):
             status = 0
             stop = datetime.datetime.now()
             read_time = stop - start
-            if JsonUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                JsonUtils._logger.debug_extra_verbose('json cache read time:',
-                                                      read_time.microseconds / 10000,
-                                                      'ms')
+            Statistics.add_json_read_time(int(read_time.microseconds / 10000))
+            # if JsonUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            #    JsonUtils._logger.debug_extra_verbose('json cache read time:',
+            #                                          read_time.microseconds / 10000,
+            #                                          'ms')
             if trailer_data is not None:
                 trailer_data[Movie.CACHED] = True
 

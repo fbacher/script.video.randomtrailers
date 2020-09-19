@@ -166,10 +166,6 @@ class Monitor(xbmc.Monitor):
         :param listener:
         :return:
         """
-        if cls._logger.isEnabledFor(Logger.DEBUG):
-            cls._logger.debug('Adding listener:', listener.__name__, '.',
-                              listener.__name__)
-
         with cls._settings_changed_listener_lock:
             if not cls.is_abort_requested():
                 cls._settings_changed_listeners.append(listener)

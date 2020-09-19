@@ -341,9 +341,9 @@ class Cache(object):
         try:
             prefix = Cache.generate_unique_id_from_source(movie_id, source,
                                                           error_msg=error_msg)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                cls._logger.debug('movie_id:', movie_id, 'source:', source,
-                                    'prefix:', prefix)
+            # if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            #     cls._logger.debug('movie_id:', movie_id, 'source:', source,
+            #                        'prefix:', prefix)
             #
             # To reduce clutter, put cached data into a folder named after the
             # SOURCE and first character of the id

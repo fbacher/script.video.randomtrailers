@@ -231,7 +231,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param trailer:
         :return:
         """
-        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
+        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             type(self)._logger.enter('title:', trailer[Movie.TITLE],
                                'source:', trailer[Movie.SOURCE],
                                'discovery_state:', trailer[Movie.DISCOVERY_STATE],
@@ -265,11 +265,12 @@ class TrailerFetcher(TrailerFetcherInterface):
                 return
             elif status == Constants.REJECTED_STATUS:
                 # Looks like there isn't an appropriate trailer for
-                # this movie.
+                # this movie. A Large % of TMDB movies do not have a trailer (at
+                # least for old movies). Don't log, unless required.
                 self._missing_trailers_playlist.record_played_trailer(
                     trailer, use_movie_path=True, msg='No Trailer')
-                if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self)._logger.debug('No valid trailer found for TMDB trailer:',
+                if type(self)._logger.isEnabledFor(LazyLogger.DISABLED):
+                    type(self)._logger.debug_extra_verbose('No valid trailer found for TMDB movie:',
                                        trailer[Movie.TITLE],
                                        'removed:',
                                        self._movie_data.get_number_of_removed_trailers() + 1,
@@ -284,8 +285,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 # Not sure what happened. Reject movie anyway.
                 self._missing_trailers_playlist.record_played_trailer(
                     trailer, use_movie_path=True, msg='No Trailer')
-                if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self)._logger.debug('No trailer found for TMDB trailer:',
+                if type(self)._logger.isEnabledFor(LazyLogger.DISABLED):
+                    type(self)._logger.debug_extra_verbose('No trailer found for TMDB trailer:',
                                        trailer[Movie.TITLE],
                                        'removed:',
                                        self._movie_data.get_number_of_removed_trailers() + 1,
@@ -396,13 +397,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                                            trailer[Movie.YEAR])
                     self._missing_trailers_playlist.record_played_trailer(
                         trailer, use_movie_path=True,
-                        msg=' Movie not found at tmdb')
+                        msg=' Movie not found at TMDB')
                     trailer[Movie.TMDB_ID_NOT_FOUND] = True
                 else:
                     MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
 
-        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self)._logger.debug('Finished second discovery level for movie:',
+        if type(self)._logger.isEnabledFor(LazyLogger.DISABLED):
+            type(self)._logger.debug_extra_verbose('Finished second discovery level for movie:',
                                trailer.get(Movie.TITLE),
                                '(tentatively) keep:', keep_new_trailer)
 
@@ -420,8 +421,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             with AbstractMovieData.get_aggregate_trailers_by_name_date_lock():
                 if trailer[Movie.TRAILER] == '':
                     keep_new_trailer = False
-                    if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self)._logger.debug('Not keeping:', trailer[Movie.TITLE],
+                    if type(self)._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        type(self)._logger.debug_extra_verbose('Not keeping:', trailer[Movie.TITLE],
                                            'because trailer is empty')
                 elif movie_id in AbstractMovieData.get_aggregate_trailers_by_name_date():
                     keep_new_trailer = False
@@ -430,8 +431,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         AbstractMovieData.get_aggregate_trailers_by_name_date()[movie_id])
                     source_of_trailer_in_dictionary = trailerInDictionary[Movie.SOURCE]
 
-                    if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self)._logger.debug('Duplicate Movie id:', movie_id,
+                    if type(self)._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        type(self)._logger.debug_extra_verbose('Duplicate Movie id:', movie_id,
                                            'source:', source_of_trailer_in_dictionary)
 
                     # Always prefer the local trailer
@@ -442,8 +443,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                             # Joy, two copies, both with trailers. Toss the new one.
                             #
 
-                            if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                                type(self)._logger.debug('Not keeping:',
+                            if type(self)._logger.isEnabledFor(LazyLogger.DISABLED):
+                                type(self)._logger.debug_extra_verbose('Not keeping:',
                                                    trailer[Movie.TITLE],
                                                    'because dupe and both in library')
                         else:
