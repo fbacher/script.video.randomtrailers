@@ -164,23 +164,24 @@ class Debug(object):
         :param stack_trace:
         :return:
         """
-        basic_properties = (
-            Movie.TYPE,
-            Movie.FANART,
-            Movie.THUMBNAIL,
-            Movie.TRAILER,
-            Movie.SOURCE,
+        basic_properties = {
+            Movie.TYPE: 'default_' + Movie.TYPE,
+            Movie.FANART: 'default_' + Movie.TYPE,
+            Movie.THUMBNAIL: 'default_ ' + Movie.THUMBNAIL,
+            Movie.TRAILER: 'default_' + Movie.TRAILER,
+            Movie.SOURCE: 'default_' + Movie.SOURCE,
             # Movie.FILE,
-            Movie.YEAR,
-            Movie.TITLE)
+            Movie.YEAR: 1492,
+            Movie.RATING: 0.0,
+            Movie.TITLE: 'default_' + Movie.TITLE}
 
         failing_properties = []
         is_failed = False
-        for property_name in basic_properties:
+        for property_name in basic_properties.keys():
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
                 is_failed = True
-                movie.setdefault(property_name, 'default_' + property_name)
+                movie.setdefault(property_name, basic_properties[property_name])
 
         if len(failing_properties) > 0:
             msg = ', '.join(failing_properties)
@@ -201,23 +202,23 @@ class Debug(object):
         :param stack_trace:
         :return:
         """
-        details_properties = (Movie.WRITER,
-                              Movie.DETAIL_DIRECTORS,
-                              Movie.CAST,
-                              Movie.PLOT,
-                              Movie.GENRE,
-                              Movie.STUDIO,
-                              Movie.RUNTIME,
+        details_properties = {Movie.WRITER: 'default_' + Movie.WRITER,
+                              Movie.DETAIL_DIRECTORS: 'default_' + Movie.DETAIL_DIRECTORS,
+                              Movie.CAST: 'default_' + Movie.CAST,
+                              Movie.PLOT: 'default_' + Movie.PLOT,
+                              Movie.GENRE: 'default_' + Movie.GENRE,
+                              Movie.STUDIO: 'default_' + Movie.STUDIO,
+                              Movie.RUNTIME: 0,
                               # Movie.ADULT,
-                              Movie.MPAA)
+                              Movie.MPAA: 'default_' + Movie.MPAA}
 
         cls.validate_basic_movie_properties(movie, stack_trace=stack_trace)
         failing_properties = []
         is_failed = False
-        for property_name in details_properties:
+        for property_name in details_properties.keys():
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
-                movie.setdefault(property_name, 'default_' + property_name)
+                movie.setdefault(property_name, details_properties[property_name])
                 is_failed = True
 
         if len(failing_properties) > 0:
