@@ -794,10 +794,12 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             for movie in unprocessed_movies.values():
                 if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
+                        cert = movie.get(Movie.MPAA, 'none')
                         type(self).logger.debug('No certification. Title:',
-                                           movie[Movie.TITLE],
-                                           'year:', movie.get(Movie.YEAR),
-                                           'trailer:', movie.get(Movie.TRAILER))
+                                                movie[Movie.TITLE],
+                                                'year:', movie.get(Movie.YEAR),
+                                                'certification:', cert,
+                                                'trailer:', movie.get(Movie.TRAILER))
                         movie[Movie.MPAA] = ''
 
                 if Movie.DISCOVERY_STATE in movie:
