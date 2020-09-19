@@ -262,7 +262,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                              Movie.THUMBNAIL: thumbnail,
                              Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
                              Movie.MPAA: unrated_id,
-                             Movie.ADULT: False
+                             Movie.ADULT: False,
+                             Movie.RATING: 0.0
                              }
             if Settings.get_max_number_of_tfh_trailers() <= len(TFHCache.get_cached_trailers()):
                 return True
