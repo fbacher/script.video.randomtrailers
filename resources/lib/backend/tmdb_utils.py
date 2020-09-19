@@ -29,7 +29,6 @@ class TMDBUtils(object):
 
 
     """
-
     kodi_data_for_tmdb_id = None
     _logger = None
 
@@ -38,9 +37,15 @@ class TMDBUtils(object):
                  tmdb_id,  # type int
                  kodi_file  # type str
                  ):
+
         self._kodi_id = kodi_id
         self._tmdb_id = tmdb_id
         self._kodi_file = kodi_file
+
+    @classmethod
+    def class_init(cls):
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     def get_kodi_id(self):
         # type: () -> int
@@ -319,3 +324,5 @@ class TMDBUtils(object):
         if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
             TMDBUtils._logger.exit('title:', title, 'tmdb_id:', tmdb_id)
         return tmdb_id
+
+TMDBUtils.class_init()
