@@ -148,7 +148,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # Used mostly as a timer
         self._show_details_event = threading.Event()
         self._wait_event = ReasonEvent()
-        self._ready_to_exit_event = threading.Event()
         Monitor.register_abort_listener(self.on_abort_event)
 
         self._saved_brief_info_visibility = False
@@ -766,8 +765,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         if display_seconds == 0:
             # One year
             display_seconds = 365 * 24 * 60 * 60
+        Monitor.throw_exception_if_abort_requested()
         self._show_details_event.clear()  # In case it was set
         self._show_details_event.wait(display_seconds)
+        Monitor.throw_exception_if_abort_requested()
         self._show_details_event.clear()  # In case it was set
         # self.hide_detail_info()
         self._show_details_event.set()  # Force show_detail_info to unblock
@@ -1048,7 +1049,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         super().close()
-        self._ready_to_exit_event.set()
 
     def set_random_trailers_play_state(self, dialog_state):
         # type: (int) -> None
@@ -1116,6 +1116,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         type(self).logger.enter()
+        self._show_details_event.set()  # Unblock waits
         self.set_random_trailers_play_state(DialogState.SHUTDOWN)
         self._wait_event.set(ReasonEvent.SHUTDOWN)
 
