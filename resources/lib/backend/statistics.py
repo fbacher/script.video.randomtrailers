@@ -63,6 +63,8 @@ class Statistics(object):
     _tmdb_trailer_found = 0
     _tmdb_trailer_not_found = 0
 
+    _json_io_time = 0
+
     # For Discovery Modules
 
     @classmethod
@@ -409,3 +411,7 @@ class Statistics(object):
         :return:
         """
         cls._missing_tmdb_id_in_cache += 1
+
+    @classmethod
+    def add_json_read_time(cls, milliseconds: int) -> None:
+        cls._json_io_time += milliseconds
