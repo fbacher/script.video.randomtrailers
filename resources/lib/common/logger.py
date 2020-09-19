@@ -6,6 +6,7 @@ Created on Apr 17, 2019
 @author: Frank Feuerbacher
 """
 
+from collections import OrderedDict
 from functools import wraps
 import inspect
 import logging
@@ -155,8 +156,7 @@ class Logger(logging.Logger):
                      str(logging_level), xbmc.LOGDEBUG)
             root_logger.setLevel(logging_level)
             Trace.enable_all()
-            root_logger.addFilter(
-                MyFilter(enabled_traces=Trace.get_enabled_traces()))
+            root_logger.addFilter(Trace())
             Logger._root_logger = root_logger
         return Logger._root_logger
 
@@ -224,7 +224,7 @@ class Logger(logging.Logger):
         self._log(*args, **kwargs)
 
     def _log(self, *args, **kwargs):
-        # type: ( *Any, **str) -> None
+        # type: ( *Any, **Any) -> None
         """
             Creates a log entry
 
@@ -550,6 +550,7 @@ class Logger(logging.Logger):
         except Exception as e:
             Logger.log_exception()
 
+    DISABLED = 100
     FATAL = logging.CRITICAL  # 50
     SEVERE = 45
     ERROR = logging.ERROR       # 40
@@ -570,7 +571,8 @@ class Logger(logging.Logger):
     LOGFATAL = xbmc.LOGFATAL
     LOGNONE = xbmc.LOGNONE
 
-    logging_to_kodi_level = {FATAL: xbmc.LOGFATAL,
+    logging_to_kodi_level = {DISABLED: 100,
+                             FATAL: xbmc.LOGFATAL,
                              SEVERE: xbmc.LOGERROR,
                              ERROR: xbmc.LOGERROR,
                              WARNING: xbmc.LOGWARNING,
@@ -827,8 +829,7 @@ class LazyLogger(Logger):
             # self.addHandler(MyHandler())
             self.setLevel(level)
             Trace.enable_all()
-            self.addFilter(
-                MyFilter(enabled_traces=Trace.get_enabled_traces()))
+            self.addFilter(Trace())
 
         except AbortException:
             six.reraise(*sys.exc_info())
@@ -868,7 +869,7 @@ class LazyLogger(Logger):
             LazyLogger.log_exception()
 
     def _log(self, *args, **kwargs):
-        # type: ( *Any, **str) -> None
+        # type: ( *Any, **Any) -> None
         """
             Creates a log entry
 
@@ -1115,7 +1116,7 @@ class LazyLogger(Logger):
             Logger.log_exception()
 
 
-class Trace(object):
+class Trace(logging.Filter):
     """
 
     """
@@ -1124,66 +1125,130 @@ class Trace(object):
     TRACE_UI = 'UI'
     STATS_UI = 'STATS_UI'
     TRACE_DISCOVERY = 'DISCOVERY'
+    TRACE_FETCH = 'FETCH'
+    TRACE_TRAILER_CACHE = 'TRAILER_CACHE'
+    TRACE_TMDB_CACHE = 'TMDB_CACHE'
+    TRACE_GENRE = 'GENRE'
+    TRACE_CERTIFICATION = 'CERTIFICATION'
+    TRACE_CACHE_GARBAGE_COLLECTION = 'CACHE_GC'
+    TRACE_TFH = 'TFH'
     STATS_DISCOVERY = 'STATS_DISCOVERY'
+    STATS_CACHE = 'STATS_CACHE'
     TRACE_MONITOR = 'MONITOR'
     TRACE_JSON = 'JSON'
     TRACE_SCREENSAVER = 'SCREENSAVER'
     TRACE_UI_CONTROLLER = 'UI_CONTROLLER'
+    TRACE_CACHE_MISSING = 'CACHE_MISSING'
+    TRACE_CACHE_UNPROCESSED = 'CACHE_UNPROCESSED'
+    TRACE_CACHE_PAGE_DATA = 'CACHE_PAGE_DATA'
+    TRACE_TRANSLATION = 'TRANSLATION'
+    TRACE_SHUTDOWN = 'SHUTDOWN'
 
-    _trace_all = [TRACE, STATS, TRACE_UI, STATS_UI, TRACE_DISCOVERY,
-                  STATS_DISCOVERY, TRACE_MONITOR, TRACE_JSON, TRACE_SCREENSAVER,
-                  TRACE_UI_CONTROLLER]
+    TRACE_ENABLED = True
+    TRACE_DISABLED = False
 
-    _enabled_traces = set()
+    _trace_map = {
+            TRACE: TRACE_DISABLED,
+            STATS: TRACE_DISABLED,
+            TRACE_UI: TRACE_DISABLED,
+            TRACE_DISCOVERY: TRACE_DISABLED,
+            TRACE_FETCH: TRACE_DISABLED,
+            TRACE_TRAILER_CACHE: TRACE_DISABLED,
+            TRACE_TMDB_CACHE: TRACE_DISABLED,
+            TRACE_GENRE: TRACE_DISABLED,
+            TRACE_CERTIFICATION: TRACE_DISABLED,
+            TRACE_CACHE_GARBAGE_COLLECTION: TRACE_DISABLED,
+            TRACE_TFH: TRACE_DISABLED,
+            STATS_DISCOVERY: TRACE_DISABLED,
+            STATS_CACHE: TRACE_DISABLED,
+            TRACE_MONITOR: TRACE_DISABLED,
+            TRACE_JSON: TRACE_DISABLED,
+            TRACE_SCREENSAVER: TRACE_DISABLED,
+            TRACE_UI_CONTROLLER: TRACE_DISABLED,
+            TRACE_CACHE_MISSING: TRACE_DISABLED,
+            TRACE_CACHE_UNPROCESSED: TRACE_DISABLED,
+            TRACE_CACHE_PAGE_DATA: TRACE_DISABLED,
+            TRACE_TRANSLATION: TRACE_DISABLED,
+            TRACE_SHUTDOWN: TRACE_DISABLED
+        }
+
     _logger = None
 
-    def __init__(self):
-        # type:( ) -> None
+    def __init__(self, name : str = '') -> None:
         """
         Dummy
         """
-        pass
+        super().__init__(name=name)
 
-    @staticmethod
-    def enable(*flags):
-        # type: (str) -> None
+    @classmethod
+    def enable(cls, *flags) -> None:
         """
 
         :param flags:
         :return:
         """
         for flag in flags:
-            Trace._enabled_traces.add(flag)
+            if flag in cls._trace_map:
+                cls._trace_map[flag] = cls.TRACE_ENABLED
+            else:
+                cls._logger.debug(f'Invalid TRACE flag: {flag}')
 
-    @staticmethod
-    def enable_all():
+    @classmethod
+    def enable_all(cls):
         # type: () -> None
         """
 
         :return:
         """
-        for flag in Trace._trace_all:
-            Trace.enable(flag)
+        for flag in cls._trace_map.keys():
+            cls._trace_map[flag] = cls.TRACE_ENABLED
 
-    @staticmethod
-    def disable(*flags):
-        # type: (*str) -> None
+    @classmethod
+    def disable(cls, *flags: Optional[List[str]]) -> None:
         """
 
         :param flags:
         :return:
         """
         for flag in flags:
-            Trace._enabled_traces.remove(flag)
+            if flag in cls._trace_map:
+                cls._trace_map[flag] = cls.TRACE_DISABLED
+            else:
+                cls._logger.debug(f'Invalid TRACE flag: {flag}')
 
-    @staticmethod
-    def get_enabled_traces():
-        # type: () -> Set[str]
+    def filter(self, record):
+        # type: (logging.LogRecord) -> int
         """
 
+        :param record:
         :return:
         """
-        return Trace._enabled_traces
+        try:
+            passed_traces = record.__dict__.get('trace', [])
+            if len(passed_traces) == 0:
+                return 1
+
+            cls = type(self)
+            filtered_traces = []
+            for trace in passed_traces:
+                is_enabled = cls._trace_map.get(trace, None)
+                if is_enabled is None:
+                    cls._logger.debug(f'Invalid TRACE flag: {trace}')
+                elif is_enabled:
+                    filtered_traces.append(trace)
+
+            if len(filtered_traces) > 0:
+                filtered_traces.sort()
+
+                trace_string = ', '.join(filtered_traces)
+                trace_string = f'[{trace_string}]'
+                record.__dict__['trace_string'] = trace_string
+
+                return 1  # Docs say 0 and non-zero
+        except Exception:
+            LazyLogger.log_exception()
+
+        return 0
 
 
 class MyHandler(logging.Handler):
@@ -1223,52 +1288,6 @@ class MyHandler(logging.Handler):
             xbmc.log(msg, kodi_level)
         except Exception as e:
             pass
-
-
-class MyFilter (logging.Filter):
-    """
-
-    """
-
-    def __init__(self, name='', enabled_traces=None):
-        # type: (str, Union[Set[str], None]) -> None
-        """
-
-        :param name:
-        :param enabled_traces:
-        """
-        try:
-            super().__init__(name=name)
-            self._enabled_traces = enabled_traces
-            if self._enabled_traces is None:
-                self._enabled_traces = set()
-        except Exception as e:
-            pass
-
-    def filter(self, record):
-        # type: (logging.LogRecord) -> int
-        """
-
-
-        :param record:
-        :return:
-        """
-        try:
-            passed_traces = record.__dict__.get('trace', set())
-            if len(passed_traces) == 0:
-                return 1
-
-            filtered_traces = self._enabled_traces.intersection(passed_traces)
-            if len(filtered_traces) > 0:
-                trace_string = ', '.join(sorted(filtered_traces))
-                trace_string = '[{}]'.format(trace_string)
-                record.__dict__['trace_string'] = trace_string
-
-                return 1  # Docs say 0 and non-zero
-        except Exception:
-            LazyLogger.log_exception()
-
-        return 0
 
 
 class MyFormatter(logging.Formatter):
