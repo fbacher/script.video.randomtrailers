@@ -635,7 +635,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         dict_info[Movie.RUNTIME] = 0
         dict_info[Movie.GENRE] = [missing_detail]
         dict_info[Movie.DETAIL_TAGS] = [missing_detail]
-        dict_info[Movie.RATING] = 0
+        dict_info[Movie.RATING] = 0.0
         dict_info[Movie.VOTES] = 0
         dict_info[Movie.ADULT] = False
         dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
