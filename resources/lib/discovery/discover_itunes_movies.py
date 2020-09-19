@@ -1051,7 +1051,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                      Movie.STUDIO: studio,
                      Movie.SOURCE:
                      Movie.ITUNES_SOURCE,
-                     Movie.ITUNES_ID: itunes_id}
+                     Movie.ITUNES_ID: itunes_id,
+                     Movie.RATING: 0.0}  # Not supplied
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
