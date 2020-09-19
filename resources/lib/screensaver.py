@@ -6,67 +6,61 @@ Created on Feb 12, 2019
 """
 # dummy screensaver will set screen to black and go fullscreen if windowed
 
+import os
 import sys
 
-from common.imports import *
 import xbmc
-import xbmcgui
 import xbmcaddon
 
-from common.monitor import Monitor
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace, MyHandler, MyFilter)
+from common.imports import *
+from common.monitor import Monitor
+from common.logger import (LazyLogger, Trace)
 from screensaver.screensaver_bridge import ScreensaverBridge
 
-REMOTE_DBG = False  # True
+REMOTE_DEBUG: bool = True
 
-# append pydev remote debugger
-if REMOTE_DBG:
-    # Make pydev debugger works for auto reload.
-    # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+if REMOTE_DEBUG:
     try:
-        xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
-        # if module_logger.isEnabledFor(LazyLogger.DEBUG):
-        #     module_logger.debug('Python path:', utils.py2_decode(sys.path))
-        # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
-        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
-        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
-        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
-
-        '''
-            If the server (your python process) has the structure
-                /user/projects/my_project/src/package/module1.py
-    
-            and the client has:
-                c:\my_project\src\package\module1.py
-    
-            the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
-                PATHS_FROM_ECLIPSE_TO_PYTHON = [(r'c:\my_project\src', r'/user/projects/my_project/src')
-            # with the addon script.module.pydevd, only use `import pydevd`
-            # import pysrc.pydevd as pydevd
-        '''
-        sys.path.append('/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
-                        )
         import pydevd
-        # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
-        # console
-        try:
-            pydevd.settrace('localhost', stdoutToServer=True,
-                            stderrToServer=True)
-        except AbortException:
-            raise sys.exc_info()
-        except Exception as e:
-            xbmc.log(
-                ' Looks like remote debugger was not started prior to plugin start', xbmc.LOGDEBUG)
 
+        # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+        try:
+            xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
+            '''
+                If the server (your python process) has the structure
+                    /user/projects/my_project/src/package/module1.py
+
+                and the client has:
+                    c:\my_project\src\package\module1.py
+
+                the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
+                    PATHS_FROM_ECLIPSE_TO_PYTHON = \
+                          [(r'c:\my_project\src', r'/user/projects/my_project/src')
+                # with the addon script.module.pydevd, only use `import pydevd`
+                # import pysrc.pydevd as pydevd
+            '''
+            addons_path = os.path.join(Constants.ADDON_PATH, '..',
+                                       'script.module.pydevd', 'lib', 'pydevd.py')
+
+            sys.path.append(addons_path)
+            # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
+            # console
+            try:
+                pydevd.settrace('localhost', stdoutToServer=True,
+                                stderrToServer=True)
+            except AbortException:
+                exit(0)
+            except Exception as e:
+                xbmc.log(
+                    ' Looks like remote debugger was not started prior to plugin start',
+                    xbmc.LOGDEBUG)
+        except BaseException:
+            xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
     except ImportError:
-        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
-        xbmc.log(msg, xbmc.LOGDEBUG)
-        sys.stderr.write(msg)
-        sys.exit(1)
-    except BaseException:
-        xbmc.log('Exception occurred Waiting on Debug connection', xbmc.LOGDEBUG)
+        REMOTE_DEBUG = False
+        pydevd = None
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -114,7 +108,7 @@ except AbortException:
 except Exception as e:
     module_logger.exception('')
 finally:
-    if REMOTE_DBG:
+    if REMOTE_DEBUG:
         try:
             pydevd.stoptrace()
         except Exception as e:

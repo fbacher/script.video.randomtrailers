@@ -21,68 +21,57 @@ from common.constants import Constants
 from common.monitor import Monitor
 from common.exceptions import AbortException
 from common.settings import Settings
-from common.critical_settings import CriticalSettings
 from backend.api import load_trailers
 from common.logger import (LazyLogger)
 
 from discovery.playable_trailer_service import PlayableTrailerService
 from cache.cache_manager import CacheManager
 
+REMOTE_DEBUG: bool = True
 
-REMOTE_DBG = True
-
-if REMOTE_DBG:
-    # Make pydev debugger work for auto reload.
-    # Note pydevd module needs to be copied in XBMC\system\python\Lib\pysrc
+if REMOTE_DEBUG:
     try:
-        # if config_logger.isEnabledFor((LazyLogger.DEBUG)):
-        #     config_logger.debug('%s', 'Trying to attach to debugger',
-        #                  kwargs={'lazy_logger': False})
-        #     config_logger.debug('%s %s', 'Python path:', str(
-        #         sys.path), kwargs={'lazy_logger': False})
-
-        # os.environ["DEBUG_CLIENT_SERVER_TRANSLATION"] = "True"
-        # os.environ['PATHS_FROM_ECLIPSE_TO_PYTON'] =\
-        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py:' +\
-        #    '/home/fbacher/.kodi/addons/script.video/randomtrailers/resources/lib/random_trailers_ui.py'
-
-        '''
-            If the server (your python process) has the structure
-                /user/projects/my_project/src/package/module1.py
-
-            and the client has:
-                c:\my_project\src\package\module1.py
-
-            the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
-                PATHS_FROM_ECLIPSE_TO_PYTHON = [(r'c:\my_project\src', r'/user/projects/my_project/src')
-            # with the addon script.module.pydevd, only use `import pydevd`
-            # import pysrc.pydevd as pydevd
-        '''
-        sys.path.append('/home/fbacher/.kodi/addons/script.module.pydevd/lib/pydevd.py'
-                        )
         import pydevd
-        # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
-        # console
+
+        # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
         try:
-            pydevd.settrace('localhost', stdoutToServer=True,
-                            stderrToServer=True)
-        except AbortException:
-            reraise(*sys.exc_info())
-        except Exception as e:
-            xbmc.log(
-                ' Looks like remote debugger was not started prior to plugin start',
-                xbmc.LOGDEBUG)
+            xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
+            '''
+                If the server (your python process) has the structure
+                    /user/projects/my_project/src/package/module1.py
 
+                and the client has:
+                    c:\my_project\src\package\module1.py
+
+                the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
+                    PATHS_FROM_ECLIPSE_TO_PYTHON = \
+                          [(r'c:\my_project\src', r'/user/projects/my_project/src')
+                # with the addon script.module.pydevd, only use `import pydevd`
+                # import pysrc.pydevd as pydevd
+            '''
+            addons_path = os.path.join(Constants.ADDON_PATH, '..',
+                                       'script.module.pydevd', 'lib', 'pydevd.py')
+
+            sys.path.append(addons_path)
+            # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
+            # console
+            try:
+                pydevd.settrace('localhost', stdoutToServer=True,
+                                stderrToServer=True)
+            except AbortException:
+                exit(0)
+            except Exception as e:
+                xbmc.log(
+                    ' Looks like remote debugger was not started prior to plugin start',
+                    xbmc.LOGDEBUG)
+        except BaseException:
+            xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
     except ImportError:
-        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
-        xbmc.log(msg, xbmc.LOGDEBUG)
-        sys.stderr.write(msg)
-        sys.exit(1)
-    except BaseException:
-        xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
+        REMOTE_DEBUG = False
+        pydevd = None
 
-RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger.debug('python path:', sys.path)
 
 
 class MainThreadLoop(object):
@@ -291,7 +280,7 @@ def bootstrap_random_trailers():
     except Exception as e:
         module_logger.exception('')
     finally:
-        if REMOTE_DBG:
+        if REMOTE_DEBUG:
             try:
                 pydevd.stoptrace()
             except Exception:
@@ -345,3 +334,10 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
             bootstrap_unit_test()
     except AbortException:
         pass  # Die, Die, Die
+    finally:
+        if REMOTE_DEBUG:
+            try:
+                pydevd.stoptrace()
+            except Exception:
+                pass
+        exit(0)
