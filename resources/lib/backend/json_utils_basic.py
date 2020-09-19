@@ -32,6 +32,7 @@ from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
+from common.utils import Utils
 from backend import backend_constants
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -787,8 +788,12 @@ class JsonUtilsBasic(object):
                         cls._logger.debug_extra_verbose(
                             'Date: ', tmp)
                     parsed_date = parsedate_tz(tmp)
-                    time_stamp = datetime.datetime.strptime(tmp,
-                                                            '%a, %d %b %Y %H:%M:%S %Z')
+                    #
+                    # There is an intermittent bug in datetime.datetime.strptime
+                    # when it runs in an embedded system that is not properly
+                    # reinitialized
+
+                    time_stamp = Utils.strptime(tmp, '%a, %d %b %Y %H:%M:%S %Z')
                     unix_time_stamp = calendar.timegm(parsed_date)
                     time_stamp = datetime.datetime.fromtimestamp(
                         unix_time_stamp)

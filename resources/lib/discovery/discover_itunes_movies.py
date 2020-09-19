@@ -240,7 +240,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         '', release_date_string)
 
                     # "Thu, 14 Feb 2019 00:00:00 -0800",
-                    release_date = datetime.datetime.strptime(
+                    release_date = Utils.strptime(
                         release_date_string, '%a, %d %b %Y %H:%M:%S')
                     if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         type(self).logger.debug_extra_verbose('title:', title, 'release_date_string:',
@@ -443,9 +443,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         cast=None,  # type: List[Dict]
                         studio='',  # type: str
                         fanart=''  # type: str
-                        ):
-
-        # type: (...) -> MovieType
+                        ) -> MovieType:
         """
         """
 

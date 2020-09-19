@@ -6,14 +6,15 @@ Created on Feb 10, 2019
 @author: Frank Feuerbacher
 """
 
-from common.imports import *
-
+import datetime
 import os
 import random
+import time
 
 from kodi65.kodiaddon import Addon
 
 from common.constants import Constants
+from common.imports import *
 from common.logger import LazyLogger
 from common.settings import Settings
 
@@ -81,3 +82,22 @@ class Utils(object):
             pass
 
         return installed
+
+    @staticmethod
+    def strptime(date_string: str, date_format: str) -> datetime.datetime:
+        """
+        THIS IS A WORKAROUND to a known python bug that shows up in embedded
+        systems. Apparently proper reinitialization would solve it, but it is
+        still a known bug:  https://bugs.python.org/issue27400
+
+        The work around is to use an alternate solution that uses time.strptime.
+        See documentation on datetime.strptime, it gives the equivalent code
+        below.
+
+        :param date_string:
+        :param date_format:
+        :return:
+        """
+        result = datetime.datetime(*(time.strptime(date_string,
+                                                   date_format)[0:6]))
+        return result
