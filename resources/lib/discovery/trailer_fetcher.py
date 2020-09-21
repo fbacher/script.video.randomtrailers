@@ -212,6 +212,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                     if DiskUtils.is_url(trailer_path) \
                             and trailer[Movie.SOURCE] == Movie.TMDB_SOURCE:
                         tmdb_id = MovieEntryUtils.get_tmdb_id(trailer)
+                        if tmdb_id is not None:
+                            tmdb_id = int(tmdb_id)
+
                         CacheIndex.remove_unprocessed_movie(tmdb_id)
                 else:
                     self._fetch_trailer_to_play_worker(trailer)
@@ -249,7 +252,9 @@ class TrailerFetcher(TrailerFetcherInterface):
             # set to Movie.TMDB_SOURCE
             #
             # Debug.dump_json(text='Original trailer:', data=trailer)
-            tmdb_id = MovieEntryUtils.get_tmdb_id(trailer)
+            tmdb_id: int = MovieEntryUtils.get_tmdb_id(trailer)
+            if tmdb_id is not None:
+                tmdb_id = int(tmdb_id)
 
             status, populated_trailer = self.get_tmdb_trailer(trailer[Movie.TITLE],
                                                               tmdb_id,
@@ -300,7 +305,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if (trailer[Movie.TRAILER] == '' and
                         TrailerUnavailableCache.is_library_id_missing_trailer(trailer[Movie.MOVIEID])):
                     # Try to find trailer from TMDB
-                    tmdb_id = MovieEntryUtils.get_tmdb_id(trailer)
+                    tmdb_id: Optional[int] = MovieEntryUtils.get_tmdb_id(trailer)
+                    if tmdb_id is not None:
+                        tmdb_id = int(tmdb_id)
 
                     # Ok, tmdb_id not in Kodi database, query TMDB
 
@@ -381,7 +388,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             elif source == Movie.ITUNES_SOURCE:
                 if not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
-                    tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
+                    tmdb_id: Optional[int] = TMDBUtils.get_tmdb_id_from_title_year(
                         trailer[Movie.TITLE], trailer[Movie.YEAR])
                 else:
                     tmdb_id = None
@@ -983,7 +990,9 @@ class TrailerFetcher(TrailerFetcherInterface):
         kodi_movie = None
         try:
             source = movie[Movie.SOURCE]
-            tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+            tmdb_id: Optional[int] = MovieEntryUtils.get_tmdb_id(movie)
+            if tmdb_id is not None:
+                tmdb_id = int(tmdb_id)
 
             if source == Movie.ITUNES_SOURCE and tmdb_id is None:
                 Monitor.throw_exception_if_abort_requested()
@@ -1029,6 +1038,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                 library_id = movie.get(Movie.MOVIEID, None)
                 if library_id is None:
                     tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                    if tmdb_id is not None:
+                        tmdb_id = int(tmdb_id)
+
                     kodi_movie = TMDBUtils.get_movie_by_tmdb_id(tmdb_id)
                     if kodi_movie is not None:
                         movie[Movie.MOVIEID] = kodi_movie.get_kodi_id()
@@ -1045,7 +1057,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             movie[Movie.DETAIL_ACTORS] = actors
 
             actors = self.get_actors(movie, tmdb_detail_movie_info, source,
-                                     max_actors= Movie.MAX_VOICED_ACTORS)
+                                     max_actors=Movie.MAX_VOICED_ACTORS)
             movie[Movie.VOICED_DETAIL_ACTORS] = actors
 
             movie_studios = ', '.join(movie.get(Movie.STUDIO, []))
@@ -1580,14 +1592,14 @@ def get_tmdb_id_from_title_year(title, year):
     :param year:
     :return:
     """
-    trailer_id = None
+    tmdb_id = None
     try:
         year = int(year)
-        trailer_id = _get_tmdb_id_from_title_year(title, year)
-        if trailer_id is None:
-            trailer_id = _get_tmdb_id_from_title_year(title, year + 1)
-        if trailer_id is None:
-            trailer_id = _get_tmdb_id_from_title_year(title, year - 1)
+        tmdb_id: Optional[int] = _get_tmdb_id_from_title_year(title, year)
+        if tmdb_id is None:
+            tmdb_id = _get_tmdb_id_from_title_year(title, year + 1)
+        if tmdb_id is None:
+            tmdb_id = _get_tmdb_id_from_title_year(title, year - 1)
 
     except AbortException:
         reraise(*sys.exc_info())
@@ -1595,11 +1607,13 @@ def get_tmdb_id_from_title_year(title, year):
         module_logger.exception('Error finding tmdbid for movie:', title,
                                 'year:', year)
 
-    return trailer_id
+    if tmdb_id is not None:
+        tmdb_id = int(str(tmdb_id))
+
+    return tmdb_id
 
 
-def _get_tmdb_id_from_title_year(title, year):
-    # type: (str, int) -> int
+def _get_tmdb_id_from_title_year(title: str, year: int) -> int:
     """
         When we don't have a trailer for a movie, we can
         see if TMDB has one.
@@ -1756,6 +1770,9 @@ def _get_tmdb_id_from_title_year(title, year):
         tmdb_id = found_movie.get('id', None)
     if logger.isEnabledFor(LazyLogger.DEBUG):
         logger.exit('title:', title, 'tmdb_id:', tmdb_id)
+
+    if tmdb_id is not None:
+        tmdb_id = int(tmdb_id)
     return tmdb_id
 
 
