@@ -24,7 +24,7 @@ from common.imports import *
 from common.logger import (LazyLogger, Trace)
 import common.logger as logger
 
-lazy_module_logger = LazyLogger.get_addon_module_logger()
+lazy_module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class LazyLoggerTestCase(unittest.TestCase):
