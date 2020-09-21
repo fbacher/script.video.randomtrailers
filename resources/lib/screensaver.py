@@ -19,7 +19,7 @@ from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
 from screensaver.screensaver_bridge import ScreensaverBridge
 
-REMOTE_DEBUG: bool = True
+REMOTE_DEBUG: bool = False
 
 if REMOTE_DEBUG:
     try:
