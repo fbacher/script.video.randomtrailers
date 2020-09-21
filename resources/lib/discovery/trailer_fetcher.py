@@ -602,14 +602,6 @@ class TrailerFetcher(TrailerFetcherInterface):
         certifications = WorldCertifications.get_certifications(country_id)
         adult_certification = certifications.get_adult_certification()
         include_adult = certifications.filter(adult_certification)
-
-        allowed_genres = []
-        allowed_tags = []
-        if Settings.get_filter_genres():
-            allowed_genres = GenreUtils.get_external_genre_ids(
-                GenreUtils.TMDB_DATABASE, exclude=False)
-            allowed_tags = GenreUtils.get_external_keyword_ids(
-                GenreUtils.TMDB_DATABASE, exclude=False)
         vote_comparison, vote_value = Settings.get_tmdb_avg_vote_preference()
 
         # Since we may leave early, populate with dummy data
@@ -713,11 +705,6 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if tmdb_trailer['site'] != 'YouTube':
                     continue
 
-                # TODO: if Settings.is_allow_foreign_languages(), then get primary
-                # lang
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug('iso_639)1:',
-                                             tmdb_trailer['iso_639_1'])
                 if tmdb_trailer['iso_639_1'] != Settings.get_lang_iso_639_1():
                     continue
 
@@ -871,26 +858,32 @@ class TrailerFetcher(TrailerFetcherInterface):
             if votes is not None:
                 dict_info[Movie.VOTES] = votes
 
-            genre_found = False
-            tag_found = False
-            genres = tmdb_result['genres']
-            genre = []
-            for g in genres:
-                genre.append(g['name'])
-                if str(g['id']) in allowed_genres:
-                    genre_found = True
+            tmdb_genres = tmdb_result['genres']
+            kodi_movie_genres = []
+            tmdb_genre_ids: List[str] = []
+            for tmdb_genre in tmdb_genres:
+                kodi_movie_genres.append(tmdb_genre['name'])
+                tmdb_genre_ids.append(str(tmdb_genre['id']))
 
-            dict_info[Movie.GENRE] = genre
+            dict_info[Movie.GENRE] = kodi_movie_genres
 
             keywords = tmdb_result.get('keywords', [])
-            tmb_result_tags = keywords.get('keywords', [])
-            tags = []
-            for t in tmb_result_tags:
-                tags.append(t['name'])
-                if str(t['id']) in allowed_tags:
-                    tag_found = True
+            tmdb_keywords = keywords.get('keywords', [])
+            tmdb_keyword_ids = []
+            kodi_movie_tags = []
+            for tmdb_keyword in tmdb_keywords:
+                kodi_movie_tags.append(tmdb_keyword['name'])
+                tmdb_keyword_ids.append(str(tmdb_keyword['id']))
 
-            dict_info[Movie.DETAIL_TAGS] = tags
+            dict_info[Movie.DETAIL_TAGS] = kodi_movie_tags
+
+            include_movie = GenreUtils.include_movie(genres=tmdb_genre_ids,
+                                                     tags=tmdb_keyword_ids)
+            if not include_movie:
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    cls._logger.debug_extra_verbose(
+                        'Rejected due to GenreUtils or Keyword')
+                add_movie = False
 
             language_information_found, original_language_found = is_language_present(
                 tmdb_result, movie_title)
@@ -901,14 +894,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not ignore_failures and not (original_language_found
                                             or Settings.is_allow_foreign_languages()):
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug('Rejecting due to language')
+                    cls._logger.debug('Rejected due to language')
                 add_movie = False
-
-            if Settings.get_filter_genres() and not tag_found and not genre_found:
-                add_movie = False
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug(
-                        'Rejected due to GenreUtils or Keyword')
 
             if vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
                 if vote_comparison == \

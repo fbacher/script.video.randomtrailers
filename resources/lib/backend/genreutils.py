@@ -55,8 +55,7 @@ class _KodiToExternalDBMapping:
         database (IMDB, TMDB, etc.).
     """
 
-    def __init__(self, kodi_id, external_id=None):
-        # type: (str, str) -> None
+    def __init__(self, kodi_id: str, external_id: str = None):
         """
             Constructor Mapping a Kodi Genre to an external
             database Tag or Genre. If external_id is None,
@@ -635,11 +634,17 @@ class GenreUtils(object):
     IMDB_DATABASE = 3
     ROTTEN_TOMATOES_DATABASE = 4
 
-    domain_str = {LOCAL_DATABASE: 'local',
-                  TMDB_DATABASE: 'tmdb',
-                  ITUNES_DATABASE: 'itunes',
-                  IMDB_DATABASE: 'imdb',
-                  ROTTEN_TOMATOES_DATABASE: 'rotton'}
+    LOCAL_DATABASE_STR = 'local'
+    TMDB_DATABASE_STR = 'tmdb'
+    ITUNES_DATABASE_STR = 'itunes'
+    IMDB_DATABASE_STR = 'imdb'
+    ROTTEN_TOMATES_DATABASE_STR = 'rotten'
+
+    domain_str = {LOCAL_DATABASE: LOCAL_DATABASE_STR,
+                  TMDB_DATABASE: TMDB_DATABASE_STR,
+                  ITUNES_DATABASE: ITUNES_DATABASE_STR,
+                  IMDB_DATABASE: IMDB_DATABASE_STR,
+                  ROTTEN_TOMATOES_DATABASE: ROTTEN_TOMATES_DATABASE_STR}
 
     _logger = None
     _settings_lock = threading.RLock()
@@ -712,17 +717,16 @@ class GenreUtils(object):
         return genres
 
     @classmethod
-    def get_include_genres(cls):
-        # type: () -> List[_RandomTrailersGenre]
+    def get_include_genres(cls) -> List[_RandomTrailersGenre]:
         """
 
         :return:
         """
-        return cls.get_genres(GenreEnum.INCLUDE)
+        include_genres = cls.get_genres(GenreEnum.INCLUDE)
+        return include_genres
 
     @classmethod
-    def get_exclude_genres(cls):
-        # type: () -> List[_RandomTrailersGenre]
+    def get_exclude_genres(cls) -> List[_RandomTrailersGenre]:
         """
 
         :return:
@@ -896,7 +900,7 @@ class GenreUtils(object):
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 domain_str = GenreUtils.domain_str[genre_domain]
                 cls._logger.debug_extra_verbose('query {} genre ids: {}'
-                                  .format(domain_str, query_string))
+                                                .format(domain_str, query_string))
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -1039,5 +1043,60 @@ class GenreUtils(object):
 
         return query
 
+    @classmethod
+    def include_movie(cls, genres: Optional[List[str]] = None,
+                      tags: Optional[List[str]] = None) -> bool:
+        if not Settings.get_filter_genres():
+            return True
+
+        if genres is None:
+            genres = []
+
+        if tags is None:
+            tags = []
+
+        allowed_genres = GenreUtils.get_external_genre_ids(
+            GenreUtils.TMDB_DATABASE_STR, exclude=False)
+        allowed_tags = GenreUtils.get_external_keyword_ids(
+            GenreUtils.TMDB_DATABASE_STR, exclude=False)
+        excluded_genres = GenreUtils.get_external_genre_ids(
+            GenreUtils.TMDB_DATABASE_STR, exclude=True)
+        excluded_tags = GenreUtils.get_external_keyword_ids(
+            GenreUtils.TMDB_DATABASE_STR, exclude=True)
+
+        genre_found = False
+        genre_excluded = False
+        for genre_id in genres:
+            genre_id = str(genre_id)
+            if genre_id in allowed_genres:
+                genre_found = True
+            elif genre_id in excluded_genres:
+                genre_excluded = True
+
+        tag_found = False
+        tag_excluded = False
+        for tag_id in tags:
+            tag_id = str(tag_id)
+            if tag_id in allowed_tags:
+                tag_found = True
+            elif tag_id in excluded_tags:
+                tag_excluded = True
+
+        genre_fails = False
+        if genre_found or tag_found:  # Include movie
+            pass
+        elif genre_excluded or tag_excluded:
+            genre_fails = True
+
+        # If user specified any Included genres or tags. Then
+        # Ignored items will have no impact on selection, but
+        # when none are specified, then the movie is selected,
+        # unless Excluded.
+        elif len(allowed_genres) == 0 and len(allowed_tags) == 0:
+            pass
+        else:
+            genre_fails = True
+
+        return not genre_fails
 
 GenreUtils.init_class()
