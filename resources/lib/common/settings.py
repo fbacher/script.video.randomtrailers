@@ -1582,8 +1582,7 @@ class Settings(object):
         return value
 
     @staticmethod
-    def get_setting_int(setting):
-        # type: (str) -> int
+    def get_setting_int(setting: str) -> int:
         """
 
         :return:
