@@ -193,14 +193,7 @@ class UniqQueue(object):
 
 class MovieList:
     """
-class OrderedDict(Dict[_KT, _VT], Reversible[_KT], Generic[_KT, _VT]):
-    def popitem(self, last: bool = ...) -> Tuple[_KT, _VT]: ...
-    def move_to_end(self, key: _KT, last: bool = ...) -> None: ...
-    def copy(self: _OrderedDictT) -> _OrderedDictT: ...
-    def __reversed__(self) -> Iterator[_KT]: ...
-    def keys(self) -> _OrderedDictKeysView[_KT]: ...
-    def items(self) -> _OrderedDictItemsView[_KT, _VT]: ...
-    def values(self) -> _OrderedDictValuesView[_VT]: ...
+
     """
     logger: LazyLogger = None
 
@@ -216,6 +209,7 @@ class OrderedDict(Dict[_KT, _VT], Reversible[_KT], Generic[_KT, _VT]):
         self._movie_source = movie_source
         self._total_removed = 0
         self._play_count = dict()
+        self._key_to_movie = {}
         self._lock = threading.RLock()
         self._iter = None
         self._cursor = None
@@ -340,6 +334,7 @@ class OrderedDict(Dict[_KT, _VT], Reversible[_KT], Generic[_KT, _VT]):
             with self._lock:
                 count = self._play_count.get(key, 0) + 1
                 self._play_count[key] = count
+                self._key_to_movie[key] = movie
 
         except KeyError as e:
             if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
@@ -428,9 +423,11 @@ class OrderedDict(Dict[_KT, _VT], Reversible[_KT], Generic[_KT, _VT]):
         """
         movies_in_line = []
         line_length = 0
-        for movie in movies_with_same_count:
+        for key in movies_with_same_count:
             Monitor.throw_exception_if_abort_requested()
             try:
+                movie = self._key_to_movie.get(key, 'unknown')
+
                 if line_length + len(movie) + 2 > MovieList.MAX_LINE_LENGTH:
                     logger('   {}'.format(', '.join(movies_in_line)))
                     del movies_in_line[:]
@@ -614,8 +611,9 @@ class AbstractMovieData(object):
         """
         return cls._aggregate_trailers_by_name_date
 
-    def add_to_discovered_trailers(self, movies):
-        # type: (Union[Dict[str], List[Dict[str]]]) -> None
+    def add_to_discovered_trailers(self,
+                                   movies: Union[Dict[str, MovieType],
+                                                 List[Dict[str, MovieType]]]) -> None:
         """
 
         :param movies:
