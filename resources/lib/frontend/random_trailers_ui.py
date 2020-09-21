@@ -72,11 +72,7 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 # TODO: Move to ui_utils
 
-if not Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
-    # Need module name for logging outside of class
-    logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
-else:
-    logger = module_logger
+logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
 
 # noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
 
