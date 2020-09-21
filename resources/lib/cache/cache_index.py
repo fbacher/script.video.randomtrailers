@@ -861,7 +861,7 @@ class CacheIndex(object):
     """
     UNINITIALIZED_STATE = 'uninitialized_state'
     CACHE_PARAMETERS_INITIALIZED_STATE = 'cache_parameters_initialized_state'
-    _found_trailers: Set[MovieType] = set()
+    _found_trailer_ids: Set[int] = set()
     lock = threading.RLock()
     last_saved = datetime.datetime.now()
     _last_saved_trailer_timestamp = datetime.datetime.now()
@@ -880,7 +880,7 @@ class CacheIndex(object):
         """
         :return:
         """
-        if cls._logger is not None:
+        if cls._logger is None:
             cls._logger = module_logger.getChild(type(cls).__name__)
 
     @classmethod
@@ -918,7 +918,7 @@ class CacheIndex(object):
 
         :return:
         """
-        if len(cls._unprocessed_movies) == 0 and len(cls._found_trailers) == 0:
+        if len(cls._unprocessed_movies) == 0 and len(cls._found_trailer_ids) == 0:
             return True
         return False
 
@@ -1020,7 +1020,8 @@ class CacheIndex(object):
         :return:
          """
         tmdb_id = int(tmdb_id)
-        cls._found_trailers.add(tmdb_id)
+
+        cls._found_trailer_ids.add(tmdb_id)
         cls._unsaved_trailer_changes += 1
         cls.remove_unprocessed_movie(tmdb_id)
         cls.save_found_trailer_cache()  # If needed
@@ -1030,7 +1031,7 @@ class CacheIndex(object):
         """
         :return:
         """
-        return cls._found_trailers.copy()
+        return cls._found_trailer_ids.copy()
 
     @classmethod
     def get_unprocessed_movies(cls) -> Dict[int, MovieType]:
@@ -1162,8 +1163,8 @@ class CacheIndex(object):
             try:
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
-                    found_trailers_list = list(cls._found_trailers)
-                    json_text = json.dumps(found_trailers_list,
+                    found_trailer_id_list = list(cls._found_trailer_ids)
+                    json_text = json.dumps(found_trailer_id_list,
                                            encoding='utf-8',
                                            ensure_ascii=False,
                                            default=CacheIndex.handler,
@@ -1233,10 +1234,10 @@ class CacheIndex(object):
                         cacheFile, encoding='utf-8',
                         object_hook=CacheIndex.datetime_parser)
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
-                    cls._found_trailers = set(found_trailers_list)
+                    cls._found_trailer_ids: Set[int] = set(found_trailers_list)
                     cls._unsaved_trailer_changes = 0
             else:
-                cls._found_trailers = set()
+                cls._found_trailer_ids: Set[int] = set()
 
             Monitor.throw_exception_if_abort_requested()
         except AbortException:
