@@ -62,7 +62,10 @@ class Statistics(object):
     _tmdb_total_number_of_removed_unprocessed_movies = 0
     _tmdb_trailer_found = 0
     _tmdb_trailer_not_found = 0
-
+    _next_trailer_wait_time_elapsed_seconds: int = 0
+    _next_trailer_wait_time_attempts: int = 0
+    _next_trailer_second_attempt_wait_time_elapsed_seconds: int = 0
+    _next_trailer_second_attempt_wait_time_attempts: int = 0
     _json_io_time = 0
 
     # For Discovery Modules
@@ -404,8 +407,7 @@ class Statistics(object):
         cls._missing_tmdb_id_not_in_cache += 1
 
     @classmethod
-    def add_missing_tmdb_cache_hit(cls):
-        # type: () -> None
+    def add_missing_tmdb_cache_hit(cls) -> None:
         """
 
         :return:
@@ -415,3 +417,15 @@ class Statistics(object):
     @classmethod
     def add_json_read_time(cls, milliseconds: int) -> None:
         cls._json_io_time += milliseconds
+
+    @classmethod
+    def add_next_trailer_wait_time(cls, elapsed_seconds: int,
+                                   attempts: int) -> None:
+        cls._next_trailer_wait_time_elapsed_seconds += elapsed_seconds
+        cls._next_trailer_wait_time_attempts += attempts
+
+    @classmethod
+    def add_next_trailer_second_attempt_wait_time(cls, elapsed_seconds: int,
+                                   attempts: int) -> None:
+        cls._next_trailer_second_attempt_wait_time_elapsed_seconds += elapsed_seconds
+        cls._next_trailer_second_attempt_wait_time_attempts += attempts
