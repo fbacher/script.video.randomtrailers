@@ -581,7 +581,7 @@ class AbstractMovieData(object):
             if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                 # type(self).logger.debug('Have discovered_trailers_lock')
                 type(self).logger.debug('Shuffling because finished_discovery',
-                                   trace=Trace.TRACE_DISCOVERY)
+                                        trace=Trace.TRACE_DISCOVERY)
             self.shuffle_discovered_trailers(mark_unplayed=False)
             self._discovery_complete = True
 
