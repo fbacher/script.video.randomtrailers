@@ -225,10 +225,17 @@ class MovieList:
 
         :return:
         """
-        type(self).logger.enter()
+        cls = type(self)
+        cls.logger.enter()
 
         with self._lock:
-            del self._ordered_dict[:]
+            try:
+                while self._ordered_dict.popitem() is not None:
+                    pass
+            except KeyError:
+                pass
+            if len(self._ordered_dict.items()) != 0:
+                cls.logger.error('_ordered_dict not empty')
             self._number_of_added_movies = 0
 
         # type(self).logger.exit()
