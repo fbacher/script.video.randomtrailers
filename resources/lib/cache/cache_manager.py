@@ -39,10 +39,7 @@ class CacheData(object):
 
     _logger = None
 
-    def __init__(self,
-                 trailer_cache  # type: bool
-                 ):
-        # type: (...) -> None
+    def __init__(self, trailer_cache: bool) -> None:
         """
             Populates this instance with relevant settings. Allows for uniform
             access to those settings.
@@ -123,10 +120,7 @@ class CacheData(object):
         self._disk_used_by_cache = None
         self._actual_cache_percent = None
 
-    def add_usage_data(self,
-                       usage_data  # type: UsageData
-                       ):
-        # type: (...) -> None
+    def add_usage_data(self, usage_data: UsageData) -> None:
         """
             Adds Cache UsageData to this instance.
 
