@@ -10,9 +10,9 @@
     <genre id="animation" name="Animation" name_id="32202">
         <external_genre id="animation" name="Animation" external_id="16"/>
     </genre>
-    <genre id="anthology" name="Anthology" name_id="32200">
+    <!-- <genre id="anthology" name="Anthology" name_id="32200">
         <external_tag id="anthology" name="Anthology" external_id="9706"/>
-    </genre>
+    </genre> -->
     <genre id="biography" name="Biography" name_id="32203">
         <external_tag id="biography" name="Biography" external_id="5565"/>
     </genre>

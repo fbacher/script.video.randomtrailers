@@ -51,27 +51,27 @@
     <genre id="mystery" name="Mystery" name_id="32223">
         <external_genre id="mystery" external_id="Mystery"/>
     </genre>
-    <genre id="news" name="News" name_id="32255">
+    <!-- <genre id="news" name="News" name_id="32255">
         <external_genre id="news" external_id="News"/>
-    </genre>
-    <genre id="reality-tv" name="Reality-TV" name_id="32254">
+    </genre> -->
+    <!-- <genre id="reality-tv" name="Reality-TV" name_id="32254">
         <external_genre id="reality-tv" external_id="Reality-TV"/>
-    </genre>
+    </genre> -->
     <genre id="romance" name="Romance" name_id="32037">
         <external_genre id="romance" external_id="Romance"/>
     </genre>
     <genre id="scifi" name="Sience Fiction" name_id="32038">
         <external_genre id="sci-fi" external_id="Sci-Fi"/>
     </genre>
-    <genre id="short" name="Short" name_id="32252">
+    <!-- <genre id="short" name="Short" name_id="32252">
         <external_genre id="short" external_id="Short"/>
-    </genre>
-    <genre id="sport" name="Sport" name_id="32253">
+    </genre> -->
+    <!-- <genre id="sport" name="Sport" name_id="32253">
         <external_genre id="sport" external_id="Sport"/>
-    </genre>
-    <genre id="talk_show" name="Talk-Show" name_id="32251">
+    </genre> -->
+    <!-- <genre id="talk_show" name="Talk-Show" name_id="32251">
         <external_genre id="talk_show" external_id="Talk-Show"/>
-    </genre>
+    </genre> -->
     <genre id="thriller" name="Thriller" name_id="32039">
         <external_genre id="thriller" external_id="Thriller"/>
     </genre>
