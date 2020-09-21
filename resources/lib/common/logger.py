@@ -96,6 +96,10 @@ class Logger(logging.Logger):
     _root_logger = None
     _addon_logger = None
 
+    @classmethod
+    def _init_class(cls):
+        cls.init_log_levelnames()
+
     def __init__(self,
                  name,  # type: str
                  level=logging.NOTSET  # type : Optional[int]
@@ -174,7 +178,7 @@ class Logger(logging.Logger):
             if addon_name is None:
                 addon_name = Constants.CURRENT_ADDON_SHORT_NAME
             Logger._addon_logger = Logger.get_root_logger().getChild(addon_name)
-            xbmc.log('get_addon_module_logger', xbmc.LOGDEBUG)
+            # xbmc.log('get_addon_module_logger', xbmc.LOGDEBUG)
 
         logger = Logger._addon_logger
         if Constants.INCLUDE_MODULE_PATH_IN_LOGGER:
@@ -192,7 +196,7 @@ class Logger(logging.Logger):
         return logger
 
     def log(self, *args, **kwargs):
-        # type: ( *Any, **str) -> None
+        # type: ( *Any, **Any) -> None
         """
             Creates a log entry
 
@@ -562,6 +566,22 @@ class Logger(logging.Logger):
     DEBUG_EXTRA_VERBOSE = 6
     NOTSET = logging.NOTSET     # 0
 
+    log_level_to_label = {DISABLED: 'DISABLED',
+                          FATAL: 'FATAL',
+                          SEVERE: 'SEVERE',
+                          ERROR: 'ERROR',
+                          WARNING: 'WARNING',
+                          NOTICE: 'NOTICE',
+                          INFO: 'INFO',
+                          DEBUG_EXTRA_VERBOSE: 'DEBUG_EXTRA_VERBOSE',
+                          DEBUG_VERBOSE: 'DEBUG_VERBOSE',
+                          DEBUG: 'DEBUG'}
+
+    @classmethod
+    def init_log_levelnames(cls):
+        for level, levelname in Logger.log_level_to_label.items():
+            logging.addLevelName(level, levelname)
+
     # XBMC levels
     LOGDEBUG = xbmc.LOGDEBUG
     LOGINFO = xbmc.LOGINFO
@@ -650,6 +670,10 @@ class Logger(logging.Logger):
         except Exception as e:
             msg = 'Logger.log_exception raised exception during processing'
             xbmc.log(msg, xbmc.LOGERROR)
+
+    @staticmethod
+    def is_trace_enabled(trace_flags: str) -> bool:
+        return Trace.is_enabled(trace_flags)
 
     @staticmethod
     def print_full_stack(frame=None, thread_name='', limit=None,
@@ -1147,34 +1171,34 @@ class Trace(logging.Filter):
     TRACE_ENABLED = True
     TRACE_DISABLED = False
 
-    _trace_map = {
-            TRACE: TRACE_DISABLED,
-            STATS: TRACE_DISABLED,
-            TRACE_UI: TRACE_DISABLED,
-            TRACE_DISCOVERY: TRACE_DISABLED,
-            TRACE_FETCH: TRACE_DISABLED,
-            TRACE_TRAILER_CACHE: TRACE_DISABLED,
-            TRACE_TMDB_CACHE: TRACE_DISABLED,
-            TRACE_GENRE: TRACE_DISABLED,
-            TRACE_CERTIFICATION: TRACE_DISABLED,
-            TRACE_CACHE_GARBAGE_COLLECTION: TRACE_DISABLED,
-            TRACE_TFH: TRACE_DISABLED,
-            STATS_DISCOVERY: TRACE_DISABLED,
-            STATS_CACHE: TRACE_DISABLED,
-            TRACE_MONITOR: TRACE_DISABLED,
-            TRACE_JSON: TRACE_DISABLED,
-            TRACE_SCREENSAVER: TRACE_DISABLED,
-            TRACE_UI_CONTROLLER: TRACE_DISABLED,
-            TRACE_CACHE_MISSING: TRACE_DISABLED,
-            TRACE_CACHE_UNPROCESSED: TRACE_DISABLED,
-            TRACE_CACHE_PAGE_DATA: TRACE_DISABLED,
-            TRACE_TRANSLATION: TRACE_DISABLED,
-            TRACE_SHUTDOWN: TRACE_DISABLED
-        }
+    _trace_map:Dict[str, bool] = {
+        TRACE: TRACE_DISABLED,
+        STATS: TRACE_DISABLED,
+        TRACE_UI: TRACE_DISABLED,
+        TRACE_DISCOVERY: TRACE_DISABLED,
+        TRACE_FETCH: TRACE_DISABLED,
+        TRACE_TRAILER_CACHE: TRACE_DISABLED,
+        TRACE_TMDB_CACHE: TRACE_DISABLED,
+        TRACE_GENRE: TRACE_DISABLED,
+        TRACE_CERTIFICATION: TRACE_DISABLED,
+        TRACE_CACHE_GARBAGE_COLLECTION: TRACE_DISABLED,
+        TRACE_TFH: TRACE_DISABLED,
+        STATS_DISCOVERY: TRACE_DISABLED,
+        STATS_CACHE: TRACE_DISABLED,
+        TRACE_MONITOR: TRACE_DISABLED,
+        TRACE_JSON: TRACE_DISABLED,
+        TRACE_SCREENSAVER: TRACE_DISABLED,
+        TRACE_UI_CONTROLLER: TRACE_DISABLED,
+        TRACE_CACHE_MISSING: TRACE_DISABLED,
+        TRACE_CACHE_UNPROCESSED: TRACE_DISABLED,
+        TRACE_CACHE_PAGE_DATA: TRACE_DISABLED,
+        TRACE_TRANSLATION: TRACE_DISABLED,
+        TRACE_SHUTDOWN: TRACE_DISABLED
+    }
 
     _logger = None
 
-    def __init__(self, name : str = '') -> None:
+    def __init__(self, name: str = '') -> None:
         """
         Dummy
         """
@@ -1215,6 +1239,28 @@ class Trace(logging.Filter):
                 cls._trace_map[flag] = cls.TRACE_DISABLED
             else:
                 cls._logger.debug(f'Invalid TRACE flag: {flag}')
+
+    @classmethod
+    def is_enabled(cls, trace_flags:Union[str, List[str]]) -> bool:
+        try:
+            if not isinstance(trace_flags, list):
+                trace_flags = [trace_flags]
+
+            if len(trace_flags) == 0:
+                return False
+
+            for trace in trace_flags:
+                enabled = cls._trace_map.get(trace, None)
+                if enabled is None:
+                    cls._logger.warn(f'Invalid TRACE flag: {trace}')
+                elif enabled:
+                    return True
+
+            return False
+        except Exception:
+            LazyLogger.log_exception()
+
+        return False
 
     def filter(self, record):
         # type: (logging.LogRecord) -> int
@@ -1367,20 +1413,21 @@ class MyFormatter(logging.Formatter):
             passed_traces = record.__dict__.get('trace_string', None)
             if passed_traces is None:
                 if type(self).INCLUDE_THREAD_INFO:
-                    prefix = '[Thread {!s} {!s}.{!s}:{!s}]'.format(
-                        record.threadName, record.name, record.funcName, record.lineno)
+                    prefix = '[Thread {!s} {!s}.{!s}:{!s}:{!s}]'.format(
+                        record.threadName, record.name, record.funcName,
+                        record.lineno, record.levelname)
                 else:
                     prefix = '[{!s}.{!s}:{!s}]'.format(
-                                record.name, record.funcName, record.lineno)
+                        record.name, record.funcName, record.lineno)
             else:
                 if type(self).INCLUDE_THREAD_INFO:
-                    prefix = '[Thread {!s} {!s}.{!s}:{!s} Trace:{!s}]'.format(
-                            record.threadName, record.name, record.funcName,
-                            record.lineno, passed_traces)
+                    prefix = '[Thread {!s} {!s}.{!s}:{!s}:{!s} Trace:{!s}]'.format(
+                        record.threadName, record.name, record.funcName,
+                        record.lineno, record.levelname, passed_traces)
                 else:
-                    prefix = '[{!s}.{!s}:{!s} Trace:{!s}]'.format(
-                                    record.name, record.funcName,
-                                    record.lineno, passed_traces)
+                    prefix = '[{!s}.{!s}:{!s}:{!s} Trace:{!s}]'.format(
+                        record.name, record.funcName,
+                        record.lineno, record.levelname, passed_traces)
             text = '{} {}'.format(prefix, suffix)
         except Exception as e:
             pass
@@ -1444,3 +1491,6 @@ class MyFormatter(logging.Formatter):
 
         for line in lines:
             log_file.write(line)
+
+
+Logger._init_class()
