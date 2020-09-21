@@ -794,41 +794,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
         cls = type(self)
         try:
-            # Send any unprocessed TMDB trailers to the discovered list
+            # Send any cached TMDB trailers to the discovered list first,
+            # since they require least processing.
+
             if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 cls.logger.debug_verbose(
-                    "Sending unprocessed movies to discovered list")
-
-            unprocessed_movies = CacheIndex.get_unprocessed_movies()
-            for movie in unprocessed_movies.values():
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
-                        cert = movie.get(Movie.MPAA, 'none')
-                        cls.logger.debug_extra_verbose('No certification. Title:',
-                                                movie[Movie.TITLE],
-                                                'year:', movie.get(Movie.YEAR),
-                                                'certification:', cert,
-                                                'trailer:', movie.get(Movie.TRAILER))
-                        movie[Movie.MPAA] = ''
-
-
-                discovery_state = movie.get(Movie.DISCOVERY_STATE,
-                                            Movie.NOT_FULLY_DISCOVERED)
-                if (discovery_state < Movie.DISCOVERY_COMPLETE
-                        and self.filter_movie(movie)):
-                    self.add_to_discovered_trailers(movie)
-                if (discovery_state >= Movie.DISCOVERY_COMPLETE
-                        and self.filter_movie(movie)):
-                    tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-                    CacheIndex.remove_unprocessed_movie(tmdb_id)
-
-        except Exception as e:
-            cls.logger.exception('')
-
-        try:
-            # Send any cached TMDB trailers to the discovered list
-            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
-                cls.logger.debug(
                     "Sending cached TMDB trailers to discovered list")
 
             tmdb_trailer_ids: Set[int] = CacheIndex.get_found_tmdb_trailer_ids().copy()
@@ -853,6 +823,58 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # Don't add found trailers to unprocessed_movies
             # CacheIndex.add_unprocessed_movies(movies)
             self.add_to_discovered_trailers(movies)
+            #
+            # Give fetcher time to load ready_to_play list. The next add
+            # will likely shuffle and mix these up with some that will take
+            # longer to process.
+            #
+            if len(movies) > 0:
+                Monitor.throw_exception_if_abort_requested(timeout=5.0)
+        except Exception as e:
+            cls.logger.exception('')
+
+        try:
+            # Send any unprocessed TMDB trailers to the discovered list
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                cls.logger.debug_verbose(
+                    "Sending unprocessed movies to discovered list")
+
+            discovery_complete_movies: List[MovieType] = []
+            discovery_needed_movies: List[MovieType] = []
+            unprocessed_movies = CacheIndex.get_unprocessed_movies()
+            for movie in unprocessed_movies.values():
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
+                        cert = movie.get(Movie.MPAA, 'none')
+                        cls.logger.debug_extra_verbose('No certification. Title:',
+                                                movie[Movie.TITLE],
+                                                'year:', movie.get(Movie.YEAR),
+                                                'certification:', cert,
+                                                'trailer:', movie.get(Movie.TRAILER))
+                        movie[Movie.MPAA] = ''
+
+
+                discovery_state = movie.get(Movie.DISCOVERY_STATE,
+                                            Movie.NOT_FULLY_DISCOVERED)
+                if (discovery_state < Movie.DISCOVERY_COMPLETE
+                        and self.filter_movie(movie)):
+                    discovery_needed_movies.append(movie)
+                if (discovery_state >= Movie.DISCOVERY_COMPLETE
+                        and self.filter_movie(movie)):
+                    discovery_complete_movies.append(movie)
+                    tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                    CacheIndex.remove_unprocessed_movie(tmdb_id)
+
+            # Add the fully discovered movies first, this should be rare,
+            # but might feed a few that can be displayed soon first.
+            # There will likely be a shuffle on each call, so they will be
+            # blended together anyway.
+
+            self.add_to_discovered_trailers(discovery_complete_movies)
+            if len(discovery_complete_movies) > 0:
+                Monitor.throw_exception_if_abort_requested(timeout=5.0)
+            self.add_to_discovered_trailers(discovery_needed_movies)
+
         except Exception as e:
             cls.logger.exception('')
 

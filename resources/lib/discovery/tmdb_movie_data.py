@@ -27,8 +27,9 @@ class TMDBMovieData(AbstractMovieData):
         super().__init__(movie_source=Movie.TMDB_SOURCE)
         self.start_trailer_fetchers()
 
-    def add_to_discovered_trailers(self, movies):
-        # type: (Union[Dict[str], List[Dict[str]]]) -> None
+    def add_to_discovered_trailers(self,
+                                   movies: Union[MovieType,
+                                                 List[MovieType]]) -> None:
         """
 
         :param movies:
