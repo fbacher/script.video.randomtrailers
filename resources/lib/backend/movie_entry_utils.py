@@ -104,6 +104,8 @@ class MovieEntryUtils (object):
                         reraise(*sys.exc_info())
                     except Exception:
                         cls._logger.exception('')
+        if tmdb_id is not None:
+            tmdb_id = int(tmdb_id)
         return tmdb_id
 
         # noinspection SyntaxError
@@ -258,8 +260,7 @@ class MovieEntryUtils (object):
         return imdb_id
 
     @staticmethod
-    def set_tmdb_id(movie, tmdb_id):
-        # type: (MovieType, int) -> None
+    def set_tmdb_id(movie: MovieType, tmdb_id: Union[str, int]) -> None:
         """
 
         :param movie:

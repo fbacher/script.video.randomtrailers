@@ -135,23 +135,22 @@ class TMDBUtils(object):
         return entry
 
     @staticmethod
-    def get_tmdb_id_from_title_year(title, year):
-        # type: (str, int) -> int
+    def get_tmdb_id_from_title_year(title: str, year: int) -> int:
         """
 
         :param title:
         :param year:
         :return:
         """
-        trailer_id = None
+        tmdb_id = None
         try:
             year = int(year)
-            trailer_id = TMDBUtils._get_tmdb_id_from_title_year(title, year)
-            if trailer_id is None:
-                trailer_id = TMDBUtils._get_tmdb_id_from_title_year(
+            tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(title, year)
+            if tmdb_id is None:
+                tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(
                     title, year + 1)
-            if trailer_id is None:
-                trailer_id = TMDBUtils._get_tmdb_id_from_title_year(
+            if tmdb_id is None:
+                tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(
                     title, year - 1)
 
         except AbortException:
@@ -161,11 +160,10 @@ class TMDBUtils(object):
             TMDBUtils._logger.exception('Error finding tmdb_id for movie:', title,
                                         'year:', year)
 
-        return trailer_id
+        return tmdb_id
 
     @staticmethod
-    def _get_tmdb_id_from_title_year(title, year):
-        # type: (str, int) -> int
+    def _get_tmdb_id_from_title_year(title: str, year: int) -> Optional[int]:
         """
             When we don't have a trailer for a movie, we can
             see if TMDB has one.
@@ -323,6 +321,8 @@ class TMDBUtils(object):
             tmdb_id = found_movie.get('id', None)
         if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
             TMDBUtils._logger.exit('title:', title, 'tmdb_id:', tmdb_id)
-        return tmdb_id
+        if tmdb_id is None:
+            return None
+        return int(tmdb_id)
 
 TMDBUtils.class_init()

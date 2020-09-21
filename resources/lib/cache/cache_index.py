@@ -985,7 +985,7 @@ class CacheIndex(object):
         """
         with cls.lock:
             for movie in movies:
-                tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                tmdb_id = int(MovieEntryUtils.get_tmdb_id(movie))
                 if tmdb_id not in cls._unprocessed_movies:
                     cls._unprocessed_movies[tmdb_id] = movie
 
@@ -1003,6 +1003,8 @@ class CacheIndex(object):
         :param tmdb_id:
         :return:
         """
+        tmdb_id = int(tmdb_id)
+
         with cls.lock:
             if tmdb_id in cls._unprocessed_movies:
                 del cls._unprocessed_movies[tmdb_id]
@@ -1011,30 +1013,27 @@ class CacheIndex(object):
                 cls.save_unprocessed_movie_cache()
 
     @classmethod
-    def trailer_found(cls,
-                      tmdb_id  # type: int
-                      ):
-        # type: (...) -> None
+    def trailer_found(cls, tmdb_id: int) -> None:
         """
 
         :param tmdb_id:
         :return:
          """
+        tmdb_id = int(tmdb_id)
         cls._found_trailers.add(tmdb_id)
         cls._unsaved_trailer_changes += 1
         cls.remove_unprocessed_movie(tmdb_id)
         cls.save_found_trailer_cache()  # If needed
 
     @classmethod
-    def get_found_tmdb_trailer_ids(cls) -> Set[MovieType]:
+    def get_found_tmdb_trailer_ids(cls) -> Set[int]:
         """
         :return:
         """
         return cls._found_trailers.copy()
 
     @classmethod
-    def get_unprocessed_movies(cls):
-        #  type: () -> Dict[int, MovieType]
+    def get_unprocessed_movies(cls) -> Dict[int, MovieType]:
         """
 
         :return:
@@ -1215,8 +1214,7 @@ class CacheIndex(object):
             return dct
 
     @classmethod
-    def load_found_trailer_cache(cls):
-        # type: () -> None
+    def load_found_trailer_cache(cls) -> None:
         """
 
         :return:
