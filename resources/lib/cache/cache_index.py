@@ -326,7 +326,6 @@ class CacheParameters(object):
         :return:
         """
         cls._cached_value = new_parameters
-
         cls.save_cache()
 
     @classmethod
@@ -399,7 +398,6 @@ class CacheParameters(object):
                 exception_occurred = True
 
         return saved_preferences
-
 
     @staticmethod
     def create_set(a_list):
@@ -780,10 +778,10 @@ class CachedPagesData(object):
                                           encoding='utf-8') as cacheFile:
                 json_dict = self.to_json()
                 json_text = json.dumps(json_dict,
-                                        encoding='utf-8',
-                                        ensure_ascii=False,
-                                        default=CacheIndex.handler,
-                                        indent=3, sort_keys=True)
+                                       encoding='utf-8',
+                                       ensure_ascii=False,
+                                       default=CacheIndex.handler,
+                                       indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
                 self._number_of_unsaved_changes = 0
@@ -837,7 +835,8 @@ class CachedPagesData(object):
         except Exception as e:
             self._logger.exception('')
 
-        self._logger.debug_verbose("Loaded entries:", len(self._cached_page_by_key))
+        self._logger.debug_verbose(
+            "Loaded entries:", len(self._cached_page_by_key))
         self._time_of_last_save = datetime.datetime.now()
 
     def clear(self):
@@ -897,8 +896,8 @@ class CacheIndex(object):
             if cache_changed:
                 # Replace Cache
                 cls._parameters = CacheParameters.get_parameter_values()
-                cls._unprocessed_movies = {}  # type: Dict[int, MovieType]
-                cls._found_trailers: Set(int) = set()
+                cls._unprocessed_movies: Dict[int, MovieType] = {}
+                cls._found_trailer_ids: Set(int) = set()
                 cls._unsaved_trailer_changes = 0
                 cls._unprocessed_movie_changes = 0
                 cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
@@ -1096,9 +1095,9 @@ class CacheIndex(object):
             except AbortException:
                 reraise(*sys.exc_info())
             except IOError as e:
-                CacheIndex.logger().exception('')
+                cls.logger().exception('')
             except Exception as e:
-                CacheIndex.logger().exception('')
+                cls.logger().exception('')
 
     @classmethod
     def load_unprocessed_movie_cache(cls):
