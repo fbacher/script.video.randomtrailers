@@ -28,7 +28,9 @@ class ITunes(object):
     _logger = None
 
     def __init__(self):
-        type(self)._logger = module_logger.getChild('ITunes')
+        cls = type(self)
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def get_excluded_types(cls):
@@ -40,8 +42,8 @@ class ITunes(object):
         iso_639_2_name = Settings.get_lang_iso_639_2()
         iso_639_1_name = Settings.get_lang_iso_639_1()
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.getChild('ITunes').debug('iso_639_2:', iso_639_2_name,
-                                                   'iso_639_1:', iso_639_1_name)
+            cls._logger.debug('iso_639_2:', iso_639_2_name,
+                               'iso_639_1:', iso_639_1_name)
 
         return {'- JP Sub', 'Interview', '- UK', '- BR Sub', '- FR', '- IT',
                 '- AU', '- MX', '- MX Sub', '- BR', '- RU', '- DE',

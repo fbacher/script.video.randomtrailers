@@ -108,11 +108,15 @@ class PlayableTrailersContainer(object):
         :param movie:
         :return:
         """
+        cls = type(self)
         if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+            if Movie.TITLE not in movie:
+                cls.logger.warning('Invalid movie entry. Missing title: ',
+                                   str(movie))
+            Debug.validate_detailed_movie_properties(movie, stack_trace=False)
             type(self).logger.debug('movie:', movie[Movie.TITLE], 'queue empty:',
                                self._ready_to_play_queue.empty(), 'full:',
                                self._ready_to_play_queue.full())
-            Debug.validate_detailed_movie_properties(movie, stack_trace=False)
 
         finished = False
         waited = 0

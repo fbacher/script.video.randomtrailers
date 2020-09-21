@@ -231,8 +231,10 @@ class Debug(object):
         country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         if not certifications.is_valid(movie[Movie.MPAA]):
-            cls._logger.debug('Invalid MPAA rating: {} for movie: {} set to NR'
-                              .format(movie[Movie.MPAA], movie[Movie.TITLE]))
+            if movie[Movie.MPAA] != '':
+                cls._logger.debug_verbose(
+                    'Invalid MPAA rating: {} for movie: {} set to NR'
+                    .format(movie[Movie.MPAA], movie[Movie.TITLE]))
             movie[Movie.MPAA] = certifications.get_unrated_certification()\
                 .get_preferred_id()
 

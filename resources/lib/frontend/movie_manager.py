@@ -119,7 +119,7 @@ class MovieManager(object):
 
         if trailer is not None:
             title = trailer.get(Movie.TITLE)
-        if self._logger.isEnabledFor(LazyLogger.DEBUG):
+        if self._logger.isEnabledFor(LazyLogger.DISABLED):
             self._logger.exit('status:', status, 'trailer', title)
 
         return status, trailer
@@ -145,18 +145,13 @@ class MovieManager(object):
         return trailer_path is None
 
     def pre_fetch_trailer(self):
-        self._logger.debug('About to start Pre-Fetch trailer thread')
-
         self._thread = threading.Thread(
             target=self._pre_fetch_trailer, name='Pre-Fetch trailer')
         self._thread.start()
-        self._logger.debug('Pre-Fetch trailer thread started')
 
     def _pre_fetch_trailer(self):
         while not Monitor.is_abort_requested():
-            self._logger.debug('getting next trailer')
             status, trailer = FrontendBridge.get_next_trailer()
-            self._logger.debug('status:', str(status))
             if trailer is not None:
                 added = False
                 while not added:

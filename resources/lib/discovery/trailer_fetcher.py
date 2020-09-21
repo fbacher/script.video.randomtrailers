@@ -164,14 +164,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                                                  'due to no movies after discovery complete.')
                     break
 
-                if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self)._logger.debug('waiting to fetch')
                 player_starving = self._playable_trailers.is_starving()
                 trailer = self._movie_data.get_from_fetch_queue(
                     player_starving)
-                if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self)._logger.debug('got movie from fetch queue:',
-                                       trailer[Movie.TITLE])
                 self.fetch_trailer_to_play(trailer)
             except AbortException as e:
                 reraise(*sys.exc_info())
@@ -497,11 +492,6 @@ class TrailerFetcher(TrailerFetcherInterface):
             if fully_populated_trailer is None:
                 self._movie_data.remove_discovered_movie(trailer)
             else:
-                # TODO: DELETE ME
-                assert trailer.get(Movie.DETAIL_TITLE) == \
-                    fully_populated_trailer.get(Movie.DETAIL_TITLE), \
-                    'LEAK: get_detail_info FAILED to copy fields to original trailer'
-
                 self._playable_trailers.add_to_ready_to_play_queue(
                     fully_populated_trailer)
 
@@ -961,10 +951,10 @@ class TrailerFetcher(TrailerFetcherInterface):
             cls._logger.exception(
                 f'Error getting info for tmdb_id: {str(tmdb_id)}')
             try:
-                if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                     json_text = json.dumps(
                         tmdb_result, indent=3, sort_keys=True)
-                    type(self)._logger.debug(json_text)
+                    cls._logger.debug_extra_verbose(json_text)
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:

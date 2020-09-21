@@ -49,9 +49,11 @@ class MyPlayer(AdvancedPlayer):
         file_name = os.path.basename(file_path)
         passed_file_name = os.path.basename(path)
         if file_name != passed_file_name:
-            if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('passed file name:', passed_file_name,
-                                   'trailer file_name:', file_name,)
+            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                self._logger.debug_extra_verbose('passed file name:',
+                                                 passed_file_name,
+                                                 'trailer file_name:',
+                                                 file_name,)
 
         listitem = xbmcgui.ListItem(title)
         listitem.setInfo(
@@ -63,8 +65,8 @@ class MyPlayer(AdvancedPlayer):
 
         self.set_playing_title(title)
         self.set_playing_file_path(file_path)
-        if self._logger.isEnabledFor(LazyLogger.DEBUG):
-            self._logger.debug('path:', file_name, 'title:', title)
+        if self._logger.isEnabledFor(LazyLogger.DISABLED):
+            self._logger.debug_extra_verbose('path:', file_name, 'title:', title)
 
         self.play(item=path, listitem=listitem)
 

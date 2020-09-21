@@ -893,9 +893,9 @@ class GenreUtils(object):
 
             query_string = separator.join(selected_genre_ids)
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 domain_str = GenreUtils.domain_str[genre_domain]
-                cls._logger.debug('query {} genre ids: {}'
+                cls._logger.debug_extra_verbose('query {} genre ids: {}'
                                   .format(domain_str, query_string))
 
         except AbortException:

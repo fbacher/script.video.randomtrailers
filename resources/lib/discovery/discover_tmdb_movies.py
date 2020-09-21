@@ -424,8 +424,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :return: # type: bool
         """
         cls = type(self)
+        result = True
         try:
-            result = True
             if self._minimum_year is not None \
                     and movie[Movie.YEAR] < self._minimum_year:
                 result = False
@@ -520,9 +520,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
     def configure_year_query(self,
                              tmdb_trailer_type,  # type: str
                              tmdb_search_query="",  # type: str
-                             ):
+                             ) -> Optional[List[MovieType]]:
 
-        # type: (...) -> List[MovieType]
         """
         First, ignoring any specified years, find out how many total
         trailers will be found by the query. From this, decide if
@@ -603,13 +602,12 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         return movies
 
     def create_search_pages(self,
-                            max_pages,  # type: int
-                            pages_in_chunk,  # type: int
-                            tmdb_trailer_type,  # type: str
-                            tmdb_search_query,  # type: str
-                            additional_movies=[]  # List[MovieType]
-                            ):
-        # type: (...) -> bool
+                            max_pages: int,
+                            pages_in_chunk: int,
+                            tmdb_trailer_type: str,
+                            tmdb_search_query: str,
+                            additional_movies: List[MovieType]
+                            ) -> bool:
         """
         :param max_pages:
         :param pages_in_chunk:
@@ -619,6 +617,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :return:
         """
         cls = type(self)
+        if additional_movies is None:
+            additional_movies = []
+
         pages_read = 0
         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
         if not cached_pages_data.is_search_pages_configured():
@@ -763,7 +764,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     # of all pages that are to be read for each year
 
                     for page in pages_for_year:
-                        cached_page = CachedPage(year, page)
+                        cached_page = CachedPage(int(year), page)
                         search_pages.append(cached_page)
 
                     CacheIndex.add_search_pages(tmdb_search_query,
@@ -786,8 +787,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                    cached_pages_data.get_number_of_search_pages())
         return True  # finished
 
-    def send_cached_movies_to_discovery(self):
-        # type: () -> None
+    def send_cached_movies_to_discovery(self) -> None:
         """
 
         :return:
@@ -795,8 +795,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         cls = type(self)
         try:
             # Send any unprocessed TMDB trailers to the discovered list
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug(
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                cls.logger.debug_verbose(
                     "Sending unprocessed movies to discovered list")
 
             unprocessed_movies = CacheIndex.get_unprocessed_movies()
@@ -804,23 +804,23 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
                         cert = movie.get(Movie.MPAA, 'none')
-                        type(self).logger.debug('No certification. Title:',
+                        cls.logger.debug_extra_verbose('No certification. Title:',
                                                 movie[Movie.TITLE],
                                                 'year:', movie.get(Movie.YEAR),
                                                 'certification:', cert,
                                                 'trailer:', movie.get(Movie.TRAILER))
                         movie[Movie.MPAA] = ''
 
-                if Movie.DISCOVERY_STATE in movie:
-                    if movie[Movie.DISCOVERY_STATE] == Movie.NOT_FULLY_DISCOVERED \
-                            and self.filter_movie(movie):
-                        self.add_to_discovered_trailers(movie)
-                    if movie[Movie.DISCOVERY_STATE] >= Movie.DISCOVERY_COMPLETE:
-                        tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-                        CacheIndex.remove_unprocessed_movie(tmdb_id)
-                else:
-                    type(self).logger.error('Missing discovery state for unprocessed movie:',
-                                       movie[Movie.TITLE])
+
+                discovery_state = movie.get(Movie.DISCOVERY_STATE,
+                                            Movie.NOT_FULLY_DISCOVERED)
+                if (discovery_state < Movie.DISCOVERY_COMPLETE
+                        and self.filter_movie(movie)):
+                    self.add_to_discovered_trailers(movie)
+                if (discovery_state >= Movie.DISCOVERY_COMPLETE
+                        and self.filter_movie(movie)):
+                    tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                    CacheIndex.remove_unprocessed_movie(tmdb_id)
 
         except Exception as e:
             cls.logger.exception('')
@@ -831,7 +831,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 cls.logger.debug(
                     "Sending cached TMDB trailers to discovered list")
 
-            tmdb_trailer_ids = CacheIndex.get_found_tmdb_trailer_ids().copy()
+            tmdb_trailer_ids: Set[int] = CacheIndex.get_found_tmdb_trailer_ids().copy()
             movies = []
             for tmdb_id in tmdb_trailer_ids:
                 cached_movie = Cache.read_tmdb_cache_json(tmdb_id, Movie.TMDB_SOURCE,
@@ -857,11 +857,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             cls.logger.exception('')
 
     def discover_movies_using_search_pages(self,
-                                           tmdb_trailer_type,  # type: str
-                                           tmdb_search_query="",  # type: str
-                                           pages_in_chunk=5  # type: int
-                                           ):
-        # type: (...) -> None
+                                           tmdb_trailer_type: str,
+                                           tmdb_search_query: str = "",
+                                           pages_in_chunk: int = 5) -> None:
         """
         At this point the decision about what pages and years to search
         have been made and saved to the cache. Now, execute the plan!
@@ -987,7 +985,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             #                            Movie.TITLE: movie[Movie.TITLE]}
             #            self.add_to_discovered_trailers(trailerEntry)
             #
-            #            type(self).logger.debug(' DVD title: ' +
+            #            cls.logger.debug(' DVD title: ' +
             #                              trailerEntry[Movie.TITLE])
             #            break
             #
@@ -1430,10 +1428,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
 
         def __init__(self,
-                     total_pages=None,  # type: Union[int, None]
-                     viewed_page=None   # type: Union[int, None]
-                     ):
-            # type: (...) -> None
+                     total_pages: int = None,
+                     viewed_page: int = None) -> None:
             """
 
             :param total_pages:

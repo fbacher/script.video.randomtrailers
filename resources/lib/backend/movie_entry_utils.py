@@ -39,7 +39,7 @@ class MovieEntryUtils (object):
         :param movie:
         :return:
         """
-        tmdb_id = None
+        tmdb_id: Optional[str] = None
         imdb_id = None
         title = movie[Movie.TITLE]
         unique_id = movie.get(Movie.UNIQUE_ID, None)
@@ -53,7 +53,7 @@ class MovieEntryUtils (object):
                 if tmdb_id.startswith('tt'):
                     tmdb_id = None
             if tmdb_id is not None:
-                tmdb_id = int(tmdb_id)
+                tmdb_id: int = int(tmdb_id)
             else:
                 imdb_id = unique_id.get(Movie.UNIQUE_ID_IMDB, None)
                 if imdb_id is None:

@@ -37,7 +37,7 @@ class BackendBridge(PluginBridge):
         accomplished using the AddonSignals service.
     """
     _instance = None
-    _logger = None
+    _logger: LazyLogger = None
     _next_trailer = None
     _trailer_iterator = None
     _trailer = None
@@ -57,7 +57,6 @@ class BackendBridge(PluginBridge):
          :param playable_trailer_service:
         """
         cls._logger = module_logger.getChild(cls.__name__)
-        cls._logger.enter()
         try:
             cls.register_listeners()
             if playable_trailer_service is None:
@@ -86,8 +85,6 @@ class BackendBridge(PluginBridge):
             Back-end receives request for next trailer from the front-end and
             waits for response.
         """
-
-        cls._logger.enter()
         try:
             thread = threading.Thread(
                 target=cls.get_trailer_worker,
@@ -167,8 +164,8 @@ class BackendBridge(PluginBridge):
 
             :return: None
         """
-
-        cls._logger.enter()
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.enter()
 
         #
         # Back-end listens for get_next_trailer requests and

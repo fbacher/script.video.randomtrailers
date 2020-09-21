@@ -488,39 +488,45 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 # playing.
 
                 try:
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self).logger.debug('checking play_state 3 movie:',
-                                                 self._movie[Movie.TITLE])
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        cls.logger.debug_extra_verbose(
+                            'checking play_state 3 movie:',
+                            self._movie[Movie.TITLE])
                     if self.is_random_trailers_play_state(
                             DialogState.SKIP_PLAYING_TRAILER,
                             exact_match=True):
                         continue
                     if self.is_random_trailers_play_state(
                             minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                            type(self).logger.debug('breaking at play_state 3 movie:',
-                                                     self._movie[Movie.TITLE])
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            cls.logger.debug_extra_verbose(
+                                'breaking at play_state 3 movie:',
+                                self._movie[Movie.TITLE])
                         break
 
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self).logger.debug('wait_for_is_playing_video 2 movie:',
-                                                 self._movie[Movie.TITLE])
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        cls.logger.debug_extra_verbose(
+                            'wait_for_is_playing_video 2 movie:',
+                            self._movie[Movie.TITLE])
                     if not self.get_player().waitForIsPlayingVideo(timeout=5.0):
-                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                            type(self).logger.debug(
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            cls.logger.debug_extra_verbose(
                                 'Timed out Waiting for Player.')
 
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self).logger.debug('checking play_state 4 movie:',
-                                                 self._movie[Movie.TITLE])
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        cls.logger.debug_extra_verbose(
+                            'checking play_state 4 movie:',
+                            self._movie[Movie.TITLE])
                     if self.is_random_trailers_play_state(
                             DialogState.SKIP_PLAYING_TRAILER,
                             exact_match=True):
                         continue
                     if self.is_random_trailers_play_state(
                             minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-                        type(self).logger.debug(
-                            'breaking at play_state 4 movie:', self._movie[Movie.TITLE])
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            cls.logger.debug_extra_verbose(
+                                'breaking at play_state 4 movie:',
+                                self._movie[Movie.TITLE])
                         break
 
                     # Now that the trailer has started, see if it will run too long so
@@ -529,10 +535,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     trailer_total_time = self.get_player().getTotalTime()
                     max_play_time = Settings.get_max_trailer_length()
                     if trailer_total_time > max_play_time:
-                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                            type(self).logger.debug('Killing long trailer:',
-                                                     self._movie[Movie.TITLE], 'limit:',
-                                                     max_play_time)
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            cls.logger.debug_verbose(
+                                'Killing long trailer:',
+                                self._movie[Movie.TITLE], 'limit:',
+                                max_play_time)
                         self.start_long_trailer_killer(max_play_time)
                 except AbortException:
                     raise sys.exc_info()
@@ -543,17 +550,19 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 # appropriate
 
                 self.get_player().wait_for_is_not_playing_video()
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('checking play_state 5 movie:',
-                                             self._movie[Movie.TITLE])
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    cls.logger.debug_extra_verbose(
+                        'checking play_state 5 movie:',
+                        self._movie[Movie.TITLE])
                 if self.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
                                                       exact_match=True):
                     continue
                 if self.is_random_trailers_play_state(
                         minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self).logger.debug('breaking at play_state 5 movie:',
-                                                 self._movie[Movie.TITLE])
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        cls.logger.debug_extra_verbose(
+                            'breaking at play_state 5 movie:',
+                            self._movie[Movie.TITLE])
                     break
 
                 self.cancel_long_playing_trailer_killer()
@@ -737,7 +746,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         return
 
-    @log_entry_exit
     def show_detailed_info(self, from_user_request=False):
         # type: (bool) -> None
         """
@@ -888,8 +896,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             commands.append(info_command)
 
         for command in commands:
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug(command)
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose(command)
             # noinspection PyTypeChecker
             xbmc.executebuiltin(command)
 
@@ -967,7 +975,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         cls = type(self)
         try:
             Monitor.throw_exception_if_abort_requested()
-            type(self).logger.enter()
+            if self.logger.isEnabledFor(LazyLogger.DISABLED):
+                cls.logger.enter()
 
             title_label = Messages.get_formatted_msg(Messages.TITLE_LABEL)
             text_to_speech.say_text(title_label, interrupt=True)
@@ -1029,8 +1038,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             movie_studios = self._movie[Movie.DETAIL_STUDIOS]
             text_to_speech.say_text(movie_studios, interrupt=False)
 
-            type(self).logger.exit()
-
         except AbortException:
             raise sys.exc_info()
         except Exception as e:
@@ -1047,7 +1054,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         cls = type(self)
 
         super().doModal()
-        type(self).logger.exit()
         return self.exiting_playing_movie
 
     def show(self):
@@ -1183,9 +1189,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         cls = type(self)
 
         try:
-            type(self).logger.enter()
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug('Now Killing',
+            cls.logger.enter()
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose('Now Killing',
                                          trace=Trace.TRACE_UI_CONTROLLER)
 
             if inform_user:
@@ -1201,8 +1207,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         except Exception as e:
             cls.logger.exception(msg='')
 
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self).logger.debug('exit', trace=Trace.TRACE_SCREENSAVER)
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+            cls.logger.debug('exit', trace=Trace.TRACE_SCREENSAVER)
 
     def cancel_long_playing_trailer_killer(self):
         # type: () -> None
@@ -1210,8 +1216,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         :return:
         """
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self).logger.debug('enter, waiting on lock',
+        cls = type(self)
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+            cls.logger.debug('enter, waiting on lock',
                                      trace=[Trace.TRACE_SCREENSAVER,
                                             Trace.TRACE_UI_CONTROLLER])
         with self._lock:
@@ -1298,7 +1305,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # Mouse Move
         if action.getId() != 107 and cls.logger.isEnabledFor(LazyLogger.DEBUG):
             for line in matches:
-                type(self).logger.debug(line)
+                cls.logger.debug(line)
 
         action_id = action.getId()
         button_code = action.getButtonCode()

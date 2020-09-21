@@ -831,7 +831,7 @@ class AbstractMovieData(object):
                     pass
 
         self._removed_trailers += 1
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+        if type(self).logger.isEnabledFor(LazyLogger.DISABLED):
             type(self).logger.debug(' : ',
                                movie.get(Movie.TITLE), 'removed:',
                                self._removed_trailers, 'remaining:',
@@ -1096,8 +1096,8 @@ class AbstractMovieData(object):
             except KodiQueue.Empty:
                 Monitor.throw_exception_if_abort_requested()
 
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self).logger.debug(
+        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            type(self).logger.debug_extra_verbose(
                 'Got:', trailer[Movie.TITLE], 'from fetch queue')
 
         return trailer
@@ -1190,7 +1190,8 @@ class AbstractMovieData(object):
 
         :return:
         """
-        self._discovered_trailers.report_play_count_stats()
+        if self.logger.is_trace_enabled(Trace.STATS):
+            self._discovered_trailers.report_play_count_stats()
 
     def get_minimum_shuffle_seconds(self) -> int:
         seconds = self._minimum_shuffle_seconds

@@ -174,7 +174,8 @@ class BaseDiscoverMovies(threading.Thread):
             if self._movie_data.restart_discovery_event.isSet():
                 raise RestartDiscoveryException()
         except AbortException:
-            self.get_movie_data().report_play_count_stats()
+            if self.logger.is_trace_enabled(Trace.STATS):
+                self.get_movie_data().report_play_count_stats()
             reraise(*sys.exc_info())
 
     def prepare_for_restart_discovery(self):

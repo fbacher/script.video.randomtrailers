@@ -49,7 +49,7 @@ class HistoryList(object):
         :param movie:
         :return:
         """
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
                                len(cls._buffer), 'cursor:', cls._cursor)
         cls._buffer.append(movie)
@@ -57,7 +57,7 @@ class HistoryList(object):
             # Delete oldest entry
             del cls._buffer[0]
         cls._cursor = len(cls._buffer) - 1
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
                              len(cls._buffer), 'cursor:', cls._cursor)
 
@@ -68,7 +68,7 @@ class HistoryList(object):
 
         :return:
         """
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.enter('len(buffer):',
                                len(cls._buffer), 'cursor:', cls._cursor)
         # cursor points to currently playing movie or -1
@@ -80,7 +80,7 @@ class HistoryList(object):
         else:
             movie = cls._buffer[cls._cursor]
 
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
                               len(cls._buffer), 'cursor:', cls._cursor)
         return movie
@@ -92,7 +92,7 @@ class HistoryList(object):
         Play the next movie in the history buffer.
         :return: The next movie in the buffer or None, if there are none.
         """
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.enter('len(buffer):',
                                len(cls._buffer), 'cursor:',
                                cls._cursor)  # cursor points to currently playing
@@ -106,7 +106,7 @@ class HistoryList(object):
         else:
             movie = cls._buffer[cls._cursor]
             title = movie[Movie.TITLE]
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.exit('movie', title, 'len(buffer):',
                               len(cls._buffer), 'cursor:', cls._cursor)
         return movie
