@@ -47,8 +47,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
 
         """
-        type(self).logger = module_logger.getChild(type(self).__name__)
-        thread_name = type(self).__name__
+        cls = type(self)
+        cls.logger = module_logger.getChild(cls.__name__)
+        thread_name = cls.__name__
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.TMDB_SOURCE
 
@@ -89,11 +90,12 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         :return: # type: None
         """
+        cls = type(self)
         self.start()
         # self._trailer_fetcher.start_fetchers(self)
 
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self).logger.debug(': started')
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.debug(': started')
 
     def on_settings_changed(self):
         # type: () -> None
@@ -103,7 +105,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             By being here, TMDB discover is currently running. Only restart
             if there is a change.
         """
-        type(self).logger.enter()
+        cls = type(self)
+        cls.logger.enter()
 
         if Settings.is_tmdb_loading_settings_changed():
             stop_thread = not Settings.get_include_tmdb_trailers()
@@ -121,6 +124,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         :return: # type: None
         """
+        cls = type(self)
         start_time = datetime.datetime.now()
         try:
             finished = False
@@ -130,8 +134,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     self.wait_until_restart_or_shutdown()
                 except (RestartDiscoveryException):
                     # Restart discovery
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self).logger.debug('Restarting discovery')
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                        cls.logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.get_include_tmdb_trailers():
                         finished = True
@@ -139,14 +143,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             self.finished_discovery()
             duration = datetime.datetime.now() - start_time
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug('Time to discover:', duration.seconds, ' seconds',
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug('Time to discover:', duration.seconds, ' seconds',
                                    trace=Trace.STATS)
 
         except AbortException:
             return
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
     def run_worker(self):
         # type: () -> None
@@ -156,6 +160,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         :return: #type: None
         """
+        cls = type(self)
         try:
             Monitor.throw_exception_if_abort_requested()
             tmdb_trailer_type = TmdbSettings.get_instance().get_trailer_type()
@@ -209,7 +214,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
     def discover_movies(self, max_pages, tmdb_trailer_type=''):
         # type: (int, str) -> None
@@ -224,6 +229,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 Specifies the type of movies to get (popular, recent, etc.)
         :return: # type: None (Lower code uses add_to_discovered_trailers).
         """
+        cls = type(self)
         try:
             self._rejected_due_to_year = 0
             movies = self.configure_search_parameters(
@@ -314,7 +320,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
     def configure_search_parameters(self,
                                     tmdb_trailer_type=''  # type: str
@@ -332,6 +338,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 Specifies a trailer-type search parameter
         :return: # type: List[MovieType]
         """
+        cls = type(self)
 
         self.throw_exception_on_forced_to_stop()
         movies = []  # type: List[MovieType]
@@ -402,7 +409,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
         return movies
 
@@ -416,7 +423,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 Movie to filter
         :return: # type: bool
         """
-
+        cls = type(self)
         try:
             result = True
             if self._minimum_year is not None \
@@ -451,23 +458,23 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             """
             if Settings.get_filter_genres() and not tag_found and not genre_found:
                 add_movie = False
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('Rejected due to GenreUtils or Keyword')
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('Rejected due to GenreUtils or Keyword')
 
             if vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
                 if vote_comparison == \
                         RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
                     if vote_average < vote_value:
                         add_movie = False
-                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                            type(self).logger.debug(
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                            cls.logger.debug(
                                 'Rejected due to vote_average <')
                 elif vote_comparison == \
                         RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
                     if vote_average > vote_value:
                         add_movie = False
-                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                            type(self).logger.debug(
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                            cls.logger.debug(
                                 'Rejected due to vote_average >')
 
             original_title = tmdb_result['original_title']
@@ -477,8 +484,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             adult_movie = tmdb_result['adult'] == 'true'
             if adult_movie and not include_adult:
                 add_movie = False
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('Rejected due to adult')
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('Rejected due to adult')
 
             dict_info[Movie.ADULT] = adult_movie
             dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
@@ -488,8 +495,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             mpaa = Rating.get_certification(mpaa_rating=mpaa, adult_rating=None)
             if not Rating.filter(mpaa):
                 add_movie = False
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('Rejected due to rating')
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('Rejected due to rating')
                     # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
 
             current_parameters = CacheParameters({
@@ -506,7 +513,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
         return result
 
@@ -535,6 +542,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         # Is cache from previous run in a good state?
 
+        cls = type(self)
         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
         if cached_pages_data.get_total_pages() != 0:
             return None
@@ -546,8 +554,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         status_code, info_string = JsonUtilsBasic.get_json(
             url, params=data)
         if info_string is None:
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug(
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug(
                     'Problem communicating with TMDB')
             # TODO: Wait for communication to resume
             # TODO: Notification to user
@@ -586,8 +594,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             movies = self.process_page(info_string, data, tmdb_trailer_type,
                                        url=url)
 
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self).logger.debug('Search Query type:', tmdb_search_query,
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.debug('Search Query type:', tmdb_search_query,
                                'TMDB movies:', total_results,
                                'total_pages:', total_pages,
                                'query_by_year:', query_by_year)
@@ -610,6 +618,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :param additional_movies:
         :return:
         """
+        cls = type(self)
         pages_read = 0
         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
         if not cached_pages_data.is_search_pages_configured():
@@ -712,8 +721,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                     total_pages_for_years += int(total_pages_in_year)
 
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('configuring search pages',
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('configuring search pages',
                                        'query_by_year: True',
                                        'total_pages_for_years:',
                                        total_pages_for_years)
@@ -744,8 +753,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     except KeyError:
                         pages_for_year = []
                     except ValueError:
-                        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                            type(self).logger.debug('ValueError: 1,',
+                        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                            cls.logger.debug('ValueError: 1,',
                                                total_pages_in_year,
                                                'scaled_pages:',
                                                scaled_pages)
@@ -771,8 +780,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                             search_pages, flush=True)
 
             cached_pages_data.set_search_pages_configured(flush=True)
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug('SEARCH_PAGES_CONFIGURED',
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug('SEARCH_PAGES_CONFIGURED',
                                    'len(cached_pages_data):',
                                    cached_pages_data.get_number_of_search_pages())
         return True  # finished
@@ -783,7 +792,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         :return:
         """
-
+        cls = type(self)
         try:
             # Send any unprocessed TMDB trailers to the discovered list
             if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
@@ -792,7 +801,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             unprocessed_movies = CacheIndex.get_unprocessed_movies()
             for movie in unprocessed_movies.values():
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
                         cert = movie.get(Movie.MPAA, 'none')
                         type(self).logger.debug('No certification. Title:',
@@ -814,12 +823,12 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                        movie[Movie.TITLE])
 
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
         try:
             # Send any cached TMDB trailers to the discovered list
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                type(self).logger.debug(
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug(
                     "Sending cached TMDB trailers to discovered list")
 
             tmdb_trailer_ids = CacheIndex.get_found_tmdb_trailer_ids().copy()
@@ -845,7 +854,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # CacheIndex.add_unprocessed_movies(movies)
             self.add_to_discovered_trailers(movies)
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
     def discover_movies_using_search_pages(self,
                                            tmdb_trailer_type,  # type: str
@@ -864,6 +873,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :return:
         """
 
+        cls = type(self)
         try:
             cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
             page_to_get = 1  # Will be overridden
@@ -892,16 +902,16 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 pages_in_chunk = min(pages_in_chunk, len(search_pages))
                 search_pages = search_pages[:pages_in_chunk]
 
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('length of year/page pairs:',
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('length of year/page pairs:',
                                        len(search_pages))
 
                 for cached_page in search_pages:
                     self.throw_exception_on_forced_to_stop()
                     year = cached_page.get_year()
                     page = cached_page.get_page_number()
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                        type(self).logger.debug('Getting trailers for year:',
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                        cls.logger.debug('Getting trailers for year:',
                                            year, 'page:', page
                                            )
                     self.get_trailers(url=url, data=data,
@@ -991,7 +1001,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             reraise(*sys.exc_info())
 
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
         return
 
     def is_exceeded_limit_of_trailers(self):
@@ -1224,6 +1234,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             optional
 
         """
+        cls = type(self)
         data = {}
         url = ''
 
@@ -1305,7 +1316,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
         finally:
             return url, data
@@ -1337,6 +1348,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :param tmdb_search_query:
         :return:
         """
+        cls = type(self)
         if already_found_movies is None:
             already_found_movies = []
         try:
@@ -1349,8 +1361,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 if self.get_number_of_movies() > 100:
                     self.throw_exception_on_forced_to_stop(delay=60)
 
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('year:', year, 'page:', page)
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('year:', year, 'page:', page)
                 delay = self.get_delay()
                 self.throw_exception_on_forced_to_stop(delay=delay)
 
@@ -1408,9 +1420,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
 
-    class AggregateQueryResults(object):
+    class AggregateQueryResults:
         """
             Contains movie information discovered through multiple TMDB API
             calls so that they can be conveniently processed in a different
@@ -1427,7 +1439,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             :param total_pages:
             :param viewed_page:
             """
-            type(self).logger = module_logger.getChild(self.__class__.__name__)
+            cls = type(self)
+            cls.logger = module_logger.getChild(self.__class__.__name__)
             self._total_pages = total_pages
             self._viewed_page = viewed_page
 
@@ -1486,18 +1499,19 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                "id": 297802,
                                 "original_language": "en"},
         '''
+        cls = type(self)
         movies = []
         try:
             page = info_string.get('page', 1)
             total_pages = info_string.get('total_pages', -1)
             movie_entries = info_string.get('results', None)
             if total_pages == -1:
-                type(self).logger.error('total_pages missing',
+                cls.logger.error('total_pages missing',
                                    json.dumps(info_string, indent=3, sort_keys=True))
 
             if movie_entries is None:
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('results not found. URL:',
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                    cls.logger.debug('results not found. URL:',
                                        url, 'returned value:',
                                        json.dumps(info_string))
             else:
@@ -1509,9 +1523,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     self.throw_exception_on_forced_to_stop()
 
                     trailer_id = movie_entry['id']
-                    if type(self).logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         tmp_title = movie_entry[Movie.TITLE]
-                        type(self).logger.debug_verbose('Processing:', tmp_title)
+                        cls.logger.debug_verbose('Processing:', tmp_title)
                     try:
                         year = movie_entry['release_date'][:-6]
                         year = int(year)
@@ -1520,8 +1534,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                     if year != 0 and self._select_by_year_range:
                         if self._minimum_year is not None and year < self._minimum_year:
-                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                                type(self).logger.debug(
+                            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                                cls.logger.debug(
                                     'Omitting movie_entry older than minimum Year:',
                                     self._minimum_year, 'movie_entry:',
                                     movie_entry[Movie.TITLE],
@@ -1529,8 +1543,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                             self._rejected_due_to_year += 1
                             continue
                         if self._maximum_year is not None and year > self._maximum_year:
-                            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                                type(self).logger.debug(
+                            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                                cls.logger.debug(
                                     'Omitting movie_entry newer than maximum Year: ',
                                     self._maximum_year, 'movie_entry:',
                                     movie_entry[Movie.TITLE],
@@ -1552,7 +1566,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self).logger.exception('')
+            cls.logger.exception('')
         finally:
 
             return movies
