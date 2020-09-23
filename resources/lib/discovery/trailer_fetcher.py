@@ -1075,6 +1075,8 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             if not keep_trailer:
                 movie = None
+                if tmdb_id is not None:
+                    CacheIndex.remove_cached_trailer_id(tmdb_id)
 
             return movie
         except AbortException:
