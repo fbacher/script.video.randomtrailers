@@ -9,17 +9,19 @@ Created on Feb 12, 2019
 import os
 import io
 import sys
+
+import xbmc
+import xbmcaddon
+
+
 import stat
 import threading
 from queue import Queue, Empty
-
-import xbmc
-
 from common.imports import *
 from backend.back_end_bridge import BackendBridge
 from common.constants import Constants
-from common.monitor import Monitor
 from common.exceptions import AbortException
+from common.monitor import Monitor
 from common.settings import Settings
 from backend.api import load_trailers
 from common.logger import (LazyLogger)
@@ -27,38 +29,39 @@ from common.logger import (LazyLogger)
 from discovery.playable_trailer_service import PlayableTrailerService
 from cache.cache_manager import CacheManager
 
+
 REMOTE_DEBUG: bool = True
+
+pydevd_addon_path = None
+try:
+    pydevd_addon_path = xbmcaddon.Addon(
+        'script.module.pydevd').getAddonInfo('path')
+except Exception:
+    xbmc.log('Debugger disabled, script.module.pydevd NOT installed',
+             xbmc.LOGDEBUG)
+    REMOTE_DEBUG = False
 
 if REMOTE_DEBUG:
     try:
         import pydevd
 
-        # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+        # Note, besides having script.module.pydevd installed, pydevd
+        # must also be on path of IDE runtime. Should be same versions!
         try:
-            xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
-            '''
-                If the server (your python process) has the structure
-                    /user/projects/my_project/src/package/module1.py
-
-                and the client has:
-                    c:\my_project\src\package\module1.py
-
-                the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
-                    PATHS_FROM_ECLIPSE_TO_PYTHON = \
-                          [(r'c:\my_project\src', r'/user/projects/my_project/src')
-                # with the addon script.module.pydevd, only use `import pydevd`
-                # import pysrc.pydevd as pydevd
-            '''
-            addons_path = os.path.join(Constants.ADDON_PATH, '..',
-                                       'script.module.pydevd', 'lib', 'pydevd.py')
-
+            xbmc.log('back_end_service trying to attach to debugger',
+                     xbmc.LOGDEBUG)
+            addons_path = os.path.join(pydevd_addon_path, 'lib', 'pydevd.py')
             sys.path.append(addons_path)
+            # xbmc.log('sys.path appended to', xbmc.LOGDEBUG)
             # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
             # console
             try:
                 pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True)
+                                stderrToServer=True, suspend=True,
+                                wait_for_ready_to_run=True)
+
             except AbortException:
+                xbmc.log('AbortException at startup?', xbmc.LOGDEBUG)
                 exit(0)
             except Exception as e:
                 xbmc.log(
@@ -67,11 +70,14 @@ if REMOTE_DEBUG:
         except BaseException:
             xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
     except ImportError:
-        REMOTE_DEBUG = False
-        pydevd = None
+        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
+        xbmc.log(msg, xbmc.LOGDEBUG)
+        sys.stderr.write(msg)
+    except BaseException:
+        xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
 
+RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
-module_logger.debug('python path:', sys.path)
 
 
 class MainThreadLoop(object):
