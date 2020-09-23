@@ -560,7 +560,6 @@ class JsonUtilsBasic(object):
 
             return JsonUtilsBasic.DestinationDataContainer.data_for_destination[destination]
 
-       # Headers needs to be native string (not unicode on v2)
     @classmethod
     def get_json(cls, url,  # type; str
                  second_attempt=False,  # type: bool
