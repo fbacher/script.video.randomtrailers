@@ -55,9 +55,10 @@ class BaseDiscoverMovies(threading.Thread):
         :param args:
         :param kwargs:
         """
-        if type(self).logger is None:
-            type(self).logger = module_logger.getChild(type(self).__name__)
-        type(self).logger.enter()
+        local_class = BaseDiscoverMovies
+        if local_class.logger is None:
+            local_class.logger = module_logger.getChild(local_class.__name__)
+        local_class.logger.enter()
         movie_source = None
         if kwargs is not None:
             movie_source = kwargs.pop(Movie.SOURCE, None)
@@ -68,7 +69,8 @@ class BaseDiscoverMovies(threading.Thread):
             thread_name = Constants.ADDON_PATH + '.BaseDiscoverMovies'
         super().__init__(group=group, target=target, name=thread_name,
                          args=args, kwargs=kwargs)
-        if type(self).__name__ != 'BaseDiscoverMovies':
+        cls = type(self)
+        if cls.__name__ != 'BaseDiscoverMovies':
             Monitor.register_settings_changed_listener(
                 self.on_settings_changed)
 
@@ -91,8 +93,9 @@ class BaseDiscoverMovies(threading.Thread):
             what to do.
         """
         # TODO: Rework
+        local_class = BaseDiscoverMovies
 
-        type(self).logger.enter()
+        local_class.logger.enter()
 
     def restart_discovery(self, stop_thread):
         # type: (bool) -> None
@@ -100,8 +103,8 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
-
-        type(self).logger.enter()
+        local_class = BaseDiscoverMovies
+        local_class.logger.enter()
 
         # TODO: REWORK
 
@@ -114,12 +117,14 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
-        # type(self).logger.debug('before self._movie_data.lock')
+        local_class = BaseDiscoverMovies
+
+        # local_class.logger.debug('before self._movie_data.lock')
 
         with self._movie_data._discovered_trailers_lock:
-            if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                # type(self).logger.debug('got self._movie_data.lock')
-                type(self).logger.debug('Shuffling because finished_discovery',
+            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                # local_class.logger.debug('got self._movie_data.lock')
+                local_class.logger.debug('Shuffling because finished_discovery',
                                    trace=Trace.TRACE_DISCOVERY)
             self._movie_data.shuffle_discovered_trailers(mark_unplayed=False)
             self._discovery_complete = True
@@ -132,7 +137,9 @@ class BaseDiscoverMovies(threading.Thread):
         :param movies:
         :return:
         """
-        # type(self).logger.enter()
+        local_class = BaseDiscoverMovies
+
+        # local_class.logger.enter()
         self._movie_data.add_to_discovered_trailers(movies)
 
     def get_number_of_movies(self):
@@ -141,6 +148,8 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
+        local_class = BaseDiscoverMovies
+
         return self.get_movie_data().get_number_of_movies()
 
     def get_movie_data(self):
@@ -149,6 +158,8 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
+        local_class = BaseDiscoverMovies
+
         return self._movie_data
 
     def wait_until_restart_or_shutdown(self):
@@ -157,6 +168,8 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
+        local_class = BaseDiscoverMovies
+
 
         finished = False
         while not finished:
@@ -170,6 +183,8 @@ class BaseDiscoverMovies(threading.Thread):
         :param delay:
         :return:
         """
+        local_class = BaseDiscoverMovies
+
         try:
             Monitor.throw_exception_if_abort_requested(timeout=delay)
             if self._movie_data.restart_discovery_event.isSet():
@@ -185,8 +200,9 @@ class BaseDiscoverMovies(threading.Thread):
 
         :return:
         """
+        local_class = BaseDiscoverMovies
 
-        type(self).logger.enter()
+        local_class.logger.enter()
         with self._movie_data._discovered_trailers_lock:
             self._movie_data.prepare_for_restart_discovery(self._stop_thread)
             self._trailers_discovered.clear()
@@ -200,6 +216,8 @@ class BaseDiscoverMovies(threading.Thread):
             The Discoverxx thread is being shutdown, perhaps due to changed
             settings.
         """
+        local_class = BaseDiscoverMovies
+
         Monitor.unregister_settings_changed_listener(
             self.on_settings_changed)
         self._movie_data.remove()
@@ -208,6 +226,7 @@ class BaseDiscoverMovies(threading.Thread):
     def get_instances():
         # type: () -> Dict[str, BaseDiscoverMovies]
         """
+        local_class = BaseDiscoverMovies
 
         :return:
         """
