@@ -194,14 +194,16 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         download_info = None
 
-        cache_complete = TFHCache.load_trailer_cache()
-        cached_trailers = TFHCache.get_cached_trailers()
+        cache_complete = TFHCache.load_trailer_info_from_cache()
+        cached_trailers = TFHCache.get_cached_trailer_info()
         max_trailers = Settings.get_max_number_of_tfh_trailers()
         if len(cached_trailers) > max_trailers:
             del cached_trailers[max_trailers:]
             cache_complete = True
-            TFHCache.save_trailers_to_cache(
-                None, flush=True, cache_complete=True)
+            TFHCache.save_trailer_info_to_cache(None, flush=True, cache_complete=True)
+        if len(cached_trailers) < max_trailers:
+            cache_complete = False
+
         self.add_to_discovered_trailers(cached_trailers)
 
         if not cache_complete:
@@ -209,13 +211,12 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             youtube_data_stream_extractor_proxy = \
                 YDStreamExtractorProxy.get_instance()
-            trailer_folder = xbmcvfs.translatePath(
-                'special://temp')
-            url = "https://www.youtube.com/user/trailersfromhell/videos"
+            trailer_folder = xbmcvfs.translatePath('special://temp')
+            url = 'https://www.youtube.com/user/trailersfromhell/videos'
             success = youtube_data_stream_extractor_proxy.get_tfh_index(
                 url, self.trailer_handler)
             if success:
-                TFHCache.save_trailers_to_cache(
+                TFHCache.save_trailer_info_to_cache(
                     None, flush=True, cache_complete=True)
 
     def trailer_handler(self, json_text):
@@ -268,7 +269,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             if Settings.get_max_number_of_tfh_trailers() <= len(TFHCache.get_cached_trailers()):
                 return True
             else:
-                TFHCache.save_trailers_to_cache(
+                TFHCache.save_trailer_info_to_cache(
                     trailer_entry, flush=False, cache_complete=False)
                 self.add_to_discovered_trailers(trailer_entry)
                 return False
