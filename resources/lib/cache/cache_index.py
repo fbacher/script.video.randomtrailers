@@ -87,6 +87,9 @@ class CachedPage(object):
         """
         return self._total_pages_for_year
 
+    def is_processed(self) -> bool:
+        return self.processed
+
     def get_cache_key(self):
         # type: () -> str
         """
@@ -440,7 +443,7 @@ class CachedPagesData:
         self._total_pages = total_pages
         self._total_pages_by_year = {}
         self._query_by_year = query_by_year
-        self._years_to_get = None
+        self._years_to_query = None
         self._search_pages_configured = False
         self._path = 'tmdb_' + key + '.json'
         self._logger.debug('remote_db_cache_path:',
@@ -456,6 +459,7 @@ class CachedPagesData:
 
         :return:
         """
+        self.load_search_pages()
         return self._total_pages
 
     def set_total_pages(self, total_pages):
@@ -464,6 +468,7 @@ class CachedPagesData:
         :param total_pages:
         :return:
         """
+        self.load_search_pages()
         self._total_pages = total_pages
 
     def is_query_by_year(self):
@@ -472,6 +477,7 @@ class CachedPagesData:
 
         :return:
         """
+        self.load_search_pages()
         return self._query_by_year
 
     def set_query_by_year(self, query_by_year):
@@ -480,26 +486,25 @@ class CachedPagesData:
         :param query_by_year:
         :return:
         """
+        self.load_search_pages()
         self._query_by_year = query_by_year
 
-    def get_years_to_get(self):
-        #  type: () -> Optional[List[int]]
+    def get_years_to_query(self) -> Optional[List[int]]:
         """
 
         :return:
         """
-        return self._years_to_get
+        self.load_search_pages()
+        return self._years_to_query
 
-    def set_years_to_get(self,
-                         years_to_get  # type: List[int]
-                         ):
-        #  type: (...) -> None
+    def set_years_to_query(self, years_to_query: List[int]) -> None:
         """
 
         :param years_to_get:
         :return:
         """
-        self._years_to_get = years_to_get
+        self.load_search_pages()
+        self._years_to_query = years_to_query
 
     def set_search_pages_configured(self,
                                     flush=False  # type: bool
@@ -509,6 +514,7 @@ class CachedPagesData:
 
         :return:
         """
+        self.load_search_pages()
         self._search_pages_configured = True
         if flush:
             self.save_search_pages(flush=flush)
@@ -524,6 +530,7 @@ class CachedPagesData:
                  persisted. The construction of the plan can be resumed even
                  after a restart.
         """
+        self.load_search_pages()
         return self._search_pages_configured
 
     def add_search_pages(self,
@@ -548,6 +555,7 @@ class CachedPagesData:
         self._number_of_unsaved_changes += len(search_pages)
         self.save_search_pages(flush=flush)
 
+
     def get_total_pages_for_year(self,
                                  year  # type: int
                                  ):
@@ -556,6 +564,8 @@ class CachedPagesData:
         :param year:
         :return:
         """
+        self.load_search_pages()
+
         total_pages = None
         if year in self._total_pages_by_year:
             total_pages = self._total_pages_by_year[year]
@@ -665,6 +675,29 @@ class CachedPagesData:
 
         return cached_page
 
+    def get_entries_for_year(self, year):
+        # type: (int) -> List[CachedPage]
+        """
+
+        :param year:
+        :param page_number:
+        :return:
+        """
+        cached_pages = []
+        try:
+            if self._cached_page_by_key is None:
+                self.load_search_pages()
+
+            key_prefix = str(year) + '_'
+
+            for key, cached_page in self._cached_page_by_key.items():
+                if key.startswith(key_prefix):
+                    cached_pages.append(cached_page)
+        except Exception as e:
+            self._logger.exception('')
+
+        return cached_pages
+
     def mark_page_as_discovered(self, cached_page):
         #  type: (CachedPage) -> None
         """
@@ -672,7 +705,7 @@ class CachedPagesData:
         :param cached_page:
         :return:
         """
-
+        self.load_search_pages()
         cached_page.processed = True
         self._number_of_unsaved_changes += 1
         self.save_search_pages(flush=True)
@@ -683,6 +716,7 @@ class CachedPagesData:
 
         :return:
         """
+        self.load_search_pages()
         return int(self._number_of_unsaved_changes)
 
     def get_time_since_last_save(self):
@@ -691,6 +725,7 @@ class CachedPagesData:
 
         :return:
         """
+        self.load_search_pages()
         return datetime.datetime.now() - self._time_of_last_save
 
     def to_json(self):
@@ -706,13 +741,15 @@ class CachedPagesData:
                 json_dict['cache_type'] = self._key
                 json_dict['total_pages'] = self._total_pages
                 json_dict['query_by_year'] = self._query_by_year
-                json_dict['years_to_get'] = self._years_to_get
+                json_dict['years_to_get'] = self._years_to_query
                 json_dict['search_pages_configured'] = self._search_pages_configured
 
                 for key, cached_page in self._cached_page_by_key.items():
                     entry_dict = {'year': cached_page.get_year(),
                                   'page': cached_page.get_page_number(),
-                                  'processed': cached_page.processed}
+                                  'processed': cached_page.processed,
+                                  'total_pages_for_year':
+                                      cached_page._total_pages_for_year}
                     json_dict[key] = entry_dict
 
         except Exception as e:
@@ -742,13 +779,17 @@ class CachedPagesData:
                 elif key == 'query_by_year':
                     self._query_by_year = entry
                 elif key == 'years_to_get':
-                    self._years_to_get = entry
+                    self._years_to_query = entry
                 elif key == 'search_pages_configured':
                     self._search_pages_configured = entry
                 else:
+                    # can be none
+                    total_pages_for_year = entry.get('total_pages_for_year')
                     cached_page = CachedPage(entry['year'],
                                              entry['page'],
-                                             processed=entry['processed'])
+                                             processed=entry['processed'],
+                                             total_pages_for_year=\
+                                             total_pages_for_year)
                     cached_page_by_key[key] = cached_page
                     if cached_page._year not in self._total_pages_by_year:
                         self._total_pages_by_year[cached_page._year] =\
@@ -852,6 +893,7 @@ class CachedPagesData:
 
         :return:
         """
+        self.load_search_pages()
         self._cached_page_by_key = {}
         self._total_pages = 0
         self.save_search_pages(flush=True)
@@ -1028,14 +1070,33 @@ class CacheIndex(object):
         :return:
          """
         tmdb_id = int(tmdb_id)
+        with CacheIndex.lock:
+            if tmdb_id not in cls._found_trailer_ids:
+                cls._found_trailer_ids.add(tmdb_id)
+                cls._unsaved_trailer_changes += 1
 
-        cls._found_trailer_ids.add(tmdb_id)
-        cls._unsaved_trailer_changes += 1
-        cls.remove_unprocessed_movie(tmdb_id)
-        cls.save_found_trailer_cache()  # If needed
+            cls.remove_unprocessed_movie(tmdb_id)
+            cls.save_found_trailer_cache()  # If needed
 
     @classmethod
-    def get_found_tmdb_trailer_ids(cls) -> Set[int]:
+    def remove_cached_trailer_id(cls, tmdb_id: int) -> None:
+        """
+        :param tmdb_id:
+        :return:
+         """
+        tmdb_id = int(tmdb_id)
+        with CacheIndex.lock:
+            try:
+                cls._found_trailer_ids.remove(tmdb_id)
+                cls._unsaved_trailer_changes += 1
+            except KeyError:
+                pass
+
+            cls.remove_unprocessed_movie(tmdb_id)  # if needed
+            cls.save_found_trailer_cache()  # If needed
+
+    @classmethod
+    def get_found_tmdb_ids_with_trailer(cls) -> Set[int]:
         """
         :return:
         """
@@ -1058,6 +1119,12 @@ class CacheIndex(object):
         :return:
         """
         CacheParameters.save_cache()
+
+    @classmethod
+    def save_cached_pages_data(cls, tmdb_search_query: str,
+                               flush: bool = False) -> None:
+        cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
+        cached_pages_data.save_search_pages(flush=flush)
 
     @classmethod
     def save_unprocessed_movie_cache(cls, flush=False):
