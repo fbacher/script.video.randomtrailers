@@ -275,7 +275,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                 while process_genres or process_keywords:
                     if process_genres:
-                        genre_finished = self.create_search_pages(
+                        genre_finished = self.second_phase_discovery(
                             max_pages,
                             pages_in_chunk,
                             tmdb_trailer_type,  # type: str
@@ -284,7 +284,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         if genre_finished:
                             process_genres = False
                     if process_keywords:
-                        keyword_finished = self.create_search_pages(
+                        keyword_finished = self.second_phase_discovery(
                             max_pages,
                             pages_in_chunk,
                             tmdb_trailer_type,  # type: str
@@ -293,7 +293,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                             process_keywords = False
 
             else:
-                self.create_search_pages(
+                self.second_phase_discovery(
                     max_pages,
                     max_pages,
                     tmdb_trailer_type,  # type: str
@@ -402,15 +402,15 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     # and keywords and combine them. This way the results are the union.
                     # Otherwise they are  the intersection.
 
-                    genre_movies = self.configure_year_query(tmdb_trailer_type,
-                                                             tmdb_search_query="genre")
+                    genre_movies = self.first_phase_discovery(tmdb_trailer_type,
+                                                              tmdb_search_query="genre")
                     # None indicates already configured
                     if genre_movies is not None:
                         movies.extend(genre_movies)
                         del genre_movies
                 if self._selected_keywords != '' or self._excluded_keywords != '':
-                    keyword_movies = self.configure_year_query(tmdb_trailer_type,
-                                                               tmdb_search_query="keyword")
+                    keyword_movies = self.first_phase_discovery(tmdb_trailer_type,
+                                                                tmdb_search_query="keyword")
                     # None indicates already configured
                     if keyword_movies is not None:
                         movies.extend(keyword_movies)
@@ -418,8 +418,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             else:
                 # Need to determine if we will search by year or all years. The
                 # total number of matching movies will govern this.
-                generic_movies = self.configure_year_query(tmdb_trailer_type,
-                                                           tmdb_search_query="generic")
+                generic_movies = self.first_phase_discovery(tmdb_trailer_type,
+                                                            tmdb_search_query="generic")
                 # None indicates already configured
                 if generic_movies is not None:
                     movies.extend(generic_movies)
@@ -537,11 +537,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         return result
 
-    def configure_year_query(self,
-                             tmdb_trailer_type,  # type: str
-                             tmdb_search_query="",  # type: str
-                             ) -> Optional[List[MovieType]]:
-
+    def first_phase_discovery(self,
+                              tmdb_trailer_type,  # type: str
+                              tmdb_search_query="",  # type: str
+                              ) -> Optional[List[MovieType]]:
         """
         First, ignoring any specified years, find out how many total
         trailers will be found by the query. From this, decide if
@@ -620,128 +619,184 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         return movies
 
-    def create_search_pages(self,
-                            max_pages: int,
-                            pages_in_chunk: int,
-                            tmdb_trailer_type: str,
-                            tmdb_search_query: str,
-                            additional_movies: List[MovieType]
-                            ) -> bool:
+    def second_phase_discovery(self,
+                               max_pages: int,
+                               pages_in_chunk: int,
+                               tmdb_trailer_type: str,
+                               tmdb_search_query: str,
+                               additional_movies: List[MovieType]
+                               ) -> bool:
         """
         :param max_pages:
-        :param pages_in_chunk:
+        :param pages_in_chunk: Limit pages read per call. Used when Genre and
+                               Keyword queries exist. Allows alternating between
+                               them to improve randomness.
         :param tmdb_trailer_type:
         :param tmdb_search_query:
         :param additional_movies:
         :return:
         """
-        cls = type(self)
+        # Called after first_phase_discovery determines how many total movies
+        # on TMDB match the search criteria. This drives the decision whether
+        # to break the search down into multiple searches per-year, or
+        # to search across all years within the specified range at once.
+        # Performing searches on individual years ensures that the sampling
+        # is more random.
+        #
+        # When complete:
+        #  A plan for what years to search, and which "pages" to request from
+        #  TMDB. (The results of a query are chunked into pages, a group
+        #  of 20 movies from TMDB.)
+        #
+        #  If query_by_year, a chunk is read for each year in the query, in
+        #  order to create a search plan, Each chunk contains the total number
+        #  of movies for that year satisfy the query. From this a plan for
+        #  how many pages to read for each year is created and persisted.
+        #
+        # If not query_by_year, the plan can be completed without reading
+        # any more pages than the one read in first_phase_discovery.
+        #
+        # The plan is persisted as it is built.
+        #
+        # In case of interruption, this method will complete building the plan.
+        #
+        # As a side-effect, as each page is read, the movies for that page are
+        # added to the discovered movies list for further processing by
+        # TrailerFetcher thread.
+        #
         local_class = DiscoverTmdbMovies
         if additional_movies is None:
             additional_movies = []
 
         pages_read = 0
-        cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
-        if not cached_pages_data.is_search_pages_configured():
-            query_by_year = cached_pages_data.is_query_by_year()
-            if query_by_year:
+        cached_pages_data: CachedPagesData = CachedPagesData.pages_data[tmdb_search_query]
+        query_by_year = cached_pages_data.is_query_by_year()
 
-                ###########################################################
-                #
-                #   Determine whether to query by years
-                #
-                # Based on the info returned from first page, determine what
-                # other pages to read and if a year range is specified, then
-                # whether to read by year or not.
-                #
-                # The issue is that the TMDB API will only accept one date. Therefore, if
-                # 10 years must be searched, then a minimum of 10 queries must be made
-                # even if most of those years have hardly any results. Use the heuristic
-                # that if the generic query that does not specify the year returns a
-                # total number of result pages that is less than 1.5 times the number of
-                # years in the range, then use the generic, non-year specific query.
-                local_class.logger.debug('Query by year',
-                                         trace=Trace.TRACE_CACHE_PAGE_DATA)
+        #  TODO: Verify this
+        if cached_pages_data.is_search_pages_configured():
+            return False  # Not known if finished reading pages
 
-                page_to_get = 1  # Overridden
-                url, data = self.create_request(
-                    tmdb_trailer_type, page=page_to_get,
-                    tmdb_search_query=tmdb_search_query)
+        if query_by_year:
 
+            if cached_pages_data.get_years_to_query() is None:
                 ###########################################################
                 #
                 #    SEARCH BY YEAR
+                #
+                # From the first phase, we know the total number of pages
+                # in the database satisfy the query. We want to spread
+                # the query out across the year range in proportion to
+                # the the number of results for each year.
                 #
                 # Need to find out how many pages of movies are available
                 # per year. Do this by querying a random page for each year.
                 #
 
-                years_to_get = cached_pages_data.get_years_to_get()
-                if years_to_get is None:
-                    years_to_get = list(
-                        range(self._minimum_year, self._maximum_year))
-                    DiskUtils.RandomGenerator.shuffle(years_to_get)
-                    cached_pages_data.set_years_to_get(years_to_get)
+                local_class.logger.debug('Query by year',
+                                         trace=Trace.TRACE_CACHE_PAGE_DATA)
 
-                # No matter what page you request for, TMDB will give how many
-                # pages are available, so even if you overshoot all is not lost.
-                # For the first request for a year, pick a random page from a
-                # relatively small range, say, 50 pages.
-                #
-                # After this point, get a random page from a random year
-                # at a time until max_pages read.
+                page_to_get = 1  # Overwritten later
+                url, data = self.create_request(
+                    tmdb_trailer_type, page=page_to_get,
+                    tmdb_search_query=tmdb_search_query)
 
-                year_map = {}
-                total_pages_for_years = 0
-                search_pages = []
+                years_to_get = list(
+                    range(self._minimum_year, self._maximum_year))
+                DiskUtils.RandomGenerator.shuffle(years_to_get)
+                cached_pages_data.set_years_to_query(years_to_get)
+                cached_pages_data.save_search_pages(flush=True)
+                local_class.logger.debug('# years to get:',
+                                         len(years_to_get),
+                                         trace=Trace.TRACE_CACHE_PAGE_DATA)
+            #
+            # Cache now has years to query
 
-                for year in years_to_get:
-                    self.throw_exception_on_forced_to_stop()
+            years_to_get = cached_pages_data.get_years_to_query()
+            pages_in_year = {}
+            total_pages_for_years = 0
+            search_pages = []
 
-                    total_pages_in_year = cached_pages_data.get_total_pages_for_year(
-                        year)
+            url, data = self.create_request(
+                tmdb_trailer_type, page=1,  # dummy page #, updated in get_trailers
+                tmdb_search_query=tmdb_search_query)
 
-                    # Skip over previously discovered pages. Movie info is
-                    # cached and already bulk added.
+            # Read one random page for each year to query. This gives us the number
+            # of pages in the year. This will later guide us in what pages to read
+            # for each year.
 
-                    if total_pages_in_year is not None:
-                        first_page_to_get = 0  # Dummy
-                        if str(year) not in year_map:
-                            aggregate_query_results = \
-                                DiscoverTmdbMovies.AggregateQueryResults(
-                                    total_pages=total_pages_in_year)
+            for year in years_to_get:
+                self.throw_exception_on_forced_to_stop()
 
-                            year_map[str(year)] = aggregate_query_results
-                    else:
+                total_pages_in_year = cached_pages_data.get_total_pages_for_year(
+                    year)
+
+                # Check to see if there is already an entry for this year
+                # in the cache (from an interrupted run). If there is
+                # an entry, then all of the movies from that page were
+                # read and put into the cache. In addition, the plan for
+                # what pages to read was placed into the cache.
+
+                if total_pages_in_year is not None:
+                    first_page_to_get = 0  # Dummy
+                    if str(year) not in pages_in_year:
+                        # Ok, the plan for what pages to read for this year
+                        # and the movies for at least the first page are in
+                        # the cache. Add the total number of pages that TMDB
+                        # returned for the year returned by the query.
+                        #
+                        aggregate_query_results = \
+                            DiscoverTmdbMovies.AggregateQueryResults(
+                                total_pages=total_pages_in_year)
+                        pages_in_year[str(year)] = aggregate_query_results
+
+                else:
+                    # For a year not in the cache, query TMDB for any page from
+                    # that year. The response will contain the total number of
+                    # pages for that year.
+
+                    movies_read: int = 0
+                    first_page_to_get: int = 0
+                    max_page_number = 50
+                    while movies_read == 0:
                         first_page_to_get = DiskUtils.RandomGenerator.randint(
-                            1, 50)
+                            1, max_page_number)
+                        # In case we overshoot the number of pages available.
+                        max_page_number = int(max_page_number / 2)
+                        if max_page_number == 0:
+                            break
 
                         # get_trailers processes any movies found. No additional
                         # work required here.
 
-                        self.get_trailers(url=url, data=data,
-                                          tmdb_trailer_type=tmdb_trailer_type,
-                                          pages_to_get=[first_page_to_get],
-                                          already_found_movies=additional_movies,
-                                          year=year, year_map=year_map,
-                                          tmdb_search_query=tmdb_search_query)
-                        del additional_movies[:]
+                        movies_read = self.get_trailers(url=url, data=data,
+                                                        tmdb_trailer_type=tmdb_trailer_type,
+                                                        pages_to_get=[
+                                                            first_page_to_get],
+                                                        already_found_movies=additional_movies,
+                                                        year=year, year_map=pages_in_year,
+                                                        tmdb_search_query=tmdb_search_query)
+                    del additional_movies[:]
 
-                        aggregate_query_results = year_map[str(year)]
-                        total_pages_in_year = aggregate_query_results.get_total_pages()
-                        cached_page = CachedPage(year, first_page_to_get,
-                                                 total_pages_for_year=total_pages_in_year)
-                        cached_page.processed = True
-                        search_pages.append(cached_page)
-                        CacheIndex.add_search_pages(tmdb_search_query,
-                                                    search_pages)
-                        del search_pages[:]
-                        pages_read += 1
-                        if pages_read >= pages_in_chunk:
-                            cached_pages_data.save_search_pages(flush=True)
-                            return False  # Not finished
+                    # Cache what page was read and total available in year
 
-                    total_pages_for_years += int(total_pages_in_year)
+                    aggregate_query_results = pages_in_year[str(year)]
+                    total_pages_in_year = aggregate_query_results.get_total_pages()
+                    cached_page = CachedPage(year, first_page_to_get,
+                                             processed=True,  # movies sent to unprocessed
+                                             total_pages_for_year=total_pages_in_year)
+                    search_pages.append(cached_page)
+                    CacheIndex.add_search_pages(tmdb_search_query,
+                                                search_pages)
+                    cached_pages_data.save_search_pages(flush=True)
+
+                    del search_pages[:]
+                    pages_read += 1
+                    if pages_read >= pages_in_chunk:
+                        return False  # Not finished
+
+                total_pages_for_years += int(total_pages_in_year)
+
+            # Grand total of TMDB pages for all of the years read
 
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug('configuring search pages',
@@ -750,63 +805,100 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                          total_pages_for_years,
                                          trace=Trace.TRACE_DISCOVERY)
 
-                # Second pass is to build lists of unique, random page
-                # numbers to drive queries.
-                #
-                # There are probably more movies matching the query than
-                # we want to process (max_pages).
+            # Now that one page per year has been read and we also know
+            # how many pages there are for each year. Create a plan for what
+            # pages to read for each year based upon the proportion of pages
+            # in each year. Consult the cache to determine if a plan for this
+            # year already exists, and what pages have already been processed.
+            #
+            # We know the total number of pages that we want to read.
+            # We know how many years that we want to read from.
+            # We know how many pages are available for each year
+            # We know how many pages that we have already processed for each
+            # year.
+            #
+            # There are probably more movies matching the query than
+            # we want to process (max_pages).
 
-                page_scale_factor = 1
-                if max_pages < total_pages_for_years:
-                    total_pages = cached_pages_data.get_total_pages()
-                    page_scale_factor = total_pages / max_pages
+            page_scale_factor: float = 1.0
+            if max_pages < total_pages_for_years:
+                # Reduce the number of pages by each year proportionally.
 
-                pages_for_year = []
-                for year in year_map:
-                    aggregate_query_results = year_map[year]
-                    total_pages_in_year = aggregate_query_results.get_total_pages()
-                    viewed_page = aggregate_query_results.get_viewed_page()
-                    scaled_pages = int(
-                        (total_pages_in_year / page_scale_factor) + 0.5)
-                    try:
+                total_pages = cached_pages_data.get_total_pages()
+                page_scale_factor = total_pages / max_pages
+
+            pages_for_year = []
+            for year in pages_in_year:
+                aggregate_query_results = pages_in_year[year]
+                total_pages_in_year = aggregate_query_results.get_total_pages()
+                viewed_page = aggregate_query_results.get_viewed_page()
+                scaled_pages = int(
+                    (total_pages_in_year / page_scale_factor) + 0.5)
+                try:
+                    # Generate random list of pages to read for this year.
+                    # But first, account for pages already read.
+
+                    cached_pages_in_year = \
+                        cached_pages_data.get_entries_for_year(int(year))
+                    number_of_pages_in_plan = len(cached_pages_in_year)
+                    if number_of_pages_in_plan > 1:
+                        # Plan already set, no need to change. It IS possible
+                        # that more movies for this year has been added to TMDB
+                        # since the cache was created, but not likely, except
+                        # for the most recent years. That could be handled, if
+                        # it becomes a problem.
+                        pass
+                    else:
                         pages_for_year = DiskUtils.RandomGenerator.sample(
                             range(1, total_pages_in_year + 1), scaled_pages)
                         if viewed_page is not None and viewed_page in pages_for_year:
                             pages_for_year.remove(viewed_page)
-                    except KeyError:
-                        pages_for_year = []
-                    except ValueError:
-                        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                            local_class.logger.debug('ValueError: 1,',
-                                               total_pages_in_year,
-                                               'scaled_pages:',
-                                               scaled_pages)
 
-                    # Generate year-page tuple pairs and add to giant list
-                    # of all pages that are to be read for each year
+                            # Generate year-page tuple pairs and add to list
+                            # of all pages that are to be read for each year
 
-                    for page in pages_for_year:
-                        cached_page = CachedPage(int(year), page)
-                        search_pages.append(cached_page)
+                            for page in pages_for_year:
+                                cached_page = CachedPage(int(year), page)
+                                search_pages.append(cached_page)
 
-                    CacheIndex.add_search_pages(tmdb_search_query,
-                                                search_pages, flush=True)
+                            CacheIndex.add_search_pages(tmdb_search_query,
+                                                        search_pages, flush=False)
 
-            if not query_by_year:
-                search_pages = []
-                total_pages = cached_pages_data.get_total_pages()
-                for page in list(range(1, min(total_pages, max_pages) + 1)):
-                    cached_page = CachedPage(None, page)
-                    search_pages.append(cached_page)
+                    CacheIndex.save_cached_pages_data(
+                        tmdb_search_query, flush=True)
+                except KeyError:
+                    pages_for_year = []
+                except ValueError:
+                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                        local_class.logger.debug('ValueError: 1,',
+                                                 total_pages_in_year,
+                                                 'scaled_pages:',
+                                                 scaled_pages)
 
-                CacheIndex.add_search_pages(tmdb_search_query,
-                                            search_pages, flush=True)
+        if not query_by_year:
+            # This is much easier. Just plan on what pages to read from TMDB.
+            # (The pages TMDB returns is based upon the query results. The
+            # year only impacts if it is part of the query).
+            # Use the information returned from the initial query made in
+            # first_phase_discovery to guide how many subsequent pages need to
+            # be read.
+            #
 
-            cached_pages_data.set_search_pages_configured(flush=True)
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug('SEARCH_PAGES_CONFIGURED',
-                                   'len(cached_pages_data):',
-                                   cached_pages_data.get_number_of_search_pages())
+            search_pages = []
+            total_pages = cached_pages_data.get_total_pages()
+            for page in list(range(1, min(total_pages, max_pages) + 1)):
+                cached_page = CachedPage(None, page)
+                search_pages.append(cached_page)
+
+            CacheIndex.add_search_pages(tmdb_search_query,
+                                        search_pages, flush=True)
+
+        cached_pages_data.set_search_pages_configured(flush=True)
+        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+            local_class.logger.debug('SEARCH_PAGES_CONFIGURED',
+                                     'len(cached_pages_data):',
+                                     cached_pages_data.get_number_of_search_pages(),
+                                     trace=Trace.TRACE_DISCOVERY)
         return True  # finished
 
     def send_cached_movies_to_discovery(self) -> None:
@@ -844,7 +936,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         movies.append(movie_entry)
 
             # Don't add found trailers to unprocessed_movies
-            # CacheIndex.add_unprocessed_movies(movies)
+
             self.add_to_discovered_trailers(movies)
             #
             # Give fetcher time to load ready_to_play list. The next add
@@ -880,7 +972,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                                                    Movie.TRAILER),
                                                                trace=Trace.TRACE_DISCOVERY)
                         movie[Movie.MPAA] = ''
-
 
                 discovery_state = movie.get(Movie.DISCOVERY_STATE,
                                             Movie.NOT_FULLY_DISCOVERED)
@@ -1380,7 +1471,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                      year_map=None,
                      # type:  Dict[str, DiscoverTmdbMovies.AggregateQueryResults]
                      tmdb_search_query: str = ""
-                     ) -> None:
+                     ) -> int:
         """
             Discovers movies and adds them to the discovered trailers pool
             via add_to_discovered_trailers.
@@ -1398,18 +1489,15 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         local_class = DiscoverTmdbMovies
         if already_found_movies is None:
             already_found_movies = []
+        number_of_movies_processed = 0
         try:
             for page in pages_to_get:
-                # After first 100 movies read we have enough to keep
-                # trailer fetcher busy and random enough hunting for
-                # trailers. Keep reading a page (20 movies) every
-                # minute.
+                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                    local_class.logger.debug('year:', year, 'page:', page)
 
-                if self.get_number_of_movies() > 100:
-                    self.throw_exception_on_forced_to_stop(delay=60)
+                # Pages are read faster at the beginning, then progressively
+                # slower.
 
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls.logger.debug('year:', year, 'page:', page)
                 delay = self.get_delay()
                 self.throw_exception_on_forced_to_stop(delay=delay)
 
@@ -1453,6 +1541,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 movies = self.process_page(
                     info_string, data, tmdb_trailer_type, url=url)
                 movies.extend(already_found_movies)
+                number_of_movies_processed += len(movies)
                 DiskUtils.RandomGenerator.shuffle(movies)
                 CacheIndex.add_unprocessed_movies(movies)
                 self.add_to_discovered_trailers(movies)
@@ -1625,6 +1714,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
     def get_delay(self):
         # type: () -> int
         """
+        Gets the delay (in seconds) to wait before querying the database.
+        Delay is based upon how many read and how many unprocessed.
+
+        This is done to prevent overloading Kodi as well as TMDB.
 
         :return:
         """
@@ -1634,18 +1727,25 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         # discovering more. Note that depending upon the search, that most
         # TMDB movies are missing trailers.
 
-        # Delay 10 minutes for every 1000 unprocessed movies.
-
-        if len(CacheIndex.get_unprocessed_movies()) > 1000:
-            delay = 10 * 60 * len(CacheIndex.get_unprocessed_movies()) / 1000
-
-        # There are 20 movies per page
-
-        elif self._total_pages_read > 20 and self.get_number_of_movies() > 200:
+        # No delay for first 100 movies
+        number_of_unprocessed_movies = len(CacheIndex.get_unprocessed_movies())
+        if self.get_number_of_movies() < 100:
+            delay = 0
+        elif self.get_number_of_movies() < 200:
+            delay = 60
+        elif number_of_unprocessed_movies < 1000:
             delay = 120
+        elif number_of_unprocessed_movies > 1000:
+            # Delay ten minutes per /100 read
+            delay = 10 * 60 * len(CacheIndex.get_unprocessed_movies()) / 1000
         else:
             delay = 5
 
+        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+            local_class.logger.debug(
+                f'Delay: {delay} unprocessed_movies: {number_of_unprocessed_movies} '
+                f'pages: {self._total_pages_read} number_of_movies: {self.get_number_of_movies()}',
+                trace=Trace.TRACE_DISCOVERY)
         return int(delay)
 
     def cache_results(self, query_data, movies):
