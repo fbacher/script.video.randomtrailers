@@ -143,14 +143,19 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         """
         Monitor.throw_exception_if_abort_requested()
 
-        # self._keywords = ''
-        self._selected_genres = set('')
-        self._excluded_genres = set('')
+        self._selected_keywords = ''
+        self._selected_genres = ''
+        self._excluded_genres = ''
+        self._excluded_keywords = ''
         if Settings.get_filter_genres():
-            self._selected_genres = set(GenreUtils.get_external_genre_ids(
-                GenreUtils.ITUNES_DATABASE, exclude=False))
-            self._excluded_genres = set(GenreUtils.get_external_genre_ids(
-                GenreUtils.ITUNES_DATABASE, exclude=True))
+            self._selected_genres = GenreUtils.get_external_genre_ids_as_query(
+                GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
+            self._selected_keywords = GenreUtils.get_external_keywords_as_query(
+                GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
+            self._excluded_genres = GenreUtils.get_external_genre_ids_as_query(
+                GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
+            self._excluded_keywords = GenreUtils.get_external_keywords_as_query(
+                GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
 
         show_only_itunes_trailers_of_this_type = \
             Settings.get_include_itunes_trailer_type()
@@ -383,7 +388,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         elif Settings.get_filter_genres():
                             # iTunes has no keywords
 
-                            if set(self._selected_genres).isdisjoint(set(genres)):
+                            # If no genres selected, then selection is not
+                            # constrained by the empty set of selected genres.
+                            if (len(self._selected_genres) > 0
+                                    and set(self._selected_genres).isdisjoint(set(genres))):
                                 keep_promotion = False
                                 if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
                                     type(self).logger.debug(
@@ -463,7 +471,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             youtube_data_stream_extractor_proxy = \
                 YDStreamExtractorProxy.get_instance()
-            downloadable_trailers = youtube_data_stream_extractor_proxy.get_info(
+            downloadable_trailers: List[Dict[str, Any]] = youtube_data_stream_extractor_proxy.get_info(
                 feature_url)
 
             # Have a series of released promotions for a movie.
@@ -606,9 +614,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     promotions = media_types_map[media_type]
                     break
 
-            best_date = 0
+            best_date = '0'
             best_promotions = []
             for promotion in promotions:
+                # upload_date YYYYMMDD
                 if promotion['upload_date'] > best_date:
                     best_date = promotion['upload_date']
                     del best_promotions[:]
