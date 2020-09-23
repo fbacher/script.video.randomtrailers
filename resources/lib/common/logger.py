@@ -554,7 +554,7 @@ class Logger(logging.Logger):
         except Exception as e:
             Logger.log_exception()
 
-    DISABLED = 100
+    DISABLED = 0
     FATAL = logging.CRITICAL  # 50
     SEVERE = 45
     ERROR = logging.ERROR       # 40
