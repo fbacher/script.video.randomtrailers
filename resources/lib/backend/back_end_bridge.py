@@ -6,18 +6,16 @@ Created on Mar 21, 2019
 @author: Frank Feuerbacher
 """
 
-from common.imports import *
-
 import os
 import sys
 import threading
 
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
+from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
-from discovery.playable_trailer_service import PlayableTrailerService
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 

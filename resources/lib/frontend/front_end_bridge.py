@@ -13,7 +13,7 @@ import sys
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
