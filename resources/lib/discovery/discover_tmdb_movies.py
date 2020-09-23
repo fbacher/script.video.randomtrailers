@@ -1737,7 +1737,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             delay = 120
         elif number_of_unprocessed_movies > 1000:
             # Delay ten minutes per /100 read
-            delay = 10 * 60 * len(CacheIndex.get_unprocessed_movies()) / 1000
+            delay = 10 * 60 * number_of_unprocessed_movies / 1000
         else:
             delay = 5
 
