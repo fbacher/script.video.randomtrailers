@@ -32,7 +32,7 @@ from common.disk_utils import (DiskUtils)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class TFHCache(object):
+class TFHCache:
     """
 
     """
@@ -64,8 +64,10 @@ class TFHCache(object):
         return cls._logger
 
     @classmethod
-    def save_trailers_to_cache(cls, trailers, flush=False, cache_complete=False):
-        # type: (Union[List[MovieType], MovieType], bool, bool) -> None
+    def save_trailer_info_to_cache(cls,
+                                   trailers: Optional[Union[List[MovieType], MovieType]],
+                                   flush: bool = False,
+                                   cache_complete: bool = False) -> None:
         """
         :param trailers:
         :param flush:
@@ -130,7 +132,7 @@ class TFHCache(object):
         Monitor.throw_exception_if_abort_requested()
 
     @classmethod
-    def load_trailer_cache(cls):
+    def load_trailer_info_from_cache(cls):
         # type: () -> bool
         """
 
@@ -170,7 +172,7 @@ class TFHCache(object):
         return cls._cache_complete
 
     @classmethod
-    def get_cached_trailers(cls):
+    def get_cached_trailer_info(cls):
         #  type: () -> List[MovieType]
         """
 

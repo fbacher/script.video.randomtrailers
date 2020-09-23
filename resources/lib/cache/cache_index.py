@@ -45,6 +45,8 @@ class CachedPage(object):
     def __init__(self,
                  year,  # type: Union[int, None]
                  page_number,  # type: int
+                 # processes means that the trailers for this page have been
+                 # placed in unprocessed list.
                  processed=False,  # type: bool
                  total_pages_for_year=None  # type: Union[int, None]
                  ):
@@ -414,7 +416,7 @@ class CacheParameters(object):
         return new_set
 
 
-class CachedPagesData(object):
+class CachedPagesData:
     """
 
     """
@@ -445,8 +447,8 @@ class CachedPagesData(object):
                            Settings.get_remote_db_cache_path())
         self._path = os.path.join(Settings.get_remote_db_cache_path(),
                                   'index', self._path)
-        # type:Optional[Dict[str, CachedPage]]
-        self._cached_page_by_key = None
+        # type:
+        self._cached_page_by_key: Optional[Dict[str, CachedPage]] = None
 
     def get_total_pages(self):
         # type: () -> int
@@ -511,11 +513,16 @@ class CachedPagesData(object):
         if flush:
             self.save_search_pages(flush=flush)
 
-    def is_search_pages_configured(self):
-        #  type: () -> bool
+    def is_search_pages_configured(self) -> bool:
         """
+            Determines whether or not the plan for which TMDB database
+            years and pages within those years has been created and cached.
 
-        :return:
+        :return: True indicates that the complete query plan has been persisted
+                 and is interruptable.
+                 False indicates that the plan may be partially built and
+                 persisted. The construction of the plan can be resumed even
+                 after a restart.
         """
         return self._search_pages_configured
 
@@ -767,7 +774,7 @@ class CachedPagesData(object):
                 and
                 self.get_time_since_last_save() < datetime.timedelta(minutes=5)):
             return
-        saved_pages = 0
+        saved_pages = len(self._cached_page_by_key.items())
         path = xbmcvfs.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
@@ -823,7 +830,7 @@ class CachedPagesData(object):
                     loaded_cached_pages_data = self.from_json(encoded_values)
                     self._cached_page_by_key = loaded_cached_pages_data._cached_page_by_key
             else:
-                self._cached_page_by_key = dict()
+                self._cached_page_by_key: Dict[str, CachedPage] = dict()
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -850,7 +857,8 @@ class CachedPagesData(object):
         self.save_search_pages(flush=True)
 
 
-CachedPagesData.pages_data = {'genre': CachedPagesData(key='genre'),
+CachedPagesData.pages_data: Dict[str, CachedPagesData] = \
+                             {'genre': CachedPagesData(key='genre'),
                               'keyword': CachedPagesData(key='keyword'),
                               'generic': CachedPagesData(key='generic')}
 
