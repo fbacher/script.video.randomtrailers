@@ -61,6 +61,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         self._country = None
         self._tmdb_api_key = None
         self._include_adult = None
+        self._filter_genres = None
         self._selected_keywords = None
         self._selected_genres = None
         self._excluded_genres = None
@@ -195,7 +196,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             self._selected_genres = ''
             self._excluded_genres = ''
             self._excluded_keywords = ''
-            if Settings.get_filter_genres():
+            self._filter_genres = Settings.get_filter_genres()
+            if self._filter_genres:
                 self._selected_genres = GenreUtils.get_external_genre_ids_as_query(
                     GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
                 self._selected_keywords = GenreUtils.get_external_keywords_as_query(
@@ -204,6 +206,15 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
                 self._excluded_keywords = GenreUtils.get_external_keywords_as_query(
                     GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
+            if self._filter_genres:
+                # If no actual selections were made, then change to not filter_genres
+                # Otherwise, the filter code will not work properly.
+                if (self._selected_genres == ''
+                        and self._excluded_genres == ''
+                        and self._selected_keywords == ''
+                        and self._excluded_keywords == ''):
+                    self._filter_genres = False
+
             self._remote_trailer_preference = Settings.get_tmdb_trailer_preference()
             self._vote_comparison, self._vote_value = Settings.get_tmdb_avg_vote_preference()
             self._rating_limit_string = TmdbSettings.get_instance(
@@ -246,7 +257,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             )
             self.send_cached_movies_to_discovery()
 
-            if Settings.get_filter_genres():
+            if self._filter_genres:
                 if self._selected_genres != '' or self._excluded_genres != '':
                     process_genres = True
                 else:
@@ -292,7 +303,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             finished = False
             while not finished:
                 finished = True
-                if Settings.get_filter_genres():
+                if self._filter_genres:
                     if self._selected_genres != '' or self._excluded_genres != '':
                         tmdb_search_query = "genre"
                         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
@@ -385,7 +396,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             cache_changed = CacheParameters.load_cache(current_parameters)
             CacheIndex.load_cache(cache_changed)
 
-            if Settings.get_filter_genres():
+            if self._filter_genres:
                 if self._selected_genres != '' or self._excluded_genres != '':
                     # If performing genre filter, then need separate query for genres
                     # and keywords and combine them. This way the results are the union.
@@ -465,7 +476,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     and movie[Movie.ORIGINAL_LANGUAGE] != Settings.get_lang_iso_639_1():
                 result = False
             """
-            if Settings.get_filter_genres() and not tag_found and not genre_found:
+            if self._filter_genres and not tag_found and not genre_found:
                 add_movie = False
                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                     local_class.logger.debug('Rejected due to GenreUtils or Keyword')
