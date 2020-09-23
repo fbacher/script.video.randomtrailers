@@ -57,6 +57,7 @@ class UniqQueue(object):
         :param movie_source:
         :return:
         """
+
         if type(self).logger is None:
             type(self).logger = module_logger.getChild(type(self).__name__)
 
@@ -619,8 +620,8 @@ class AbstractMovieData(object):
         return cls._aggregate_trailers_by_name_date
 
     def add_to_discovered_trailers(self,
-                                   movies: Union[Dict[str, MovieType],
-                                                 List[Dict[str, MovieType]]]) -> None:
+                                   movies: Union[MovieType,
+                                                 List[MovieType]]) -> None:
         """
 
         :param movies:
