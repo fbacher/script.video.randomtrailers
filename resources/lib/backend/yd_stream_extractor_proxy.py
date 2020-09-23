@@ -109,8 +109,7 @@ class YDStreamExtractorProxy(object):
         finally:
             return trailer
 
-    def get_info(self, url):
-        # type: (str) -> MovieType
+    def get_info(self, url: str) ->  List[Dict[str, Any]]:
         """
 
         :param url:
@@ -145,10 +144,10 @@ class YDStreamExtractorProxy(object):
                         break
                     lines.append(line)
 
-                trailer_info = []
+                trailer_info: List[Dict[str, Any]] = []
                 # json_text = []
                 for line in lines:
-                    single_trailer_info = json.loads(line)
+                    single_trailer_info: Dict[str, Any] = json.loads(line)
 
                     # json_text.append(json.dumps(
                     # single_trailer_info, indent=3, sort_keys=True))
