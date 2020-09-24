@@ -20,6 +20,7 @@ from common.monitor import Monitor
 from common.exceptions import AbortException
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+PYTHONPATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
 
 
 class YDStreamExtractorProxy(object):
@@ -34,6 +35,9 @@ class YDStreamExtractorProxy(object):
 
         """
         self._logger = module_logger.getChild(self.__class__.__name__)
+        self._tfh_success = None
+        self._tfh_command_process = None
+        self._thread = None
         pass
 
     @staticmethod
@@ -109,14 +113,13 @@ class YDStreamExtractorProxy(object):
         finally:
             return trailer
 
-    def get_info(self, url: str) ->  List[Dict[str, Any]]:
+    def get_info(self, url: str) -> List[Dict[str, Any]]:
         """
 
         :param url:
         :return:
         """
         python_exec = sys.executable
-        PYTHONPATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
 
         cmdPath = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                'resources', 'lib', 'shell', 'youtube_dl_main.py')
@@ -126,25 +129,36 @@ class YDStreamExtractorProxy(object):
         args = [python_exec, cmdPath, '--print-json', '--skip-download', url]
 
         remaining_attempts = 10
-        trailer_info = None
+        trailer_info: Optional[List[Dict[str, Any]]] = None
         while remaining_attempts > 0:
             try:
                 commmand_process = subprocess.Popen(
                     args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     shell=False, env=env, close_fds=True, universal_newlines=True)
-                commmand_process.wait()
+
+                try:
+                    while commmand_process.poll() is None:
+                        Monitor.throw_exception_if_abort_requested(timeout=0.10)
+                except AbortException:
+                    try:
+                        commmand_process.terminate()
+                    except Exception:
+                        pass
+                    finally:
+                        Monitor.throw_exception_if_abort_requested()
 
                 stderr = commmand_process.stderr.read()
                 #output = commmand_process.stdout.read()
                 lines = []
                 finished = False
                 while not finished:
+                    Monitor.throw_exception_if_abort_requested()
                     line = commmand_process.stdout.readline()
                     if not line:
                         break
                     lines.append(line)
 
-                trailer_info: List[Dict[str, Any]] = []
+                trailer_info = []
                 # json_text = []
                 for line in lines:
                     single_trailer_info: Dict[str, Any] = json.loads(line)
@@ -162,19 +176,19 @@ class YDStreamExtractorProxy(object):
             except CalledProcessError as e:
                 remaining_attempts -= 1
                 output = e.output
-                #stderr = e.stderror
+                stderr = e.stderr
                 if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
                     self._logger.debug('output:', output)
-                    #self._logger.debug('stderr:', stderr)
+                    self._logger.debug('stderr:', stderr)
                 trailer_info = None
                 Monitor.throw_exception_if_abort_requested(timeout=70.0)
             except Exception as e:
                 remaining_attempts -= 1
                 self._logger.exception('')
                 # output = e.output
-                # stderr = e.stderror
+                # stderr = e.stderr
                 if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
@@ -184,15 +198,14 @@ class YDStreamExtractorProxy(object):
 
         return trailer_info
 
-    def get_tfh_index(self, url, trailer_handler):
-        # type: (str) -> bool
+    def get_tfh_index(self, url: str, trailer_handler) -> bool:
         """
 
         :param url:
+        :param trailer_handler:
         :return:
         """
         python_exec = sys.executable
-        PYTHONPATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
 
         cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                 'resources', 'lib', 'shell', 'youtube_dl_main.py')
@@ -222,6 +235,7 @@ class YDStreamExtractorProxy(object):
 
                 finished = False
                 while not finished:
+                    Monitor.throw_exception_if_abort_requested()
                     line = self._tfh_command_process.stdout.readline()
                     if not line or not self._tfh_success:
                         break
@@ -233,20 +247,23 @@ class YDStreamExtractorProxy(object):
 
                 break
             except AbortException:
+                try:
+                    self._tfh_command_process.terminate()
+                except Exception:
+                    pass
                 reraise(*sys.exc_info())
             except CalledProcessError as e:
                 remaining_attempts -= 1
                 if remaining_attempts == 0:
                     self._tfh_success = False
                 output = e.output
-                stderr = e.stderror
+                stderr = e.stderr
                 if self._logger.isEnabledFor(LazyLogger.DEBUG):
                     self._logger.debug('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
                     self._logger.debug('output:', output)
                     self._logger.debug('stderr:', stderr)
                 trailer_info = None
-                Monitor.throw_exception_if_abort_requested(timeout=70.0)
             except Exception as e:
                 remaining_attempts -= 1
                 if remaining_attempts == 0:
@@ -268,13 +285,23 @@ class YDStreamExtractorProxy(object):
         """
         """
         finished = False
-        while not finished:
-            line = self._tfh_command_process.stderr.readline()
-            if not line:
-                break
-            self._logger.info('stderr:', line)
-            if 'Error 429' in line:
-                self._logger.error(
-                    'Abandoning download from TFH. Too Many Requests')
-                self._tfh_success = False
-                self._tfh_command_process.terminate()
+        try:
+            while not finished:
+                Monitor.throw_exception_if_abort_requested()
+                try:
+                    line = self._tfh_command_process.stderr.readline(timeout=0.1)
+                    if not line:
+                        break
+                    self._logger.info('stderr:', line)
+                    if 'Error 429' in line:
+                        self._logger.error(
+                            'Abandoning download from TFH. Too Many Requests')
+                        self._tfh_success = False
+                        self._tfh_command_process.terminate()
+                except subprocess.TimeoutExpired:
+                    pass
+        except AbortException:
+            self._tfh_command_process.terminate()
+            reraise(*sys.exc_info())
+        except Exception:
+            pass  # Thread dying
