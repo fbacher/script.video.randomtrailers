@@ -416,6 +416,9 @@ class JsonUtilsBasic(object):
         :param msg:
         :return:
         """
+        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            return
+
         destination_data = cls.DestinationDataContainer.get_data(
             destination)
         request_window = destination_data.get_request_window()
@@ -638,16 +641,12 @@ class JsonUtilsBasic(object):
                     destination_data.actual_oldest_request_in_window_expiration_time,
                     trace=Trace.TRACE_JSON)
             if time_delay > 0:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     cls._logger.debug('Waiting for JSON request to',
-                                                 destination_string, 'for', time_delay,
-                                                 'seconds',
-                                                 trace=[Trace.STATS, Trace.TRACE_JSON])
+                                      destination_string, 'for', time_delay,
+                                      'seconds',
+                                      trace=[Trace.STATS, Trace.TRACE_JSON])
             Monitor.throw_exception_if_abort_requested(timeout=time_delay)
-            if time_delay > 0:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug('After Waiting for JSON request',
-                                                 trace=[Trace.STATS, Trace.TRACE_JSON])
             destination_data.total_requests += 1
             requests_to_url = destination_data.total_requests
 

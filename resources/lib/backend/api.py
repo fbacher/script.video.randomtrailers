@@ -37,13 +37,9 @@ def load_trailers():
     instances = BaseDiscoverMovies.get_instances()
     if (Settings.get_include_library_trailers()
             and instances.get(Movie.LIBRARY_SOURCE) is None):
-        if module_logger.isEnabledFor(Logger.DEBUG):
-            module_logger.debug('LibTrailers True')
         lib_instance = DiscoverLibraryMovies()
         lib_instance.discover_basic_information()
-    else:
-        if module_logger.isEnabledFor(Logger.DEBUG):
-            module_logger.debug('LibTrailers False')
+
 
     # Manufacture trailer entries for folders which contain trailer
     # files. Note that files are assumed to be videos.
