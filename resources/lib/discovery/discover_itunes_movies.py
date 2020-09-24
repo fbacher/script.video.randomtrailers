@@ -405,17 +405,17 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             feature_url = 'https://trailers.apple.com' + \
                                 itunes_movie.get('location')
                             Monitor.throw_exception_if_abort_requested()
-                            movie = self.get_trailer_url(feature_url,
-                                                         title=title,
-                                                         trailer_type=trailer_type,
-                                                         rating=certification.get_label(),
-                                                         adult=adult,
-                                                         release_date=release_date,
-                                                         genres=genres,
-                                                         directors=directors,
-                                                         cast=cast,
-                                                         studio=studio,
-                                                         fanart=fanart)
+                            movie = self.get_movie_info(feature_url,
+                                                        title=title,
+                                                        trailer_type=trailer_type,
+                                                        rating=certification.get_label(),
+                                                        adult=adult,
+                                                        release_date=release_date,
+                                                        genres=genres,
+                                                        directors=directors,
+                                                        cast=cast,
+                                                        studio=studio,
+                                                        fanart=fanart)
 
                             if movie is not None:
                                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
@@ -435,19 +435,19 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 local_class.logger.exception('')
         return
 
-    def get_trailer_url(self,
-                        feature_url,  # type: str
-                        title='',  # type: str
-                        trailer_type='',  # type: str
-                        rating='',  # type: str
-                        adult=False,  # type: bool
-                        release_date=None,  # type: datetime.datetime
-                        genres=None,  # type: List[str]
-                        directors=None,  # type: List[str]
-                        cast=None,  # type: List[Dict]
-                        studio='',  # type: str
-                        fanart=''  # type: str
-                        ) -> MovieType:
+    def get_movie_info(self,
+                       feature_url,  # type: str
+                       title='',  # type: str
+                       trailer_type='',  # type: str
+                       rating='',  # type: str
+                       adult=False,  # type: bool
+                       release_date=None,  # type: datetime.datetime
+                       genres=None,  # type: List[str]
+                       directors=None,  # type: List[str]
+                       cast=None,  # type: List[Dict]
+                       studio='',  # type: str
+                       fanart=''  # type: str
+                       ) -> MovieType:
         """
         """
         local_class = DiscoverItunesMovies
@@ -629,7 +629,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 trailer_type = chosen_promotion['type']
                 thumb = chosen_promotion['thumbnail']
 
-            """             
+            '''             
            "_filename": "Featurette - The Making of Peterloo-peterloo-featurettethemakingofpeterloo.mov", 
            "display_id": "peterloo-featurettethemakingofpeterloo", 
            "duration": 371.0, 
@@ -1020,7 +1020,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
            "webpage_url_basename": "spider-man-far-from-home", 
            "width": 1920
         }
-            """
+            '''
             # Working URLs:
             # https://movietrailers.apple.com/movies/wb/the-lego-movie-2-the
             # -second-part/the-lego-movie-2-clip-palace-of-infinite
