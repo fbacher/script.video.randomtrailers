@@ -35,7 +35,7 @@ from discovery.abstract_movie_data import AbstractMovieData
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 from cache.cache import (Cache)
-from cache.cache_index import (CacheIndex)
+from cache.tmdb_cache_index import (CacheIndex)
 from cache.trailer_cache import (TrailerCache)
 from cache.trailer_unavailable_cache import (TrailerUnavailableCache)
 from backend.genreutils import GenreUtils
@@ -777,7 +777,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             else:
                 trailer_url = you_tube_base_url + tmdb_trailer['key']
                 dict_info[Movie.TRAILER] = trailer_url
-                CacheIndex.trailer_found(tmdb_id)
+                CacheIndex.add_cached_tmdb_trailer(tmdb_id)
 
             tmdb_countries = tmdb_result.get('releases', None)
             if tmdb_countries is None:
@@ -1076,7 +1076,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not keep_trailer:
                 movie = None
                 if tmdb_id is not None:
-                    CacheIndex.remove_cached_trailer_id(tmdb_id)
+                    CacheIndex.remove_cached_tmdb_trailer_id(tmdb_id)
 
             return movie
         except AbortException:

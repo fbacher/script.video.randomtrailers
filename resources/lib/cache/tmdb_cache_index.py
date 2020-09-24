@@ -911,7 +911,7 @@ class CacheIndex(object):
     """
     UNINITIALIZED_STATE = 'uninitialized_state'
     CACHE_PARAMETERS_INITIALIZED_STATE = 'cache_parameters_initialized_state'
-    _found_trailer_ids: Set[int] = set()
+    _found_tmdb_trailer_ids: Set[int] = set()
     lock = threading.RLock()
     last_saved = datetime.datetime.now()
     _last_saved_trailer_timestamp = datetime.datetime.now()
@@ -947,28 +947,28 @@ class CacheIndex(object):
                 # Replace Cache
                 cls._parameters = CacheParameters.get_parameter_values()
                 cls._unprocessed_movies: Dict[int, MovieType] = {}
-                cls._found_trailer_ids: Set(int) = set()
+                cls._found_tmdb_trailer_ids: Set(int) = set()
                 cls._unsaved_trailer_changes = 0
                 cls._unprocessed_movie_changes = 0
                 cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
                 cls._last_saved_trailer_timestamp = datetime.datetime.now()
                 cls.save_parameter_cache()
                 cls.save_unprocessed_movie_cache(flush=True)
-                cls.save_found_trailer_cache(flush=True)
+                cls.save_cache(flush=True)
                 for cached_page_data in CachedPagesData.pages_data.values():
                     cached_page_data.clear()
             else:
                 cls.load_unprocessed_movie_cache()
-                cls.load_found_trailer_cache()
+                cls.load_cache()
 
     @classmethod
-    def is_cache_empty(cls):
+    def is_tmdb_cache_empty(cls):
         # type: () -> bool
         """
 
         :return:
         """
-        if len(cls._unprocessed_movies) == 0 and len(cls._found_trailer_ids) == 0:
+        if len(cls._unprocessed_movies) == 0 and len(cls._found_tmdb_trailer_ids) == 0:
             return True
         return False
 
@@ -1063,7 +1063,7 @@ class CacheIndex(object):
                 cls.save_unprocessed_movie_cache()
 
     @classmethod
-    def trailer_found(cls, tmdb_id: int) -> None:
+    def add_cached_tmdb_trailer(cls, tmdb_id: int) -> None:
         """
 
         :param tmdb_id:
@@ -1071,15 +1071,15 @@ class CacheIndex(object):
          """
         tmdb_id = int(tmdb_id)
         with CacheIndex.lock:
-            if tmdb_id not in cls._found_trailer_ids:
-                cls._found_trailer_ids.add(tmdb_id)
+            if tmdb_id not in cls._found_tmdb_trailer_ids:
+                cls._found_tmdb_trailer_ids.add(tmdb_id)
                 cls._unsaved_trailer_changes += 1
 
             cls.remove_unprocessed_movie(tmdb_id)
             cls.save_found_trailer_cache()  # If needed
 
     @classmethod
-    def remove_cached_trailer_id(cls, tmdb_id: int) -> None:
+    def remove_cached_tmdb_trailer_id(cls, tmdb_id: int) -> None:
         """
         :param tmdb_id:
         :return:
@@ -1087,7 +1087,7 @@ class CacheIndex(object):
         tmdb_id = int(tmdb_id)
         with CacheIndex.lock:
             try:
-                cls._found_trailer_ids.remove(tmdb_id)
+                cls._found_tmdb_trailer_ids.remove(tmdb_id)
                 cls._unsaved_trailer_changes += 1
             except KeyError:
                 pass
@@ -1100,7 +1100,7 @@ class CacheIndex(object):
         """
         :return:
         """
-        return cls._found_trailer_ids.copy()
+        return cls._found_tmdb_trailer_ids.copy()
 
     @classmethod
     def get_unprocessed_movies(cls) -> Dict[int, MovieType]:
@@ -1238,7 +1238,7 @@ class CacheIndex(object):
             try:
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
-                    found_trailer_id_list = list(cls._found_trailer_ids)
+                    found_trailer_id_list = list(cls._found_tmdb_trailer_ids)
                     json_text = json.dumps(found_trailer_id_list,
                                            encoding='utf-8',
                                            ensure_ascii=False,
@@ -1309,10 +1309,10 @@ class CacheIndex(object):
                         cacheFile, encoding='utf-8',
                         object_hook=CacheIndex.datetime_parser)
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
-                    cls._found_trailer_ids: Set[int] = set(found_trailers_list)
+                    cls._found_tmdb_trailer_ids: Set[int] = set(found_trailers_list)
                     cls._unsaved_trailer_changes = 0
             else:
-                cls._found_trailer_ids: Set[int] = set()
+                cls._found_tmdb_trailer_ids: Set[int] = set()
 
             Monitor.throw_exception_if_abort_requested()
         except AbortException:

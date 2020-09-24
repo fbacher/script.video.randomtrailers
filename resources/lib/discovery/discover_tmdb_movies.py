@@ -10,8 +10,8 @@ import datetime
 import json
 
 from cache.cache import (Cache)
-from cache.cache_index import (CachedPage, CacheIndex, CacheParameters,
-                               CachedPagesData)
+from cache.tmdb_cache_index import (CachedPage, CacheIndex, CacheParameters,
+                                    CachedPagesData)
 from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException

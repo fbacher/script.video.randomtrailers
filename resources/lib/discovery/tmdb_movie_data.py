@@ -7,7 +7,7 @@ Created on Feb 10, 2019
 """
 
 from backend.movie_entry_utils import MovieEntryUtils
-from cache.cache_index import CacheIndex
+from cache.tmdb_cache_index import CacheIndex
 from common.imports import *
 from common.constants import (Constants, Movie)
 from discovery.abstract_movie_data import AbstractMovieData
