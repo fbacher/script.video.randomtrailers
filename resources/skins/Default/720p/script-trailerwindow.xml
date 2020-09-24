@@ -4,6 +4,16 @@
     <controls>
         <!-- First are the controls that apply when the Trailer is playing -->
         <control type="group" id="38000">
+            <control type="image">
+                <description>Black background</description>
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1280</width>
+                <height>720</height>
+                <aspectratio>stretch</aspectratio>
+                <texture background="true">solid-black.png</texture>
+                <visible>Skin.HasSetting(Video)</visible>
+            </control>
             <control type="videowindow">
                 <description>Private Video Window to avoid default
                     navigation action processing
@@ -26,15 +36,15 @@
                 <description>Optional title displayed while trailer is playing</description>
                 <posx>0</posx>
                 <posy>0</posy>
-                <width>1240</width>
+                <width>1280</width>
                 <height>40</height>
-                <visible>Skin.HasSetting(SummaryLabel)</visible>
+                <visible>Skin.HasSetting(SummaryLabel)+!Skin.HasSetting(Notification)</visible>
                 <control type="image">
                     <description>Shadow Text background</description>
                     <posx>-0</posx>
                     <posy>0</posy>
                     <width>1280</width>
-                    <height>40</height>
+                    <height>45</height>
                     <visible>true</visible>
                     <aspectratio>stretch</aspectratio>
                     <texture>gray-back.png</texture>
@@ -42,7 +52,7 @@
                 <control type="label" id="38021">
                     <description>Title</description>
                     <posx>20</posx>
-                    <posy>1</posy>
+                    <posy>2</posy>
                     <width>1240</width>
                     <aligny>center</aligny>
                     <visible>Skin.HasSetting(SummaryLabel)+!Skin.HasSetting(Notification)</visible>
@@ -70,13 +80,13 @@
                 </control>
                 <control type="label" id="38023">
                     <description>Notification</description>
-                    <posx>0</posx>
+                    <posx>20</posx>
                     <posy>2</posy>
-                    <width>1280</width>
+                    <width>1240</width>
                     <height>40</height>
                     <aligny>center</aligny>
                     <alignx>center</alignx>
-                    <visible>true</visible>
+                    <visible>Skin.HasSetting(Notification)</visible>
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
