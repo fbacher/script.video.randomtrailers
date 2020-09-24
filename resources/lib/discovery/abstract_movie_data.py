@@ -531,7 +531,7 @@ class AbstractMovieData(object):
 
         from discovery.trailer_fetcher import TrailerFetcher
         self._trailer_fetcher = TrailerFetcher(self)
-        self._minimum_shuffle_seconds = 1
+        self._minimum_shuffle_seconds = 10
 
     def start_trailer_fetchers(self):
         # type: () -> None
@@ -675,10 +675,10 @@ class AbstractMovieData(object):
         last_shuffled_at_size = self._last_shuffled_index
         current_size = len(self._discovered_trailers)
         if (movies_added
-                and (current_size >= (last_shuffled_at_size * 1.20)
-                     and (seconds_since_last_shuffle > self.get_minimum_shuffle_seconds()))
-
-                or (seconds_since_last_shuffle > Constants.SECONDS_BEFORE_RESHUFFLE)):
+                and (current_size > 25
+                     and current_size >= (last_shuffled_at_size * 1.20)
+                     or (seconds_since_last_shuffle >
+                         self.get_minimum_shuffle_seconds()))):
             reshuffle = True
 
         if reshuffle:
@@ -714,8 +714,6 @@ class AbstractMovieData(object):
             # type(self).logger.debug('Have discovered_trailers_lock')
 
             if self._discovered_trailers.len() == 0:
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('nothing to shuffle')
                 return
 
             self._discovered_trailers.shuffle()
@@ -725,8 +723,6 @@ class AbstractMovieData(object):
 
             self._last_shuffled_index = self._discovered_trailers.len() - 1
             self._last_shuffle_time = datetime.datetime.now()
-            # if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            # type(self).logger.debug('lastShuffledIndex:', self._last_shuffled_index)
 
             # Drain anything previously in queue
 
