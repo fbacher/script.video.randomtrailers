@@ -11,6 +11,7 @@ from common.imports import *
 import datetime
 import os
 import random
+import re
 import sys
 
 from common.constants import (Constants)
@@ -27,8 +28,7 @@ class UsageData(object):
 
     """
 
-    def __init__(self, cache_name, pattern):
-        # type: (str, str) -> None
+    def __init__(self, cache_name: str, pattern: Pattern[str]) -> None:
         """
 
         :param cache_name
@@ -36,7 +36,7 @@ class UsageData(object):
         """
         self._logger = module_logger.getChild(self.__class__.__name__)
         self._cache_name = cache_name
-        self._pattern = pattern
+        self._pattern: Pattern[str] = pattern
         self._aggregate_cache_file_size = 0
         self._aggregate_deleted_size = 0
         self._deleted_files = 0
@@ -44,7 +44,7 @@ class UsageData(object):
         self._free_size = None
         self._used_space = None
         self._block_size = None
-        self._file_data = {}
+        self._file_data: Dict[str, FileData] = {}
 
     def set_total_size(self, total_size):
         # type: (int) -> None
@@ -407,10 +407,9 @@ class DiskUtils(object):
 
     @classmethod
     def get_stats_for_path(cls,
-                           top,  # type: str
-                           patterns  # type: Dict[str, str]
-                           ):
-        # type: (...) -> Dict[str, UsageData]
+                           top: str,
+                           patterns: Dict[str, Tuple[Pattern[str], str]]
+                           ) -> Dict[str, UsageData]:
         """
             Gets disk usage information for a subtree of the filesystem
 
@@ -455,8 +454,7 @@ class DiskUtils(object):
             # f_blocks total blocks in filesystem
             # f_bfree total # free blocks in filesystem
 
-            for cache_name in patterns:
-                pattern = patterns[cache_name]
+            for cache_name, (pattern, cache_type) in patterns.items():
                 usage_data = UsageData(cache_name, pattern)
                 usage_data.set_free_size(free)
                 usage_data.set_total_size(total)
@@ -479,11 +477,10 @@ class DiskUtils(object):
             found_directories = set()
             for root, dirs, files in os.walk(top):
                 for filename in files:
-                    for cache_name in patterns:
+                    for cache_name, (pattern, cache_type) in patterns.items():
                         Monitor.throw_exception_if_abort_requested()
                         usage_data = usage_data_map[cache_name]
-                        pattern = patterns[cache_name]
-                        if pattern in filename:
+                        if pattern.match(filename):
                             path = os.path.join(root, filename)
                             mod_time = now
                             try:
@@ -504,29 +501,32 @@ class DiskUtils(object):
 
                             deleted = False
                             try:
-                                if top == db_cache_path_top:
-                                    if filename.endswith('.json'):
-                                        if ((now - mod_time).total_seconds() >
-                                                db_cache_file_expiration_seconds):
-                                            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                                                cls._logger.debug(
-                                                    'deleting:', path)
-                                            os.remove(path)
-                                            deleted = True
-                                            usage_data.add_to_disk_deleted(
-                                                size_on_disk)
+                                if (top == db_cache_path_top
+                                        and cache_type == 'json'):
+                                    if ((now - mod_time).total_seconds() >
+                                            db_cache_file_expiration_seconds):
+                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                                            cls._logger.debug(
+                                                'deleting:', path)
+                                        os.remove(path)
+                                        deleted = True
+                                        usage_data.add_to_disk_deleted(
+                                            size_on_disk)
+                                    break  # Next file
 
-                                elif top == trailer_cache_path_top:
-                                    if '-trailer.' in filename:
-                                        if ((now - mod_time).total_seconds() >
-                                                trailer_cache_file_expiration_seconds):
-                                            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                                                cls._logger.debug(
-                                                    'deleting:', path)
-                                            os.remove(path)
-                                            deleted = True
-                                            usage_data.add_to_disk_deleted(
-                                                size_on_disk)
+                                if (top == trailer_cache_path_top
+                                        and cache_type == 'trailer'):
+                                    if ((now - mod_time).total_seconds() >
+                                            trailer_cache_file_expiration_seconds):
+                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                                            cls._logger.debug(
+                                                'deleting:', path)
+                                        os.remove(path)
+                                        deleted = True
+                                        usage_data.add_to_disk_deleted(
+                                            size_on_disk)
+                                    break  # Next file
+
                             except AbortException:
                                 reraise(*sys.exc_info())
                             except Exception as e:
