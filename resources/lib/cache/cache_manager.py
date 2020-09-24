@@ -11,6 +11,7 @@ import datetime
 import glob
 import os
 import locale
+import re
 import threading
 
 import xbmc
@@ -369,22 +370,33 @@ class CacheManager(object):
         """
         local_class = CacheManager
         local_class._logger.enter()
+
+        TRAILER_PATTERN = re.compile(r'^.*-trailer\..*$')
+        JSON_PATTERN =    re.compile(r'^.*\.json$')
+        TFH_PATTERN =     re.compile(r'^.*-movie\..*$')
+
+        TRAILER_TYPE = 'trailer'
+        JSON_TYPE = 'json'
+
+        # When the Trailer Cache and Data Cache (.json) are the same
+
         if (Settings.get_downloaded_trailer_cache_path() ==
                 Settings.get_remote_db_cache_path()):
             usage_data_map = DiskUtils.get_stats_for_path(
                 Settings.get_downloaded_trailer_cache_path(),
-                {'trailer': '-trailer.',
-                 'json': '.json',
-                 'tfh': '-movie.'})
+                {'trailer': (TRAILER_PATTERN, TRAILER_TYPE),
+                 'json': (JSON_PATTERN, JSON_TYPE),
+                 'tfh': (TFH_PATTERN, TRAILER_TYPE)})
         else:
+            # When Trailer Cache and Data Cache are different directories.
+
             usage_data_map = DiskUtils.get_stats_for_path(
                 Settings.get_downloaded_trailer_cache_path(),
-                {'trailer': '-trailer.',
-                 'tfh': '-movie.'})
+                {'trailer': (TRAILER_PATTERN, TRAILER_TYPE),
+                 'tfh': (TFH_PATTERN, TRAILER_TYPE)})
             json_usage_data = DiskUtils.get_stats_for_path(
                 Settings.get_remote_db_cache_path(),
-                {'json': '.json'})
-            usage_data_map['json'] = json_usage_data['json']
+                {'json': (JSON_PATTERN, JSON_TYPE)})
 
         local_class._logger.exit()
         return usage_data_map
