@@ -698,7 +698,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # Grab longest trailer that is in the appropriate language
             #
             best_size_map = {'Featurette': None, 'Clip': None, 'Trailer': None,
-                             'Teaser': None}
+                             'Teaser': None, 'Behind the Scenes': None}
             tmdb_trailer = None
             for tmdb_trailer in tmdb_result.get('videos', {'results': []}).get(
                     'results', []):
