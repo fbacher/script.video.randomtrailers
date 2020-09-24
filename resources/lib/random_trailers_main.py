@@ -43,14 +43,14 @@ if REMOTE_DEBUG:
         try:
             xbmc.log('front-end trying to attach to debugger', xbmc.LOGDEBUG)
             addons_path = os.path.join(Constants.ADDON_PATH, '..',
-                                       'script.module.pydevd', 'lib', 'pydevd.py')
+                                       'script.module.pydevd', 'lib')
 
             sys.path.append(addons_path)
             # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
             # console
             try:
                 pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True)
+                                stderrToServer=True, suspend=False)
             except AbortException:
                 xbmc.log('AbortException at startup?', xbmc.LOGDEBUG)
                 exit(0)
@@ -62,10 +62,10 @@ if REMOTE_DEBUG:
             xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
     except ImportError:
         REMOTE_DEBUG = False
-        pydevd = None
+        pydevd = 1
 
 RECEIVER = None
-xbmc.log('__file__:' + __file__ + 'module:' + __name__ , xbmc.LOGDEBUG)
+xbmc.log('__file__:' + __file__ + 'module:' + __name__, xbmc.LOGDEBUG)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 

@@ -50,14 +50,14 @@ if REMOTE_DEBUG:
         try:
             xbmc.log('back_end_service trying to attach to debugger',
                      xbmc.LOGDEBUG)
-            addons_path = os.path.join(pydevd_addon_path, 'lib', 'pydevd.py')
+            addons_path = os.path.join(pydevd_addon_path, 'lib')
             sys.path.append(addons_path)
             # xbmc.log('sys.path appended to', xbmc.LOGDEBUG)
             # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
             # console
             try:
                 pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True, suspend=True,
+                                stderrToServer=True, suspend=False,
                                 wait_for_ready_to_run=True)
 
             except AbortException:
@@ -73,6 +73,7 @@ if REMOTE_DEBUG:
         msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
         sys.stderr.write(msg)
+        pydevd = 1
     except BaseException:
         xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
 
