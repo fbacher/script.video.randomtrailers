@@ -172,7 +172,12 @@ class Cache(object):
                 return None
 
             with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
-                trailer = json.load(cacheFile, encoding='utf-8')
+                try:
+                    trailer = json.load(cacheFile, encoding='utf-8')
+                except Exception as e:
+                    cls._logger.exception(e)
+                    cls._logger.debug('Failing json:', path,  cacheFile)
+                    # exception_occurred = True
             trailer[Movie.CACHED] = True
         except AbortException:
             reraise(*sys.exc_info())
@@ -227,6 +232,7 @@ class Cache(object):
                                     indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
+                cls._logger.debug(f'Wrote {path} source: {source}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -281,8 +287,7 @@ class Cache(object):
     def generate_unique_id_from_source(cls, movie_id,  # type: Union[int, str]
                                        source,  # type: str
                                        error_msg=''  # type: str
-                                       ):
-        # type: (...) ->  Union[MovieType, None]
+                                       ) -> str:
         """
             Every query is from TMDB, so we could always use the TMDBId
             as the key, However, library entries don't have to have
