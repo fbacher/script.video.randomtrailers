@@ -122,12 +122,16 @@ class PlayableTrailersContainer(object):
         waited = 0
         while not finished:
             try:
-                self._ready_to_play_queue.put(movie, block=True, timeout=0.25)
+                # Blocking should not be a problem since it is quick. If full
+                # it will throw exception.
+
+                self._ready_to_play_queue.put(movie, block=True)
                 finished = True
                 self._number_of_added_trailers += 1
             except (queue.Full):
-                Monitor.throw_exception_if_abort_requested(timeout=0.75)
                 waited += 1
+
+            Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
         type(self).logger.debug('Checking _any_trailers_available_to_play.isSet:',
                            type(self)._any_trailers_available_to_play.isSet())

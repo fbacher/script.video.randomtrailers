@@ -811,6 +811,7 @@ class AbstractMovieData(object):
         :param movie:
         :return:
         """
+        Monitor.throw_exception_if_abort_requested()
         with self._discovered_trailers_lock:
             # type(self).logger.debug('Have discovered_trailers_lock')
 
