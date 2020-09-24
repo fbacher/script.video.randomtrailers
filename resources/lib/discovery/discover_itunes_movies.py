@@ -31,7 +31,7 @@ from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.itunes_movie_data import ItunesMovieData
 
-STRIP_TZ_PATTERN = ' .[0-9]{4}$'
+STRIP_TZ_PATTERN = re.compile(' .[0-9]{4}$')
 DOWNLOADABLE_TYPES = ('trailer', 'clip', 'featurette', 'teaser')
 EPOCH_TIME = datetime.datetime(1970, 1, 1, 0, 1)
 
@@ -60,10 +60,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
         self._movie_data = ItunesMovieData()
-        self._selected_keywords = ''
         self._selected_genres = ''
         self._excluded_genres = ''
-        self._excluded_keywords = ''
 
         # Early checking of for duplicates before we query external databases
         self._duplicate_check = set()
@@ -141,34 +139,24 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             local_class.logger.debug('Time to discover:', duration.seconds,
                                      'seconds', trace=Trace.STATS)
 
-    def run_worker(self):
-        # type: () -> None
-        """
-
-        :return:
-        """
         local_class = DiscoverItunesMovies
         Monitor.throw_exception_if_abort_requested()
 
-        self._selected_keywords = ''
         self._selected_genres = ''
         self._excluded_genres = ''
-        self._excluded_keywords = ''
         if Settings.get_filter_genres():
             self._selected_genres = GenreUtils.get_external_genre_ids_as_query(
-                GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
-            self._selected_keywords = GenreUtils.get_external_keywords_as_query(
-                GenreUtils.TMDB_DATABASE, exclude=False, or_operator=True)
+                GenreUtils.ITUNES_DATABASE, exclude=False, or_operator=True)
             self._excluded_genres = GenreUtils.get_external_genre_ids_as_query(
-                GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
-            self._excluded_keywords = GenreUtils.get_external_keywords_as_query(
-                GenreUtils.TMDB_DATABASE, exclude=True, or_operator=True)
+                GenreUtils.ITUNES_DATABASE, exclude=True, or_operator=True)
 
         show_only_itunes_trailers_of_this_type = \
             Settings.get_include_itunes_trailer_type()
         if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
             local_class.logger.debug('iTunesTrailer_type:',
                                      show_only_itunes_trailers_of_this_type)
+
+        # Get index of all current trailers for given type
 
         json_url = iTunes.get_url_for_trailer_type(
             show_only_itunes_trailers_of_this_type)
@@ -247,8 +235,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 # local_class.logger.debug('release_date_string: ',
                 #            release_date_string)
                 if release_date_string != '':
-                    strip_tz_pattern = re.compile(STRIP_TZ_PATTERN)
-                    release_date_string = strip_tz_pattern.sub(
+                    release_date_string = STRIP_TZ_PATTERN.sub(
                         '', release_date_string)
 
                     # "Thu, 14 Feb 2019 00:00:00 -0800",
@@ -417,6 +404,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         if keep_promotion:
                             feature_url = 'https://trailers.apple.com' + \
                                 itunes_movie.get('location')
+                            Monitor.throw_exception_if_abort_requested()
                             movie = self.get_trailer_url(feature_url,
                                                          title=title,
                                                          trailer_type=trailer_type,
@@ -476,7 +464,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         thumb = ''
 
         try:
-
+            Monitor.throw_exception_if_abort_requested()
             youtube_data_stream_extractor_proxy = \
                 YDStreamExtractorProxy.get_instance()
             downloadable_trailers: List[Dict[str, Any]] = youtube_data_stream_extractor_proxy.get_info(
@@ -525,6 +513,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             promotions = []
             for downloadable_trailer in downloadable_trailers:
+                Monitor.throw_exception_if_abort_requested()
                 keep_promotion = True
                 media_type = downloadable_trailer.get(
                     'title', '').lower()
@@ -578,7 +567,6 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         if Utils.is_trailer_from_cache(url):
                             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                                 local_class.logger.debug('test passed')
-
 
                         if language != '' and language != Settings.get_lang_iso_639_1():
                             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
