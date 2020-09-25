@@ -883,12 +883,26 @@ class JsonUtilsBasic(object):
         :return:
         """
         json_text = xbmc.executeJSONRPC(query)
-        movie_results = json.loads(json_text, encoding='utf-8')
+        Monitor.throw_exception_if_abort_requested()
+        movie_results = json.loads(json_text, encoding='utf-8',
+                                   object_hook=JsonUtilsBasic.abort_checker)
         if dump_results and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls._logger.debug_extra_verbose('JASON DUMP:', json.dumps(
-                json_text, indent=3, sort_keys=True))
+            Monitor.throw_exception_if_abort_requested()
+            cls._logger.debug_extra_verbose('JASON DUMP:',
+                                            json.dumps(
+                                                json_text, indent=3, sort_keys=True,
+                                                object_hook=JsonUtilsBasic.abort_checker))
         return movie_results
 
+    @staticmethod
+    def abort_checker(dct: Dict[str, Any]) -> Dict[str, Any]:
+        """
+
+        :param dct:
+        :return:
+        """
+        Monitor.throw_exception_if_abort_requested()
+        return dct
 
 # Force initialization of config_logger
 JsonUtilsBasic()
