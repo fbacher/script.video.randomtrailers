@@ -46,10 +46,10 @@ class PlayableTrailersContainer(object):
 
         :return:
         """
-        if type(self).logger is None:
-            type(self).logger = module_logger.getChild(type(self).__name__
+        clz = PlayableTrailersContainer
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__
                                                        + ':' + source)
-        type(self).logger.enter()
 
         PlayableTrailersContainer._instances[source] = self
         self._movie_data = None
@@ -82,7 +82,7 @@ class PlayableTrailersContainer(object):
         :param stop_thread
         :return:
         """
-        type(self).logger.enter()
+        clz = PlayableTrailersContainer
         self._number_of_added_trailers = 0
 
         if stop_thread:
@@ -108,15 +108,15 @@ class PlayableTrailersContainer(object):
         :param movie:
         :return:
         """
-        cls = type(self)
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
+        clz = PlayableTrailersContainer
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             if Movie.TITLE not in movie:
-                cls.logger.warning('Invalid movie entry. Missing title: ',
+                clz.logger.warning('Invalid movie entry. Missing title: ',
                                    str(movie))
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
-            type(self).logger.debug('movie:', movie[Movie.TITLE], 'queue empty:',
-                               self._ready_to_play_queue.empty(), 'full:',
-                               self._ready_to_play_queue.full())
+            clz.logger.debug_verbose('movie:', movie[Movie.TITLE], 'queue empty:',
+                                     self._ready_to_play_queue.empty(), 'full:',
+                                     self._ready_to_play_queue.full())
 
         finished = False
         waited = 0
@@ -130,18 +130,17 @@ class PlayableTrailersContainer(object):
 
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
-        type(self).logger.debug('Checking _any_trailers_available_to_play.isSet:',
-                           type(self)._any_trailers_available_to_play.isSet())
-        if not type(self)._any_trailers_available_to_play.isSet():
-            type(self).logger.debug('Setting _any_trailers_available_to_play')
-            type(self)._any_trailers_available_to_play.set()
+        if not clz._any_trailers_available_to_play.isSet():
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose('Setting _any_trailers_available_to_play')
+            clz._any_trailers_available_to_play.set()
 
         self._is_playable_trailers.set()
 
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self).logger.debug('readyToPlayQueue size:',
-                               self._ready_to_play_queue.qsize(), 'waited:',
-                               waited)
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose('readyToPlayQueue size:',
+                                           self._ready_to_play_queue.qsize(), 'waited:',
+                                           waited)
         return
 
     def get_ready_to_play_queue(self):
@@ -174,12 +173,15 @@ class PlayableTrailersContainer(object):
 
         :return:
         """
+        clz = PlayableTrailersContainer
         movie = self._ready_to_play_queue.get(block=False)
         if movie is not None:
             self._movie_data.increase_play_count(movie)
-            type(self).logger.exit('movie:', movie[Movie.TITLE])
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.exit('movie:', movie[Movie.TITLE])
         else:
-            type(self).logger.exit('No movie in queue')
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.exit('No movie in queue')
         return movie
 
     @classmethod
