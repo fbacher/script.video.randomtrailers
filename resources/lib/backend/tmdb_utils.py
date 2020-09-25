@@ -172,9 +172,6 @@ class TMDBUtils(object):
         :return:
         """
         year_str = str(year)
-        if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-            TMDBUtils._logger.debug('title:', title, 'year:', year)
-
         found_movie = None
         trailer_id = None
         data = {}
@@ -195,18 +192,20 @@ class TMDBUtils(object):
             data['include_adult'] = include_adult
 
             url = 'https://api.themoviedb.org/3/search/movie'
-            status_code, _info_string = JsonUtilsBasic.get_json(url, params=data,
-                                                                dump_msg='get_tmdb_id_from_title_year',
-                                                                dump_results=True,
-                                                                error_msg=title +
-                                                                ' (' + year_str + ')')
-            TMDBUtils._logger.debug('status:', status_code)
+            status_code, _info_string = \
+                JsonUtilsBasic.get_json(url, params=data,
+                                        dump_msg='get_tmdb_id_from_title_year',
+                                        dump_results=True,
+                                        error_msg=title +
+                                                  ' (' + year_str + ')')
             if _info_string is not None:
                 results = _info_string.get('results', [])
                 if len(results) > 1:
-                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-                        TMDBUtils._logger.debug('Got multiple matching movies:', title,
-                                                'year:', year)
+                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        TMDBUtils._logger.debug_extra_verbose(
+                            'Got multiple matching movies:',
+                            title,
+                            'year:', year)
 
                 # TODO: Improve. Create best trailer function from get_tmdb_trailer
                 # TODO: find best trailer_id
@@ -229,86 +228,38 @@ class TMDBUtils(object):
                 if len(matches) == 1:
                     found_movie = matches[0]
                 elif len(matches) > 1:
-                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-                        TMDBUtils._logger.debug('More than one matching movie in same year',
-                                                'choosing first one matching current language.',
-                                                'Num choices:', len(matches))
+                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        TMDBUtils._logger.debug_extra_verbose(
+                            'More than one matching movie in same year choosing first '
+                            'one matching current language.',
+                            'Num choices:', len(matches))
                     found_movie = matches[0]
 
                 if movie is None:
-                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-                        TMDBUtils._logger.debug('Could not find movie:', title, 'year:', year,
-                                                'at TMDB. found', len(results), 'candidates')
+                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        TMDBUtils._logger.debug_extra_verbose('Could not find movie:',
+                                                              title, 'year:', year,
+                                                              'at TMDB. found',
+                                                              len(results), 'candidates')
                     for a_movie in results:
                         release_date = a_movie.get(
                             'release_date', '')  # 1932-04-22
                         found_year = release_date[:-6]
                         found_title = a_movie.get('title', '')
                         tmdb_id = a_movie.get('id', None)
-                        if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-                            TMDBUtils._logger.debug('found:', found_title,
-                                                    '(', found_year, ')',
-                                                    'tmdb id:', tmdb_id)
+                        if TMDBUtils._logger.isEnabledFor(LazyLogger.DISABLED):
+                            TMDBUtils._logger.debug_extra_verbose('found:', found_title,
+                                                                  '(', found_year, ')',
+                                                                  'tmdb id:', tmdb_id)
                         tmdb_data = MovieEntryUtils.get_alternate_titles(
                             title, tmdb_id)
                         for alt_title, country in tmdb_data['alt_titles']:
                             if alt_title.lower() == title.lower():
                                 found_movie = tmdb_data  # Not actually in "movie" format
                                 break
-
-                        '''
-                                 parsed_data[Movie.YEAR] = year
-    
-                        title = tmdb_result[Movie.TITLE]
-                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                            cls._logger.debug('Processing:', title, 'type:',
-                                               type(title).__name__)
-                        parsed_data[Movie.TITLE] = title
-    
-                        studios = tmdb_result['production_companies']
-                        studio = []
-                        for s in studios:
-                            studio.append(s['name'])
-    
-                        parsed_data[Movie.STUDIO] = studio
-    
-                        tmdb_cast_members = tmdb_result['credits']['cast']
-                        cast = []
-                        for cast_member in tmdb_cast_members:
-                            fake_cast_entry = {}
-                            fake_cast_entry['name'] = cast_member['name']
-                            fake_cast_entry['character'] = cast_member['character']
-                            cast.append(fake_cast_entry)
-    
-                        parsed_data[Movie.CAST] = cast
-    
-                        tmdb_crew_members = tmdb_result['credits']['crew']
-                        director = []
-                        writer = []
-                        for crew_member in tmdb_crew_members:
-                            if crew_member['job'] == 'Director':
-                                director.append(crew_member['name'])
-                            if crew_member['department'] == 'Writing':
-                                writer.append(crew_member['name'])
-    
-                        parsed_data[Movie.DIRECTOR] = director
-                        parsed_data[Movie.WRITER] = writer
-    
-                        titles = tmdb_result.get('alternative_titles', {'titles': []})
-                        alt_titles = []
-                        for title in titles['titles']:
-                            alt_title = (title['title'], title['iso_3166_1'])
-                            alt_titles.append(alt_title)
-    
-                        parsed_data['alt_titles'] = alt_titles
-                        original_title = tmdb_result['original_title']
-                        if original_title is not None:
-                            parsed_data[Movie.ORIGINAL_TITLE] = original_title
-    
-                            '''
             else:
-                if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-                    TMDBUtils._logger.debug('Could not find movie:', title, 'year:', year,
+                if TMDBUtils._logger.isEnabledFor(LazyLogger.INFO):
+                    TMDBUtils._logger.info('Could not find movie:', title, 'year:', year,
                                             'at TMDB. found no candidates')
         except AbortException:
             reraise(*sys.exc_info())
@@ -319,8 +270,6 @@ class TMDBUtils(object):
         tmdb_id = None
         if found_movie is not None:
             tmdb_id = found_movie.get('id', None)
-        if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG):
-            TMDBUtils._logger.exit('title:', title, 'tmdb_id:', tmdb_id)
         if tmdb_id is None:
             return None
         return int(tmdb_id)

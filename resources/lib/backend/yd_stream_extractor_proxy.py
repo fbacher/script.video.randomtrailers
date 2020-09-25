@@ -87,10 +87,11 @@ class YDStreamExtractorProxy(object):
             # file extension
 
             if trailer_file != trailer['_filename']:
-                if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('youtube_dl gave incorrect file name:',
-                                       trailer['_filename'], 'changing to:',
-                                       trailer_file)
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    self._logger.debug_extra_verbose(
+                        'youtube_dl gave incorrect file name:',
+                        trailer['_filename'], 'changing to:',
+                        trailer_file)
 
                 trailer['_filename'] = trailer_file
 
@@ -103,9 +104,9 @@ class YDStreamExtractorProxy(object):
             reraise(*sys.exc_info())
         except Exception as e:
             trailer = None
-            if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('Failed to download trailer for:', url,
-                                   'to folder:', folder)
+            if self._logger.isEnabledFor(LazyLogger.INFO):
+                self._logger.info('Failed to download trailer for:', url,
+                                  'to folder:', folder)
             to_delete = os.path.join(folder, '_rt_' + str(movie_id) + '*')
             to_delete = glob.glob(to_delete)
             for aFile in to_delete:
@@ -175,13 +176,13 @@ class YDStreamExtractorProxy(object):
                 reraise(*sys.exc_info())
             except CalledProcessError as e:
                 remaining_attempts -= 1
-                output = e.output
-                stderr = e.stderr
-                if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('Failed to download site info for:', url,
+                # output = e.output
+                # stderr = e.stderr
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    self._logger.debug_verbose('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
-                    self._logger.debug('output:', output)
-                    self._logger.debug('stderr:', stderr)
+                    # self._logger.debug_verbose('output:', output)
+                    # self._logger.debug_verbose('stderr:', stderr)
                 trailer_info = None
                 Monitor.throw_exception_if_abort_requested(timeout=70.0)
             except Exception as e:
@@ -189,8 +190,8 @@ class YDStreamExtractorProxy(object):
                 self._logger.exception('')
                 # output = e.output
                 # stderr = e.stderr
-                if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('Failed to download site info for:', url,
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    self._logger.debug_verbose('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
                     #self._logger.debug('output:', output)
                     #self._logger.debug('stderr:', stderr)
@@ -256,24 +257,24 @@ class YDStreamExtractorProxy(object):
                 remaining_attempts -= 1
                 if remaining_attempts == 0:
                     self._tfh_success = False
-                output = e.output
-                stderr = e.stderr
-                if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('Failed to download site info for:', url,
+                # output = e.output
+                # stderr = e.stderr
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    self._logger.debug_verbose('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
-                    self._logger.debug('output:', output)
-                    self._logger.debug('stderr:', stderr)
+                    # self._logger.debug_verbose('output:', output)
+                    # self._logger.debug_verbose('stderr:', stderr)
                 trailer_info = None
             except Exception as e:
                 remaining_attempts -= 1
                 if remaining_attempts == 0:
                     self._tfh_success = False
                 self._logger.exception('')
-                if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('Failed to download site info for:', url,
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    self._logger.debug_verbose('Failed to download site info for:', url,
                                        'remaining_attempts:', remaining_attempts)
-                    if line:
-                        self._logger.debug('current response:', line)
+                    # if line:
+                    #     self._logger.debug('current response:', line)
 
         if lines_read == 0:
             self._tfh_success = False
@@ -292,9 +293,10 @@ class YDStreamExtractorProxy(object):
                     line = self._tfh_command_process.stderr.readline(timeout=0.1)
                     if not line:
                         break
-                    self._logger.info('stderr:', line)
+                    if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        self._logger.debug_extra_verbose('stderr:', line)
                     if 'Error 429' in line:
-                        self._logger.error(
+                        self._logger.info(
                             'Abandoning download from TFH. Too Many Requests')
                         self._tfh_success = False
                         self._tfh_command_process.terminate()
