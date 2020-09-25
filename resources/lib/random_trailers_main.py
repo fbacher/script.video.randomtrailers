@@ -51,9 +51,6 @@ if REMOTE_DEBUG:
             try:
                 pydevd.settrace('localhost', stdoutToServer=True,
                                 stderrToServer=True, suspend=False)
-            except AbortException:
-                xbmc.log('AbortException at startup?', xbmc.LOGDEBUG)
-                exit(0)
             except Exception as e:
                 xbmc.log(
                     ' Looks like remote debugger was not started prior to plugin start',
@@ -96,8 +93,6 @@ class MainThreadLoop(object):
     @classmethod
     def class_init(cls, is_screensaver: bool) -> None:
         cls._logger = module_logger.getChild(cls.__name__)
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.enter()
         Trace.enable_all()
         Settings.save_settings()
         cls._advanced_player = None
@@ -135,8 +130,6 @@ class MainThreadLoop(object):
 
         :return:
         """
-        cls._logger.enter()
-
         try:
             # For the first 10 seconds use a short timeout so that initialization
             # stuff is handled quickly. Then revert to 0.10 seconds
@@ -196,8 +189,6 @@ class MainThreadLoop(object):
         :param callable_class:
         :return:
         """
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.enter()
         try:
             callable_class()
         except AbortException:
@@ -210,9 +201,6 @@ class MainThreadLoop(object):
         """
             Allow Settings to be modified inside of addon
         """
-
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.enter()
         Constants.FRONTEND_ADDON.openSettings()
 
         return
@@ -226,6 +214,7 @@ def bootstrap_random_trailers(is_screensaver: bool) -> None:
     try:
         Monitor.register_settings_changed_listener(
             Settings.on_settings_changed)
+
         Monitor.register_settings_changed_listener(
             LazyLogger.on_settings_changed)
 
@@ -247,7 +236,7 @@ def bootstrap_random_trailers(is_screensaver: bool) -> None:
                 pydevd.stoptrace()
             except Exception:
                 pass
-        exit(0)
+        sys.exit(0)
 
 
 def bootstrap_unit_test():
@@ -256,7 +245,12 @@ def bootstrap_unit_test():
 
 if __name__ == '__main__':  # TODO: need quick exit if backend is not running
     if xbmc.Player().isPlaying():
-        exit(0)
+        if REMOTE_DEBUG:
+            try:
+                pydevd.stoptrace()
+            except Exception:
+                pass
+        sys.exit(0)
     run_random_trailers = True
     argc = len(sys.argv) - 1
     is_screensaver = False
@@ -271,3 +265,10 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
         bootstrap_random_trailers(is_screensaver)
     elif is_unit_test:
         bootstrap_unit_test()
+
+    if REMOTE_DEBUG:
+        try:
+            pydevd.stoptrace()
+        except Exception:
+            pass
+    sys.exit(0)

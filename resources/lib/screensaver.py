@@ -21,37 +21,33 @@ from screensaver.screensaver_bridge import ScreensaverBridge
 
 REMOTE_DEBUG: bool = False
 
+pydevd_addon_path = None
+try:
+    pydevd_addon_path = xbmcaddon.Addon(
+        'script.module.pydevd').getAddonInfo('path')
+except Exception:
+    xbmc.log('Debugger disabled, script.module.pydevd NOT installed',
+             xbmc.LOGDEBUG)
+    REMOTE_DEBUG = False
+
 if REMOTE_DEBUG:
     try:
         import pydevd
 
-        # Note pydevd module need to be copied in XBMC\system\python\Lib\pysrc
+        # Note, besides having script.module.pydevd installed, pydevd
+        # must also be on path of IDE runtime. Should be same versions!
         try:
-            xbmc.log('Trying to attach to debugger', xbmc.LOGDEBUG)
-            '''
-                If the server (your python process) has the structure
-                    /user/projects/my_project/src/package/module1.py
-
-                and the client has:
-                    c:\my_project\src\package\module1.py
-
-                the PATHS_FROM_ECLIPSE_TO_PYTHON would have to be:
-                    PATHS_FROM_ECLIPSE_TO_PYTHON = \
-                          [(r'c:\my_project\src', r'/user/projects/my_project/src')
-                # with the addon script.module.pydevd, only use `import pydevd`
-                # import pysrc.pydevd as pydevd
-            '''
-            addons_path = os.path.join(Constants.ADDON_PATH, '..',
-                                       'script.module.pydevd', 'lib', 'pydevd.py')
-
+            xbmc.log('back_end_service trying to attach to debugger',
+                     xbmc.LOGDEBUG)
+            addons_path = os.path.join(pydevd_addon_path, 'lib')
             sys.path.append(addons_path)
+            # xbmc.log('sys.path appended to', xbmc.LOGDEBUG)
             # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
             # console
             try:
                 pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True)
-            except AbortException:
-                exit(0)
+                                stderrToServer=True, suspend=False,
+                                wait_for_ready_to_run=True)
             except Exception as e:
                 xbmc.log(
                     ' Looks like remote debugger was not started prior to plugin start',
@@ -60,8 +56,14 @@ if REMOTE_DEBUG:
             xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
     except ImportError:
         REMOTE_DEBUG = False
-        pydevd = None
+        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
+        xbmc.log(msg, xbmc.LOGDEBUG)
+        sys.stderr.write(msg)
+        pydevd = 1
+    except BaseException:
+        xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
 
+RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 addon = xbmcaddon.Addon()
@@ -70,7 +72,12 @@ do_fullscreen = addon.getSetting('do_fullscreen')
 try:
     if __name__ == '__main__':
         if xbmc.Player().isPlaying():
-            exit(0)
+            if REMOTE_DEBUG:
+                try:
+                    pydevd.stoptrace()
+                except Exception:
+                    pass
+            sys.exit(0)
         _monitor = Monitor
         Trace.enable_all()
 
@@ -95,9 +102,6 @@ try:
                 "params": "screensaver" }, "id": 1}'
             json_text = xbmc.executeJSONRPC(cmd)
             _monitor.wait_for_abort(timeout=0.01)
-
-            if module_logger.isEnabledFor(LazyLogger.DEBUG):
-                module_logger.debug('Got back from starting randomtrailers')
 
         _monitor.wait_for_abort(timeout=0.01)
         ScreensaverBridge.delete_instance()
