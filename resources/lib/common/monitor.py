@@ -42,12 +42,11 @@ class Monitor(xbmc.Monitor):
     _settings_changed_listener_lock = None
     _abort_listeners = None
     _abort_listener_lock = None
+    _abort_listeners_informed = False
     _abort_received = None
 
     def __init__(self):
-        type(self)._logger.debug('In init')
         super().__init__()
-        type(self)._logger.debug('Super called')
 
     @classmethod
     def class_init(cls):
@@ -57,7 +56,6 @@ class Monitor(xbmc.Monitor):
         """
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__class__.__name__)
-            cls._logger.enter()
             cls._instance = Monitor()
             # Weird problems with recursion if we make requests to the super
 
@@ -68,6 +66,7 @@ class Monitor(xbmc.Monitor):
             cls._settings_changed_listener_lock = threading.RLock()
             cls._abort_listeners = []
             cls._abort_listener_lock = threading.RLock()
+            cls._abort_listeners_informed = False
             cls._abort_received = threading.Event()
 
             #
@@ -98,12 +97,9 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        cls._logger.enter()
         start_time = datetime.datetime.now()
         settings_path = os.path.join(
             Constants.FRONTEND_DATA_PATH, 'settings.xml')
-        if cls._logger.isEnabledFor(Logger.DEBUG):
-            cls._logger.debug('settings_path:', settings_path)
 
         # It seems that if multiple xbmc.WaitForAborts are pending, xbmc
         # Does not inform all of them when an abort occurs. So, instead
@@ -127,8 +123,8 @@ class Monitor(xbmc.Monitor):
 
                 if modTime > start_time:
                     start_time = datetime.datetime.now()
-                    if cls._logger.isEnabledFor(Logger.DEBUG):
-                        cls._logger.debug('Settings Changed!')
+                    if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                        cls._logger.debug_verbose('Settings Changed!')
                     cls._instance.onSettingsChanged()
                     # Here we go again
 
@@ -219,8 +215,6 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.enter()
         with cls._abort_listener_lock:
             if cls._abort_listeners_informed:
                 return
@@ -246,7 +240,7 @@ class Monitor(xbmc.Monitor):
         with cls._screen_saver_listener_lock:
             del cls._screen_saver_listeners[:]
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             xbmc.sleep(250)
             from common.debug_utils import Debug
             Debug.dump_all_threads()
@@ -266,8 +260,8 @@ class Monitor(xbmc.Monitor):
                 del cls._settings_changed_listeners[:]
 
         for listener in listeners:
-            if cls._logger.isEnabledFor(Logger.DEBUG):
-                cls._logger.debug('Notifying listener:', listener.__name__)
+            if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                cls._logger.debug_verbose('Notifying listener:', listener.__name__)
             thread = threading.Thread(
                 target=listener, name='Monitor.inform:' + listener.__name__)
             thread.start()
@@ -285,6 +279,8 @@ class Monitor(xbmc.Monitor):
             if cls.is_abort_requested():
                 del cls._screen_saver_listeners[:]
 
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            cls._logger.debug_verbose(f'Screensaver activated: {activated}')
         for listener in listeners_copy:
             # noinspection PyTypeChecker
             thread = threading.Thread(
@@ -301,7 +297,6 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        type(self)._logger.enter()
         type(self)._inform_settings_changed_listeners()
 
     def onScreensaverActivated(self):
@@ -313,7 +308,6 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        type(self)._logger.enter()
         type(self)._inform_screensaver_listeners(activated=True)
 
         # return super().onScreensaverActivated()
@@ -327,7 +321,6 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        type(self)._logger.enter()
         type(self)._inform_screensaver_listeners(activated=False)
 
         # return super().onScreensaverDeactivated()
