@@ -665,13 +665,8 @@ class JsonUtilsBasic(object):
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                     cls._logger.debug(
                         'generated url:', response.url)
-                    json_text = response.json()
-                    # Don't specify encoding so that it figures out for itself. iTunes
-                    # was using Windows-1252 encoding.
-                    json_text2 = response.json(encoding=None)
-                    if json_text != json_text2:
-                        cls._logger.debug('compare encodings of response. Equal:',
-                                                     json_text == json_text2)
+
+                json_text = response.json()
                 returned_header = response.headers
             except AbortException:
                 reraise(*sys.exc_info())
@@ -783,24 +778,19 @@ class JsonUtilsBasic(object):
                 tmp = returned_header.get('Date')
                 if tmp is not None:
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(
-                            'Date: ', tmp)
-                    parsed_date = parsedate_tz(tmp)
-                    #
-                    # There is an intermittent bug in datetime.datetime.strptime
-                    # when it runs in an embedded system that is not properly
-                    # reinitialized
+                        parsed_date = parsedate_tz(tmp)
+                        unix_time_stamp = calendar.timegm(parsed_date)
+                        time_stamp = datetime.datetime.fromtimestamp(
+                            unix_time_stamp)
 
-                    time_stamp = Utils.strptime(tmp, '%a, %d %b %Y %H:%M:%S %Z')
-                    unix_time_stamp = calendar.timegm(parsed_date)
-                    time_stamp = datetime.datetime.fromtimestamp(
-                        unix_time_stamp)
+                        delta = time_stamp - response_time_stamp
+                        # cls._logger.debug_extra_verbose(
+                        #     'Date: ', tmp)
 
-                    delta = time_stamp - response_time_stamp
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose('Timestamp from server:', time_stamp,
-                                                                   'difference from client:',
-                                                                   delta.total_seconds())
+                        cls._logger.debug_extra_verbose('Timestamp from server:',
+                                                        time_stamp,
+                                                        'difference from client:',
+                                                        delta.total_seconds())
 
                 if request_index == JsonUtilsBasic.TMDB_REQUEST_INDEX:
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -847,10 +837,12 @@ class JsonUtilsBasic(object):
 
                 if not second_attempt:
                     try:
-                        status_code, json_text = JsonUtilsBasic.get_json(url, second_attempt=True,
-                                                                         headers=headers,
-                                                                         params=params,
-                                                                         timeout=0.50)
+                        status_code, json_text = \
+                            JsonUtilsBasic.get_json(url,
+                                                    second_attempt=True,
+                                                    headers=headers,
+                                                    params=params,
+                                                    timeout=0.50)
                     except AbortException:
                         reraise(*sys.exc_info())
                     except Exception as e:
@@ -859,9 +851,6 @@ class JsonUtilsBasic(object):
                     finally:
                         JsonUtilsBasic.record_request_timestamp(
                             request_index, response_time_stamp, failed=request_failed)
-
-        # else:
-        #    Debug.myLog('requests: ' + str(Constants.tmdbRequestCount))
 
         #if dump_results and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
         #    cls._logger.debug_extra_verbose('JSON DUMP:', dump_msg)
