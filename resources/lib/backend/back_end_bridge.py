@@ -110,9 +110,16 @@ class BackendBridge(PluginBridge):
         #
         if cls._busy_getting_trailer:
             cls.send_trailer(BackendBridgeStatus.BUSY, None)
+            return
 
         cls._busy_getting_trailer = True
-        trailer = next(cls._trailer_iterator)
+        try:
+            trailer = next(cls._trailer_iterator)
+        except StopIteration:
+            cls.send_trailer(BackendBridgeStatus.TIMED_OUT, None)
+            cls._busy_getting_trailer = False
+            return
+
         cls._trailer = trailer
         cls._status = BackendBridgeStatus.OK
         cls.send_trailer(BackendBridgeStatus.OK, trailer)
