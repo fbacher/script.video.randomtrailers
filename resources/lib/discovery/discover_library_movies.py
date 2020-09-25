@@ -93,7 +93,12 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         # other discovery (TMDB, iTunes) until a few local trailers have
         # been located (~50).
 
-        self._some_movies_discovered_event.wait(timeout=15)
+        countdown = 150  # ~Fifteen seconds
+        while not self._some_movies_discovered_event.wait(timeout=0.1):
+            Monitor.throw_exception_if_abort_requested()
+            countdown -= 1
+            if countdown == 0:
+                break
 
         if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
             local_class.logger.debug(': started')
@@ -321,7 +326,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             return
 
         start_time = datetime.datetime.now()
+        Monitor.throw_exception_if_abort_requested() # Expensive operation
         query_result = JsonUtilsBasic.get_kodi_json(query, dump_results=False)
+        Monitor.throw_exception_if_abort_requested()
         elapsed_time = datetime.datetime.now() - start_time
         local_class.logger.debug('Library query seconds:',
                            elapsed_time.total_seconds())
@@ -658,5 +665,5 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                 local_class.logger.debug('Invalid lastPlayed field for', movie_name,
                                    ':', last_played_field)
             local_class.logger.exception('')
-            raise e
+            days_since_played = 365
         return days_since_played
