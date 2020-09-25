@@ -63,7 +63,6 @@ class ScreensaverBridge(PluginBridge):
             Used by screensaver service to tell front-end to activate
             screensaver
         """
-        cls._logger.enter()
         try:
             cls._ack_received = False
             cls.send_signal('activate_screensaver', data={},
@@ -120,5 +119,4 @@ class ScreensaverBridge(PluginBridge):
             :return: None
         """
 
-        cls._logger.enter()
         cls.register_slot(Constants.FRONTEND_ID, 'ack', cls.receiveAck)
