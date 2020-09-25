@@ -237,7 +237,13 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         :return:
         """
         local_class = DiscoverTFHMovies
-        tfh_trailer = json.loads(json_text)
+        try:
+            tfh_trailer = json.loads(json_text)
+        except Exception as e:
+            local_class.logger.exception(e)
+            local_class.logger.warning('Offending json:', json_text)
+            return False
+
         trailer_id = tfh_trailer['id']
         if trailer_id not in self._unique_trailer_ids:
             self._unique_trailer_ids.add(trailer_id)
