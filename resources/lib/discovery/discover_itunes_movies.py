@@ -169,7 +169,27 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         json_url = backend_constants.APPLE_URL_PREFIX + json_url
         if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
             local_class.logger.debug('iTunes json_url', json_url)
-        status_code, parsed_content = JsonUtilsBasic.get_json(json_url)
+        attempts = 0
+        parsed_content = None
+        timeout = 1 * 60  # one minute
+        while attempts < 60 and parsed_content is None:
+            status_code, parsed_content = JsonUtilsBasic.get_json(json_url)
+            attempts += 1
+            timeout = timeout * 2
+            if timeout > 30 * 60:
+                timeout = 30 * 60
+
+            if parsed_content is None:
+                Monitor.throw_exception_if_abort_requested(timeout=timeout)
+                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                    local_class.logger.debug(f'Itunes read attempt {attempts}'
+                                             f' failed waiting {timeout} seconds')
+        if parsed_content is None:
+            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                local_class.logger.debug(f'Failed to get trailers from iTunes.'
+                                         f' giving up.')
+            return
+
         DiskUtils.RandomGenerator.shuffle(parsed_content)
         # Debug.dump_json(text='parsed_content', data=parsed_content)
 
