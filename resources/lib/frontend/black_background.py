@@ -68,7 +68,6 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        self._logger.enter()
         super().close()
 
     def destroy(self):
@@ -82,7 +81,6 @@ class BlackBackground(xbmcgui.WindowXML):
         BlackBackground._destroyed = True
 
     def show(self):
-        self._logger.enter()
         super().show()
 
     def set_visibility(self, opaque=False):
@@ -106,5 +104,5 @@ class BlackBackground(xbmcgui.WindowXML):
 
         :return:
         """
-        return str(cls._window_Id)
+        return str(cls._window_id)
 

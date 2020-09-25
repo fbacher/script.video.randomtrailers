@@ -70,8 +70,6 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 '''
 
-# TODO: Move to ui_utils
-
 logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
 
 # noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
@@ -83,8 +81,6 @@ def get_title_font():
 
     :return:
     """
-    if logger.isEnabledFor(LazyLogger.DEBUG):
-        logger.debug('In randomtrailer.get_title_font')
     title_font = 'font13'
     base_size = 20
     multiplier = 1
@@ -142,12 +138,9 @@ def play_trailers():
             del black_background
             black_background = None
         if exiting_playing_movie:
-            if logger.isEnabledFor(LazyLogger.DEBUG):
+            if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
-        if logger.isEnabledFor(LazyLogger.DEBUG):
-            logger.debug('About to local_monitor.exit()')
-            logger.exit()
 
 
 # noinspection Annotator
@@ -164,8 +157,6 @@ class StartUI(threading.Thread):
         """
         super().__init__(name='startUI')
         self._logger = module_logger.getChild(self.__class__.__name__)
-        if self._logger.isEnabledFor(LazyLogger.DEBUG):
-            self._logger.enter()
 
         self._player_container = None
         self._started_as_screensaver = started_as_screesaver
@@ -179,14 +170,10 @@ class StartUI(threading.Thread):
         :return:
         """
         try:
-            if self._logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
-
             self.start_playing_trailers()
 
         except AbortException:
-            self._logger.error(
-                'Exiting Random Trailers Screen Saver due to Kodi Abort!')
+            return
         except Exception as e:
             self._logger.exception('')
 
@@ -195,7 +182,6 @@ class StartUI(threading.Thread):
                 self._logger.debug('Stopping xbmc.Player')
 
             Monitor.abort_requested()
-            self._logger.exit()
 
     def start_playing_trailers(self):
         # type: () -> None
@@ -205,27 +191,13 @@ class StartUI(threading.Thread):
         """
         # black_background = None
         try:
-            if logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('ADDON_PATH: ' + Constants.ADDON_PATH)
-
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
-                if logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    self._logger.debug_extra_verbose(
-                        'Python path:', sys.path)
-
                 if (self._started_as_screensaver and
                         Settings.is_set_fullscreen_when_screensaver()):
                     if not xbmc.getCondVisibility('System.IsFullscreen'):
                         xbmc.executebuiltin('xbmc.Action(togglefullscreen)')
 
                 # TODO: Use settings
-
-                current_dialog_id = xbmcgui.getCurrentWindowDialogId()
-                current_window_id = xbmcgui.getCurrentWindowId()
-                if logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('CurrentDialogId, CurrentWindowId:',
-                                       current_dialog_id,
-                                       current_window_id)
 
                 volume_was_adjusted = False
                 if Settings.get_adjust_volume():
@@ -265,14 +237,13 @@ class StartUI(threading.Thread):
                 self._logger.info(
                     'Exiting Random Trailers Screen Saver Something is playing!!!!!!')
         except AbortException:
-            self._logger.error(
-                'Exiting Random Trailers Screen Saver due to Kodi Abort!')
+            pass
         except Exception as e:
             self._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('Stopping xbmc.Player')
+            if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                self._logger.debug_verbose('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
             # Random Trailers control
@@ -281,16 +252,12 @@ class StartUI(threading.Thread):
                     and self._player_container.get_player() is not None):
                 self._player_container.get_player().stop()
 
-            if logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('Deleting black screen')
-
             black_background = BlackBackground.get_instance()
             if black_background is not None:
                 black_background.close()
                 black_background.destroy()
                 del black_background
             black_background = None
-            self._logger.exit()
 
     def check_for_xsqueeze(self):
         # type: () -> bool
