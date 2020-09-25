@@ -37,7 +37,7 @@ class KodiQueue(object):
         self._wrapped_queue = Queue(maxsize=maxsize)
 
     def put(self,
-            item: Any,
+            item: Union[MovieType, None],
             block: bool = True,
             timeout: Optional[float] = None) -> None:
         """
@@ -48,55 +48,56 @@ class KodiQueue(object):
         :return:
         """
 
-        with self._lock:
-            if not block:
-                timeout = 0
+        if not block:
+            timeout = 0
 
-            if timeout is None:
-                timeout = float(60 * 60 * 24 * 365)  # A year
+        if timeout is None:
+            timeout = float(60 * 60 * 24 * 365)  # A year
 
-            time_remaining = timeout
-            time_chunk = 0.01
-            finished = False
-            while not finished:
-                try:
+        time_remaining = timeout
+        time_chunk = 0.01
+        finished = False
+        while not finished:
+            try:
+                with self._lock:
                     self._wrapped_queue.put(item, block=False)
-                    finished = True
-                except KodiQueue.Full:
-                    Monitor.throw_exception_if_abort_requested(
-                        timeout=time_chunk)
-                    time_remaining -= time_chunk
-                    if time_remaining <= 0:
-                        raise KodiQueue.Full
+                finished = True
+            except KodiQueue.Full:
+                Monitor.throw_exception_if_abort_requested(
+                    timeout=time_chunk)
+                time_remaining -= time_chunk
+                if time_remaining <= 0:
+                    raise KodiQueue.Full
 
     def get(self,
             block: bool = True,
-            timeout: Optional[float] = None) -> object:
+            timeout: Optional[float] = None) ->  Union[MovieType, None]:
         """
 
         :param block:
         :param timeout:
         :return:
         """
-        with self._lock:
-            if not block:
-                timeout = 0
+        if not block:
+            timeout = 0
 
-            if timeout is None:
-                timeout = float(60 * 60 * 24 * 365)  # A year
-            time_remaining = timeout
-            time_chunk = 0.01
-            finished = False
-            while not finished:
-                try:
+        if timeout is None:
+            timeout = float(60 * 60 * 24 * 365)  # A year
+        time_remaining = timeout
+        time_chunk = 0.01
+        finished = False
+        item = None
+        while not finished:
+            try:
+                with self._lock:
                     item = self._wrapped_queue.get(block=False)
-                    finished = True
-                except KodiQueue.Empty:
-                    Monitor.throw_exception_if_abort_requested(
-                        timeout=time_chunk)
-                    time_remaining -= time_chunk
-                    if time_remaining <= 0:
-                        raise KodiQueue.Empty
+                finished = True
+            except KodiQueue.Empty:
+                Monitor.throw_exception_if_abort_requested(
+                    timeout=time_chunk)
+                time_remaining -= time_chunk
+                if time_remaining <= 0:
+                    raise KodiQueue.Empty
 
         return item
 
@@ -105,12 +106,13 @@ class KodiQueue(object):
 
         :return:
         """
-        while True:
-            try:
-                self.get(block=True, timeout=0.10)
-            except KodiQueue.Empty:
-                break
-        assert self._wrapped_queue.qsize() == 0
+        with self._lock:
+            while True:
+                try:
+                    self.get(block=True, timeout=0.10)
+                except KodiQueue.Empty:
+                    break
+            assert self._wrapped_queue.qsize() == 0
 
     def qsize(self) -> int:
         """
