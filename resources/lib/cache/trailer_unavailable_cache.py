@@ -68,12 +68,13 @@ class TrailerUnavailableCache(object):
         values = {Movie.UNIQUE_ID_TMDB: tmdb_id,
                   'timestamp': datetime.date.today()
                   }
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             values[Movie.MOVIEID] = library_id
             values[Movie.TITLE] = title
             values[Movie.YEAR] = year
             values[Movie.SOURCE] = source
 
+        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 cls._all_missing_tmdb_trailers[tmdb_id] = values
@@ -104,12 +105,13 @@ class TrailerUnavailableCache(object):
             'timestamp': datetime.date.today()
         }
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             values[Movie.UNIQUE_ID_TMDB] = tmdb_id
             values[Movie.TITLE] = title
             values[Movie.YEAR] = year
             values[Movie.SOURCE] = source
 
+        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
             if tmdb_id not in TrailerUnavailableCache._all_missing_library_trailers:
                 cls._all_missing_library_trailers[tmdb_id] = values
@@ -125,6 +127,7 @@ class TrailerUnavailableCache(object):
         :param library_id:
         :return:
         """
+        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
             if library_id not in cls._all_missing_library_trailers:
                 entry = None
@@ -169,6 +172,7 @@ class TrailerUnavailableCache(object):
         :param tmdb_id:
         :return:
         """
+        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 return None
@@ -194,6 +198,25 @@ class TrailerUnavailableCache(object):
 
         :return:
         """
+        #
+        # TODO: There are several issues here:
+        #
+        # tmdb_unsaved_changes and last save can be changed here, outside of
+        # the lock, while save_cache is in process of writing cache. In which
+        # save_cache will reset tmdb_unsaved_changes and tmdb_last_save AFTER
+        # we have exited.
+        #
+        # Also there are issues with multiple threads waiting on lock during
+        # a shutdown.
+        #
+        # Also, if the cache is large, it can take time to write AND it
+        # is more vulnerable to corruption, particularly at shutdown.
+        #
+        # Problems likely in other cache modules.
+        #
+        # Suggest using object_hook argument on json operations coupled with
+        # write to temp file, then rename.  See json_utils_basic.
+
         cls.tmdb_unsaved_changes += 1
         if cls.tmdb_last_save is None:
             cls.tmdb_last_save = datetime.datetime.now()
@@ -214,6 +237,7 @@ class TrailerUnavailableCache(object):
         if cls.tmdb_unsaved_changes == 0 and cls.library_unsaved_changes == 0:
             return
 
+        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
             if cls.tmdb_unsaved_changes > 0:
                 entries_to_delete = []
@@ -227,6 +251,7 @@ class TrailerUnavailableCache(object):
                 for entry_to_delete in entries_to_delete:
                     del cls._all_missing_tmdb_trailers[entry_to_delete]
 
+                Monitor.throw_exception_if_abort_requested()
                 try:
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_tmdb_trailers.json')
@@ -255,6 +280,7 @@ class TrailerUnavailableCache(object):
                 except Exception as e:
                     cls._logger.exception('')
 
+            Monitor.throw_exception_if_abort_requested()
             if cls.library_unsaved_changes > 0:
                 entries_to_delete = []
 
@@ -267,6 +293,8 @@ class TrailerUnavailableCache(object):
 
                 for entry_to_delete in entries_to_delete:
                     del cls._all_missing_library_trailers[entry_to_delete]
+
+                Monitor.throw_exception_if_abort_requested()
                 try:
 
                     path = os.path.join(Settings.get_remote_db_cache_path(),
