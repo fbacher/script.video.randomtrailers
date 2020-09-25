@@ -1323,7 +1323,17 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         if action.getId() != 107 and local_class.logger.isEnabledFor(LazyLogger.DEBUG):
             local_class.logger.debug('Key found:', key)
 
+        #################################################################
+        #   ACTIONS
         ##################################################################
+        #    DEBUG thread dump
+        #################################################################
+
+        if (local_class.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+                and action_id == xbmcgui.ACTION_PAGE_UP):
+            from common.debug_utils import Debug
+            Debug.dump_all_threads()
+
         if action_id == xbmcgui.ACTION_SHOW_INFO:
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug(key, 'Toggle Show_Info')
