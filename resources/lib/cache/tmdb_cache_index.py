@@ -954,12 +954,12 @@ class CacheIndex(object):
                 cls._last_saved_trailer_timestamp = datetime.datetime.now()
                 cls.save_parameter_cache()
                 cls.save_unprocessed_movie_cache(flush=True)
-                cls.save_cache(flush=True)
+                cls.save_found_trailer_cache(flush=True)
                 for cached_page_data in CachedPagesData.pages_data.values():
                     cached_page_data.clear()
             else:
                 cls.load_unprocessed_movie_cache()
-                cls.load_cache()
+                cls.load_found_trailer_cache()
 
     @classmethod
     def is_tmdb_cache_empty(cls):
