@@ -108,8 +108,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         :return:
         """
-        TrailerUnavailableCache.tmdb_cache_changed(flush=True)
-        TrailerUnavailableCache.library_cache_changed(flush=True)
+        TrailerUnavailableCache.save_cache()
         self._playable_trailers.clear()
 
     def prepare_for_restart_discovery(self, stop_thread: bool) -> None:
