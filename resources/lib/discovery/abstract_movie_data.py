@@ -94,20 +94,24 @@ class UniqQueue(object):
         clz = UniqQueue
         key = self.get_key(movie)
 
-        # type(self).logger.debug('movie:', movie[Movie.TITLE], 'source:',
+        # clz.logger.debug('movie:', movie[Movie.TITLE], 'source:',
         #                    movie[Movie.SOURCE], 'key:', key)
+        exception = None
         with self._lock:
             if key in self._duplicate_check:
-                if type(self).logger.isEnabledFor(LazyLogger.DEBUG):
-                    type(self).logger.debug('Duplicate movie:',
-                                             movie[Movie.TITLE],
-                                             'source:',
-                                             movie[Movie.SOURCE],
-                                             'key:', key)
-                raise DuplicateException()
+                exception = DuplicateException()
+            else:
+                self._queue.put(movie, False)
+                self._duplicate_check.add(key)
 
-            self._queue.put(movie, False)
-            self._duplicate_check.add(key)
+        if exception is not None:
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose('Duplicate movie:',
+                                         movie[Movie.TITLE],
+                                         'source:',
+                                         movie[Movie.SOURCE],
+                                         'key:', key)
+            raise exception
 
     def get(self, block=True, timeout=None):
         # type: (bool, Optional[float]) -> object
@@ -143,7 +147,7 @@ class UniqQueue(object):
         with self._lock:
             size = int(self._queue.qsize())
 
-        # type(self).logger.exit('size:', size)
+        # clz.logger.exit('size:', size)
         return size
 
     def get_key(self, movie):
@@ -215,7 +219,7 @@ class MovieList:
         self._movie_source = movie_source
         self._total_removed = 0
         self._play_count = dict()
-        self._key_to_movie = {}
+        self._key_to_movie: Dict[str, MovieType] = {}
         self._lock = threading.RLock()
         self._iter = None
         self._cursor = None
@@ -266,7 +270,7 @@ class MovieList:
             self._play_count.setdefault(key, 0)
             self._number_of_added_movies += 1
 
-        # type(self).logger.exit()
+        # clz.logger.exit()
 
     def get_trailers(self) -> List[MovieType]:
         return list(self._ordered_dict.values())
@@ -454,13 +458,18 @@ class MovieList:
 
         movies_in_line: List[str] = []
         line_length = 0
+        movie_title: str = ''
         for key in movies_with_same_count:
             Monitor.throw_exception_if_abort_requested()
             try:
-                movie = self._key_to_movie.get(key, 'unknown')
+                movie: Optional[MovieType] = self._key_to_movie.get(key, None)
+                if movie is not None:
+                    movie_title = movie.get(Movie.TITLE, 'unknown')
+                else:
+                    movie_title = 'Not in dictionary'
 
-                if line_length + len(movie) + 2 > MovieList.MAX_LINE_LENGTH:
-                    logger('   {}'.format(', '.join(movies_in_line)))
+                if line_length + len(movie_title) + 2 > MovieList.MAX_LINE_LENGTH:
+                    logger('   {}'.format(', '.join(movies_in_line)), trace=Trace.STATS)
                     del movies_in_line[:]
                     line_length = 0
             except AbortException:
@@ -469,7 +478,7 @@ class MovieList:
             except Exception as e:
                 clz.logger.exception()
 
-            movies_in_line.append(movie)
+            movies_in_line.append(movie_title)
             line_length += len(movies_in_line) + 2  # Slightly inaccurate
 
         if len(movies_in_line) > 0:
@@ -1036,7 +1045,7 @@ class AbstractMovieData(object):
                             try:
                                 get_attempts += 1
                                 with self._discovered_trailers_lock:
-                                    # cls.logger.debug_verbose('Have discovered_trailers_lock')
+                                    # clz.logger.debug_verbose('Have discovered_trailers_lock')
 
                                     trailer = self._discovered_trailers_queue.get(
                                         timeout=0.5)
@@ -1099,8 +1108,8 @@ class AbstractMovieData(object):
         get_attempts = 0
         put_attempts = 0
 
-        # if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-        #     cls.logger.debug_verbose('took', duration.seconds,
+        # if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        #     clz.logger.debug_verbose('took', duration.seconds,
         #                                'seconds', trace=Trace.STATS)
 
     def get_from_fetch_queue(self, player_starving=False):
