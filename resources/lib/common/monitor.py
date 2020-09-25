@@ -222,8 +222,13 @@ class Monitor(xbmc.Monitor):
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             cls._logger.enter()
         with cls._abort_listener_lock:
+            if cls._abort_listeners_informed:
+                return
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                cls._logger.enter()
             listeners_copy = copy.copy(cls._abort_listeners)
             del cls._abort_listeners[:]  # Unregister all
+            cls._abort_listeners_informed = True
 
         for listener in listeners_copy:
             # noinspection PyTypeChecker
@@ -549,11 +554,14 @@ class Monitor(xbmc.Monitor):
         :param timeout:
         :return:
         """
-        is_set = cls.startup_complete_event.wait(timeout=timeout)
-
-        if is_set:
-            cls._logger.debug(
-                'startup_complete_event was set', trace=Trace.TRACE_MONITOR)
+        is_set = False
+        approximate_wait_time = 0.0
+        while not is_set:
+            is_set = cls.startup_complete_event.wait(tmeout=None)
+            Monitor.throw_exception_if_abort_requested(timeout=0.1)
+            approximate_wait_time += 0.1
+            if timeout is not None and approximate_wait_time >= timeout:
+                break
 
         return is_set
 
