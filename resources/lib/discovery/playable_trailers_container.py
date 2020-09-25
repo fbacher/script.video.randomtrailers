@@ -122,10 +122,7 @@ class PlayableTrailersContainer(object):
         waited = 0
         while not finished:
             try:
-                # Blocking should not be a problem since it is quick. If full
-                # it will throw exception.
-
-                self._ready_to_play_queue.put(movie, block=True)
+                self._ready_to_play_queue.put(movie, block=True, timeout=0.05)
                 finished = True
                 self._number_of_added_trailers += 1
             except (queue.Full):
