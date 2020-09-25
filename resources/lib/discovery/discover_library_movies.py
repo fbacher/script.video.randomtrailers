@@ -61,10 +61,10 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         :param args:
         :param kwargs:
         """
-        local_class = DiscoverLibraryMovies
-        if local_class.logger is None:
-            local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = local_class.__name__
+        clz = DiscoverLibraryMovies
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__)
+        thread_name = clz.__name__
         if kwargs is None:
             kwargs = {}
         kwargs[Movie.SOURCE] = Movie.LIBRARY_SOURCE
@@ -86,7 +86,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverLibraryMovies
+        clz = DiscoverLibraryMovies
         self.start()
         #
         # In order to give good response during startup, block
@@ -100,23 +100,24 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             if countdown == 0:
                 break
 
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(': started')
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.debug_verbose(': started')
 
     def on_settings_changed(self):
         # type: () -> None
         """
             Rediscover trailers if the changed settings impacts this manager.
         """
-        local_class = DiscoverLibraryMovies
-        local_class.logger.enter()
+        clz = DiscoverLibraryMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.enter()
 
         try:
             if Settings.is_library_loading_settings_changed():
                 stop_thread = not Settings.get_include_library_trailers()
                 self.restart_discovery(stop_thread)
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
     def run(self):
         # type: () -> None
@@ -124,7 +125,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverLibraryMovies
+        clz = DiscoverLibraryMovies
         start_time = datetime.datetime.now()
         try:
             finished = False
@@ -135,8 +136,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                     self.wait_until_restart_or_shutdown()
                 except RestartDiscoveryException:
                     # Restart discovery
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Restarting discovery')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz.logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.get_include_library_trailers():
                         finished = True
@@ -146,7 +147,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         except AbortException:
             return  # Just exit thread
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
         self.finished_discovery()
 
@@ -155,9 +156,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         self._some_movies_discovered_event.set()
 
         duration = datetime.datetime.now() - start_time
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug('Time to discover:', duration.seconds, 'seconds',
-                               trace=Trace.STATS)
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
+                             trace=Trace.STATS)
 
     def create_query(self,
                      included_genres,  # type: List[str]
@@ -174,7 +175,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         :param excluded_tags:
         :return:
         """
-        local_class = DiscoverLibraryMovies
+        clz = DiscoverLibraryMovies
         formatted_genre_list = ['"%s"' % genre for genre in included_genres]
         formatted_genre_list = ', '.join(formatted_genre_list)
 
@@ -261,11 +262,11 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         query = (query_prefix + query_filter_prefix +
                  query_filter + query_suffix)
 
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug('query', 'genres:', included_genres,
-                               'excluded_genres:', excluded_genres, 'tags:',
-                               included_tags, 'excluded_tags:',
-                               excluded_tags, query)
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.debug_verbose('query', 'genres:', included_genres,
+                                     'excluded_genres:', excluded_genres, 'tags:',
+                                     included_tags, 'excluded_tags:',
+                                     excluded_tags, query)
 
         return query
 
@@ -303,7 +304,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         #    If the lion's share of movies in the pool require significant
         #    extra processing because they don't have local trailers, then
         #    the fetcher can get overwhelmed.
-        local_class = DiscoverLibraryMovies
+        clz = DiscoverLibraryMovies
         self._selected_keywords = []
         self._excluded_keywords = []
         self._selected_genres = []
@@ -330,8 +331,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         query_result = JsonUtilsBasic.get_kodi_json(query, dump_results=False)
         Monitor.throw_exception_if_abort_requested()
         elapsed_time = datetime.datetime.now() - start_time
-        local_class.logger.debug('Library query seconds:',
-                           elapsed_time.total_seconds())
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.debug('Library query seconds:',
+                             elapsed_time.total_seconds())
 
         movies_skipped = 0
         movies_found = 0
@@ -364,23 +366,24 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         for movie in movies:
             self.throw_exception_on_forced_to_stop()
             try:
-                #local_class.logger.debug('movie:', movie)
+                #clz.logger.debug('movie:', movie)
                 movies_found += 1
                 if Settings.get_hide_watched_movies() and Movie.LAST_PLAYED in movie:
                     if (self.get_days_since_last_played(movie[Movie.LAST_PLAYED],
                                                         movie[Movie.TITLE]) >
                             Settings.get_minimum_days_since_watched()):
                         movies_skipped += 1
-                        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                            local_class.logger.debug(movie[Movie.TITLE],
-                                               'will not be played due to Hide',
-                                               'Watched Movies')
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose(movie[Movie.TITLE],
+                                                           'will not be played due to '
+                                                           'Hide',
+                                                           'Watched Movies')
                         continue
 
                 # Normalize certification
 
-                # if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                #     local_class.logger.debug('mpaa:', movie[Movie.MPAA],
+                # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                #     clz.logger.debug('mpaa:', movie[Movie.MPAA],
                 #                        'movie:', movie[Movie.TITLE])
 
                 if certifications.is_valid(movie.get(Movie.MPAA, '')):
@@ -390,15 +393,17 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                     movie.get(Movie.MPAA), movie.get(Movie.ADULT))
                 movie[Movie.ADULT] = movie.get(Movie.ADULT, False)
                 if not isinstance(movie[Movie.ADULT], bool):
-                    local_class.logger(movie[Movie.TITLE], 'has invalid ADULT field: ',
-                                 movie[Movie.ADULT])
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose(movie[Movie.TITLE],
+                                                 'has invalid ADULT field: ',
+                                                 movie[Movie.ADULT])
                     movie[Movie.ADULT] = str(movie[Movie.ADULT]).lower == 'true'
 
                 movie[Movie.SOURCE] = Movie.LIBRARY_SOURCE
                 movie.setdefault(Movie.TRAILER, '')
                 movie[Movie.TYPE] = ''
 
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     Debug.validate_basic_movie_properties(movie)
 
                 if Settings.is_enable_movie_stats():
@@ -448,7 +453,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception:
-                local_class.logger.exception('')
+                clz.logger.exception('')
         try:
             if len(library_movies) >= 0:
                 self.add_to_discovered_trailers(library_movies)
@@ -462,25 +467,24 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug('Local movies found in library:',
+        if (clz.logger.isEnabledFor(LazyLogger.DEBUG)
+                and clz.logger.is_trace_enabled((Trace.STATS))):
+            clz.logger.debug('Local movies found in library:',
                                movies_found, trace=Trace.STATS)
-            local_class.logger.debug('Local movies filtered out',
+            clz.logger.debug('Local movies filtered out',
                                movies_skipped, trace=Trace.STATS)
-            local_class.logger.debug('Movies with local trailers:',
+            clz.logger.debug('Movies with local trailers:',
                                movies_with_local_trailers, trace=Trace.STATS)
-            local_class.logger.debug('Movies with trailer URLs:',
+            clz.logger.debug('Movies with trailer URLs:',
                                movies_with_trailer_urls, trace=Trace.STATS)
-            local_class.logger.debug('Movies with no trailer information:',
+            clz.logger.debug('Movies with no trailer information:',
                                movies_without_trailer_info, trace=Trace.STATS)
 
         if Settings.is_enable_movie_stats():
-            local_class.logger('Starting to report Movie Stats')
             movie_data.report_data()
             del movie_data
-            local_class.logger('Finished reporting Movie Stats')
 
 # noinspection Annotator,PyArgumentList
 
@@ -498,9 +502,9 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         """
 
         """
-        local_class = DiscoverLibraryURLTrailerMovies
-        local_class.logger = module_logger.getChild(local_class.__class__.__name__)
-        thread_name = local_class.__name__
+        clz = DiscoverLibraryURLTrailerMovies
+        clz.logger = module_logger.getChild(clz.__class__.__name__)
+        thread_name = clz.__name__
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.LIBRARY_URL_TRAILER
         super().__init__(group=None, target=None, thread_name=thread_name,
@@ -517,8 +521,9 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
             prior to the settings change, therefore, only do something if
             we are no longer active.
         """
-        local_class = DiscoverLibraryURLTrailerMovies
-        local_class.logger.enter()
+        clz = DiscoverLibraryURLTrailerMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.enter()
 
         try:
             stop_thread = not Settings.get_include_library_remote_trailers()
@@ -527,7 +532,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         except AbortException:
             pass  # don't pass exception to handler
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
     def discover_basic_information(self):
         # type: () -> None
@@ -535,9 +540,9 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverLibraryURLTrailerMovies
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(' dummy method')
+        clz = DiscoverLibraryURLTrailerMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.warning('dummy method')
 
     def run(self):
         # type: () -> None
@@ -545,9 +550,9 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverLibraryURLTrailerMovies
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(' dummy thread, Join Me!')
+        clz = DiscoverLibraryURLTrailerMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.warning('dummy thread, Join Me!')
         finished = False
         while not finished:
             try:
@@ -555,12 +560,13 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                 self.wait_until_restart_or_shutdown()
             except RestartDiscoveryException:
                 # Restart discovery
-                local_class.logger.debug('Restarting discovery')
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug_verbose('Restarting discovery')
                 self.prepare_for_restart_discovery()
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
-                local_class.logger.exception('')
+                clz.logger.exception('')
 
 
 # noinspection Annotator
@@ -577,9 +583,9 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         """
 
         """
-        local_class = DiscoverLibraryNoTrailerMovies
-        local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = local_class.__name__
+        clz = DiscoverLibraryNoTrailerMovies
+        clz.logger = module_logger.getChild(clz.__name__)
+        thread_name = clz.__name__
         self._validate_number_of_trailers = 0
         self._reported_trailers = 0
         kwargs = {}
@@ -598,15 +604,16 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             was active prior to the settings change, therefore, only do
             something if we are no longer active.
         """
-        local_class = DiscoverLibraryNoTrailerMovies
-        local_class.logger.enter()
+        clz = DiscoverLibraryNoTrailerMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.enter()
 
         try:
             stop_thread = not Settings.get_include_library_no_trailer_info()
             if stop_thread:
                 self.restart_discovery(stop_thread)
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
     def discover_basic_information(self):
         # type: () -> None
@@ -614,9 +621,9 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverLibraryNoTrailerMovies
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(' dummy method')
+        clz = DiscoverLibraryNoTrailerMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.warning('dummy method')
 
     def run(self):
         # type: () -> None
@@ -624,9 +631,9 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverLibraryNoTrailerMovies
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(' dummy thread, Join Me!')
+        clz = DiscoverLibraryNoTrailerMovies
+        if clz.logger.isEnabledFor(LazyLogger.WARNING):
+            clz.logger.warning('dummy thread, Join Me!')
         finished = False
         while not finished:
             try:
@@ -634,13 +641,13 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                 self.wait_until_restart_or_shutdown()
             except RestartDiscoveryException:
                 # Restart discovery
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('Restarting discovery')
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    clz.logger.debug('Restarting discovery')
                 self.prepare_for_restart_discovery()
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
-                local_class.logger.exception('')
+                clz.logger.exception('')
 
     def get_days_since_last_played(self, last_played_field, movie_name):
         # type: (str, str) -> int
@@ -649,7 +656,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             was last played. For invalid or missing values, -1 will be
             returned.
         """
-        local_class = DiscoverLibraryNoTrailerMovies
+        clz = DiscoverLibraryNoTrailerMovies
         days_since_played = int(-1)
         try:
             if last_played_field is not None and last_played_field != '':
@@ -661,9 +668,9 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug('Invalid lastPlayed field for', movie_name,
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                clz.logger.debug('Invalid lastPlayed field for', movie_name,
                                    ':', last_played_field)
-            local_class.logger.exception('')
+            clz.logger.exception('')
             days_since_played = 365
         return days_since_played
