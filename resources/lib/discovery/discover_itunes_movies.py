@@ -139,16 +139,22 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             local_class.logger.debug('Time to discover:', duration.seconds,
                                      'seconds', trace=Trace.STATS)
 
+    def run_worker(self):
+        # type: () -> None
+        """
+
+        :return:
+        """
         local_class = DiscoverItunesMovies
         Monitor.throw_exception_if_abort_requested()
 
         self._selected_genres = ''
         self._excluded_genres = ''
         if Settings.get_filter_genres():
-            self._selected_genres = GenreUtils.get_external_genre_ids_as_query(
-                GenreUtils.ITUNES_DATABASE, exclude=False, or_operator=True)
-            self._excluded_genres = GenreUtils.get_external_genre_ids_as_query(
-                GenreUtils.ITUNES_DATABASE, exclude=True, or_operator=True)
+            self._selected_genres = GenreUtils.get_external_genre_ids(
+                GenreUtils.ITUNES_DATABASE, exclude=False)
+            self._excluded_genres = GenreUtils.get_external_genre_ids(
+                GenreUtils.ITUNES_DATABASE, exclude=True)
 
         show_only_itunes_trailers_of_this_type = \
             Settings.get_include_itunes_trailer_type()
@@ -209,7 +215,6 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #   local_class.logger.debug('Itunes parsed_content type:',
         #                type(parsed_content).__name__)
 
-        DiskUtils.RandomGenerator.shuffle(parsed_content)
         country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         unrated_id = certifications.get_unrated_certification().get_preferred_id()
@@ -383,10 +388,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         elif Settings.get_filter_genres():
                             # iTunes has no keywords
 
-                            # If no genres selected, then selection is not
-                            # constrained by the empty set of selected genres.
-                            if (len(self._selected_genres) > 0
-                                    and set(self._selected_genres).isdisjoint(set(genres))):
+                            if (len(self._selected_genres) > 0 and
+                                    (len(genres) > 0) and
+                                    set(self._selected_genres).isdisjoint(set(genres))):
                                 keep_promotion = False
                                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                                     local_class.logger.debug(
@@ -465,10 +469,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         try:
             Monitor.throw_exception_if_abort_requested()
-            youtube_data_stream_extractor_proxy = \
+            youtube_data_extractor = \
                 YDStreamExtractorProxy.get_instance()
-            downloadable_trailers: List[Dict[str, Any]] = youtube_data_stream_extractor_proxy.get_info(
-                feature_url)
+            downloadable_trailers: List[
+                Dict[str, Any]] = youtube_data_extractor.get_info(feature_url)
 
             # Have a series of released promotions for a movie.
             # Each promotion can have different formats based upon
