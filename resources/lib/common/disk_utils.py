@@ -395,11 +395,11 @@ class DiskUtils(object):
                 cls._logger.debug('Not supported on this platform')
             usage = None
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             if usage is None:
-                cls._logger.debug('Result: None')
+                cls._logger.debug_extra_verbose('Result: None')
             else:
-                cls._logger.debug('total:', usage['total'],
+                cls._logger.debug_extra_verbose('total:', usage['total'],
                                   'used', usage['used'],
                                   'free',  usage['free'])
 
@@ -420,7 +420,6 @@ class DiskUtils(object):
         usage_data = None
         fileMap = {}
 
-        cls._logger.enter('top:', top, 'patterns:', patterns)
         usage_data_map = {}
         try:
             free = 0
@@ -505,8 +504,8 @@ class DiskUtils(object):
                                         and cache_type == 'json'):
                                     if ((now - mod_time).total_seconds() >
                                             db_cache_file_expiration_seconds):
-                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                                            cls._logger.debug(
+                                        if cls._logger.isEnabledFor(LazyLogger.INFO):
+                                            cls._logger.info(
                                                 'deleting:', path)
                                         os.remove(path)
                                         deleted = True
@@ -518,8 +517,8 @@ class DiskUtils(object):
                                         and cache_type == 'trailer'):
                                     if ((now - mod_time).total_seconds() >
                                             trailer_cache_file_expiration_seconds):
-                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                                            cls._logger.debug(
+                                        if cls._logger.isEnabledFor(LazyLogger.INFO):
+                                            cls._logger.info(
                                                 'deleting:', path)
                                         os.remove(path)
                                         deleted = True
