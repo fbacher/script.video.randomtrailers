@@ -59,10 +59,6 @@ if REMOTE_DEBUG:
                 pydevd.settrace('localhost', stdoutToServer=True,
                                 stderrToServer=True, suspend=False,
                                 wait_for_ready_to_run=True)
-
-            except AbortException:
-                xbmc.log('AbortException at startup?', xbmc.LOGDEBUG)
-                exit(0)
             except Exception as e:
                 xbmc.log(
                     ' Looks like remote debugger was not started prior to plugin start',
@@ -70,9 +66,9 @@ if REMOTE_DEBUG:
         except BaseException:
             xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
     except ImportError:
+        REMOTE_DEBUG = False
         msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
         xbmc.log(msg, xbmc.LOGDEBUG)
-        sys.stderr.write(msg)
         pydevd = 1
     except BaseException:
         xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
@@ -104,8 +100,6 @@ class MainThreadLoop(object):
 
         type(self)._logger = module_logger.getChild(
             self.__class__.__name__)
-        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
 
         # Calls that need to be performed on the main thread
 
@@ -131,9 +125,6 @@ class MainThreadLoop(object):
 
         :return:
         """
-        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
-
         try:
             # Cheat and start the back_end_bridge here, although this method
             # should just be a loop.
@@ -292,7 +283,7 @@ def bootstrap_random_trailers():
                 pydevd.stoptrace()
             except Exception:
                 pass
-        exit(0)
+        sys.exit(0)
 
 
 def post_install():
@@ -314,7 +305,7 @@ def bootstrap_unit_test():
     suite.run_suite()
 
 
-if __name__ == '__main__':  # TODO: need quick exit if backend is not running
+if __name__ == '__main__':
     try:
         run_random_trailers = True
         argc = len(sys.argv) - 1
@@ -324,11 +315,6 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
                 is_unit_test = True
                 run_random_trailers = False
         if run_random_trailers:
-            if Constants.FRONTEND_ADDON_UTIL is None:
-                module_logger.info('The plugin: ', Constants.FRONTEND_ID,
-                                   'is not installed. Exiting')
-                exit(0)
-
             post_install()
             profile = False
             if profile:
@@ -347,4 +333,4 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
                 pydevd.stoptrace()
             except Exception:
                 pass
-        exit(0)
+        sys.exit(0)
