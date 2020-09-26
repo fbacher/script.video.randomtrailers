@@ -32,7 +32,7 @@ from backend.json_utils_basic import (JsonUtilsBasic)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class TrailerCache(object):
+class TrailerCache:
     """
     Manages the optional cache for movie trailers. Also manages the cache
     for trailers which have had their volume normalized.
