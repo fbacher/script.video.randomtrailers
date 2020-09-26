@@ -22,6 +22,7 @@ from common.constants import Constants, Movie
 from common.logger import (LazyLogger)
 from common.exceptions import (AbortException, TrailerIdException)
 from common.messages import Messages
+from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import Settings
 from backend import backend_constants
@@ -173,6 +174,7 @@ class Cache(object):
                                                     'path:', path)
                 return None
 
+            Monitor.throw_exception_if_abort_requested()
             with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
                 try:
                     trailer = json.load(cacheFile, encoding='utf-8')
@@ -211,6 +213,9 @@ class Cache(object):
                               ) -> None:
         """
             Write the given movie information into the cache as JSON
+
+            Due to the small size of these files, will not check for
+            AbortException during write nor save old version of file.
         """
         try:
             if source is None or source not in Movie.LIB_TMDB_ITUNES_SOURCES:
@@ -227,6 +232,7 @@ class Cache(object):
                 cls._logger.error(messages.get_msg(
                     Messages.CAN_NOT_WRITE_FILE) % path)
                 return None
+            Monitor.throw_exception_if_abort_requested()
             with io.open(path, mode='wt', newline=None,
                          encoding='utf-8', ) as cacheFile:
                 json_text = json.dumps(trailer,
