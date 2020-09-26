@@ -51,10 +51,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         """
 
         """
-        local_class = DiscoverItunesMovies
-        if local_class.logger is None:
-            local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = local_class.__name__
+        clz = DiscoverItunesMovies
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__)
+        thread_name = clz.__name__
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.ITUNES_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
@@ -72,19 +72,17 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverItunesMovies
+        clz = DiscoverItunesMovies
         self.start()
-
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(': started')
 
     def on_settings_changed(self):
         # type: () -> None
         """
             Rediscover trailers if the changed settings impacts this manager.
         """
-        local_class = DiscoverItunesMovies
-        local_class.logger.enter()
+        clz = DiscoverItunesMovies
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz.logger.enter()
 
         try:
             if Settings.is_itunes_loading_settings_changed():
@@ -93,10 +91,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 self._duplicate_check.clear()
 
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
     def is_duplicate(self, key):
-        local_class = DiscoverItunesMovies
+        clz = DiscoverItunesMovies
         result = False
         if key in self._duplicate_check:
             result = True
@@ -111,7 +109,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverItunesMovies
+        clz = DiscoverItunesMovies
         start_time = datetime.datetime.now()
         try:
             finished = False
@@ -121,8 +119,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     self.wait_until_restart_or_shutdown()
                 except RestartDiscoveryException:
                     # Restart discovery
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Restarting discovery')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.get_include_itunes_trailers():
                         finished = True
@@ -131,12 +129,12 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         except AbortException:
             return  # Just exit thread
         except Exception:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
         self.finished_discovery()
         duration = datetime.datetime.now() - start_time
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug('Time to discover:', duration.seconds,
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(Trace.STATS):
+            clz.logger.debug('Time to discover:', duration.seconds,
                                      'seconds', trace=Trace.STATS)
 
     def run_worker(self):
@@ -145,7 +143,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         :return:
         """
-        local_class = DiscoverItunesMovies
+        clz = DiscoverItunesMovies
         Monitor.throw_exception_if_abort_requested()
 
         self._selected_genres = ''
@@ -158,17 +156,17 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         show_only_itunes_trailers_of_this_type = \
             Settings.get_include_itunes_trailer_type()
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug('iTunesTrailer_type:',
-                                     show_only_itunes_trailers_of_this_type)
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose('iTunesTrailer_type:',
+                                           show_only_itunes_trailers_of_this_type)
 
         # Get index of all current trailers for given type
 
         json_url = iTunes.get_url_for_trailer_type(
             show_only_itunes_trailers_of_this_type)
         json_url = backend_constants.APPLE_URL_PREFIX + json_url
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug('iTunes json_url', json_url)
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose('iTunes json_url', json_url)
         attempts = 0
         parsed_content = None
         timeout = 1 * 60  # one minute
@@ -181,13 +179,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             if parsed_content is None:
                 Monitor.throw_exception_if_abort_requested(timeout=timeout)
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug(f'Itunes read attempt {attempts}'
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    clz.logger.debug(f'Itunes read attempt {attempts}'
                                              f' failed waiting {timeout} seconds')
         if parsed_content is None:
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug(f'Failed to get trailers from iTunes.'
-                                         f' giving up.')
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                clz.logger.debug(f'Failed to get trailers from iTunes.'
+                                 f' giving up.')
             return
 
         DiskUtils.RandomGenerator.shuffle(parsed_content)
@@ -231,8 +229,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #
         # Create Kodi movie entries from what iTunes has given us.
         #
-        # if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-        #   local_class.logger.debug('Itunes parsed_content type:',
+        # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        #   clz.logger.debug('Itunes parsed_content type:',
         #                type(parsed_content).__name__)
 
         country_id = Settings.get_country_iso_3166_1().lower()
@@ -242,8 +240,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             try:
                 Monitor.throw_exception_if_abort_requested()
 
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('value: ', itunes_movie)
+                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                    clz.logger.debug_extra_verbose('value: ', itunes_movie)
                 # If we have seen this before, then skip it.
 
                 title = itunes_movie.get(Movie.TITLE, None)
@@ -256,8 +254,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 # TODO: DELETE ME!
 
                 release_date_string = itunes_movie.get('releasedate', '')
-                # if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                # local_class.logger.debug('release_date_string: ',
+                # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                # clz.logger.debug('release_date_string: ',
                 #            release_date_string)
                 if release_date_string != '':
                     release_date_string = STRIP_TZ_PATTERN.sub(
@@ -266,17 +264,19 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     # "Thu, 14 Feb 2019 00:00:00 -0800",
                     release_date = Utils.strptime(
                         release_date_string, '%a, %d %b %Y %H:%M:%S')
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        local_class.logger.debug_extra_verbose('title:', title, 'release_date_string:',
-                                                               release_date_string, 'release_date:',
-                                                               release_date.strftime('%d-%m-%Y'))
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz.logger.debug_extra_verbose('title:', title,
+                                                       'release_date_string:',
+                                                       release_date_string,
+                                                       'release_date:',
+                                                       release_date.strftime('%d-%m-%Y'))
                     #
                 else:
                     release_date = datetime.date.today()
 
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if abs((release_date - EPOCH_TIME).total_seconds()) < 3600 * 25:
-                        local_class.logger.debug_extra_verbose('Suspicious looking release date:',
+                        clz.logger.debug_extra_verbose('Suspicious looking release date:',
                                                                release_date.strftime('%d-%m-%Y'))
                         #
                         # Force date to be today since it looks like it was never
@@ -287,23 +287,23 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 if isinstance(studio, str):
                     studio = [studio]
 
-                # local_class.logger.debug('studio:', studio)
+                # clz.logger.debug('studio:', studio)
 
                 poster = itunes_movie.get('poster', '')
 
-                # local_class.logger.debug('poster:', poster)
+                # clz.logger.debug('poster:', poster)
 
                 thumb = poster.replace(
                     'poster.jpg', 'poster-xlarge.jpg')
                 fanart = poster.replace('poster.jpg', 'background.jpg')
 
-                # local_class.logger.debug('thumb:', thumb, ' fanart:', fanart)
+                # clz.logger.debug('thumb:', thumb, ' fanart:', fanart)
 
                 # poster_2x = itunes_movie.get('poster_2x', '')
-                # local_class.logger.debug('poster_2x: ', poster_2x)
+                # clz.logger.debug('poster_2x: ', poster_2x)
 
                 # location = itunes_movie.get('location', '')
-                # local_class.logger.debug('location: ', location)
+                # clz.logger.debug('location: ', location)
 
                 # Normalize rating
                 # We expect the attribute to be named 'mpaa', not 'rating'
@@ -313,25 +313,21 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
                 #  rating = Certifications.get_certification(
                 #      itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('certification: ',
-                                             certification.get_label())
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    clz.logger.debug_extra_verbose('certification: ',
+                                                   certification.get_label())
 
                 genres = itunes_movie.get('genre', '')
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('genres: ', genres)
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    clz.logger.debug_extra_verbose('genres: ', genres)
 
                 directors = itunes_movie.get('directors', [])
                 if isinstance(directors, str):
                     directors = [directors]
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('directors: ', directors)
 
                 actors = itunes_movie.get('actors', [])
                 if isinstance(actors, str):
                     actors = [actors]
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('actors: ', actors)
                 cast = []
                 for actor in actors:
                     fake_cast_entry = {}
@@ -357,16 +353,16 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 exclude_types_set = ITunes.get_excluded_types()
                 itunes_trailers_list = itunes_movie.get('trailers', [])
 
-                # if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                #   local_class.logger.debug('itunes_trailers_list: ',
+                # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                #   clz.logger.debug('itunes_trailers_list: ',
                 #                itunes_trailers_list)
                 for itunes_trailer in itunes_trailers_list:
                     try:
                         Monitor.throw_exception_if_abort_requested()
 
                         keep_promotion = True
-                        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                            local_class.logger.debug(
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose(
                                 'itunes_trailer: ', itunes_trailer)
 
                         # post_date = itunes_trailer.get('postdate', '')
@@ -374,8 +370,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                         url = itunes_trailer.get('url', '')
                         adult = itunes_trailer.get('adult', False)
-                        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                            local_class.logger.debug('url: ', url)
+                        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                            clz.logger.debug_extra_verbose('url: ', url)
 
                         trailer_type = itunes_trailer.get('type', '')
                         if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
@@ -1077,6 +1073,6 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
         return movie
