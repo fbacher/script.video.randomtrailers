@@ -366,7 +366,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                 'itunes_trailer: ', itunes_trailer)
 
                         # post_date = itunes_trailer.get('postdate', '')
-                        # local_class.logger.debug('post_date: ', post_date)
+                        # clz.logger.debug('post_date: ', post_date)
 
                         url = itunes_trailer.get('url', '')
                         adult = itunes_trailer.get('adult', False)
@@ -374,30 +374,30 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             clz.logger.debug_extra_verbose('url: ', url)
 
                         trailer_type = itunes_trailer.get('type', '')
-                        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                            local_class.logger.debug('type: ', trailer_type)
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose('type: ', trailer_type)
 
                         if trailer_type.startswith('Clip') and not Settings.get_include_clips():
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug(
+                            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                                clz.logger.debug_extra_verbose(
                                     'Rejecting due to clip')
                             keep_promotion = False
                         elif trailer_type in exclude_types_set:
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug(
+                            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                                clz.logger.debug_extra_verbose(
                                     'Rejecting due to exclude Trailer Type')
                             keep_promotion = False
                         elif not Settings.get_include_featurettes() and (
                                 trailer_type == 'Featurette'):
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug(
+                            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                                clz.logger.debug_extra_verbose(
                                     'Rejecting due to Featurette')
                             keep_promotion = False
                         elif ((Settings.get_include_itunes_trailer_type() ==
                                 iTunes.COMING_SOON) and
                               (release_date < datetime.date.today())):
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug(
+                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                clz.logger.debug_extra_verbose(
                                     'Rejecting due to COMING_SOON and already released')
                             keep_promotion = False
 
@@ -408,18 +408,18 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                     (len(genres) > 0) and
                                     set(self._selected_genres).isdisjoint(set(genres))):
                                 keep_promotion = False
-                                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                    local_class.logger.debug(
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                    clz.logger.debug_verbose(
                                         'Rejecting due to genre')
                             if set(self._excluded_genres).intersection(set(genres)):
                                 keep_promotion = False
-                                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                    local_class.logger.debug(
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                    clz.logger.debug_verbose(
                                         'Rejecting due to excluded genre')
                         elif not certifications.filter(certification):
                             keep_promotion = False
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug('Rejecting due to rating:',
+                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                clz.logger.debug_verbose('Rejecting due to certification:',
                                                          certification.get_label())
                         if keep_promotion:
                             feature_url = 'https://trailers.apple.com' + \
@@ -438,21 +438,19 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                         fanart=fanart)
 
                             if movie is not None:
-                                if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                    local_class.logger.debug(
-                                        'Adding iTunes trailer: ', movie[Movie.TITLE])
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                                     Debug.validate_basic_movie_properties(
                                         movie)
                                 self.add_to_discovered_trailers(movie)
                     except AbortException:
                         reraise(*sys.exc_info())
                     except Exception as e:
-                        local_class.logger.exception('')
+                        clz.logger.exception('')
 
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:
-                local_class.logger.exception('')
+                clz.logger.exception('')
         return
 
     def get_movie_info(self,
@@ -470,7 +468,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                        ) -> MovieType:
         """
         """
-        local_class = DiscoverItunesMovies
+        clz = DiscoverItunesMovies
         if genres is None:
             genres = []
         if directors is None:
@@ -547,34 +545,34 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 if media_type not in DOWNLOADABLE_TYPES:
                     continue
                 if language != '' and language != Settings.get_lang_iso_639_1():
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Rejecting:', title, 'media-type:',
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose('Rejecting:', title, 'media-type:',
                                                  media_type, 'due to language:',
                                                  language)
                     continue
-                elif language == '' and local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                    local_class.logger.debug('Empty language specified for:',
+                elif language == '' and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug_verbose('Empty language specified for:',
                                              title, 'from media-type:', media_type)
                 if (not Settings.get_include_clips() and
                         media_type == 'clip'):
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Rejecting due to clip')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz.logger.debug_extra_verbose('Rejecting due to clip')
                     keep_promotion = False
                 elif not Settings.get_include_featurettes() and (
                         media_type == 'featurette'):
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Rejecting due to Featurette')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz.logger.debug_extra_verbose('Rejecting due to Featurette')
                     keep_promotion = False
                 elif not Settings.get_include_teasers() and (
                         media_type == 'teaser'):
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Rejecting due to Teaser')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose('Rejecting due to Teaser')
                     keep_promotion = False
                 elif ((Settings.get_include_itunes_trailer_type() ==
                        iTunes.COMING_SOON) and
                       (release_date < datetime.date.today())):
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug(
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz.logger.debug_extra_verbose(
                             'Rejecting due to COMING_SOON and already released')
                     keep_promotion = False
 
@@ -585,20 +583,20 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         url = promotion_format.get('url', '')
 
                         if Utils.is_trailer_from_cache(url):
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug('test passed')
+                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                                clz.logger.debug('test passed')
 
                         if language != '' and language != Settings.get_lang_iso_639_1():
-                            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                                local_class.logger.debug('Rejecting:', title,
+                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                clz.logger.debug_verbose('Rejecting:', title,
                                                          'due to language:',
                                                          language, 'from media-type:',
                                                          media_type, 'format:',
                                                          format)
                                 continue
-                        elif language == '' and local_class.logger.isEnabledFor(
-                                LazyLogger.DEBUG):
-                            local_class.logger.debug('Empty language specified for:',
+                        elif language == '' and clz.logger.isEnabledFor(
+                                LazyLogger.DEBUG_VERBOSE):
+                            clz.logger.debug_verbose('Empty language specified for:',
                                                      title, 'from media-type:',
                                                      media_type, 'format:', format)
 
