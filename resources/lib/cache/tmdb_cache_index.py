@@ -450,6 +450,8 @@ class CachedPagesData:
                            Settings.get_remote_db_cache_path())
         self._path = os.path.join(Settings.get_remote_db_cache_path(),
                                   'index', self._path)
+        self._temp_path = os.path.join(Settings.get_remote_db_cache_path(),
+                                       'index', f'tmdb{key}.json.tmp')
         # type:
         self._cached_page_by_key: Optional[Dict[str, CachedPage]] = None
 
@@ -817,17 +819,19 @@ class CachedPagesData:
             return
         saved_pages = len(self._cached_page_by_key.items())
         path = xbmcvfs.validatePath(self._path)
+        temp_path = xbmcvfs.validatePath(self._temp_path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
 
             Monitor.throw_exception_if_abort_requested()
-            with CacheIndex.lock, io.open(path, mode='wt', newline=None,
+            with CacheIndex.lock, io.open(temp_path, mode='wt', newline=None,
                                           encoding='utf-8') as cacheFile:
                 json_dict = self.to_json()
                 json_text = json.dumps(json_dict,
                                        encoding='utf-8',
                                        ensure_ascii=False,
+                                       object_handler=CacheIndex.abort_checker,
                                        default=CacheIndex.handler,
                                        indent=3, sort_keys=True)
                 cacheFile.write(json_text)
@@ -835,6 +839,12 @@ class CachedPagesData:
                 self._number_of_unsaved_changes = 0
                 self._time_of_last_save = datetime.datetime.now()
 
+            try:
+                os.replace(path, path)
+                os.rename(temp_path, path)
+            except OSError:
+                self._logger.exception(f'Failed to replace move information'
+                                       f' planned for download: {path}')
             Monitor.throw_exception_if_abort_requested()
         except AbortException:
             reraise(*sys.exc_info())
@@ -1158,6 +1168,7 @@ class CacheIndex(object):
                     json_text = json.dumps(cls.get_unprocessed_movies(),
                                            encoding='utf-8',
                                            ensure_ascii=False,
+                                           object_handler=CacheIndex.abort_checker,
                                            default=CacheIndex.handler,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
@@ -1258,6 +1269,16 @@ class CacheIndex(object):
                 CacheIndex.logger().exception('')
 
     @staticmethod
+    def abort_checker(dct: Dict[str, Any]) -> Dict[str, Any]:
+        """
+
+        :param dct:
+        :return:
+        """
+        Monitor.throw_exception_if_abort_requested()
+        return dct
+
+    @staticmethod
     def handler(obj):
         # type: (Any) -> Any
         """
@@ -1265,10 +1286,9 @@ class CacheIndex(object):
         :param obj:
         :return:
         """
+        Monitor.throw_exception_if_abort_requested()
         if hasattr(obj, 'isoformat'):
             return obj.isoformat()
-        # else:  # if isinstance(obj, ...):
-        #     return json.JSONEncoder.default(cls, obj)
         else:
             raise TypeError('Object of type %s with value of %s is not JSON serializable' % (
                 type(obj), repr(obj)))

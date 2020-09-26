@@ -108,22 +108,34 @@ class TFHCache:
                             'index', 'tfh_trailers.json')
 
         path = xbmcvfs.validatePath(path)
+        tmp_path = os.path.join(Settings.get_remote_db_cache_path(),
+                            'index', 'tfh_trailers.json.tmp')
+
+        tmp_path = xbmcvfs.validatePath(tmp_path)
         parent_dir, file_name = os.path.split(path)
         if not os.path.exists(parent_dir):
             DiskUtils.create_path_if_needed(parent_dir)
 
+        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
             try:
-                with io.open(path, mode='at', newline=None,
+                with io.open(tmp_path, mode='at', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     json_text = json.dumps(cls._cached_trailers,
                                            encoding='utf-8',
                                            ensure_ascii=False,
+                                           object_handler=TFHCache.abort_checker,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
                     cls._unsaved_trailer_changes = 0
+
+                try:
+                    os.replace(tmp_path, path)
+                except OSError:
+                    cls._logger.exception(f'Failed to replace missing trailer'
+                                          f' information cache: {path}')
             except IOError as e:
                 TFHCache.logger().exception('')
             except Exception as e:
@@ -149,7 +161,9 @@ class TFHCache:
                 with TFHCache.lock, io.open(path, mode='rt', newline=None,
                                             encoding='utf-8') as cacheFile:
                     cls._cached_trailers = json.load(
-                        cacheFile, encoding='utf-8')
+                        cacheFile,
+                        object_handler=TFHCache.abort_checker,
+                        encoding='utf-8')
                     cls.last_saved_movie_timestamp = None
                     cls._unsaved_trailer_changes = 0
             else:
@@ -181,5 +195,14 @@ class TFHCache:
 
         return cls._cached_trailers
 
+    @staticmethod
+    def abort_checker(dct: Dict[str, Any]) -> Dict[str, Any]:
+        """
+
+        :param dct:
+        :return:
+        """
+        Monitor.throw_exception_if_abort_requested()
+        return dct
 
 TFHCache.class_init()

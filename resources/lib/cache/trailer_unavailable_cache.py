@@ -255,12 +255,17 @@ class TrailerUnavailableCache(object):
                 try:
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_tmdb_trailers.json')
+                    temp_path = os.path.join(Settings.get_remote_db_cache_path(),
+                                        'index', 'missing_tmdb_trailers.json.temp')
+
                     # path = path.encode('utf-8')
                     path = xbmcvfs.validatePath(path)
-                    parent_dir, file_name = os.path.split(path)
+                    temp_path = xbmcvfs.validatePath(temp_path)
+
+                    parent_dir, file_name = os.path.split(temp_path)
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
-                    with io.open(path, mode='wt', newline=None,
+                    with io.open(temp_path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         json_text = \
                             json.dumps(cls._all_missing_tmdb_trailers,
@@ -270,6 +275,12 @@ class TrailerUnavailableCache(object):
                                        indent=3, sort_keys=True)
                         cacheFile.write(json_text)
                         cacheFile.flush()
+                    try:
+                        os.replace(path, path)
+                        os.rename(temp_path, path)
+                    except OSError:
+                        cls._logger.exception(f'Failed to replace index of movies'
+                                              f' missing trailers cache: {path}')
 
                     cls.tmdb_last_save = datetime.datetime.now()
                     cls.tmdb_unsaved_changes = 0
@@ -279,6 +290,11 @@ class TrailerUnavailableCache(object):
                     cls._logger.exception('')
                 except Exception as e:
                     cls._logger.exception('')
+                finally:
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
 
             Monitor.throw_exception_if_abort_requested()
             if cls.library_unsaved_changes > 0:
@@ -299,22 +315,35 @@ class TrailerUnavailableCache(object):
 
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_library_trailers.json')
+                    temp_path = os.path.join(Settings.get_remote_db_cache_path(),
+                                        'index', 'missing_library_trailers.json.temp')
                     # path = path.encode('utf-8')
                     path = xbmcvfs.validatePath(path)
+                    temp_path = xbmcvfs.validatePath(temp_path)
+
                     parent_dir, file_name = os.path.split(path)
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
 
-                    with io.open(path, mode='wt', newline=None,
+                    with io.open(temp_path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         json_text = \
                             json.dumps(cls._all_missing_library_trailers,
                                        encoding='utf-8',
                                        ensure_ascii=False,
+                                       object_checker=
+                                           TrailerUnavailableCache.abort_checker,
                                        default=TrailerUnavailableCache.handler,
                                        indent=3, sort_keys=True)
                         cacheFile.write(json_text)
                         cacheFile.flush()
+
+                    try:
+                        os.replace(path, path)
+                        os.rename(temp_path, path)
+                    except OSError:
+                        cls._logger.exception(f'Failed to replace missing trailer'
+                                              f' information cache: {path}')
 
                     cls.library_last_save = datetime.datetime.now()
                     cls.library_unsaved_changes = 0
@@ -324,6 +353,21 @@ class TrailerUnavailableCache(object):
                     cls._logger.exception('')
                 except Exception as e:
                     cls._logger.exception('')
+                finally:
+                    try:
+                        os.remove(temp_path)
+                    except Exception:
+                        pass
+
+    @staticmethod
+    def abort_checker(dct: Dict[str, Any]) -> Dict[str, Any]:
+        """
+
+        :param dct:
+        :return:
+        """
+        Monitor.throw_exception_if_abort_requested()
+        return dct
 
     @staticmethod
     def handler(obj):
@@ -349,6 +393,7 @@ class TrailerUnavailableCache(object):
         :param dct:
         :return:
         """
+        Monitor.throw_exception_if_abort_requested()
         date_string = dct.get('timestamp', None)
         if date_string is not None:
             timestamp = dateutil.parser.parse(date_string)
