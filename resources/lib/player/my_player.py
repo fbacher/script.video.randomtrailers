@@ -42,8 +42,11 @@ class MyPlayer(AdvancedPlayer):
         :return:
         """
         title = trailer[Movie.TITLE]
-        file_path = trailer.get(Movie.NORMALIZED_TRAILER, None)
-        if file_path is None:
+        if trailer.get(Movie.NORMALIZED_TRAILER) is not None:
+            file_path = trailer[Movie.NORMALIZED_TRAILER]
+        elif trailer.get(Movie.CACHED_TRAILER) is not None:
+            file_path = trailer[Movie.CACHED_TRAILER]
+        else:
             file_path = trailer[Movie.TRAILER]
         file_path = file_path
         file_name = os.path.basename(file_path)
@@ -66,7 +69,8 @@ class MyPlayer(AdvancedPlayer):
         self.set_playing_title(title)
         self.set_playing_file_path(file_path)
         if self._logger.isEnabledFor(LazyLogger.DISABLED):
-            self._logger.debug_extra_verbose('path:', file_name, 'title:', title)
+            self._logger.debug_extra_verbose(
+                'path:', file_name, 'title:', title)
 
         self.play(item=path, listitem=listitem)
 
