@@ -310,6 +310,16 @@ class PlayableTrailerService(object):
                 except queue.Empty:
                     pass  # try again
 
+                recently_played_trailers = \
+                    PlayableTrailersContainer.get_recently_played_trailers()
+                if len(recently_played_trailers) != 0:
+                    recently_played_list = list(
+                        recently_played_trailers.values())
+                    trailer_index_to_play = DiskUtils.RandomGenerator.randint(
+                        0, len(recently_played_trailers) - 1)
+                    trailer = recently_played_list[trailer_index_to_play]
+                    break
+
                 iteration += 1
                 if iteration % len(playable_trailers_list) == 0:
                     second_method_attempts += 1

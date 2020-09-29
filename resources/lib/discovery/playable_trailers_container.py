@@ -6,6 +6,7 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
+from collections import OrderedDict
 import threading
 import queue
 
@@ -38,6 +39,7 @@ class PlayableTrailersContainer(object):
     _singleton_instance = None
     _instances = {}
     logger = None
+    _recently_played_trailers = OrderedDict()
 
     def __init__(self,
                  source  # type: str
@@ -50,7 +52,7 @@ class PlayableTrailersContainer(object):
         clz = PlayableTrailersContainer
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__
-                                                       + ':' + source)
+                                                + ':' + source)
 
         PlayableTrailersContainer._instances[source] = self
         self._movie_data = None
@@ -115,6 +117,22 @@ class PlayableTrailersContainer(object):
                 clz.logger.warning('Invalid movie entry. Missing title: ',
                                    str(movie))
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
+        try:
+            title = movie[Movie.TITLE]
+            if title not in clz._recently_played_trailers:
+                clz._recently_played_trailers[title] = movie
+                if len(clz._recently_played_trailers) > 10:
+                    clz._recently_played_trailers.popitem()
+            else:
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug_verbose(
+                        f'Movie: {title} played recently, skipping')
+
+                return
+        except Exception as e:
+            clz.logger.exception(e)
+
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.debug_verbose('movie:', movie[Movie.TITLE], 'queue empty:',
                                      self._ready_to_play_queue.empty(), 'full:',
                                      self._ready_to_play_queue.full())
@@ -133,7 +151,8 @@ class PlayableTrailersContainer(object):
 
         if not clz._any_trailers_available_to_play.isSet():
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('Setting _any_trailers_available_to_play')
+                clz.logger.debug_verbose(
+                    'Setting _any_trailers_available_to_play')
             clz._any_trailers_available_to_play.set()
 
         self._is_playable_trailers.set()
@@ -159,6 +178,10 @@ class PlayableTrailersContainer(object):
         :return:
         """
         return self._ready_to_play_queue.qsize()
+
+    @classmethod
+    def get_recently_played_trailers(cls):
+        return cls._recently_played_trailers
 
     def get_number_of_added_trailers(self):
         # type: () -> int
