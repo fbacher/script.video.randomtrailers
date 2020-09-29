@@ -74,12 +74,13 @@ class TrailerUnavailableCache(object):
             values[Movie.YEAR] = year
             values[Movie.SOURCE] = source
 
-        Monitor.throw_exception_if_abort_requested()
+        cls.abort_on_shutdown()
         with cls.lock:
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 cls._all_missing_tmdb_trailers[tmdb_id] = values
                 cls.tmdb_cache_changed()
-                Statistics.add_missing_tmdb_trailer()
+
+        Statistics.add_missing_tmdb_trailer()
 
     @classmethod
     def add_missing_library_trailer(cls,
@@ -111,7 +112,7 @@ class TrailerUnavailableCache(object):
             values[Movie.YEAR] = year
             values[Movie.SOURCE] = source
 
-        Monitor.throw_exception_if_abort_requested()
+        cls.abort_on_shutdown()
         with cls.lock:
             if tmdb_id not in TrailerUnavailableCache._all_missing_library_trailers:
                 cls._all_missing_library_trailers[tmdb_id] = values
@@ -127,7 +128,7 @@ class TrailerUnavailableCache(object):
         :param library_id:
         :return:
         """
-        Monitor.throw_exception_if_abort_requested()
+        cls.abort_on_shutdown()
         with cls.lock:
             if library_id not in cls._all_missing_library_trailers:
                 entry = None
@@ -139,12 +140,13 @@ class TrailerUnavailableCache(object):
                     del cls._all_missing_library_trailers[library_id]
                     entry = None
                     cls.library_cache_changed()
-            if entry is None:
-                Statistics.add_missing_library_id_cache_miss()
-            else:
-                Statistics.add_missing_library_id_cache_hit()
 
-            return entry
+        if entry is None:
+            Statistics.add_missing_library_id_cache_miss()
+        else:
+            Statistics.add_missing_library_id_cache_hit()
+
+        return entry
 
     @classmethod
     def library_cache_changed(cls, flush=False):
@@ -172,7 +174,7 @@ class TrailerUnavailableCache(object):
         :param tmdb_id:
         :return:
         """
-        Monitor.throw_exception_if_abort_requested()
+        cls.abort_on_shutdown()
         with cls.lock:
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 return None
@@ -184,12 +186,13 @@ class TrailerUnavailableCache(object):
                 del cls._all_missing_tmdb_trailers[tmdb_id]
                 entry = None
                 cls.tmdb_cache_changed()
-            if entry is None:
-                Statistics.add_missing_tmdb_id_cache_miss()
-            else:
-                Statistics.add_missing_tmdb_cache_hit()
 
-            return entry
+        if entry is None:
+            Statistics.add_missing_tmdb_id_cache_miss()
+        else:
+            Statistics.add_missing_tmdb_cache_hit()
+
+        return entry
 
     @classmethod
     def tmdb_cache_changed(cls, flush=False):
@@ -217,28 +220,33 @@ class TrailerUnavailableCache(object):
         # Suggest using object_hook argument on json operations coupled with
         # write to temp file, then rename.  See json_utils_basic.
 
-        cls.tmdb_unsaved_changes += 1
-        if cls.tmdb_last_save is None:
-            cls.tmdb_last_save = datetime.datetime.now()
+        with cls.lock:
+            cls.tmdb_unsaved_changes += 1
+            if cls.tmdb_last_save is None:
+                cls.tmdb_last_save = datetime.datetime.now()
 
-        if flush or (cls.tmdb_unsaved_changes >
-                     Constants.TRAILER_CACHE_FLUSH_UPDATES) or (
-                (datetime.datetime.now() - cls.tmdb_last_save)
-                > datetime.timedelta(seconds=Constants.TRAILER_CACHE_FLUSH_SECONDS)):
-            cls.save_cache()
+            if flush or (cls.tmdb_unsaved_changes >
+                         Constants.TRAILER_CACHE_FLUSH_UPDATES) or (
+                    (datetime.datetime.now() - cls.tmdb_last_save)
+                    > datetime.timedelta(seconds=Constants.TRAILER_CACHE_FLUSH_SECONDS)):
+                cls.save_cache()
 
     @classmethod
-    def save_cache(cls):
-        # type: () -> None
+    def abort_on_shutdown(cls, ignore_shutdown=False):
+        if ignore_shutdown:
+            return
+        Monitor.throw_exception_if_abort_requested()
+
+    @classmethod
+    def save_cache(cls, ignore_shutdown=False) -> None:
         """
 
         :return:
         """
-        if cls.tmdb_unsaved_changes == 0 and cls.library_unsaved_changes == 0:
-            return
-
-        Monitor.throw_exception_if_abort_requested()
+        cls.abort_on_shutdown(ignore_shutdown=ignore_shutdown)
         with cls.lock:
+            if cls.tmdb_unsaved_changes == 0 and cls.library_unsaved_changes == 0:
+                return
             if cls.tmdb_unsaved_changes > 0:
                 entries_to_delete = []
                 for key, entry in cls._all_missing_tmdb_trailers.items():
@@ -251,7 +259,7 @@ class TrailerUnavailableCache(object):
                 for entry_to_delete in entries_to_delete:
                     del cls._all_missing_tmdb_trailers[entry_to_delete]
 
-                Monitor.throw_exception_if_abort_requested()
+                cls.abort_on_shutdown(ignore_shutdown=ignore_shutdown)
                 try:
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_tmdb_trailers.json')
@@ -276,8 +284,7 @@ class TrailerUnavailableCache(object):
                         cacheFile.write(json_text)
                         cacheFile.flush()
                     try:
-                        os.replace(path, path)
-                        os.rename(temp_path, path)
+                        os.replace(temp_path, path)
                     except OSError:
                         cls._logger.exception(f'Failed to replace index of movies'
                                               f' missing trailers cache: {path}')
@@ -296,7 +303,7 @@ class TrailerUnavailableCache(object):
                     except Exception:
                         pass
 
-            Monitor.throw_exception_if_abort_requested()
+            cls.abort_on_shutdown(ignore_shutdown=ignore_shutdown)
             if cls.library_unsaved_changes > 0:
                 entries_to_delete = []
 
@@ -310,7 +317,7 @@ class TrailerUnavailableCache(object):
                 for entry_to_delete in entries_to_delete:
                     del cls._all_missing_library_trailers[entry_to_delete]
 
-                Monitor.throw_exception_if_abort_requested()
+                cls.abort_on_shutdown(ignore_shutdown=ignore_shutdown)
                 try:
 
                     path = os.path.join(Settings.get_remote_db_cache_path(),
@@ -339,8 +346,7 @@ class TrailerUnavailableCache(object):
                         cacheFile.flush()
 
                     try:
-                        os.replace(path, path)
-                        os.rename(temp_path, path)
+                        os.replace(temp_path, path)
                     except OSError:
                         cls._logger.exception(f'Failed to replace missing trailer'
                                               f' information cache: {path}')
@@ -366,7 +372,7 @@ class TrailerUnavailableCache(object):
         :param dct:
         :return:
         """
-        Monitor.throw_exception_if_abort_requested()
+        TrailerUnavailableCache.abort_on_shutdown()
         return dct
 
     @staticmethod
@@ -393,7 +399,7 @@ class TrailerUnavailableCache(object):
         :param dct:
         :return:
         """
-        Monitor.throw_exception_if_abort_requested()
+        TrailerUnavailableCache.abort_on_shutdown()
         date_string = dct.get('timestamp', None)
         if date_string is not None:
             timestamp = dateutil.parser.parse(date_string)
@@ -412,53 +418,54 @@ class TrailerUnavailableCache(object):
         path = os.path.join(Settings.get_remote_db_cache_path(),
                             'index', 'missing_tmdb_trailers.json')
         path = xbmcvfs.validatePath(path)
-        Monitor.throw_exception_if_abort_requested()
-        try:
-            parent_dir, file_name = os.path.split(path)
-            DiskUtils.create_path_if_needed(parent_dir)
+        cls.abort_on_shutdown()
+        with cls.lock:
+            try:
+                parent_dir, file_name = os.path.split(path)
+                DiskUtils.create_path_if_needed(parent_dir)
 
-            if os.path.exists(path):
-                with cls.lock, io.open(path, mode='rt',
-                                       newline=None,
-                                       encoding='utf-8') as cacheFile:
-                    cls._all_missing_tmdb_trailers = json.load(
-                        cacheFile, encoding='utf-8',
-                        object_hook=TrailerUnavailableCache.datetime_parser)
-                    size = len(cls._all_missing_tmdb_trailers)
-                    Statistics.missing_tmdb_trailers_initial_size(size)
-        except AbortException:
-            reraise(*sys.exc_info())
-        except IOError as e:
-            cls._logger.exception('')
-        except JSONDecodeError as e:
-            os.remove(path)
-        except Exception as e:
-            cls._logger.exception('')
+                if os.path.exists(path):
+                    with io.open(path, mode='rt',
+                                           newline=None,
+                                           encoding='utf-8') as cacheFile:
+                        cls._all_missing_tmdb_trailers = json.load(
+                            cacheFile, encoding='utf-8',
+                            object_hook=TrailerUnavailableCache.datetime_parser)
+                        size = len(cls._all_missing_tmdb_trailers)
+                        Statistics.missing_tmdb_trailers_initial_size(size)
+            except AbortException:
+                reraise(*sys.exc_info())
+            except IOError as e:
+                cls._logger.exception('')
+            except JSONDecodeError as e:
+                os.remove(path)
+            except Exception as e:
+                cls._logger.exception('')
 
-        Monitor.throw_exception_if_abort_requested()
-        path = os.path.join(Settings.get_remote_db_cache_path(),
-                            'index', 'missing_library_trailers.json')
-        path = xbmcvfs.validatePath(path)
-        try:
-            parent_dir, file_name = os.path.split(path)
-            DiskUtils.create_path_if_needed(parent_dir)
-            if os.path.exists(path):
-                with cls.lock, io.open(path, mode='rt',
-                                       newline=None,
-                                       encoding='utf-8') as cacheFile:
-                    cls._all_missing_library_trailers = json.load(
-                        cacheFile, encoding='utf-8',
-                        object_hook=TrailerUnavailableCache.datetime_parser)
-                    size = len(cls._all_missing_library_trailers)
-                    Statistics.missing_library_trailers_initial_size(size)
-        except AbortException:
-            reraise(*sys.exc_info())
-        except JSONDecodeError as e:
-            os.remove(path)
-        except IOError as e:
-            cls._logger.exception('')
-        except Exception as e:
-            cls._logger.exception('')
+            cls.abort_on_shutdown()
+            path = os.path.join(Settings.get_remote_db_cache_path(),
+                                'index', 'missing_library_trailers.json')
+            path = xbmcvfs.validatePath(path)
+            try:
+                parent_dir, file_name = os.path.split(path)
+                DiskUtils.create_path_if_needed(parent_dir)
+                if os.path.exists(path):
+                    with io.open(path, mode='rt',
+                                           newline=None,
+                                           encoding='utf-8') as cacheFile:
+                        cls._all_missing_library_trailers = json.load(
+                            cacheFile, encoding='utf-8',
+                            object_hook=TrailerUnavailableCache.datetime_parser)
+                        size = len(cls._all_missing_library_trailers)
+                        Statistics.missing_library_trailers_initial_size(size)
+            except AbortException:
+                reraise(*sys.exc_info())
+            except JSONDecodeError as e:
+                os.remove(path)
+            except IOError as e:
+                cls._logger.exception('')
+            except Exception as e:
+                cls._logger.exception('')
 
         pass
 

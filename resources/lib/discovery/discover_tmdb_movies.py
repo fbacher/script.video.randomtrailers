@@ -982,7 +982,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         and self.filter_movie(movie)):
                     discovery_complete_movies.append(movie)
                     tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-                    CacheIndex.remove_unprocessed_movie(tmdb_id)
+                    CacheIndex.remove_unprocessed_movies(tmdb_id)
 
             # Add the fully discovered movies first, this should be rare,
             # but might feed a few that can be displayed soon first.

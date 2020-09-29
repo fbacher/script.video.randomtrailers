@@ -426,7 +426,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             feature_url = 'https://trailers.apple.com' + \
                                 itunes_movie.get('location')
                             Monitor.throw_exception_if_abort_requested()
-                            movie = self.get_movie_info(feature_url,
+                            rc, movie = self.get_movie_info(feature_url,
                                                         title=title,
                                                         trailer_type=trailer_type,
                                                         rating=certification.get_label(),
@@ -466,7 +466,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                        cast=None,  # type: List[Dict]
                        studio='',  # type: str
                        fanart=''  # type: str
-                       ) -> MovieType:
+                       ) -> Tuple[int, Optional[MovieType]]:
         """
         """
         clz = DiscoverItunesMovies
@@ -484,10 +484,20 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         try:
             Monitor.throw_exception_if_abort_requested()
-            youtube_data_extractor = \
-                YDStreamExtractorProxy.get_instance()
-            downloadable_trailers: List[
-                Dict[str, Any]] = youtube_data_extractor.get_info(feature_url)
+            youtube_data_extractor = YDStreamExtractorProxy()
+            finished = False
+            downloadable_trailers: List[Movie] = []
+            while not finished:
+                wait = youtube_data_extractor.get_youtube_wait_seconds()
+                if wait > 0:
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
+                                                 'TOO MANY REQUESTS')
+                    Monitor.throw_exception_if_abort_requested(timeout=float(wait))
+                rc: int
+                rc, downloadable_trailers = youtube_data_extractor.get_info(feature_url)
+                if rc != 429:
+                    finished = True
 
             # Have a series of released promotions for a movie.
             # Each promotion can have different formats based upon

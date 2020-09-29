@@ -55,4 +55,4 @@ class TMDBMovieData(AbstractMovieData):
         with self._discovered_trailers_lock:
             super().remove_discovered_movie(movie)
             tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-            CacheIndex.remove_unprocessed_movie(int(tmdb_id))
+            CacheIndex.remove_unprocessed_movies(int(tmdb_id))

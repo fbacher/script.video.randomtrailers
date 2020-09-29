@@ -108,8 +108,11 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         :return:
         """
-        TrailerUnavailableCache.save_cache()
-        self._playable_trailers.clear()
+        try:
+            TrailerUnavailableCache.save_cache(ignore_shutdown=True)
+            self._playable_trailers.clear()
+        except Exception as e:
+            pass  # plugin shutting down, who cares.
 
     def prepare_for_restart_discovery(self, stop_thread: bool) -> None:
         """
@@ -220,7 +223,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         if tmdb_id is not None:
                             tmdb_id = int(tmdb_id)
 
-                        CacheIndex.remove_unprocessed_movie(tmdb_id)
+                        CacheIndex.remove_unprocessed_movies(tmdb_id)
                 else:
                     self._fetch_trailer_to_play_worker(trailer)
                 finished = True
@@ -318,7 +321,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # Ok, tmdb_id not in Kodi database, query TMDB
 
                     if (tmdb_id is None or tmdb_id == ''
-                            ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
+                        ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
                         tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                             trailer[Movie.TITLE], trailer['year'])
                         self.throw_exception_on_forced_to_stop()
@@ -597,7 +600,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                       ignore_failures)
 
         if TrailerUnavailableCache.is_tmdb_id_missing_trailer(tmdb_id):
-            CacheIndex.remove_unprocessed_movie(tmdb_id)
+            CacheIndex.remove_unprocessed_movies(tmdb_id)
             if not ignore_failures:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz._logger.exit(
@@ -773,7 +776,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         title=movie_title,
                         year=year,
                         source=source)
-                CacheIndex.remove_unprocessed_movie(tmdb_id)
+                CacheIndex.remove_unprocessed_movies(tmdb_id)
                 if not ignore_failures:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz._logger.exit('No trailer found for movie:',
@@ -1077,7 +1080,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             movie[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_READY_TO_DISPLAY
             if tmdb_id is not None:
-                CacheIndex.remove_unprocessed_movie(tmdb_id)
+                CacheIndex.remove_unprocessed_movies(tmdb_id)
 
             if not keep_trailer:
                 movie = None
@@ -1321,11 +1324,10 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # Not in cache, download
                     #
                     download_info = None
-                    youtube_data_stream_extractor_proxy = \
-                        YDStreamExtractorProxy.get_instance()
+                    youtube_data_stream_extractor_proxy = YDStreamExtractorProxy()
                     trailer_folder = xbmcvfs.translatePath(
                         'special://temp')
-                    download_info = youtube_data_stream_extractor_proxy.get_video(
+                    error_code, download_info = youtube_data_stream_extractor_proxy.get_video(
                         trailer_path, trailer_folder, movie_id)
                     if download_info is not None:
                         download_path = download_info.get('_filename', None)
@@ -1520,11 +1522,11 @@ class TrailerFetcher(TrailerFetcherInterface):
                                             'ffmpeg_normalize.sh')
                     args = [cmd_path, trailer_path, normalized_path]
                     rc = -1
+                    normalize_process = None
                     try:
                         normalize_process = subprocess.Popen(
                             args, bufsize=1, stdin=None, stdout=None,
                             stderr=None, shell=False)
-                        normalize_process.terminate()
                         while not Monitor.wait_for_abort(timeout=0.1):
                             try:
                                 rc = normalize_process.wait(0.0)
@@ -1533,6 +1535,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 pass
                         Monitor.throw_exception_if_abort_requested(timeout=0.0)
                         # If abort did not occur, then process finished
+                    except AbortException:
+                        try:
+                            if normalize_process is not None:
+                                normalize_process.terminate()
+                        except Exception:
+                            pass
+                        reraise(*sys.exc_info())
                     except ProcessLookupError:
                         rc = -1
                         clz._logger.exception('ProcessLookupError Movie:', movie[Movie.TITLE],
@@ -1540,7 +1549,8 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     if rc == 0:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                            clz._logger.debug_verbose('Normalized:', movie[Movie.TITLE])
+                            clz._logger.debug_verbose(
+                                'Normalized:', movie[Movie.TITLE])
                         cached_normalized_trailer = normalized_path
                         normalized_used = True
                     else:

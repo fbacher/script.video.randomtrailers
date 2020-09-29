@@ -147,9 +147,6 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
     def discover_movies(self):
         # type: () -> None
         """
-            Calls configure_search_parameters as many times as appropriate to
-            discover movies based on the filters specified by the settings.
-
         :return: # type: None (Lower code uses add_to_discovered_trailers).
         """
 
@@ -167,55 +164,71 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         
         From JSON youtube download for a single trailer:
           "license": null,
-  "title": "Allan Arkush on SMALL CHANGE",
-  "thumbnail": "https://i.ytimg.com/vi/YbqC0b_jfxQ/maxresdefault.jpg",
-  "description": "François Truffaut followed up the tragic The Story of Adele H 
-  with this sunny comedy about childhood innocence and resiliency (to show just 
-  how resilient, one baby falls out a window and merely bounces harmlessly off
-   the bushes below). Truffaut worked with a stripped down script to allow for 
-   more improvisation from his young cast. The rosy cinematography was by 
-   Pierre-William Glenn (Day for Night).\n\nAs always, you can find more
-    commentary, more reviews, more podcasts, and more deep-dives into the films
-     you don't know you love yet over on the Trailers From Hell 
-     mothership:\n\nhttp://www.trailersfromhell.com\n\n
-     What's that podcast, you ask? Why, it's THE MOVIES THAT MADE ME, where 
-     you can join Oscar-nominated screenwriter Josh Olson and TFH Fearless 
-     Leader Joe Dante in conversation with filmmakers, comedians, and 
-     all-around interesting people about the movies that made them who they are. 
-     Check it out now, and please subscribe wherever podcasts can be found.
-     \n\nApple Podcasts:
-      https://podcasts.apple.com/us/podcast/the-movies-that-made-me/id1412094313\n
-      Spotify: http://spotify.trailersfromhell.com\n
-      Libsyn: http://podcast.trailersfromhell.com\n
-      Google Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7",
-  """
+           "title": "Allan Arkush on SMALL CHANGE",
+           "thumbnail": "https://i.ytimg.com/vi/YbqC0b_jfxQ/maxresdefault.jpg",
+           "description": "François Truffaut followed up the tragic The Story of Adele H 
+        with this sunny comedy about childhood innocence and resiliency (to show just 
+        how resilient, one baby falls out a window and merely bounces harmlessly off
+        the bushes below). Truffaut worked with a stripped down script to allow for 
+        more improvisation from his young cast. The rosy cinematography was by 
+        Pierre-William Glenn (Day for Night).\n\nAs always, you can find more
+        commentary, more reviews, more podcasts, and more deep-dives into the films
+        you don't know you love yet over on the Trailers From Hell 
+        mothership:\n\nhttp://www.trailersfromhell.com\n\n
+        What's that podcast, you ask? Why, it's THE MOVIES THAT MADE ME, where 
+        you can join Oscar-nominated screenwriter Josh Olson and TFH Fearless 
+        Leader Joe Dante in conversation with filmmakers, comedians, and 
+        all-around interesting people about the movies that made them who they are. 
+        Check it out now, and please subscribe wherever podcasts can be found.
+        \n\nApple Podcasts:
+         https://podcasts.apple.com/us/podcast/the-movies-that-made-me/id1412094313\n
+         Spotify: http://spotify.trailersfromhell.com\n
+         Libsyn: http://podcast.trailersfromhell.com\n
+         Google Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7",
+        """
         local_class = DiscoverTFHMovies
-        download_info = None
 
-        cache_complete = TFHCache.load_trailer_info_from_cache()
-        cached_trailers = TFHCache.get_cached_trailer_info()
+        cached_trailers = TFHCache.get_cached_trailers()
         max_trailers = Settings.get_max_number_of_tfh_trailers()
-        if len(cached_trailers) > max_trailers:
-            del cached_trailers[max_trailers:]
-            cache_complete = True
-            TFHCache.save_trailer_info_to_cache(None, flush=True, cache_complete=True)
-        if len(cached_trailers) < max_trailers:
-            cache_complete = False
+        trailer_list = list(cached_trailers.values())
 
-        self.add_to_discovered_trailers(cached_trailers)
+        # Limit trailers added by settings, but don't throw away what
+        # we have discovered.
 
-        if not cache_complete:
-            # Recreates entire cache
+        if max_trailers < len(trailer_list):
+            del trailer_list[max_trailers:]
+        self.add_to_discovered_trailers(trailer_list)
 
-            youtube_data_stream_extractor_proxy = \
-                YDStreamExtractorProxy.get_instance()
-            trailer_folder = xbmcvfs.translatePath('special://temp')
+        if len(trailer_list) < max_trailers:
+            # Get the entire index again and replace the cache.
+            # This can take perhaps 20 minutes, which is why we seed the
+            # fetcher with any previously cached data. This will fix itself
+            # the next time the cache is read.
+
+            youtube_data_stream_extractor_proxy = YDStreamExtractorProxy()
             url = 'https://www.youtube.com/user/trailersfromhell/videos'
-            success = youtube_data_stream_extractor_proxy.get_tfh_index(
-                url, self.trailer_handler)
-            if success:
-                TFHCache.save_trailer_info_to_cache(
-                    None, flush=True, cache_complete=True)
+
+            # trailer_handler is a callback, so adds entries to the cache
+
+            finished = False
+            while not finished:
+                wait = youtube_data_stream_extractor_proxy.get_youtube_wait_seconds()
+                if wait > 0:
+                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        local_class.logger.debug_verbose(f'Waiting {wait} seconds) due to '
+                                                 'TOO MANY REQUESTS')
+                    Monitor.throw_exception_if_abort_requested(timeout=float(wait))
+                rc = youtube_data_stream_extractor_proxy.get_tfh_index(
+                    url, self.trailer_handler)
+                if rc == 0: # All Entries passed
+                    pass
+                if rc != 429:  # Last entry read failed
+                    finished = True
+
+                # In case any were read. Note, any read already added to
+                # discovered_trailers
+
+                TFHCache.save_cache(flush=True)
 
     def trailer_handler(self, json_text):
         #  type: (str) -> bool
@@ -225,6 +238,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         :return:
         """
         local_class = DiscoverTFHMovies
+
+        Monitor.throw_exception_if_abort_requested()
         try:
             tfh_trailer = json.loads(json_text)
         except Exception as e:
@@ -270,10 +285,13 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                              Movie.ADULT: False,
                              Movie.RATING: 0.0
                              }
-            if Settings.get_max_number_of_tfh_trailers() <= len(TFHCache.get_cached_trailer_info()):
-                return True
-            else:
-                TFHCache.save_trailer_info_to_cache(
-                    trailer_entry, flush=False, cache_complete=False)
+            # if (Settings.get_max_number_of_tfh_trailers()
+            #        <= len(TFHCache.get_cached_trailers())):
+            #    return True
+            # else:
+            TFHCache.add_trailer(trailer_entry, flush=False)
+            cached_trailers = TFHCache.get_cached_trailers()
+            max_trailers = Settings.get_max_number_of_tfh_trailers()
+            if len(cached_trailers) <= max_trailers:
                 self.add_to_discovered_trailers(trailer_entry)
-                return False
+            return False

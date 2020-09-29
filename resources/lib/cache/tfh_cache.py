@@ -36,12 +36,10 @@ class TFHCache:
     """
 
     """
-    CACHE_COMPLETE_MARKER = 'CACHE_COMPLETE_MARKER'
     UNINITIALIZED_STATE = 'uninitialized_state'
     lock = threading.RLock()
     _logger = None
-    _cache_complete: bool = False
-    _cached_trailers: List[MovieType] = list()
+    _cached_trailers: Dict[str, MovieType] = {}
     _last_saved_trailer_timestamp = datetime.datetime.now()
     _unsaved_trailer_changes: int = 0
 
@@ -53,6 +51,7 @@ class TFHCache:
         :return:
         """
         cls._logger = module_logger.getChild(type(cls).__name__)
+        cls.load_cache()
 
     @classmethod
     def logger(cls):
@@ -64,67 +63,39 @@ class TFHCache:
         return cls._logger
 
     @classmethod
-    def save_trailer_info_to_cache(cls,
-                                   trailers: Optional[Union[List[MovieType], MovieType]],
-                                   flush: bool = False,
-                                   cache_complete: bool = False) -> None:
+    def save_cache(cls, flush: bool = False) -> None:
         """
-        :param trailers:
         :param flush:
-        :param cache_complete:
         :return:
         """
-        if not isinstance(trailers, list):
-            if trailers is not None:
-                cls._cached_trailers.append(trailers)
-                cls._unsaved_trailer_changes += 1
-        else:
-            cls._cached_trailers.extend(trailers)
-            cls._unsaved_trailer_changes += len(trailers)
-
-        if (not flush and not cache_complete and
-                (cls._unsaved_trailer_changes < 50)
-                and
-                (datetime.datetime.now() - cls._last_saved_trailer_timestamp)
-                < datetime.timedelta(minutes=5)):
-            return
-
-        if cache_complete:
-            cache_complete_marker = {Movie.SOURCE: Movie.TFH_SOURCE,
-                                     Movie.TFH_ID: TFHCache.CACHE_COMPLETE_MARKER,
-                                     Movie.TITLE: TFHCache.CACHE_COMPLETE_MARKER,
-                                     Movie.YEAR: 0,
-                                     Movie.ORIGINAL_LANGUAGE: '',
-                                     Movie.TRAILER: TFHCache.CACHE_COMPLETE_MARKER,
-                                     Movie.PLOT: TFHCache.CACHE_COMPLETE_MARKER,
-                                     Movie.THUMBNAIL: TFHCache.CACHE_COMPLETE_MARKER,
-                                     Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                                     Movie.MPAA: '',
-                                     Movie.ADULT: False
-                                     }
-            cls._cached_trailers.append(cache_complete_marker)
-
-        path = os.path.join(Settings.get_remote_db_cache_path(),
-                            'index', 'tfh_trailers.json')
-
-        path = xbmcvfs.validatePath(path)
-        tmp_path = os.path.join(Settings.get_remote_db_cache_path(),
-                            'index', 'tfh_trailers.json.tmp')
-
-        tmp_path = xbmcvfs.validatePath(tmp_path)
-        parent_dir, file_name = os.path.split(path)
-        if not os.path.exists(parent_dir):
-            DiskUtils.create_path_if_needed(parent_dir)
-
-        Monitor.throw_exception_if_abort_requested()
         with cls.lock:
+            if (not flush and
+                    (cls._unsaved_trailer_changes < 50)
+                    and
+                    (datetime.datetime.now() - cls._last_saved_trailer_timestamp)
+                    < datetime.timedelta(minutes=5)):
+                return
+
             try:
+                path = os.path.join(Settings.get_remote_db_cache_path(),
+                                    'index', 'tfh_trailers.json')
+
+                path = xbmcvfs.validatePath(path)
+                tmp_path = os.path.join(Settings.get_remote_db_cache_path(),
+                                    'index', 'tfh_trailers.json.tmp')
+
+                tmp_path = xbmcvfs.validatePath(tmp_path)
+                parent_dir, file_name = os.path.split(path)
+                if not os.path.exists(parent_dir):
+                    DiskUtils.create_path_if_needed(parent_dir)
+
+                Monitor.throw_exception_if_abort_requested()
                 with io.open(tmp_path, mode='at', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     json_text = json.dumps(cls._cached_trailers,
                                            encoding='utf-8',
                                            ensure_ascii=False,
-                                           object_handler=TFHCache.abort_checker,
+                                           default=TFHCache.abort_checker,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
@@ -144,56 +115,68 @@ class TFHCache:
         Monitor.throw_exception_if_abort_requested()
 
     @classmethod
-    def load_trailer_info_from_cache(cls):
-        # type: () -> bool
+    def load_cache(cls) -> None:
         """
 
-        :return: True if cache is complete and no further discovery needed
+        :return: True if cache is full and no further discovery needed
         """
-        path = os.path.join(Settings.get_remote_db_cache_path(),
-                            'index', 'tfh_trailers.json')
-        path = xbmcvfs.validatePath(path)
-        try:
-            parent_dir, file_name = os.path.split(path)
-            DiskUtils.create_path_if_needed(parent_dir)
+        with cls.lock:
+            try:
+                path = os.path.join(Settings.get_remote_db_cache_path(),
+                                    'index', 'tfh_trailers.json')
+                path = xbmcvfs.validatePath(path)
 
-            if os.path.exists(path):
-                with TFHCache.lock, io.open(path, mode='rt', newline=None,
-                                            encoding='utf-8') as cacheFile:
-                    cls._cached_trailers = json.load(
-                        cacheFile,
-                        object_handler=TFHCache.abort_checker,
-                        encoding='utf-8')
-                    cls.last_saved_movie_timestamp = None
-                    cls._unsaved_trailer_changes = 0
-            else:
-                cls._cached_trailers = list()
+                parent_dir, file_name = os.path.split(path)
+                DiskUtils.create_path_if_needed(parent_dir)
 
-        except IOError as e:
-            TFHCache.logger().exception('')
-        except JSONDecodeError as e:
-            os.remove(path)
-        except Exception as e:
-            TFHCache.logger().exception('')
+                if os.path.exists(path):
+                    with io.open(path, mode='rt', newline=None,
+                                                encoding='utf-8') as cacheFile:
+                        cls._cached_trailers = json.load(
+                            cacheFile,
+                            object_handler=TFHCache.abort_checker,
+                            encoding='utf-8')
+                        cls.last_saved_movie_timestamp = None
+                        cls._unsaved_trailer_changes = 0
+                else:
+                    cls._cached_trailers = dict()
+
+            except IOError as e:
+                TFHCache.logger().exception('')
+            except JSONDecodeError as e:
+                os.remove(path)
+            except Exception as e:
+                TFHCache.logger().exception('')
 
         Monitor.throw_exception_if_abort_requested()
-        cls._cache_complete = False
-        for trailer in cls._cached_trailers:
-            if trailer[Movie.TFH_ID] == TFHCache.CACHE_COMPLETE_MARKER:
-                cls._cache_complete = True
-                break
-
-        return cls._cache_complete
+        return
 
     @classmethod
-    def get_cached_trailer_info(cls):
-        #  type: () -> List[MovieType]
-        """
+    def add_trailers(cls, trailers: Dict[str, MovieType], flush=False) -> None:
 
-        :return:
-        """
+        with cls.lock:
+            for key, trailer in trailers.items():
+                cls._cached_trailers[key] = trailer
+                cls._unsaved_trailer_changes += 1
 
-        return cls._cached_trailers
+            cls.save_cache(flush=flush)
+
+    @classmethod
+    def add_trailer(cls, trailer: MovieType, flush=False) -> None:
+        with cls.lock:
+            key = trailer[Movie.TFH_ID]
+            cls._cached_trailers[key] = trailer
+            cls._unsaved_trailer_changes += 1
+            cls.save_cache(flush=flush)
+
+    @classmethod
+    def get_cached_trailer(cls, trailer_id: str) -> MovieType:
+
+        return cls._cached_trailers.get(trailer_id)
+
+    @classmethod
+    def get_cached_trailers(cls) -> Dict[str, MovieType]:
+        return cls._cached_trailers.copy()
 
     @staticmethod
     def abort_checker(dct: Dict[str, Any]) -> Dict[str, Any]:
@@ -204,5 +187,6 @@ class TFHCache:
         """
         Monitor.throw_exception_if_abort_requested()
         return dct
+
 
 TFHCache.class_init()
