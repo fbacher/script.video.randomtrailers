@@ -159,6 +159,11 @@ class MainThreadLoop(object):
             Monitor.throw_exception_if_abort_requested(timeout=timeout)
 
         except AbortException:
+            if REMOTE_DEBUG:
+                try:
+                    pydevd.stoptrace()
+                except Exception:
+                    pass
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception(e)
@@ -169,7 +174,12 @@ class MainThreadLoop(object):
             cls._start_ui = random_trailers_ui.StartUI(cls._is_screensaver)
             cls._start_ui.start()
         except AbortException:
-            pass  # Thread to die
+            if REMOTE_DEBUG:
+                try:
+                    pydevd.stoptrace()
+                except Exception:
+                    pass
+                    pass  # Thread to die
         except Exception:
             cls._logger.exception('')
 
