@@ -15,6 +15,7 @@ from common.constants import (Constants, Movie)
 from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
 
+from diagnostics.play_stats import PlayStatistics
 from discovery.abstract_movie_data import AbstractMovieData
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -176,7 +177,7 @@ class PlayableTrailersContainer(object):
         clz = PlayableTrailersContainer
         movie = self._ready_to_play_queue.get(block=False)
         if movie is not None:
-            self._movie_data.increase_play_count(movie)
+            PlayStatistics.increase_play_count(movie)
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz.logger.exit('movie:', movie[Movie.TITLE])
         else:

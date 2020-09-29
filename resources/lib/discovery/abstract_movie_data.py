@@ -20,6 +20,7 @@ from common.kodi_queue import (KodiQueue)
 from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.logger import (Trace, LazyLogger)
+from diagnostics.play_stats import PlayStatistics
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -219,13 +220,10 @@ class MovieList:
         self._movie_source = movie_source
         self._total_removed = 0
         self._play_count = dict()
-        self._key_to_movie: Dict[str, MovieType] = {}
         self._lock = threading.RLock()
         self._iter = None
         self._cursor = None
         self._changed = False
-        self._saved_stack_trace = None
-        self._saved_thread_name = None
         self._number_of_added_movies = 0
         self._ordered_dict = OrderedDict()
 
@@ -261,16 +259,15 @@ class MovieList:
         # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
         # clz.logger.debug('movie:', movie[Movie.TITLE], 'source:',
         #                   movie[Movie.SOURCE])
-        key = self.get_key(movie)
+        key = clz.get_key(movie)
         with self._lock:
             if key in self._ordered_dict.keys():
                 raise DuplicateException()
 
             self._ordered_dict[key] = movie
-            self._play_count.setdefault(key, 0)
             self._number_of_added_movies += 1
 
-        # clz.logger.exit()
+        PlayStatistics.add(movie)
 
     def get_trailers(self) -> List[MovieType]:
         return list(self._ordered_dict.values())
@@ -286,7 +283,7 @@ class MovieList:
 
         with self._lock:
             try:
-                del self._ordered_dict[self.get_key(movie)]
+                del self._ordered_dict[clz.get_key(movie)]
                 self._total_removed += 1
 
             except AbortException:
@@ -326,168 +323,8 @@ class MovieList:
             DiskUtils.RandomGenerator.shuffle(items)
             self._ordered_dict = OrderedDict(items)
 
-    def get_play_count(self, movie):
-        # type: (MovieType) -> int
-        """
-
-        :param movie:
-        :return:
-        """
-        clz = MovieList
-
-        count = None
-        try:
-            with self._lock:
-                count = self._play_count.get(self.get_key(movie), 0)
-        except KeyError as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug(
-                    'Could not find entry for:', movie[Movie.TITLE])
-
-        return count
-
-    def increase_play_count(self, movie: MovieType) -> None:
-        """
-
-        :param movie:
-        :return:
-        """
-        clz = MovieList
-
-        try:
-            key = self.get_key(movie)
-            with self._lock:
-                count = self._play_count.get(key, 0) + 1
-                self._play_count[key] = count
-                self._key_to_movie[key] = movie
-
-        except KeyError as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('Could not find entry for:',
-                                   movie[Movie.TITLE])
-
-        # self.report_play_count_stats()
-        return
-
-    def report_play_count_stats(self) -> None:
-        """
-
-        :return:
-        """
-        clz = MovieList
-        if not clz.logger.is_trace_enabled(Trace.STATS):
-            return
-
-        try:
-            with self._lock:
-                Monitor.throw_exception_if_abort_requested()
-                movie_keys = sorted(self._play_count, key=lambda key:
-                                    self._play_count[key], reverse=False)
-                # Number of times this set of movies were played
-                previous_play_count = -1
-                # Running count of number of discovered movies
-                movie_count = 0
-                movie_count_in_group = 0
-                # Total number of movies that were played
-                total_play_count = 0
-                # play_count is number of times a movie was played
-                movies_with_same_count = []
-                for movie_key in movie_keys:
-                    Monitor.throw_exception_if_abort_requested()
-                    play_count = self._play_count[movie_key]
-                    if play_count == previous_play_count:
-                        movie_count_in_group += 1
-                        movies_with_same_count.append(movie_key)
-                    else:
-                        if previous_play_count != -1:
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                                clz.logger.debug(
-                                    '{} movies played {} times'.format(
-                                        movie_count_in_group,
-                                        previous_play_count),
-                                    trace=Trace.STATS)
-                            if previous_play_count != 0:
-                                self.wrap_text(
-                                    clz.logger.debug, movies_with_same_count)
-                            del movies_with_same_count[:]
-                            movie_count += movie_count_in_group
-                            total_play_count += previous_play_count * movie_count_in_group
-
-                        movie_count_in_group = 1
-                        movies_with_same_count.append(movie_key)
-                        previous_play_count = play_count
-
-            # movie_count_in_group += 1
-            if movie_count_in_group > 0:
-                movie_count += movie_count_in_group
-                total_play_count += previous_play_count * movie_count_in_group
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug(
-                        '{} movies played {} times'.format(movie_count_in_group,
-                                                           previous_play_count),
-                        trace=Trace.STATS)
-                if previous_play_count > 0:
-                    self.wrap_text(clz.logger.debug, movies_with_same_count)
-
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug(
-                    'Total movies played: {} Total Movies: {} Total Removed: {} Total '
-                    'Added: {}'.format(
-                        total_play_count,
-                        movie_count,
-                        self._total_removed,
-                        self._number_of_added_movies),
-                    trace=Trace.STATS)
-        except AbortException:
-            reraise(*sys.exc_info())
-
-        except Exception as e:
-            clz.logger.exception('')
-
-    MAX_LINE_LENGTH = 80
-
-    def wrap_text(self, logger, movies_with_same_count):
-        # type: (Callable, List[str]) -> None
-        """
-
-        :param logger:
-        :param movies_with_same_count:
-        :return:
-        """
-        clz = MovieList
-
-        movies_in_line: List[str] = []
-        line_length = 0
-        movie_title: str = ''
-        for key in movies_with_same_count:
-            Monitor.throw_exception_if_abort_requested()
-            try:
-                movie: Optional[MovieType] = self._key_to_movie.get(key, None)
-                if movie is not None:
-                    movie_title = movie.get(Movie.TITLE, 'unknown')
-                else:
-                    movie_title = 'Not in dictionary'
-
-                if line_length + len(movie_title) + 2 > MovieList.MAX_LINE_LENGTH:
-                    logger('   {}'.format(', '.join(movies_in_line)), trace=Trace.STATS)
-                    del movies_in_line[:]
-                    line_length = 0
-            except AbortException:
-                reraise(*sys.exc_info())
-
-            except Exception as e:
-                clz.logger.exception()
-
-            movies_in_line.append(movie_title)
-            line_length += len(movies_in_line) + 2  # Slightly inaccurate
-
-        if len(movies_in_line) > 0:
-            try:
-                logger('   {}'.format(', '.join(movies_in_line)))
-            except Exception as e:
-                clz.logger.exception()
-
-    def get_key(self, movie: MovieType) -> str:
+    @staticmethod
+    def get_key(movie: MovieType) -> str:
         """
 
         :param movie:
@@ -507,9 +344,8 @@ class MovieList:
 
         return key
 
+
 # noinspection Annotator,PyArgumentList
-
-
 class AbstractMovieData(object):
     """
         Abstract class with common code for all Trailer Managers
@@ -1223,18 +1059,7 @@ class AbstractMovieData(object):
         :param movie:
         :return:
         """
-        self._discovered_trailers.increase_play_count(movie)
-
-    def report_play_count_stats(self):
-        # type: () -> None
-        """
-
-        :return:
-        """
-        clz = AbstractMovieData
-
-        if clz.logger.is_trace_enabled(Trace.STATS):
-            self._discovered_trailers.report_play_count_stats()
+        PlayStatistics.increase_play_count(movie)
 
     def get_minimum_shuffle_seconds(self) -> int:
         seconds = self._minimum_shuffle_seconds

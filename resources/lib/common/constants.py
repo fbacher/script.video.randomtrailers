@@ -60,6 +60,8 @@ class Constants(object):
     TRAILER_CACHE_FLUSH_SECONDS = 300  # Five minutes with changes
     TRAILER_CACHE_FLUSH_UPDATES = 10  # Flush cache after n updates
 
+    PLAY_STATISTICS_REPORT_PATH = None
+
     # Altered to one month ago in static_init
     CACHE_FILE_EXPIRED_TIME = datetime.MAXYEAR
     PLAYLIST_PATH = ''
@@ -120,8 +122,11 @@ class Constants(object):
         seconds_in_month = datetime.timedelta(30)
         Constants.CACHE_FILE_EXPIRED_TIME = now - seconds_in_month
         Constants.FRONTEND_DATA_PATH = xbmcvfs.translatePath(
-            'special://profile/addon_data/{}'.format(Constants.FRONTEND_ID))
-        Constants.PLAYLIST_PATH = Constants.USER_DATA_PATH + '/playlists/video'
+            f'special://profile/addon_data/{Constants.FRONTEND_ID}')
+        Constants.PLAYLIST_PATH = os.path.join(Constants.USER_DATA_PATH,
+                                               'playlists/video')
+        Constants.PLAY_STATISTICS_REPORT_PATH = os.path.join(Constants.FRONTEND_DATA_PATH,
+                                                             'debug', 'play_stats.txt')
         Constants.LOCALE = locale.getdefaultlocale()
 
 

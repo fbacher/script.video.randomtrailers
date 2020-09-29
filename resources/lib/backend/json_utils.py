@@ -9,15 +9,12 @@ Created on Feb 10, 2019
 import datetime
 import random
 
-from common.imports import *
-
 from backend.json_utils_basic import (JsonUtilsBasic)
-from backend.statistics import Statistics
+from diagnostics.statistics import Statistics
 from cache.cache import (Cache)
-from common.development_tools import (Any, List, Dict, Union)
-from common.constants import Constants, Movie
-from common.logger import (LazyLogger, Trace)
-from common.exceptions import AbortException
+from common.development_tools import (Union)
+from common.constants import Movie
+from common.logger import (LazyLogger)
 from common.messages import Messages
 from common.settings import Settings
 

@@ -12,18 +12,20 @@ import sys
 import datetime
 import queue
 
-from backend.statistics import Statistics
-from common.development_tools import (Iterable, Union)
-from common.constants import (Constants, Movie)
+from cache.trailer_cache import (TrailerCache)
+
+from common.constants import (Movie)
 from common.disk_utils import DiskUtils
 from common.imports import *
 from common.monitor import Monitor
 from common.logger import (Trace, LazyLogger)
 
+from diagnostics.statistics import Statistics
+from diagnostics.play_stats import PlayStatistics
+
 from discovery.abstract_movie_data import AbstractMovieData
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.playable_trailers_container import PlayableTrailersContainer
-from cache.trailer_cache import (TrailerCache)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -119,6 +121,7 @@ class PlayableTrailerService(object):
 
         :return:
         """
+        clz = PlayableTrailerService
         try:
             while not PlayableTrailersContainer.is_any_trailers_available_to_play():
                 self.throw_exception_on_forced_to_stop(
@@ -164,13 +167,13 @@ class PlayableTrailerService(object):
             trailers_queue_size = movie_data.get_discovered_trailer_queue_size()
             if self.logger.isEnabledFor(LazyLogger.DISABLED):
                 self.logger.debug_extra_verbose(source, 'size:',
-                                   number_of_trailers,
-                                   'discoveredTrailersQueue size:',
-                                   trailers_queue_size,
-                                   'readyToPlayQueue size:',
-                                   playable_trailers.get_ready_to_play_queue().qsize(),
-                                   'trailersToFetchQueue size:',
-                                   movie_data.get_trailers_to_fetch_queue_size())
+                                                number_of_trailers,
+                                                'discoveredTrailersQueue size:',
+                                                trailers_queue_size,
+                                                'readyToPlayQueue size:',
+                                                playable_trailers.get_ready_to_play_queue().qsize(),
+                                                'trailersToFetchQueue size:',
+                                                movie_data.get_trailers_to_fetch_queue_size())
 
             projected_size = movie_data.get_projected_number_of_trailers()
             projected_sizes_map[source] = projected_size
@@ -184,7 +187,7 @@ class PlayableTrailerService(object):
                     and playable_trailers.is_playable_trailers()):
                 if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     self.logger.debug('Shuffling because discoveredTrailerQueue empty',
-                                       trace=Trace.TRACE_DISCOVERY)
+                                      trace=Trace.TRACE_DISCOVERY)
                 movie_data.shuffle_discovered_trailers(mark_unplayed=True)
 
         if nothing_to_play:
@@ -265,8 +268,8 @@ class PlayableTrailerService(object):
 
         if trailer is None:
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.debug(' trailer not found by preferred method',
-                                   trace=Trace.TRACE)
+                self.logger.debug_verbose('Trailer not found by preferred method',
+                                          trace=Trace.TRACE)
 
             # Alternative method is to pick a random PlayableTrailersContainer to start
             # with and then find one that has a trailer. Otherwise, camp out.
@@ -346,12 +349,9 @@ class PlayableTrailerService(object):
         # Periodically report on played movie statistics
 
         self._played_movies_count += 1
-        if self.logger.is_trace_enabled(Trace.STATS):
-            if (self._played_movies_count % 10) == 0:
-                for source in playable_trailers_map:
-                    playable_trailers = playable_trailers_map[source]
-                    movie_data = playable_trailers.get_movie_data()
-                    movie_data.report_play_count_stats()
+        if self.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+            if (self._played_movies_count % 100) == 0:
+                PlayStatistics.report_play_count_stats()
 
         return trailer
 
@@ -368,5 +368,5 @@ class PlayableTrailerService(object):
         if movie_data is not None and movie_data.restart_discovery_event.isSet():
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 self.logger.debug_verbose('RestartDiscoveryException source:',
-                                   movie_data.get_movie_source())
+                                          movie_data.get_movie_source())
             raise RestartDiscoveryException()

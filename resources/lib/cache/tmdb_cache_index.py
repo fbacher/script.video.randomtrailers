@@ -17,13 +17,12 @@ import os
 import sys
 import threading
 
-import xbmc
 import xbmcvfs
 
 from common.development_tools import (Any, List,
                                       Dict, Union,
                                       MovieType)
-from common.constants import (Constants, Movie, RemoteTrailerPreference)
+from common.constants import (Constants)
 from common.exceptions import AbortException
 from common.logger import (LazyLogger)
 from common.messages import Messages
@@ -31,7 +30,7 @@ from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import Settings
 from common.disk_utils import DiskUtils
-from backend.statistics import (Statistics)
+from diagnostics.statistics import (Statistics)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 

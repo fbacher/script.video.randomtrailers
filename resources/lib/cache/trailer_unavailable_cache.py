@@ -16,10 +16,9 @@ import os
 import sys
 import threading
 
-import xbmc
 import xbmcvfs
 
-from backend.statistics import (Statistics)
+from diagnostics.statistics import (Statistics)
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.logger import (LazyLogger)

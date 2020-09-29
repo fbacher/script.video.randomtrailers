@@ -15,6 +15,7 @@ from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.logger import (Trace, LazyLogger)
 
+from diagnostics.play_stats import PlayStatistics
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.abstract_movie_data import AbstractMovieData
 
@@ -186,8 +187,8 @@ class BaseDiscoverMovies(threading.Thread):
             if self._movie_data.restart_discovery_event.isSet():
                 raise RestartDiscoveryException()
         except AbortException:
-            if clz.logger.is_trace_enabled(Trace.STATS):
-                self.get_movie_data().report_play_count_stats()
+            if clz.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+                PlayStatistics.report_play_count_stats()
             reraise(*sys.exc_info())
 
     def prepare_for_restart_discovery(self):
