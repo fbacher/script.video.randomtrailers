@@ -244,7 +244,9 @@ class Monitor(xbmc.Monitor):
             xbmc.sleep(250)
             from common.debug_utils import Debug
             Debug.dump_all_threads()
-            xbmc.sleep(250)
+            xbmc.sleep(1000)
+            Debug.dump_all_threads()
+            xbmc.sleep(1000)
             Debug.dump_all_threads()
 
     @classmethod
@@ -468,8 +470,11 @@ class Monitor(xbmc.Monitor):
 
     def waitForAbort(self, timeout=None):
         # Provides signature of super class (xbmc.Monitor)
-        abort = super().waitForAbort(timeout=timeout)
-        # _wait_for_abort responsible for notifications
+        abort = Monitor._abort_received.isSet()
+        if not abort:
+            abort = super().waitForAbort(timeout=timeout)
+            # Let _wait_for_abort control setting _abort_received since
+            # it is responsible for notifications
         return abort
 
     @classmethod
@@ -487,9 +492,7 @@ class Monitor(xbmc.Monitor):
 
         New function added.
         """
-        abort = cls._abort_received.isSet()
-        if not abort:
-            abort = cls._instance.waitForAbort(timeout=timeout)
+        abort = cls._abort_received.wait(timeout=timeout)
 
         return abort
 
