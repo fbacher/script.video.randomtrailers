@@ -616,6 +616,7 @@ class JsonUtilsBasic(object):
 
         destination_data = JsonUtilsBasic.DestinationDataContainer.get_data(
             request_index)
+        Monitor.throw_exception_if_abort_requested()
         with destination_data.get_lock():
             time_delay = JsonUtilsBasic.get_delay_time(request_index)
             json_text = None
