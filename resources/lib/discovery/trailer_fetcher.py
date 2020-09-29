@@ -1327,7 +1327,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                     youtube_data_stream_extractor_proxy = YDStreamExtractorProxy()
                     trailer_folder = xbmcvfs.translatePath(
                         'special://temp')
-                    error_code, download_info = youtube_data_stream_extractor_proxy.get_video(
+                    error_code, download_info = \
+                        youtube_data_stream_extractor_proxy.get_video(
                         trailer_path, trailer_folder, movie_id)
                     if download_info is not None:
                         download_path = download_info.get('_filename', None)
