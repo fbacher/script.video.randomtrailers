@@ -12,7 +12,7 @@ import sys
 from common.constants import Constants, Movie, iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
-from common.rating import WorldCertifications
+from common.rating import WorldCertifications, Certification
 from common.exceptions import AbortException
 from common.imports import *
 from common.messages import Messages
@@ -316,6 +316,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz.logger.debug_extra_verbose('certification: ',
                                                    certification.get_label())
+                itunes_movie[Movie.MPAA] = certification.get_preferred_id()
 
                 genres = itunes_movie.get('genre', '')
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
