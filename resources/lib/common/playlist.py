@@ -113,13 +113,8 @@ class Playlist(object):
                     save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
                     save_path = xbmcvfs.validatePath(save_path)
                     try:
-                        if os.path.exists(save_path):
-                            os.remove(save_path)
-                    except Exception as e:
-                        self._logger.exception('')
-                    try:
                         if os.path.exists(self.path):
-                            os.rename(self.path, save_path)
+                            os.replace(self.path, save_path)
                     except Exception as e:
                         self._logger.exception('')
                 except Exception as e:
