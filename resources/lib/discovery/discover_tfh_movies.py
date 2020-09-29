@@ -46,24 +46,12 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         if local_class.logger is None:
             local_class.logger = module_logger.getChild(local_class.__name__)
         thread_name = local_class.__name__
-        kwargs = {}
-        kwargs[Movie.SOURCE] = Movie.TMDB_SOURCE
+        kwargs = {Movie.SOURCE: Movie.TMDB_SOURCE}
 
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None)
+                         args=(), kwargs=kwargs)
         self._movie_data = TFHMovieData()
         self._unique_trailer_ids = set()
-
-    @classmethod
-    def get_instance(cls):
-        # type: () -> DiscoverTFHMovies
-        """
-
-        :return:
-        """
-        local_class = DiscoverTFHMovies
-
-        return super(DiscoverTFHMovies, cls).get_instance()
 
     def discover_basic_information(self):
         # type: () -> None

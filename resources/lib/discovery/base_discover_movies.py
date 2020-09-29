@@ -217,14 +217,3 @@ class BaseDiscoverMovies(threading.Thread):
         Monitor.unregister_settings_changed_listener(
             self.on_settings_changed)
         self._movie_data.remove()
-
-    @staticmethod
-    def get_instances():
-        # type: () -> Dict[str, BaseDiscoverMovies]
-        """
-        clz = BaseDiscoverMovies
-
-        :return:
-        """
-
-        return BaseDiscoverMovies._instance_map

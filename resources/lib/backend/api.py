@@ -34,30 +34,23 @@ def load_trailers():
 
     module_logger.enter()
 
-    instances = BaseDiscoverMovies.get_instances()
-    if (Settings.get_include_library_trailers()
-            and instances.get(Movie.LIBRARY_SOURCE) is None):
+    if Settings.get_include_library_trailers():
         lib_instance = DiscoverLibraryMovies()
         lib_instance.discover_basic_information()
 
 
     # Manufacture trailer entries for folders which contain trailer
     # files. Note that files are assumed to be videos.
-    if (Settings.get_include_trailer_folders()
-            and instances.get(Movie.FOLDER_SOURCE) is None):
+    if Settings.get_include_trailer_folders():
         DiscoverFolderTrailers().discover_basic_information()
 
-    if (Settings.get_include_itunes_trailers()
-            and instances.get(Movie.ITUNES_SOURCE) is None):
-        DiscoverItunesMovies().discover_basic_information(
-        )
+    if Settings.get_include_itunes_trailers():
+        DiscoverItunesMovies().discover_basic_information()
 
-    if (Settings.get_include_tmdb_trailers()
-            and instances.get(Movie.TMDB_SOURCE) is None):
+    if Settings.get_include_tmdb_trailers():
         DiscoverTmdbMovies().discover_basic_information()
 
-    if (Settings.is_include_tfh_trailers()
-            and instances.get(Movie.TFH_SOURCE) is None):
+    if Settings.is_include_tfh_trailers():
         DiscoverTFHMovies().discover_basic_information()
 
     Monitor.throw_exception_if_abort_requested(timeout=1.0)
