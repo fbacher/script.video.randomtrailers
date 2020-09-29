@@ -269,8 +269,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug('About to close TrailerDialog')
 
-            Monitor.unregister_abort_listener(self.on_abort_event)
-
             self.cancel_long_playing_trailer_killer()
             # local_class.logger.debug('Stopped xbmc.Player')
 
@@ -1571,8 +1569,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         Monitor.abort_requested()
         local_class.logger.exit('Just started player')
 
-    def get_title_string(self, movie, verbose=False):
-        # type: (dict, bool) -> str
+    def get_title_string(self, movie: MovieType, verbose: bool = False) -> str:
         """
 
         :param movie:
@@ -1587,16 +1584,18 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if verbose:
                 cached = False
                 normalized = False
-                if self._movie.get(Movie.NORMALIZED_TRAILER) is not None:
+                if movie.get(Movie.NORMALIZED_TRAILER) is not None:
                     normalized = True
-                elif self._movie.get(Movie.CACHED_TRAILER) is not None:
+                elif movie.get(Movie.CACHED_TRAILER) is not None:
                     cached = True
 
-                title += ' - ' + self._movie.get(Movie.DETAIL_CERTIFICATION)
+                title += ' - ' + movie.get(Movie.DETAIL_CERTIFICATION)
                 if normalized:
                     title = title + ' Normalized'
                 elif cached:
                     title = title + ' Cached'
+                else:
+                    pass
 
         except Exception as e:
             local_class.logger.exception('')
