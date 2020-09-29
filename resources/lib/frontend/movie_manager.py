@@ -150,17 +150,22 @@ class MovieManager(object):
         self._thread.start()
 
     def _pre_fetch_trailer(self):
-        while not Monitor.is_abort_requested():
-            status, trailer = FrontendBridge.get_next_trailer()
-            if trailer is not None:
-                added = False
-                while not added:
-                    try:
-                        self._pre_fetched_trailer_queue.put(trailer, timeout=0.1)
-                        added = True
-                    except queue.Full:
-                        if Monitor.wait_for_abort(timeout=0.5):
-                            break
+        try:
+            while not Monitor.throw_exception_if_abort_requested():
+                status, trailer = FrontendBridge.get_next_trailer()
+                if trailer is not None:
+                    added = False
+                    while not added:
+                        try:
+                            self._pre_fetched_trailer_queue.put(trailer, timeout=0.1)
+                            added = True
+                        except queue.Full:
+                            if Monitor.throw_exception_if_abort_requested(timeout=0.5):
+                                break
+        except AbortException:
+            pass  # In thread, let die
+        except Exception as e:
+            self._logger.exception(e)
 
     # Put trailer in recent history. If full, delete oldest
     # entry. User can traverse backwards through shown
