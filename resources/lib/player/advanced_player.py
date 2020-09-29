@@ -848,7 +848,6 @@ class AdvancedPlayer(xbmc.Player):
         # self.hideOSD()
         # self._dump_state()  # TODO: remove
 
-    """
     def showOSD(self, from_seek=False):
         pass
 
@@ -858,7 +857,6 @@ class AdvancedPlayer(xbmc.Player):
     def onVideoOSD(self):
         # self._dump_state()  # TODO: remove
         pass
-    """
 
     def onShowInfo(self):
         # self._dump_state()  # TODO: remove
