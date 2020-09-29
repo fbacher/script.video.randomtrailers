@@ -268,6 +268,11 @@ class Certifications:
 
         return certification
 
+    def get_certification_by_rank(self, rank: int):
+        for certification in self._certifications:
+            if certification.get_rank() == rank:
+                return certification
+
     def get_unrated_certification(self):
         return self._certifications[1]  # Default / Not Rated
 
