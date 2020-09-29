@@ -28,7 +28,7 @@
         <certification ranking="0" display="Not Yet Rated" adult="false" age="0"
             preferred_id="Not Yet Rated" image_id="unrated">
             <patterns>
-                <pattern>^Not Yet Rated"$</pattern>
+                <pattern>(?i)^Not Yet Rated$</pattern>
             </patterns>
         </certification>
         <!-- ranking of 1 means "unrated" -->
