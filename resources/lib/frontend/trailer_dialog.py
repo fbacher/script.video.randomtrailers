@@ -397,19 +397,22 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     continue
                 if self.is_random_trailers_play_state():
                     if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        local_class.logger.debug_extra_verbose('breaking due to play_state 1 movie:',
-                                                 self._movie[Movie.TITLE])
+                        local_class.logger.debug_extra_verbose(
+                            'breaking due to play_state 1 movie:',
+                            self._movie[Movie.TITLE])
                     break
 
                 # This will block if showing Movie Details
                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    local_class.logger.debug_extra_verbose('about to show_movie_info movie:',
-                                             self._movie[Movie.TITLE])
+                    local_class.logger.debug_extra_verbose(
+                        'about to show_movie_info movie:',
+                        self._movie[Movie.TITLE])
                 self.show_movie_info(show_detail_info=show_movie_details,
                                      show_brief_info=show_movie_title)
                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    local_class.logger.debug_extra_verbose('finished show_movie_info, movie:',
-                                             self._movie[Movie.TITLE])
+                    local_class.logger.debug_extra_verbose(
+                        'finished show_movie_info, movie:',
+                        self._movie[Movie.TITLE])
 
                 # Play Trailer
 
@@ -881,7 +884,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             commands.append(info_command)
 
         for command in commands:
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if local_class.logger.isEnabledFor(LazyLogger.DISABLED):
                 local_class.logger.debug_extra_verbose(command)
             # noinspection PyTypeChecker
             xbmc.executebuiltin(command)

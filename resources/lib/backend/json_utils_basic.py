@@ -374,10 +374,11 @@ class JsonUtilsBasic(object):
         destination_data = JsonUtilsBasic.DestinationDataContainer.get_data(
             destination)
         request_window = destination_data.get_request_window()
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
             cls._logger.debug_extra_verbose('JSON destination:',
-                                                       destination, 'timestamp:', response_time_stamp,
-                                                       trace=Trace.TRACE_JSON)
+                                            destination, 'timestamp:',
+                                            response_time_stamp,
+                                            trace=Trace.TRACE_JSON)
             JsonUtilsBasic.dump_delay_info(destination)
 
         last_index = -1
@@ -395,13 +396,12 @@ class JsonUtilsBasic(object):
             response_time_stamp, last_request_count)
         request_window.append(newEntry)
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
             cls._logger.debug_verbose('last_request_count:', last_request_count,
-                                                 'last_index:', last_index,
-                                                 'length:', len(
-                                                     request_window),
-                                                 'failed:', failed,
-                                                 trace=Trace.TRACE_JSON)
+                                      'last_index:', last_index,
+                                      'length:', len(request_window),
+                                      'failed:', failed,
+                                      trace=Trace.TRACE_JSON)
             JsonUtilsBasic.dump_delay_info(destination,
                                            msg='Exiting record_request_timestamp')
 
@@ -416,7 +416,7 @@ class JsonUtilsBasic(object):
         :param msg:
         :return:
         """
-        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if not cls._logger.isEnabledFor(LazyLogger.DISABLED):
             return
 
         destination_data = cls.DestinationDataContainer.get_data(
@@ -433,10 +433,10 @@ class JsonUtilsBasic(object):
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 if len(request_window) != 0:
                     cls._logger.debug_verbose(msg, '\n', 'timestamp:', str(time_stamp),
-                                                         'count:', request_count, '\n')
+                                              'count:', request_count, '\n')
                 else:
                     cls._logger.debug_verbose('no requests',
-                                                         trace=Trace.TRACE_JSON)
+                                              trace=Trace.TRACE_JSON)
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -727,7 +727,7 @@ class JsonUtilsBasic(object):
                 except Exception as e:
                     cls._logger.exception('')
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                 cls._logger.debug_extra_verbose(
                     'Headers from:', site, returned_header)
 
@@ -788,10 +788,11 @@ class JsonUtilsBasic(object):
                         # cls._logger.debug_extra_verbose(
                         #     'Date: ', tmp)
 
-                        cls._logger.debug_extra_verbose('Timestamp from server:',
-                                                        time_stamp,
-                                                        'difference from client:',
-                                                        delta.total_seconds())
+                        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                            cls._logger.debug_extra_verbose('Timestamp from server:',
+                                                            time_stamp,
+                                                            'difference from client:',
+                                                            delta.total_seconds())
 
                 if request_index == JsonUtilsBasic.TMDB_REQUEST_INDEX:
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):

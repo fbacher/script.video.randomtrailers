@@ -52,7 +52,16 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 # noinspection Annotator
 class TrailerFetcher(TrailerFetcherInterface):
     """
+    The Discover* classes do the initial discovery to get the basic information
+    about movies to have their trailers played. This class is responsible for
+    discovering everything else needed to actually play the trailer (i.e. the
+    trailer might needed downloading, Extra metadata may be needed from TMDB,
+    etc.).
 
+    Originally designed to have multiple fetchers per trailer type. As
+    such, an instance was initially created to "manage" the other
+    instances. This manager is not needed when a single fetcher is used,
+    someday someone should get rid of the extra 'manager'.
     """
 
     NUMBER_OF_FETCHERS = 1
@@ -85,6 +94,10 @@ class TrailerFetcher(TrailerFetcherInterface):
 
     def start_fetchers(self) -> None:
         """
+        Originally designed to have multiple fetchers per trailer type. As
+        such, an instance was initially created to "manage" the other
+        instances. This manager is not needed when a single fetcher is used,
+        someday someone should get rid of the extra 'manager'.
 
         :return:
         """
@@ -516,8 +529,8 @@ class TrailerFetcher(TrailerFetcherInterface):
         discovery_time = self._stop_fetch_time - self._start_fetch_time
         queue_time = self._stop_add_ready_to_play_time - self._stop_fetch_time
         trailer_type = trailer.get(Movie.TYPE, '')
-        if (clz._logger.isEnabledFor(LazyLogger.DEBUG)
-                and clz._logger.is_trace_enabled((Trace.STATS))):
+        if (clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                and clz._logger.is_trace_enabled(Trace.STATS)):
             clz._logger.debug('took:', discovery_time.microseconds / 10000,
                               'ms',
                               'QueueTime:', queue_time.microseconds / 10000,

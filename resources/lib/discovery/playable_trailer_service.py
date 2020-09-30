@@ -53,7 +53,6 @@ class PlayableTrailerService(object):
         """
         if type(self).logger is None:
             type(self).logger = module_logger.getChild(type(self).__name__)
-        type(self).logger.enter()
 
         self._next_total_duration = 0
         self._next_calls = 0
@@ -209,7 +208,7 @@ class PlayableTrailerService(object):
             try:
                 trailer_index_to_play = DiskUtils.RandomGenerator.randint(
                     0, total_number_of_trailers - 1)
-                if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if self.logger.isEnabledFor(LazyLogger.DISABLED):
                     self.logger.debug_extra_verbose(
                         'PlayableTrailerService.next trailer_index_to_play:',
                         trailer_index_to_play)
@@ -228,13 +227,13 @@ class PlayableTrailerService(object):
                 self.throw_exception_on_forced_to_stop(movie_data=movie_data)
 
                 projected_size = playable_trailers.get_projected_number_of_trailers()
-                if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if self.logger.isEnabledFor(LazyLogger.DISABLED):
                     self.logger.debug_extra_verbose('source:', source,
                                                     'projected size:',
                                                     projected_size)
                 total_number_of_trailers += projected_sizes_map[source]
 
-                if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if self.logger.isEnabledFor(LazyLogger.DISABLED):
                     self.logger.debug_extra_verbose('total_number_of_trailers:',
                                                     total_number_of_trailers)
                 if trailer_index_to_play < total_number_of_trailers:

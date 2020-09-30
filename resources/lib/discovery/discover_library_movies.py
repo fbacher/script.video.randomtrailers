@@ -332,8 +332,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         Monitor.throw_exception_if_abort_requested()
         elapsed_time = datetime.datetime.now() - start_time
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.debug('Library query seconds:',
-                             elapsed_time.total_seconds())
+            clz.logger.debug_verbose('Library query seconds:',
+                                     elapsed_time.total_seconds())
 
         movies_skipped = 0
         movies_found = 0
@@ -470,17 +470,17 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             clz.logger.exception('')
 
         if (clz.logger.isEnabledFor(LazyLogger.DEBUG)
-                and clz.logger.is_trace_enabled((Trace.STATS))):
+                and clz.logger.is_trace_enabled(Trace.STATS)):
             clz.logger.debug('Local movies found in library:',
-                               movies_found, trace=Trace.STATS)
+                             movies_found, trace=Trace.STATS)
             clz.logger.debug('Local movies filtered out',
-                               movies_skipped, trace=Trace.STATS)
+                             movies_skipped, trace=Trace.STATS)
             clz.logger.debug('Movies with local trailers:',
-                               movies_with_local_trailers, trace=Trace.STATS)
+                             movies_with_local_trailers, trace=Trace.STATS)
             clz.logger.debug('Movies with trailer URLs:',
-                               movies_with_trailer_urls, trace=Trace.STATS)
+                             movies_with_trailer_urls, trace=Trace.STATS)
             clz.logger.debug('Movies with no trailer information:',
-                               movies_without_trailer_info, trace=Trace.STATS)
+                             movies_without_trailer_info, trace=Trace.STATS)
 
         if Settings.is_enable_movie_stats():
             movie_data.report_data()

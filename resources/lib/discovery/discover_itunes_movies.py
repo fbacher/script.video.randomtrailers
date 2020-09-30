@@ -181,7 +181,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 Monitor.throw_exception_if_abort_requested(timeout=timeout)
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug(f'Itunes read attempt {attempts}'
-                                             f' failed waiting {timeout} seconds')
+                                     f' failed waiting {timeout} seconds')
         if parsed_content is None:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.debug(f'Failed to get trailers from iTunes.'
@@ -277,7 +277,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if abs((release_date - EPOCH_TIME).total_seconds()) < 3600 * 25:
                         clz.logger.debug_extra_verbose('Suspicious looking release date:',
-                                                               release_date.strftime('%d-%m-%Y'))
+                                                       release_date.strftime('%d-%m-%Y'))
                         #
                         # Force date to be today since it looks like it was never
                         # set
@@ -362,7 +362,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         Monitor.throw_exception_if_abort_requested()
 
                         keep_promotion = True
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                             clz.logger.debug_extra_verbose(
                                 'itunes_trailer: ', itunes_trailer)
 
@@ -376,7 +376,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                         trailer_type = itunes_trailer.get('type', '')
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                            clz.logger.debug_extra_verbose('type: ', trailer_type)
+                            clz.logger.debug_extra_verbose(
+                                'type: ', trailer_type)
 
                         if trailer_type.startswith('Clip') and not Settings.get_include_clips():
                             if clz.logger.isEnabledFor(LazyLogger.DISABLED):
@@ -427,16 +428,16 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                 itunes_movie.get('location')
                             Monitor.throw_exception_if_abort_requested()
                             rc, movie = self.get_movie_info(feature_url,
-                                                        title=title,
-                                                        trailer_type=trailer_type,
-                                                        rating=certification.get_label(),
-                                                        adult=adult,
-                                                        release_date=release_date,
-                                                        genres=genres,
-                                                        directors=directors,
-                                                        cast=cast,
-                                                        studio=studio,
-                                                        fanart=fanart)
+                                                            title=title,
+                                                            trailer_type=trailer_type,
+                                                            rating=certification.get_label(),
+                                                            adult=adult,
+                                                            release_date=release_date,
+                                                            genres=genres,
+                                                            directors=directors,
+                                                            cast=cast,
+                                                            studio=studio,
+                                                            fanart=fanart)
 
                             if movie is not None:
                                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -493,9 +494,11 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
                                                  'TOO MANY REQUESTS')
-                    Monitor.throw_exception_if_abort_requested(timeout=float(wait))
+                    Monitor.throw_exception_if_abort_requested(
+                        timeout=float(wait))
                 rc: int
-                rc, downloadable_trailers = youtube_data_extractor.get_info(feature_url)
+                rc, downloadable_trailers = youtube_data_extractor.get_info(
+                    feature_url)
                 if rc != 429:
                     finished = True
 
@@ -572,7 +575,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 elif not Settings.get_include_featurettes() and (
                         media_type == 'featurette'):
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose('Rejecting due to Featurette')
+                        clz.logger.debug_extra_verbose(
+                            'Rejecting due to Featurette')
                     keep_promotion = False
                 elif not Settings.get_include_teasers() and (
                         media_type == 'teaser'):

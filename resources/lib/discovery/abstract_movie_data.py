@@ -74,7 +74,6 @@ class UniqQueue(object):
         :return:
         """
         clz = UniqQueue
-        clz.logger.enter()
 
         with self._lock:
             self._duplicate_check.clear()
@@ -541,7 +540,7 @@ class AbstractMovieData(object):
         current_size = len(self._discovered_trailers)
         if (movies_added
                 and (current_size > 25
-                     and current_size >= (last_shuffled_at_size * 1.20)
+                     and current_size >= (last_shuffled_at_size * 2)
                      or (seconds_since_last_shuffle >
                          self.get_minimum_shuffle_seconds()))):
             reshuffle = True
@@ -549,10 +548,10 @@ class AbstractMovieData(object):
         if reshuffle:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz.logger.debug_extra_verbose(
-                    'Shuffling seconds_since_last_shuffle:',
+                    'seconds_since_last_shuffle:',
                     seconds_since_last_shuffle,
                     'current size:', current_size,
-                    '   previous size:', last_shuffled_at_size,
+                    'previous size:', last_shuffled_at_size,
                     trace=Trace.TRACE_DISCOVERY)
 
             self.shuffle_discovered_trailers(mark_unplayed=False)
@@ -607,11 +606,11 @@ class AbstractMovieData(object):
                     #                      'state:', trailer[Movie.DISCOVERY_STATE])
                     self._discovered_trailers_queue.put(trailer)
 
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                 clz.logger.debug_extra_verbose('_discoveredTrailerQueue length:',
-                                   self._discovered_trailers_queue.qsize(),
-                                   '_discovered_trailers length:',
-                                   len(self._discovered_trailers))
+                                               self._discovered_trailers_queue.qsize(),
+                                               '_discovered_trailers length:',
+                                               len(self._discovered_trailers))
 
     def get_number_of_movies(self):
         # type: () -> int

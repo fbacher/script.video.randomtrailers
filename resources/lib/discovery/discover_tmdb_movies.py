@@ -958,7 +958,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             discovery_needed_movies: List[MovieType] = []
             unprocessed_movies = CacheIndex.get_unprocessed_movies()
             for movie in unprocessed_movies.values():
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if local_class.logger.isEnabledFor(LazyLogger.DISABLED):
                     if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
                         cert = movie.get(Movie.MPAA, 'none')
                         local_class.logger.debug_extra_verbose('No certification. Title:',

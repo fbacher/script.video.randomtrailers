@@ -28,11 +28,11 @@ class Debug(object):
     """
         Define several methods useful for debugging
     """
-    _logger = module_logger.getChild('Debug')
+    _logger: LazyLogger = module_logger.getChild('Debug')
     _currentAddonName = Constants.CURRENT_ADDON_NAME
 
     @classmethod
-    def dump_dictionary_keys(cls, d):
+    def dump_dictionary(cls, d):
         # type: (Dict[str, Any]) -> None
         """
             Dump key and value fields of a dictionary in human
@@ -43,27 +43,27 @@ class Debug(object):
         """
         for k, v in d.items():
             if isinstance(v, dict):
-                cls.dump_dictionary_keys(v)
+                cls.dump_dictionary(v)
             else:
                 cls._logger.debug('{0} : {1}'.format(k, v))
 
     @classmethod
-    def dump_json(cls, text='', data=None):
-        # type: (str, Union[Dict[str, Any], None]) -> None
+    def dump_json(cls, text: str = '', data: str = '',
+                  log_level: int = LazyLogger.DEBUG) -> None:
         """
             Log Json values using the json.dumps utility
 
         :param text:
         :param data:
+        :param log_level:
         :return:
         """
-        cls._logger.debug(text, json.dumps(data, ensure_ascii=False,
-                                           encoding='unicode', indent=4,
-                                           sort_keys=True), xbmc.LOGINFO)
+        cls._logger.log(text, json.dumps(data, ensure_ascii=False,
+                                         encoding='unicode', indent=4,
+                                         sort_keys=True), log_level=log_level)
 
     @classmethod
-    def dump_all_threads(cls, delay=None):
-        # type: (float) -> None
+    def dump_all_threads(cls, delay: float = None) -> None:
         """
             Dumps all Python stacks, including those in other plugins
 
@@ -115,6 +115,9 @@ class Debug(object):
         :param max_value_length:
         :return:
         """
+        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            return
+
         keys_of_primary_interest = [Movie.TRAILER,
                                     Movie.SOURCE, Movie.TITLE,
                                     Movie.YEAR, Movie.TYPE]
@@ -128,9 +131,9 @@ class Debug(object):
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
-                cls._logger.debug('CompareMovies- key:', key,
-                                  'is missing from new. Value:',
-                                  value)
+                cls._logger.debug_verbose('CompareMovies- key:', key,
+                                          'is missing from new. Value:',
+                                          value)
 
         for key in trailer:
             if key in keys_of_primary_interest and (trailer.get(key) is not None
@@ -142,16 +145,16 @@ class Debug(object):
                 new_value = str(new_trailer.get(key))
                 if len(new_value) > max_value_length:
                     new_value = new_value[:max_value_length]
-                cls._logger.debug('Values for:', key, 'different:', value,
-                                  'new:', new_value)
+                cls._logger.debug_verbose('Values for:', key, 'different:', value,
+                                          'new:', new_value)
 
         for key in new_trailer:
             if key in keys_of_interest and trailer.get(key) is None:
                 value = str(new_trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
-                cls._logger.debug('key:', key, 'is missing from old. Value:',
-                                  value)
+                cls._logger.debug_verbose('key:', key, 'is missing from old. Value:',
+                                          value)
 
     @classmethod
     def validate_basic_movie_properties(cls, movie, stack_trace=True):
@@ -164,6 +167,9 @@ class Debug(object):
         :param stack_trace:
         :return:
         """
+        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            return
+
         basic_properties = {
             Movie.TYPE: 'default_' + Movie.TYPE,
             Movie.FANART: 'default_' + Movie.TYPE,
@@ -188,7 +194,7 @@ class Debug(object):
             if stack_trace:
                 LazyLogger.dump_stack('Missing basic property: ' + msg)
             else:
-                cls._logger.debug('Missing properties:', msg)
+                cls._logger.debug_verbose('Missing properties:', msg)
 
         assert not is_failed, 'LEAK: Invalid property values'
 
@@ -202,6 +208,9 @@ class Debug(object):
         :param stack_trace:
         :return:
         """
+        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            return
+
         details_properties = {Movie.WRITER: 'default_' + Movie.WRITER,
                               Movie.DETAIL_DIRECTORS: 'default_' + Movie.DETAIL_DIRECTORS,
                               Movie.CAST: 'default_' + Movie.CAST,
@@ -226,14 +235,14 @@ class Debug(object):
             if stack_trace:
                 LazyLogger.dump_stack('Missing details property: ' + msg)
             else:
-                cls._logger.debug('Missing properties:', msg)
+                cls._logger.debug_verbose('Missing properties:', msg)
 
         country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
         if not certifications.is_valid(movie[Movie.MPAA]):
             if movie[Movie.MPAA] != '':
                 cls._logger.debug_verbose(
-                    'Invalid MPAA rating: {} for movie: {} set to NR'
+                    'Invalid certification: {} for movie: {} set to NR'
                     .format(movie[Movie.MPAA], movie[Movie.TITLE]))
             movie[Movie.MPAA] = certifications.get_unrated_certification()\
                 .get_preferred_id()
