@@ -34,7 +34,6 @@ class Monitor(xbmc.Monitor):
     startup_complete_event = None
     _monitor_changes_in_settings_thread = None
     _logger = None
-    _instance = None
     _xbmc_monitor = None
     _screen_saver_listeners = None
     _screen_saver_listener_lock = None
@@ -56,7 +55,6 @@ class Monitor(xbmc.Monitor):
         """
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__class__.__name__)
-            cls._instance = Monitor()
             # Weird problems with recursion if we make requests to the super
 
             cls._xbmc_monitor = xbmc.Monitor()
@@ -114,18 +112,18 @@ class Monitor(xbmc.Monitor):
             if iterations < 0:
                 iterations = 600
                 try:
-                    fileStat = os.stat(settings_path)
-                    modTime = datetime.datetime.fromtimestamp(
-                        fileStat.st_mtime)
+                    file_stat = os.stat(settings_path)
+                    mod_time = datetime.datetime.fromtimestamp(
+                        file_stat.st_mtime)
                 except Exception as e:
                     cls._logger.debug("Failed to read settings.xml")
-                    modTime = start_time
+                    mod_time = start_time
 
-                if modTime > start_time:
+                if mod_time > start_time:
                     start_time = datetime.datetime.now()
                     if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                         cls._logger.debug_verbose('Settings Changed!')
-                    cls._instance.onSettingsChanged()
+                    cls._xbmc_monitor.onSettingsChanged()
                     # Here we go again
 
     @classmethod
@@ -262,7 +260,8 @@ class Monitor(xbmc.Monitor):
 
         for listener in listeners:
             if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
-                cls._logger.debug_verbose('Notifying listener:', listener.__name__)
+                cls._logger.debug_verbose(
+                    'Notifying listener:', listener.__name__)
             thread = threading.Thread(
                 target=listener, name='Monitor.inform:' + listener.__name__)
             thread.start()
@@ -451,13 +450,13 @@ class Monitor(xbmc.Monitor):
             abort = False
             if timeout is None:  # Wait forever
                 while not abort:
-                    abort = cls._instance.waitForAbort(timeout=0.10)
+                    abort = cls._xbmc_monitor.waitForAbort(timeout=0.10)
             else:
                 timeout_arg = float(timeout)
                 if timeout_arg == 0.0:
                     timeout_arg = 0.001  # Otherwise waits forever
 
-                abort = cls._instance.waitForAbort(timeout=timeout_arg)
+                abort = cls._xbmc_monitor.waitForAbort(timeout=timeout_arg)
             if abort:
                 cls._abort_received.set()
                 if cls._logger.isEnabledFor(Logger.DEBUG):
@@ -471,7 +470,7 @@ class Monitor(xbmc.Monitor):
         # Provides signature of super class (xbmc.Monitor)
         abort = Monitor._abort_received.isSet()
         if not abort:
-            abort = super().waitForAbort(timeout=timeout)
+            abort = Monitor._xbmc_monitor.waitForAbort(timeout=timeout)
             # Let _wait_for_abort control setting _abort_received since
             # it is responsible for notifications
         return abort
@@ -497,7 +496,7 @@ class Monitor(xbmc.Monitor):
 
     @classmethod
     def abort_requested(cls):
-        cls._instance.abortRequested()
+        cls._xbmc_monitor.abortRequested()
 
     def abortRequested(self):
         # type: () -> None
@@ -505,7 +504,7 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        super().abortRequested()
+        Monitor._xbmc_monitor.abortRequested()
         type(self)._abort_received.set()
 
     @classmethod
