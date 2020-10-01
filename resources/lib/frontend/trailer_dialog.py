@@ -774,7 +774,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             display_seconds = 365 * 24 * 60 * 60
         Monitor.throw_exception_if_abort_requested()
         self._show_details_event.clear()  # In case it was set
-        self._show_details_event.wait(display_seconds)
+        #
+        # A Monitor abort event should set (and unblock) the wait.
+        # Also, hide detail view will unblock.
+        #
+        self._show_details_event.wait(float(display_seconds))
         Monitor.throw_exception_if_abort_requested()
         self._show_details_event.clear()  # In case it was set
         # self.hide_detail_info()
