@@ -185,7 +185,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             country_id = Settings.get_country_iso_3166_1().lower()
             certifications = WorldCertifications.get_certifications(country_id)
             if certifications is None:
-                adult_certification = False
                 self._include_adult = False
             else:
                 adult_certification = certifications.get_adult_certification()
@@ -560,7 +559,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         local_class = DiscoverTmdbMovies
 
         # Is cache from previous run in a good state?
-        cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
+        cached_pages_data: CachedPagesData = CachedPagesData.pages_data[tmdb_search_query]
         if cached_pages_data.get_total_pages() != 0:
             return None
 
@@ -599,17 +598,17 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             if total_pages > (years_in_range * 1.5):
                 query_by_year = True
 
-            cached_pages_data.set_total_pages(total_pages)
-            cached_pages_data.set_query_by_year(query_by_year)
+        cached_pages_data.set_total_pages(total_pages)
+        cached_pages_data.set_query_by_year(query_by_year)
 
-            # Process this first page.
-            #
-            # In order to improve the randomness of the first
-            # few trailers played, don't add movies to the list of
-            # discovered movies until a second page is read.
+        # Process this first page.
+        #
+        # In order to improve the randomness of the first
+        # few trailers played, don't add movies to the list of
+        # discovered movies until a second page is read.
 
-            movies = self.process_page(info_string, data, tmdb_trailer_type,
-                                       url=url)
+        movies = self.process_page(info_string, data, tmdb_trailer_type,
+                                   url=url)
 
         if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
             local_class.logger.debug('Search Query type:', tmdb_search_query,
@@ -849,6 +848,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         # it becomes a problem.
                         pass
                     else:
+                        #
+                        #  TODO: could randomize the pages read in a year
+                        #
                         pages_for_year = DiskUtils.RandomGenerator.sample(
                             range(1, total_pages_in_year + 1), scaled_pages)
                         if viewed_page is not None and viewed_page in pages_for_year:
@@ -1417,15 +1419,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # systems (including history of them for old movies) seems
             # a challenging task
 
-            # Country codes are: iso_3166_1
-            #
-            # TODO: Limitation
-            #
-            # Not sure what to do here. Kodi does not supply country codes
-            # To implement, would also need to know certification rules for
-            # different countries, codes, history of codes... groan
-            #
-            data['certification_country'] = 'us'
+            data['certification_country'] = Settings.get_country_iso_3166_1().lower()
             data['certification.lte'] = self._rating_limit_string
 
             # TMDB API does not have a means to find different language
