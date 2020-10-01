@@ -42,10 +42,10 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         """
 
         """
-        local_class = DiscoverTFHMovies
-        if local_class.logger is None:
-            local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = local_class.__name__
+        clz = DiscoverTFHMovies
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__)
+        thread_name = clz.__name__
         kwargs = {Movie.SOURCE: Movie.TMDB_SOURCE}
 
         super().__init__(group=None, target=None, thread_name=thread_name,
@@ -60,13 +60,13 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         :return: # type: None
         """
-        local_class = DiscoverTFHMovies
+        clz = DiscoverTFHMovies
 
         self.start()
         # self._trailer_fetcher.start_fetchers(self)
 
-        if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-            local_class.logger.debug(': started')
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.debug(': started')
 
     def on_settings_changed(self):
         # type: () -> None
@@ -76,9 +76,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             By being here, TMDB discover is currently running. Only restart
             if there is a change.
         """
-        local_class = DiscoverTFHMovies
+        clz = DiscoverTFHMovies
 
-        local_class.logger.enter()
+        clz.logger.enter()
 
         if Settings.is_tfh_loading_settings_changed():
             stop_thread = not Settings.is_include_tfh_trailers()
@@ -96,7 +96,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         :return: # type: None
         """
-        local_class = DiscoverTFHMovies
+        clz = DiscoverTFHMovies
 
         start_time = datetime.datetime.now()
         try:
@@ -107,8 +107,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     self.wait_until_restart_or_shutdown()
                 except (RestartDiscoveryException):
                     # Restart discovery
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('Restarting discovery')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz.logger.debug('Restarting discovery')
                     self.prepare_for_restart_discovery()
                     if not Settings.is_include_tfh_trailers():
                         finished = True
@@ -116,14 +116,14 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             self.finished_discovery()
             duration = datetime.datetime.now() - start_time
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug('Time to discover:', duration.seconds, ' seconds',
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                clz.logger.debug('Time to discover:', duration.seconds, ' seconds',
                                    trace=Trace.STATS)
 
         except AbortException:
             return
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
     def run_worker(self):
         # type: () -> None
@@ -133,7 +133,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         :return: #type: None
         """
-        local_class = DiscoverTFHMovies
+        clz = DiscoverTFHMovies
 
         try:
             Monitor.throw_exception_if_abort_requested()
@@ -142,7 +142,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         except (AbortException, RestartDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            local_class.logger.exception('')
+            clz.logger.exception('')
 
     def discover_movies(self):
         # type: () -> None
@@ -186,7 +186,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
          Libsyn: http://podcast.trailersfromhell.com\n
          Google Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7",
         """
-        local_class = DiscoverTFHMovies
+        clz = DiscoverTFHMovies
 
         cached_trailers = TFHCache.get_cached_trailers()
         max_trailers = Settings.get_max_number_of_tfh_trailers()
@@ -214,11 +214,11 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             while not finished:
                 wait = youtube_data_stream_extractor_proxy.get_youtube_wait_seconds()
                 if wait > 0:
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        local_class.logger.debug_verbose(f'Waiting {wait} seconds) due to '
+                    if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                        clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
                                                  'TOO MANY REQUESTS')
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug(
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz.logger.debug(
                             'Can not download trailer for cache at this time')
                     Monitor.throw_exception_if_abort_requested(timeout=float(wait))
                 rc = youtube_data_stream_extractor_proxy.get_tfh_index(
@@ -240,14 +240,14 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         :param json_text:
         :return:
         """
-        local_class = DiscoverTFHMovies
+        clz = DiscoverTFHMovies
 
         Monitor.throw_exception_if_abort_requested()
         try:
             tfh_trailer = json.loads(json_text)
         except Exception as e:
-            local_class.logger.exception(e)
-            local_class.logger.warning('Offending json:', json_text)
+            clz.logger.exception(e)
+            clz.logger.warning('Offending json:', json_text)
             return False
 
         trailer_id = tfh_trailer['id']
