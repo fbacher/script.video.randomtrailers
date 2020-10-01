@@ -333,12 +333,14 @@ class TrailerUnavailableCache(object):
 
                     with io.open(temp_path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
+
+                        # TODO: Need ability to interrupt when ABORT. Object_handler
+                        # not a valid arg to dumps
+
                         json_text = \
                             json.dumps(cls._all_missing_library_trailers,
                                        encoding='utf-8',
                                        ensure_ascii=False,
-                                       object_checker=
-                                           TrailerUnavailableCache.abort_checker,
                                        default=TrailerUnavailableCache.handler,
                                        indent=3, sort_keys=True)
                         cacheFile.write(json_text)

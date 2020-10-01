@@ -826,10 +826,13 @@ class CachedPagesData:
                 with io.open(temp_path, mode='wt', newline=None,
                                               encoding='utf-8') as cacheFile:
                     json_dict = self.to_json()
+
+                    # TODO: Need ability to interrupt when ABORT. Object_handler
+                    # not a valid arg to dumps
+
                     json_text = json.dumps(json_dict,
                                            encoding='utf-8',
                                            ensure_ascii=False,
-                                           object_handler=CacheIndex.abort_checker,
                                            default=CacheIndex.handler,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
@@ -1167,10 +1170,13 @@ class CacheIndex:
             try:
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
+
+                    # TODO: Need ability to interrupt when ABORT. Object_handler
+                    # not a valid arg to dumps
+
                     json_text = json.dumps(cls.get_unprocessed_movies(),
                                            encoding='utf-8',
                                            ensure_ascii=False,
-                                           object_handler=CacheIndex.abort_checker,
                                            default=CacheIndex.handler,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
