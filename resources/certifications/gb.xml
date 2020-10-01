@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <certifications version="1">
-    <country name="gb" id="gb" certification_name="BBFC">
-          <!-- ranking of 0 means "not yet rated" -->
+    <country name="gb" id="gb" certification_name="BBFC" label_id="32269">
+         <!-- ranking of 0 means "not yet rated" -->
          <!-- The different sources of certificat/rating information
                 (TMDB, IMDB, iTunes, etc.) return different values. Further,
                 certifications change over time. In the U.S., the Hays
@@ -25,7 +25,7 @@
                 appropriate for viewing). -->
 
                 <!-- Patterns are python regex -->
-        <certification ranking="0" display="Not Yet Rated" adult="false" age="0"
+        <certification ranking="0" display="Not Yet Rated" label_id="32041" adult="false" age="0"
             preferred_id="Not Yet Rated" image_id="unrated">
             <patterns>
                 <pattern>(?i)^Not Yet Rated$</pattern>
@@ -36,7 +36,7 @@
             it is used to when the certification must be saved as a kodi
              MPAA rating field and eventually matched against one of the
              patterns here. -->
-        <certification ranking="1" display="Unrated" adult="false" age="0"
+        <certification ranking="1" display="Unrated" label_id="32248" adult="false" age="0"
         preferred_id="NR" image_id="unrated">
             <patterns>
                 <pattern>^NR$</pattern>
@@ -48,7 +48,7 @@
                 <pattern>^Rated Unrated$</pattern>
             </patterns>
         </certification>
-        <certification ranking="2" display="G" adult="false" age="0"
+        <certification ranking="2" display="G" label_id="32243" adult="false" age="0"
             preferred_id="U" image_id="u">
             <patterns>
 
@@ -62,7 +62,7 @@
              young children. May contain mild language and sex/drugs
              references. May contain moderate violence if justified by
              context (e.g. fantasy). -->
-        <certification ranking="3" display="PG" adult="false" age="8"
+        <certification ranking="3" display="PG" label_id="32244" adult="false" age="8"
             preferred_id="PG" image_id="pg">
             <patterns>
                 <pattern>^PG$</pattern>
@@ -77,7 +77,7 @@
              moderate swear words, infrequent strong language and moderate
              violence, sex references and nudity. Sexual activity may be briefly
              and discreetly portrayed. Sexual violence may be implied or briefly indicated. -->
-        <certification ranking="4" display="12A" adult="false" age="12"
+        <certification ranking="4" display="12A" label_id="32245" adult="false" age="12"
         preferred_id="12A" image_id="12a">
             <patterns>
                 <pattern>^12A$</pattern>
@@ -90,7 +90,7 @@
              than 12 can rent or buy a 12-rated VHS, DVD, Blu-ray Disc,
              UMD or game. The content guidelines are identical to those
              used for the 12A certificate. -->
-        <certification ranking="5" display="12" adult="false" age="12"
+        <certification ranking="5" display="12" label_id="32246" adult="false" age="12"
         preferred_id="12" image_id="12">
             <patterns>
                 <pattern>^12$</pattern>
@@ -106,7 +106,7 @@
              nudity without graphic detail. Sexual activity may be
              portrayed but without any strong detail. Sexual violence
              may be shown if discreet and justified by context. -->
-        <certification ranking="6" display="15" adult="false" age="15"
+        <certification ranking="6" display="15" label_id="32247" adult="false" age="15"
         preferred_id="15" image_id="15">
             <patterns>
                 <pattern>^15$</pattern>
@@ -124,7 +124,7 @@
              strong, gory, and/or sadistic violence is usually permitted.
              Strong sexual violence is permitted unless it is
              eroticised or excessively graphic.  -->
-        <certification ranking="7" display="18" adult="true" age="18"
+        <certification ranking="7" display="18" label_id="32271" adult="true" age="18"
         preferred_id="18" image_id="18">
             <patterns>
                 <pattern>^18$</pattern>
@@ -146,7 +146,7 @@
              development and aggressive behaviour such as hair-pulling
              or spitting on a performer are not permitted. More cuts
              are demanded in this category than any other category.  -->
-        <certification ranking="8" display="R18" adult="true" age="18"
+        <certification ranking="8" display="R18" label_id="32272" adult="true" age="18"
         preferred_id="R18" image_id="r18">
             <patterns>
                 <pattern>^R18$</pattern>

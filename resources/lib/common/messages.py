@@ -92,7 +92,7 @@ class Messages(object):
     RATING_PG_13 = 'PG-13'
     RATING_R = 'R'
     RATING_NC_17 = 'NC-17'
-    RATING_NR = 'Not Rated'
+    RATING_NR = 'Unrated'
 
     # VOICED messages are spoken via TTS engine when available
 

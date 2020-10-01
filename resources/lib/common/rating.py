@@ -5,8 +5,6 @@ Created on Feb 10, 2019
 @author: Frank Feuerbacher
 '''
 
-from common.imports import *
-
 import os
 import re
 import sys
@@ -17,6 +15,7 @@ import xbmcvfs
 
 from common.exceptions import AbortException
 from common.constants import (Constants)
+from common.imports import *
 from common.logger import (LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor
@@ -26,11 +25,11 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class LoadCertificationDefinitions:
-    '''
+    """
     Load certification information from XML files. Each file contains the
     certifications used by typically one country (although certifications
     for multiple countries can be in the same file).
-    '''
+    """
 
     _logger = None
 
@@ -38,26 +37,28 @@ class LoadCertificationDefinitions:
         cls = type(self)
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
+        xml_file = 'no file'
         try:
             path = os.path.join(Constants.ADDON_PATH,
                                 'resources', 'certifications')
             for file in os.listdir(path):
-                xml_file = os.path.join(path, file)
-                if (file.endswith('.xml') and
-                        os.path.isfile(xml_file)):
-                    try:
+                try:
+                    xml_file = os.path.join(path, file)
+                    if (file.endswith('.xml') and
+                            os.path.isfile(xml_file)):
                         with closing(xbmcvfs.File(xml_file)) as content_file:
                             rules = xmltodict.parse(
                                 bytes(content_file.readBytes()))
                             self._create_certifications(xml_file, rules)
-                    except AbortException:
-                        reraise(*sys.exc_info())
-                    except Exception as e:
-                        type(self)._logger.exception(e)
+
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception as e:
+                    cls._logger.exception(f'Failed parsing: {xml_file}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self)._logger.exception(e)
+            cls._logger.exception(f'Failed parsing: {xml_file}')
 
         pass
 
@@ -82,26 +83,32 @@ class LoadCertificationDefinitions:
 
         for country_element in countries_element:
             country_label = country_element.get('@name', None)
-            if country_label is None:
-                cls._logger.error('Missing country "name" attribute in {}'
+            if country_label is None or country_label == '':
+                cls._logger.error('Missing or empty country "name" attribute in {}'
                                   .format(pathname))
                 country_label = 'Missing'
 
             country_id = country_element.get('@id', None)
-            if country_id is None:
-                cls._logger.error('Missing "country_id" attribute in {}'
+            if country_id is None or country_id == '':
+                cls._logger.error('Missing or empty "country_id" attribute in {}'
                                   .format(pathname))
                 country_id = 'Missing'
 
             certification_label = country_element.get(
                 '@certification_name', None)
-            if certification_label is None:
-                cls._logger.error('Missing "certification_name" attribute in {}'
+            if certification_label is None or certification_label == '':
+                cls._logger.error('Missing or empty "certification_name" attribute in {}'
                                   .format(pathname))
                 certification_label = 'Missing'
 
+            certification_label_id = int(country_element.get('@label_id', None))
+            if certification_label_id is None or certification_label_id == '':
+                cls._logger.error(f'Missing or empty "label_id" attribute in {pathname}')
+                certification_label_id: int = 32270
+
             certifications = Certifications(country_id, country_label,
-                                            certification_label)
+                                            certification_label,
+                                            certification_label_id)
 
             ranking: int = 0
             display: str = ''
@@ -121,11 +128,46 @@ class LoadCertificationDefinitions:
 
                 for certification_element in certification_element_list:
                     ranking = certification_element.get('@ranking', None)
+                    if ranking is None or ranking == '':
+                        cls._logger.error(
+                            f'Missing or empty "ranking" element in {pathname}')
+                        ranking = 0
+                    ranking = int(ranking)
+
                     display = certification_element.get('@display', None)
+                    if display is None or display == '':
+                        cls._logger.error(
+                            f'Missing or empty "display" element in {pathname}')
+                        display = 'missing'
+
                     adult = certification_element.get('@adult', None)
-                    age = certification_element.get('@age', None)
+                    if adult is None or adult == '':
+                        cls._logger.error(
+                            f'Missing or empty "adult" element in {pathname}')
+                        adult = False
+                    adult = bool(adult)
+
+                    age = int(certification_element.get('@age', None))
+                    if age is None or age == '':
+                        cls._logger.error(
+                            f'Missing or empty "age" element in {pathname}')
+                        age = 0
+                    age = int(age)
+
+                    label_id = certification_element.get('@label_id', None)
+                    if label_id is None or label_id == '':
+                        cls._logger.error(
+                            f'Missing or empty "label_id" element in {pathname}')
+                        label_id = 32270
+                    label_id = int(label_id)
+
                     preferred_id = certification_element.get(
                         '@preferred_id', None)
+                    if preferred_id is None or preferred_id == '':
+                        cls._logger.error(
+                            f'Missing or empty "preferred_id" element in {pathname}')
+                        preferred_id = 'unknown'
+
                     image_id = certification_element.get(
                         '@image_id', None)
                     if 'patterns' not in certification_element:
@@ -140,6 +182,7 @@ class LoadCertificationDefinitions:
                         cls._logger.error('Missing "pattern" elements in {}'
                                           .format(pathname))
                         break
+
                     if not isinstance(pattern_element_list, list):
                         pattern_element_list = [pattern_element_list]
 
@@ -148,7 +191,8 @@ class LoadCertificationDefinitions:
                         patterns.append(pattern)
 
                     certifications.add_certification(
-                        Certification(ranking, display, age, patterns, adult,
+                        Certification(ranking, display, label_id,
+                                      age, patterns, adult,
                                       preferred_id, image_id))
                 WorldCertifications.add_certifications(country_id,
                                                        certifications)
@@ -171,13 +215,15 @@ class Certification:
     NOT_YET_RATED_RANK = 1
     _logger = None
 
-    def __init__(self, rank: int, label: str, age: int, patterns,
+    def __init__(self, rank: int, label: str, label_id: int, age: int,
+                 patterns: List[Pattern],
                  adult: bool = False,
                  preferred_id: str = None, image_id: str = None):
         self._rank: int = rank
         self._label: str = label
+        self._label_id: int = label_id
         self._age: int = age
-        self._patterns = patterns
+        self._patterns: List[Pattern] = patterns
         self._adult: bool = adult
         self._preferred_id: str = preferred_id
         self._image_id: str = image_id
@@ -211,6 +257,9 @@ class Certification:
     def get_label(self) -> str:
         return self._label
 
+    def get_label_id(self) -> int:
+        return self._label_id
+
     def get_preferred_id(self) -> str:
         return self._preferred_id
 
@@ -222,7 +271,8 @@ class Certifications:
 
     _logger = None
 
-    def __init__(self, country_id: str, country_label: str, certification_label: str):
+    def __init__(self, country_id: str, country_label: str,
+                 certification_label: str, certification_label_id: int):
         cls = type(self)
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
@@ -230,6 +280,7 @@ class Certifications:
         self._country_id = country_id
         self._country_label = country_label
         self._label = certification_label
+        self._label_id: int = certification_label_id
         self._certifications: List[Certification] = []
 
     def add_certification(self, certification: Certification) -> None:
@@ -279,6 +330,9 @@ class Certifications:
     def get_adult_certification(self):
         return self._certifications[-1]
 
+    def get_label_id(self) -> int:
+        return self._label_id
+
     def is_valid(self, kodi_rating=''):
 
         # Certifications are ordered by increasing restriction or age
@@ -310,7 +364,7 @@ class Certifications:
     '''
 
     @staticmethod
-    def filter(certification) -> bool:
+    def filter(certification: Certification) -> bool:
         '''
         Checks whether a film's certification is within the configured
         allowable range of certifications. The configurable settings

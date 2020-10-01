@@ -266,7 +266,7 @@ msgid "Include Not Yet Rated"
 msgstr ""
 
 msgctxt "#32042"
-msgid "Include Not Rated (NR)"
+msgid "Include Unrated (NR)"
 msgstr ""
 
 msgctxt "#32043"
@@ -1214,7 +1214,7 @@ msgid "NC-17"
 msgstr ""
 
 msgctxt "#32248"
-msgid "Not Rated"
+msgid "Unrated"
 msgstr ""
 
 # A film's certification varies by country and the terminology varies
@@ -1341,4 +1341,51 @@ msgstr ""
 # eliminates extra requests to themoviedatabase.org
 msgctxt "#32268"
 msgid "Update TMDB ID in database"
+msgstr ""
+
+# Movie Certification authority for this country. In the US it is MPAA
+#
+msgctxt "32269"
+msgid "MPAA"
+msgstr ""
+
+# Indicates that label_id missing or incorrect in certification definition:
+# resources/certifications/<country>.xml
+msgctxt "32270"
+msgid "Missing or non-numeric label_id"
+msgstr ""
+
+# More certification labels. Not used in US.
+# See resources/certifications/<country>.xml as well as settings.xml
+# In GB the label would be "18"
+msgctxt "32271"
+msgid "Reserved certification label"
+msgstr ""
+
+# More certification labels. Not used in US.
+# See resources/certifications/<country>.xml as well as settings.xml
+# In GB the label would be "R18"
+msgctxt "32272"
+msgid "Reserved certification label"
+msgstr ""
+
+# More certification labels. Not used in US.
+# See resources/certifications/<country>.xml as well as settings.xml
+# In GB the label would be "R18"
+msgctxt "32273"
+msgid "Reserved certification label"
+msgstr ""
+
+# More certification labels. Not used in US.
+# See resources/certifications/<country>.xml as well as settings.xml
+# In GB the label would be "R18"
+msgctxt "32274"
+msgid "Reserved certification label"
+msgstr ""
+
+# More certification labels. Not used in US.
+# See resources/certifications/<country>.xml as well as settings.xml
+# In GB the label would be "R18"
+msgctxt "32275"
+msgid "Reserved certification label"
 msgstr ""
