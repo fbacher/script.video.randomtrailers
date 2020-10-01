@@ -217,6 +217,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     if local_class.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         local_class.logger.debug_verbose(f'Waiting {wait} seconds) due to '
                                                  'TOO MANY REQUESTS')
+                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
+                        local_class.logger.debug(
+                            'Can not download trailer for cache at this time')
                     Monitor.throw_exception_if_abort_requested(timeout=float(wait))
                 rc = youtube_data_stream_extractor_proxy.get_tfh_index(
                     url, self.trailer_handler)

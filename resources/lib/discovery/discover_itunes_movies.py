@@ -491,9 +491,12 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             while not finished:
                 wait = youtube_data_extractor.get_youtube_wait_seconds()
                 if wait > 0:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                         clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
                                                  'TOO MANY REQUESTS')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz.logger.debug(
+                            'Can not download trailer for cache at this time')
                     Monitor.throw_exception_if_abort_requested(
                         timeout=float(wait))
                 rc: int
