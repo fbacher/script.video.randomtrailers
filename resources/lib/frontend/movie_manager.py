@@ -138,7 +138,9 @@ class MovieManager(object):
                 self._logger.debug('Does not exist:', trailer_path)
         else:
             trailer_path = trailer[Movie.TRAILER]
-            if trailer_path is None or not os.path.exists(trailer_path):
+            if trailer_path is None:
+                trailer_path = None
+            elif not (trailer_path.startswith('plugin') or os.path.exists(trailer_path)):
                 trailer[Movie.TRAILER] = None
                 self._logger.debug('Does not exist:', trailer_path)
                 trailer_path = None

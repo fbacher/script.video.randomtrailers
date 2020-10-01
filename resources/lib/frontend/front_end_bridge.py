@@ -168,7 +168,9 @@ class FrontendBridge(PluginBridge):
             Monitor.throw_exception_if_abort_requested()
             cls._next_trailer = data.get('trailer', None)
             cls._status = data.get('status', None)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._status == FrontendBridgeStatus.BUSY:
+                Monitor.throw_exception_if_abort_requested(timeout=2.0)
+            elif cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 if cls._next_trailer is None:
                     title = 'No Trailer Received'
                 else:

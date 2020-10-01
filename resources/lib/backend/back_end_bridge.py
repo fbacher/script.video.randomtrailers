@@ -6,12 +6,12 @@ Created on Mar 21, 2019
 @author: Frank Feuerbacher
 """
 
-import os
 import sys
 import threading
 
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
@@ -59,7 +59,7 @@ class BackendBridge(PluginBridge):
             cls.register_listeners()
             if playable_trailer_service is None:
                 cls._logger.error('Need to define playable_trailer_service to be',
-                                   'PlayableTrailerService()')
+                                  'PlayableTrailerService()')
             # trailerIterator = BaseTrailerManager.get_instance()
             cls._trailer_iterator = iter(playable_trailer_service)
             cls._on_settings_changed_callback = Monitor.onSettingsChanged
@@ -90,6 +90,7 @@ class BackendBridge(PluginBridge):
                 name='BackendBridge.get_trailer')
 
             thread.start()
+            GarbageCollector.add_thread(thread)
         except Exception:
             cls._logger.exception('')
 
@@ -116,7 +117,7 @@ class BackendBridge(PluginBridge):
         try:
             trailer = next(cls._trailer_iterator)
         except StopIteration:
-            cls.send_trailer(BackendBridgeStatus.TIMED_OUT, None)
+            cls.send_trailer(BackendBridgeStatus.BUSY, None)
             cls._busy_getting_trailer = False
             return
 
@@ -155,6 +156,7 @@ class BackendBridge(PluginBridge):
                 name='BackendBridge.on_settings_changed')
 
             thread.start()
+            GarbageCollector.add_thread(thread)
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
@@ -176,6 +178,7 @@ class BackendBridge(PluginBridge):
         # Back-end listens for get_next_trailer requests and
         # settings_changed notifications
         #
-        cls.register_slot(Constants.BACKEND_ID, 'get_next_trailer', cls.get_trailer)
+        cls.register_slot(Constants.BACKEND_ID,
+                          'get_next_trailer', cls.get_trailer)
         cls.register_slot(Constants.BACKEND_ID, 'settings_changed',
                           cls.on_settings_changed)
