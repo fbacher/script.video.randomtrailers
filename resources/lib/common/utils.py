@@ -55,7 +55,8 @@ class Utils(object):
         :param path:
         :return:
         """
-        if path.startswith('http://') or path.startswith('https://') or path.startswith('plugin://'):
+        if path.startswith('http://') or path.startswith('https://') or path.startswith(
+                'plugin://'):
             return True
         return False
 
