@@ -46,12 +46,15 @@ class YDStreamExtractorProxy(object):
 
         self._success = None
         self._command_process = None
-        self._thread = None
+        self._stderr_thread = None
+        self._stdout_thread = None
         self._error = 0
+        self._stdout_text = None
+        self._stderr_text = None
         pass
 
     @staticmethod
-    def get_youtube_wait_seconds() ->  ClassVar[datetime.timedelta]:
+    def get_youtube_wait_seconds() -> ClassVar[datetime.timedelta]:
         clz = YDStreamExtractorProxy
 
         seconds_to_wait = (clz._too_many_requests_timestamp
@@ -73,7 +76,7 @@ class YDStreamExtractorProxy(object):
 
         if clz._too_many_requests_timestamp > datetime.datetime.now():
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                expiration_time =  datetime.datetime.strftime(
+                expiration_time = datetime.datetime.strftime(
                     clz._too_many_requests_timestamp,
                     '%a, %d %b %Y %H:%M:%S')
                 clz._logger.debug_extra_verbose(
@@ -97,21 +100,12 @@ class YDStreamExtractorProxy(object):
                 stderr=subprocess.PIPE,
                 shell=False, env=env, close_fds=True, universal_newlines=True)
 
-            self._thread = threading.Thread(
-                target=self.stderr_reader, name='Stderr Reader')
-            self._thread.start()
+            self.start_output_threads()
+            self.wait_on_process()
+            self.join_output_threads()
 
-            # while not Monitor.wait_for_abort(timeout=0.1):
-            #    try:
-            #        rc = self._command_process.wait(0.0)
-            #        break  # Complete
-            #    except subprocess.TimeoutExpired:
-            #        pass
-
+            json_output = self._stdout_text
             Monitor.throw_exception_if_abort_requested()
-            json_output = self._command_process.stdout.read()
-            Monitor.throw_exception_if_abort_requested()
-            self._thread.join(timeout=0.1)
             if json_output is not None and len(json_output) != 0 and self._error == 0:
                 trailer = None
                 try:
@@ -141,6 +135,7 @@ class YDStreamExtractorProxy(object):
         except AbortException:
             try:
                 self._command_process.terminate()
+                self.join_output_threads(aborted=True)
             except Exception:
                 pass
             trailer = None
@@ -160,6 +155,7 @@ class YDStreamExtractorProxy(object):
             clz._logger.exception(e)
             try:
                 self._command_process.terminate()
+                self.join_output_threads()
             except Exception:
                 pass
             trailer = None
@@ -204,74 +200,46 @@ class YDStreamExtractorProxy(object):
         env['PYTHONPATH'] = PYTHON_PATH
         args = [python_exec, cmdPath, '--print-json', '--skip-download', url]
 
-        remaining_attempts = 10
         trailer_info: Optional[List[Dict[str, Any]]] = None
-        while remaining_attempts > 0:
+        try:
+            self._command_process = subprocess.Popen(
+                args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                shell=False, env=env, close_fds=True, universal_newlines=True)
+
+            self.start_output_threads()
+            self.wait_on_process()
+            self.join_output_threads()
+
+            lines: List[str] = self._stdout_text.splitlines()
+            trailer_info = []
+            for line in lines:
+                single_trailer_info: Dict[str, Any] = json.loads(line)
+                trailer_info.append(single_trailer_info)
+
+        except AbortException:
             try:
-                commmand_process = subprocess.Popen(
-                    args, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    shell=False, env=env, close_fds=True, universal_newlines=True)
-
-                try:
-                    while commmand_process.poll() is None:
-                        Monitor.throw_exception_if_abort_requested(
-                            timeout=0.10)
-                except AbortException:
-                    try:
-                        commmand_process.terminate()
-                    except Exception:
-                        pass
-                    finally:
-                        Monitor.throw_exception_if_abort_requested()
-
-                stderr = commmand_process.stderr.read()
-                #output = commmand_process.stdout.read()
-                lines = []
-                finished = False
-                while not finished:
-                    Monitor.throw_exception_if_abort_requested()
-                    line = commmand_process.stdout.readline()
-                    if not line:
-                        break
-                    lines.append(line)
-
-                trailer_info = []
-                # json_text = []
-                for line in lines:
-                    single_trailer_info: Dict[str, Any] = json.loads(line)
-
-                    # json_text.append(json.dumps(
-                    # single_trailer_info, indent=3, sort_keys=True))
-                    trailer_info.append(single_trailer_info)
-
-                # if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                #   json_text_buffer = '\n\n'.join(json_text)
-                #   clz._logger.debug('itunes trailer info:', json_text_buffer)
-                break
-            except AbortException:
-                reraise(*sys.exc_info())
-            except CalledProcessError as e:
-                remaining_attempts -= 1
-                # output = e.output
-                # stderr = e.stderr
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz._logger.debug_verbose('Failed to download site info for:', url,
-                                               'remaining_attempts:', remaining_attempts)
-                    # clz._logger.debug_verbose('output:', output)
-                    # clz._logger.debug_verbose('stderr:', stderr)
-                trailer_info = None
-                Monitor.throw_exception_if_abort_requested(timeout=70.0)
-            except Exception as e:
-                remaining_attempts -= 1
-                clz._logger.exception('')
-                # output = e.output
-                # stderr = e.stderr
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz._logger.debug_verbose('Failed to download site info for:', url,
-                                               'remaining_attempts:', remaining_attempts)
-                    #clz._logger.debug('output:', output)
-                    #clz._logger.debug('stderr:', stderr)
-                trailer_info = None
+                self._command_process.terminate()
+                self.join_output_threads(aborted=True)
+            except Exception:
+                pass
+            reraise(*sys.exc_info())
+        except CalledProcessError as e:
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz._logger.debug_verbose(
+                    'Failed to download site info for:', url)
+            trailer_info = None
+            Monitor.throw_exception_if_abort_requested(timeout=70.0)
+        except Exception as e:
+            clz._logger.exception(e)
+            try:
+                self._command_process.terminate()
+                self.join_output_threads()
+            except Exception:
+                pass
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz._logger.debug_verbose(
+                    'Failed to download site info for:', url)
+            trailer_info = None
 
         return 0, trailer_info
 
@@ -305,74 +273,121 @@ class YDStreamExtractorProxy(object):
         args = [python_exec, cmd_path, '--playlist-random', '--yes-playlist',
                 '--dump-json', url]
 
-        remaining_attempts = 1
-        line = None
-        lines_read = 0
         self._success = True
-        while remaining_attempts > 0:
+        try:
+            # It can take 20 minutes to dump entire TFH index. Read
+            # as it is produced
+
+            self._command_process = subprocess.Popen(
+                args, bufsize=1, stdin=None, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=False, env=env, close_fds=True, universal_newlines=True)
+
+            self.start_output_threads()
+            self.wait_on_process()
+            self.join_output_threads()
+
+            lines = self._stdout_text.splitlines()
+            for line in lines:
+                finished = trailer_handler(line)
+                if finished:
+                    break
+
+        except AbortException:
             try:
-                # It can take 20 minutes to dump entire TFH index. Read
-                # as it is produced
-
-                self._command_process = subprocess.Popen(
-                    args, bufsize=1, stdin=None, stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    shell=False, env=env, close_fds=True, universal_newlines=True)
-
-                self._thread = threading.Thread(
-                    target=self.stderr_reader, name='Stderr Reader')
-                self._thread.start()
-
-                finished = False
-                while not finished:
-                    Monitor.throw_exception_if_abort_requested()
-                    line = self._command_process.stdout.readline()
-                    if not line or not self._success:
-                        break
-                    #
-                    # Returns True when no more trailers are wanted
-
-                    finished = trailer_handler(line)
-                    lines_read += 1
-
-                break
-            except AbortException:
-                try:
-                    self._command_process.terminate()
-                except Exception:
-                    pass
-                reraise(*sys.exc_info())
-            except CalledProcessError as e:
-                remaining_attempts -= 1
-                if remaining_attempts == 0:
-                    self._success = False
-                # output = e.output
-                # stderr = e.stderr
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz._logger.debug_verbose('Failed to download site info for:', url,
-                                               'remaining_attempts:', remaining_attempts)
-                    # clz._logger.debug_verbose('output:', output)
-                    # clz._logger.debug_verbose('stderr:', stderr)
-                trailer_info = None
-            except Exception as e:
-                remaining_attempts -= 1
-                if remaining_attempts == 0:
-                    self._success = False
-                clz._logger.exception('')
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz._logger.debug_verbose('Failed to download site info for:', url,
-                                               'remaining_attempts:', remaining_attempts)
-                    # if line:
-                    #     clz._logger.debug('current response:', line)
-
-        if lines_read == 0:
+                self._command_process.terminate()
+                self.join_output_threads(aborted=True)
+            except Exception:
+                pass
+            reraise(*sys.exc_info())
+        except CalledProcessError as e:
             self._success = False
+            # output = e.output
+            # stderr = e.stderr
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz._logger.debug_verbose(
+                    'Failed to download site info for:', url)
+                # clz._logger.debug_verbose('output:', output)
+                # clz._logger.debug_verbose('stderr:', stderr)
+            trailer_info = None
+        except Exception as e:
+            self._success = False
+            clz._logger.exception(e)
+            try:
+                self._command_process.terminate()
+                self.join_output_threads()
+            except Exception:
+                pass
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz._logger.debug_verbose(
+                    'Failed to download site info for:', url)
+                # if line:
+                #     clz._logger.debug('current response:', line)
 
-        self._thread.join(timeout=0.1)
         if self._error == 0 and not self._success:
             self._error = 1
 
         return self._error
+
+    def wait_on_process(self):
+        while not Monitor.throw_exception_if_abort_requested(timeout=0.1):
+            try:
+                rc = self._command_process.wait(0.0)
+                break  # Complete
+            except subprocess.TimeoutExpired:
+                pass
+        pass
+
+    def start_output_threads(self):
+        self._stderr_thread = threading.Thread(
+            target=self.stderr_reader, name='Stderr Reader')
+        self._stderr_thread.start()
+
+        self._stdout_thread = threading.Thread(
+            target=self.stdout_reader, name='Stdout Reader')
+        self._stdout_thread.start()
+        pass
+
+    def join_output_threads(self, aborted=False):
+        while self._stderr_thread.is_alive():
+            self._stderr_thread.join(timeout=0.1)
+            if aborted:
+                break  # Quick exit, even if thread not joined
+            Monitor.throw_exception_if_abort_requested()
+
+        while self._stdout_thread.is_alive():
+            self._stdout_thread.join(timeout=0.1)
+            if aborted:
+                break  # Quick exit, even if not joined
+            Monitor.throw_exception_if_abort_requested()
+        pass
+
+    def stdout_reader(self):
+        #  type: () -> None
+        """
+        """
+        clz = YDStreamExtractorProxy
+
+        finished = False
+        self._stdout_text = ''
+        try:
+            while not finished:
+                Monitor.throw_exception_if_abort_requested()
+                try:
+                    #  TODO: need non-blocking read
+                    buffer = self._command_process.stdout.read()
+                    if not buffer:
+                        finished = True
+                    else:
+                        self._stdout_text = self._stdout_text + buffer
+                except subprocess.TimeoutExpired:
+                    pass
+        except AbortException:
+            self._command_process.terminate()
+            reraise(*sys.exc_info())
+        except Exception as e:
+            pass  # Thread dying
+        pass
 
     def stderr_reader(self):
         #  type: () -> None
@@ -382,7 +397,7 @@ class YDStreamExtractorProxy(object):
 
         finished = False
         log_stderr = True
-        error_text = ''
+        self._stderr_text = ''
         try:
             while not finished:
                 Monitor.throw_exception_if_abort_requested()
@@ -391,25 +406,25 @@ class YDStreamExtractorProxy(object):
                     line = self._command_process.stderr.readline()
                     if not line:
                         finished = True
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    else:
+                        self._stderr_text = self._stderr_text + line
+                    if (clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                            and len(line) > 0):
                         clz._logger.debug_extra_verbose('stderr:', line)
                     if 'Error 429' in line:
                         self._error = 429
                         clz._too_many_requests_timestamp = (
-                                datetime.datetime.now() + RETRY_DELAY)
+                            datetime.datetime.now() + RETRY_DELAY)
 
                         clz._logger.info(
                             'Abandoning download. Too Many Requests')
                         self._success = False
-                        error_text = ''
                         self._command_process.terminate()
                         finished = True
                     elif 'Unable to extract video data' in line:
                         self._error = 2
                     elif 'Error' in line:
                         pass
-                    if log_stderr and self._error != 0:
-                        error_text = error_text + line
                 except subprocess.TimeoutExpired:
                     pass
         except AbortException:
@@ -420,7 +435,7 @@ class YDStreamExtractorProxy(object):
 
         if (not self._error != 429
                 and clz._initial_tmr_timestamp is not None
-                and  clz._logger.isEnabledFor(
+                and clz._logger.isEnabledFor(
                     LazyLogger.DEBUG_EXTRA_VERBOSE)):
             initial_failure = datetime.datetime.strftime(
                 clz._initial_tmr_timestamp,
