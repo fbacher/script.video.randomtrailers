@@ -25,6 +25,7 @@ from common.settings import Settings
 from frontend.trailer_dialog import TrailerDialog, DialogState
 from frontend.black_background import BlackBackground
 from player.player_container import PlayerContainer
+from frontend.legal_info import LegalInfo
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -126,6 +127,11 @@ def play_trailers():
     try:
         black_background = BlackBackground.get_instance()
         black_background.show()
+        legal_info = LegalInfo('legal.xml', Constants.ADDON_PATH, 'Default')
+        legal_info.show()
+        Monitor.throw_exception_if_abort_requested(timeout=5.0)
+        legal_info.close()
+        legal_info.destroy()
         my_trailer_dialog = TrailerDialog('script-trailerwindow.xml',
                                           Constants.ADDON_PATH, 'Default')
         exiting_playing_movie = my_trailer_dialog.doModal()

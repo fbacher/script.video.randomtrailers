@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<window type="window">
+    <backgroundcolor>0xFF000000</backgroundcolor>
+    <zorder>1</zorder>
+    <controls>
+        <control type="group" id="38020">
+            <posx>0</posx>
+            <posy>0</posy>
+            <visible>Skin.HasSetting(Opaque)</visible>
+            <control type="image">
+                <description>Black background</description>
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1280</width>
+                <height>720</height>
+                <aspectratio>stretch</aspectratio>
+                <texture>solid-black.png</texture>
+            </control>
+            <control type="label" id="38021">
+                <description>Legal info</description>
+                <posx>30</posx>
+                <posy>40</posy>
+                <width>1220</width>
+                <height>80</height>
+                <aligny>center</aligny>
+                <font>font14</font>
+                <align>justify</align>
+                <textcolor>FFb4b4b4</textcolor>
+            </control>
+            <control type="image">
+                <description>White background</description>
+                <posx>40</posx>
+                <posy>500</posy>
+                <width>300</width>
+                <height>200</height>
+                <aspectratio>stretch</aspectratio>
+                <texture>white.png</texture>
+            </control>
+            <control type="image" id="2">
+                <visible>true</visible>
+                <left>40</left>
+                <posy>500</posy>
+                <width>300</width>
+                <height>200</height>
+                <texture border="5">tmdb_1.png</texture>
+                <!-- <animation effect="fade" start="100" end="60" time="0" condition="String.IsEmpty(ListItem.Rating)">Conditional</animation> -->
+            </control>
+        </control>
+    </controls>
+</window>
