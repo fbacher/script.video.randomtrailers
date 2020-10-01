@@ -860,8 +860,7 @@ class LazyLogger(Logger):
         except Exception:
             LazyLogger.log_exception()
 
-    def log(self, *args, **kwargs):
-        # type: ( *Any, **str) -> None
+    def log(self, *args: Any, **kwargs: Any) -> None:
         """
             Creates a log entry
 
@@ -892,8 +891,7 @@ class LazyLogger(Logger):
         except Exception:
             LazyLogger.log_exception()
 
-    def _log(self, *args, **kwargs):
-        # type: ( *Any, **Any) -> None
+    def _log(self, *args: Any, **kwargs: Any) -> None:
         """
             Creates a log entry
 
@@ -931,7 +929,7 @@ class LazyLogger(Logger):
             LazyLogger.log_exception()
 
     def debug(self, *args, **kwargs):
-        # type: ( *Any, **str ) -> None
+        # type: ( *Any, **Any ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
@@ -947,7 +945,7 @@ class LazyLogger(Logger):
         self._log(*args, **kwargs)
 
     def debug_verbose(self, *args, **kwargs):
-        # type: ( *Any, **str ) -> None
+        # type: ( *Any, **Any ) -> None
         """
             Convenience method for log(xxx kwargs['log_level' : xbmc.LOGDEBUG)
         :param args: Any (almost) arbitrary arguments. Typically "msg:", value
