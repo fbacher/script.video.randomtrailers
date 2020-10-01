@@ -232,7 +232,6 @@ class Monitor(xbmc.Monitor):
 
         # cls._inform_settings_changed_listeners()
         cls.startup_complete_event.set()
-        #cls._inform_screensaver_listeners()
 
         with cls._settings_changed_listener_lock:
             del cls._settings_changed_listeners[:]
