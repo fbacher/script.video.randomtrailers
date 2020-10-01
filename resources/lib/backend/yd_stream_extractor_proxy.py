@@ -21,6 +21,9 @@ from common.monitor import Monitor
 from common.exceptions import AbortException
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+
+#  Intentional delay (seconds) to help prevent TOO_MANY_REQUESTS
+DELAY = 5.0
 PYTHON_PATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
 PYTHON_EXEC = sys.executable
 YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
@@ -29,7 +32,7 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 RETRY_DELAY = datetime.timedelta(0, float(60 * 2))
 
 
-class YDStreamExtractorProxy(object):
+class YDStreamExtractorProxy:
     """
 
     """
@@ -170,6 +173,7 @@ class YDStreamExtractorProxy(object):
         if self._error == 0 and (not self._success or trailer is None):
             self._error = 1
 
+        Monitor.throw_exception_if_abort_requested(timeout=DELAY)
         return self._error, trailer
 
     def get_info(self, url: str) -> Tuple[int, Optional[List[MovieType]]]:
@@ -241,6 +245,7 @@ class YDStreamExtractorProxy(object):
                     'Failed to download site info for:', url)
             trailer_info = None
 
+        Monitor.throw_exception_if_abort_requested(timeout=DELAY)
         return 0, trailer_info
 
     def get_tfh_index(self, url: str, trailer_handler) -> int:
@@ -290,6 +295,7 @@ class YDStreamExtractorProxy(object):
             lines = self._stdout_text.splitlines()
             for line in lines:
                 finished = trailer_handler(line)
+                Monitor.throw_exception_if_abort_requested(timeout=DELAY)
                 if finished:
                     break
 
@@ -327,6 +333,7 @@ class YDStreamExtractorProxy(object):
         if self._error == 0 and not self._success:
             self._error = 1
 
+        Monitor.throw_exception_if_abort_requested(timeout=DELAY)
         return self._error
 
     def wait_on_process(self):
