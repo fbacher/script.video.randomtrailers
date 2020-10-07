@@ -1494,6 +1494,27 @@
 						</dependency>
 					</dependencies>
 				</setting>
+				<!-- Hidden Settings -->
+				<setting help="" id="youtube-dl-cache-path" label="32178" type="string">
+                    <level>0</level>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <control type="edit" format="string">
+                        <heading>32178</heading>
+                    </control>
+                    <visible>false</visible>
+                </setting>
+				<setting help="" id="youtube-dl-cookie-path" label="32178" type="string">
+                    <level>0</level>
+                    <constraints>
+                        <allowempty>true</allowempty>
+                    </constraints>
+                    <control type="edit" format="string">
+                        <heading>32178</heading>
+                    </control>
+                    <visible>false</visible>
+                </setting>
 			</group>
 		</category>
 	</section>

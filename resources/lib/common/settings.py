@@ -153,6 +153,11 @@ class Settings(object):
     PLAYLIST_9 = "playlist_name_9"
     PLAYLIST_10 = "playlist_name_10"
 
+    # HIDDEN SETTINGS
+
+    YOUTUBE_DL_COOKIE_PATH = 'youtube-dl-cookie-path'
+    YOUTUBE_DL_CACHE_PATH = 'youtube-dl-cache-path'
+
     ALL_SETTINGS = [
         ADJUST_VOLUME,
         TMDB_ALLOW_FOREIGN_LANGUAGES,
@@ -1998,4 +2003,20 @@ class Settings(object):
         if Settings.is_limit_percent_of_cached_json():
             value = Settings.get_setting_float(
                 Settings.MAX_PERCENT_OF_CACHED_JSON) / 100.0
+        return value
+
+    '''
+    HIDDEN Settings
+    '''
+
+    @staticmethod
+    def get_youtube_dl_cookie_path() -> str:
+        value = Settings.get_addon().addon.getSetting(Settings.YOUTUBE_DL_COOKIE_PATH)
+
+        return value
+
+    @staticmethod
+    def get_youtube_dl_cache_path() -> str:
+        value = Settings.get_addon().addon.getSetting(Settings.YOUTUBE_DL_CACHE_PATH)
+
         return value

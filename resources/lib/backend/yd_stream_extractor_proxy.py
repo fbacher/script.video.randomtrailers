@@ -118,9 +118,11 @@ class YDStreamExtractorProxy:
                 'outtmpl': template,
                 'updatetime': 'false',
                 'logger': video_logger,
-                'progress_hooks': [VideoDownloadProgressHook(self).status_hook],
-                'cookiefile': '/home/fbacher/youtube.cookies'
+                'progress_hooks': [VideoDownloadProgressHook(self).status_hook]
             }
+            cookie_path = Settings.get_youtube_dl_cookie_path()
+            if len(cookie_path) > 0 and os.path.exists(cookie_path):
+                ydl_opts['cookiefile'] = cookie_path
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -201,9 +203,11 @@ class YDStreamExtractorProxy:
                 'forcejson': 'true',
                 'skip_download': 'true',
                 'logger': info_logger,
-                'progress_hooks': [TrailerInfoProgressHook(self).status_hook],
-                'cookiefile': '/home/fbacher/youtube.cookies'
+                'progress_hooks': [TrailerInfoProgressHook(self).status_hook]
             }
+            cookie_path = Settings.get_youtube_dl_cookie_path()
+            if len(cookie_path) > 0 and os.path.exists(cookie_path):
+                ydl_opts['cookiefile'] = cookie_path
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -278,10 +282,15 @@ class YDStreamExtractorProxy:
             #  'playlist_items': trailers_to_download,
             'playlistrandom': True,
             'progress_hooks': [TFHIndexProgressHook(self).status_hook],
-            'cookiefile': '/home/fbacher/youtube.cookies',
-            'cachedir': '/home/fbacher/youtube-dl.cache'
             #'debug_printtraffic': True
         }
+        cookie_path = Settings.get_youtube_dl_cookie_path()
+        if len(cookie_path) > 0 and os.path.exists(cookie_path):
+            ydl_opts['cookiefile'] = cookie_path
+
+        cache_dir = Settings.get_youtube_dl_cache_path()
+        if len(cache_dir) > 0 and os.path.exists(cache_dir):
+            ydl_opts['cachedir'] = cache_dir
 
         if len(trailers_to_download) > 10:
             ydl_opts['playlist_items'] = trailers_to_download
