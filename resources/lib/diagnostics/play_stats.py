@@ -130,7 +130,7 @@ class PlayStatistics:
             save_path = path + '.old'
             directory = os.path.dirname(path)
             os.makedirs(directory, mode=0o751, exist_ok=True)
-            if clz._first_call and save_path.exists():
+            if clz._first_call and os.path.exists(save_path):
                 os.replace(path, save_path)
                 clz.first_call = False
 
