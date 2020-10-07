@@ -129,7 +129,7 @@ def play_trailers():
         black_background.show()
         legal_info = LegalInfo('legal.xml', Constants.ADDON_PATH, 'Default')
         legal_info.show()
-        Monitor.throw_exception_if_abort_requested(timeout=5.0)
+        Monitor.throw_exception_if_abort_requested(timeout=10.0)
         legal_info.close()
         legal_info.destroy()
         my_trailer_dialog = TrailerDialog('script-trailerwindow.xml',

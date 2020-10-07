@@ -27,6 +27,26 @@
                 <align>justify</align>
                 <textcolor>FFb4b4b4</textcolor>
             </control>
+            <!-- TFH -->
+            <control type="textbox" id="38022">
+                <description>Plot</description>
+                <posx>30</posx>
+                <posy>130</posy>
+                <width>1175</width>
+                <height>205</height>
+                <spinposx>1180</spinposx>
+                <spinposy>130</spinposy>
+                <spinwidth>20</spinwidth>
+                <spinheight>11</spinheight>
+                <font>font14</font>
+                <align>justify</align>
+                <textcolor>FFb4b4b4</textcolor>
+                <textureup>-</textureup>
+                <texturedown flipy="true">-</texturedown>
+                <textureupfocus>-</textureupfocus>
+                <texturedownfocus flipy="true"></texturedownfocus>
+                <autoscroll delay="6000" time="2500" repeat="5000"></autoscroll>
+            </control>
             <control type="image">
                 <description>White background</description>
                 <posx>40</posx>
