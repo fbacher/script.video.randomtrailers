@@ -15,6 +15,7 @@ import xbmc
 import xbmcgui
 
 from common.constants import Constants, Movie
+from common.debug_utils import Debug
 from common.imports import *
 from common.playlist import Playlist
 from common.exceptions import AbortException
@@ -1285,6 +1286,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         """
         local_class = TrailerDialog
 
+        # Grab handle to movie, it might go away.
+
+        movie = self._movie
         if action.getId() != 107:  # Mouse Move
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug('Action.id:', action.getId(),
@@ -1380,12 +1384,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # PAUSE/PLAY is handled by native player
         #
         elif action_id == xbmcgui.ACTION_QUEUE_ITEM:
-            if Utils.is_couch_potato_installed():
+            if Utils.is_couch_potato_installed() and movie is not None:
                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                     local_class.logger.debug(key, 'Queue to couch potato')
                 str_couch_potato = \
                     'plugin://plugin.video.couchpotato_manager/movies/add?title=' + \
-                    self._movie[Movie.TITLE]
+                    movie[Movie.TITLE]
                 xbmc.executebuiltin('XBMC.RunPlugin(' + str_couch_potato + ')')
 
         ##################################################################
@@ -1423,10 +1427,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         ##################################################################
         elif (action_id == xbmcgui.ACTION_ENTER
               or action_id == xbmcgui.ACTION_SELECT_ITEM
-              or action_id == xbmcgui.ACTION_SHOW_GUI):
+              or action_id == xbmcgui.ACTION_SHOW_GUI) and movie is not None:
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug(key, 'Play Movie')
-            movie_file = self._movie[Movie.FILE]
+            movie_file = movie[Movie.FILE]
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug('Playing movie for currently playing trailer.',
                                          'movie_file:', movie_file, 'source:',
@@ -1440,16 +1444,16 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 message = Messages.get_msg(Messages.PLAYER_IDLE)
                 self.notification(message)
             else:
-                self.queue_movie(self._movie)
+                self.queue_movie(movie)
 
         ##################################################################
         # From IR remote as well as keyboard
         # Close InfoDialog and resume playing trailer
 
-        elif action_id in TrailerDialog._playlist_map:
+        elif action_id in TrailerDialog._playlist_map and movie is not None:
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
                 local_class.logger.debug(key)
-            self.add_to_playlist(action_id, self._movie)
+            self.add_to_playlist(action_id, movie)
 
     def set_title_control_label(self, text=''):
         # type: (str) -> None
@@ -1585,8 +1589,15 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         """
         local_class = TrailerDialog
         title = ''
+        if movie is None:
+            return ''
         try:
-            title = '[B]' + movie[Movie.DETAIL_TITLE] + '[/B]'
+            title = movie.get(Movie.DETAIL_TITLE)
+            if title is None:
+                title = movie.get(Movie.TITLE)
+                local_class.logger.error('Missing DETAIL_TITLE:',
+                                         Debug.dump_dictionary(movie))
+            title = '[B]' + title + '[/B]'
 
             if verbose:
                 cached = False
