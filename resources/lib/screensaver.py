@@ -17,7 +17,6 @@ from common.exceptions import AbortException
 from common.imports import *
 from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
-from screensaver.screensaver_bridge import ScreensaverBridge
 
 REMOTE_DEBUG: bool = False
 
@@ -88,14 +87,11 @@ try:
 
         _monitor.wait_for_abort(timeout=0.01)
         _monitor.set_startup_complete()
-        ScreensaverBridge()  # Initialize
-        message_received = ScreensaverBridge.request_activate_screensaver()
 
-        _monitor.wait_for_abort(timeout=0.01)
-
+        message_received = False
         if not message_received:
             if module_logger.isEnabledFor(LazyLogger.DEBUG):
-                module_logger.debug('About to start randomtrailers')
+                module_logger.debug('About to start randomtrailers screensaver')
 
             cmd = '{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \
                 "params": {"addonid": "script.video.randomtrailers",\
@@ -103,8 +99,6 @@ try:
             json_text = xbmc.executeJSONRPC(cmd)
             _monitor.wait_for_abort(timeout=0.01)
 
-        _monitor.wait_for_abort(timeout=0.01)
-        ScreensaverBridge.delete_instance()
         _monitor.wait_for_abort(timeout=0.01)
 
 except AbortException:

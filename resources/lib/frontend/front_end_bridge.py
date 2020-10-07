@@ -184,17 +184,18 @@ class FrontendBridge(PluginBridge):
             cls._logger.exception('')
 
     @classmethod
-    def activate_screensaver(cls):
-        # type: () -> None
+    def activate_screensaver(cls, data: Any = None) -> None:
         """
             Front-end receives request from screensaver service
             to activate screensaver
+
+            data arg required, but unused.
 
         :return:
         """
         try:
 
-            if LazyLogger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.enter()
             # Inform monitor
             cls.ack('screensaver')

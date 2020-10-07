@@ -83,20 +83,19 @@ class MainThreadLoop(object):
     _logger = None
     _start_ui = None
 
-    def __init__(self, is_screensaver: bool) -> None:
+    def __init__(self) -> None:
         """
 
-        :param is_screensaver:
         """
         pass
 
     @classmethod
-    def class_init(cls, is_screensaver: bool) -> None:
+    def class_init(cls, screensaver: bool) -> None:
         cls._logger = module_logger.getChild(cls.__name__)
         Trace.enable_all()
         Settings.save_settings()
         cls._advanced_player = None
-        cls._is_screensaver = is_screensaver
+        cls._is_screensaver = screensaver
         cls._start_ui = None
         cls._callableTasks = queue.Queue(maxsize=0)
 
@@ -216,9 +215,9 @@ class MainThreadLoop(object):
         return
 
 
-def bootstrap_random_trailers(is_screensaver: bool) -> None:
+def bootstrap_random_trailers(screensaver: bool) -> None:
     """
-    :param is_screensaver: True when launched as a screensaver
+    :param screensaver: True when launched as a screensaver
     :return:
     """
     try:
@@ -228,7 +227,7 @@ def bootstrap_random_trailers(is_screensaver: bool) -> None:
         Monitor.register_settings_changed_listener(
             LazyLogger.on_settings_changed)
 
-        MainThreadLoop.class_init(is_screensaver)
+        MainThreadLoop.class_init(screensaver)
         MainThreadLoop.startup()
 
         # LazyLogger can be unusable during shutdown

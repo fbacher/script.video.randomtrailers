@@ -41,13 +41,13 @@ class ScreensaverBridge(PluginBridge):
 
         """
         super().__init__()
-        type(self).class_init()
 
     @classmethod
     def class_init(cls):
-        cls._logger = module_logger.getChild(cls.__name__)
-        cls._context = Constants.SCREENSAVER_SERVICE
-        cls._ack_received = None
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+            cls._context = Constants.SCREENSAVER_SERVICE
+            cls._ack_received = None
 
     ###########################################################
     #
@@ -70,22 +70,23 @@ class ScreensaverBridge(PluginBridge):
 
             # Wait for response
 
-            count = 0
-            while count < 30 and cls._ack_received is None:
-                Monitor.wait_for_abort(0.05)
-                count += 1
+            # count = 0
+            # while count < 30 and cls._ack_received is None:
+            #     Monitor.wait_for_abort(0.05)
+            #     count += 1
 
-            if not cls._ack_received:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug(
-                        'randomtrailers front-end appears inactive')
-                return False
+            # if not cls._ack_received:
+            #     if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            #         cls._logger.debug(
+            #             'randomtrailers front-end appears inactive')
+            #     return False
             return True
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('')
 
+    '''
     @classmethod
     def receiveAck(cls, data):
         # type: (Any) -> None
@@ -120,3 +121,7 @@ class ScreensaverBridge(PluginBridge):
         """
 
         cls.register_slot(Constants.FRONTEND_ID, 'ack', cls.receiveAck)
+    '''
+
+
+ScreensaverBridge.class_init()
