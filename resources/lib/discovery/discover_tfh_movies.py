@@ -13,6 +13,7 @@ import xbmcvfs
 
 from cache.tfh_cache import (TFHCache)
 from common.constants import Constants, Movie
+from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
 from common.imports import *
 from common.logger import (LazyLogger, Trace)
@@ -52,6 +53,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                          args=(), kwargs=kwargs)
         self._movie_data = TFHMovieData()
         self._unique_trailer_ids = set()
+        self.number_of_trailers_on_site = 0
 
     def discover_basic_information(self):
         # type: () -> None
@@ -118,7 +120,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             duration = datetime.datetime.now() - start_time
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.debug('Time to discover:', duration.seconds, ' seconds',
-                                   trace=Trace.STATS)
+                                 trace=Trace.STATS)
 
         except AbortException:
             return
@@ -191,6 +193,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         cached_trailers = TFHCache.get_cached_trailers()
         max_trailers = Settings.get_max_number_of_tfh_trailers()
         trailer_list = list(cached_trailers.values())
+        DiskUtils.RandomGenerator.shuffle((trailer_list))
 
         # Limit trailers added by settings, but don't throw away what
         # we have discovered.
@@ -199,7 +202,11 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             del trailer_list[max_trailers:]
         self.add_to_discovered_trailers(trailer_list)
 
-        if len(trailer_list) < max_trailers:
+        cache_expiration_time = datetime.timedelta(
+            float(Settings.get_tfh_cache_expiration_days()))
+        cache_expiration_time = datetime.datetime.now() - cache_expiration_time
+        if (len(trailer_list) < max_trailers
+                or TFHCache.get_creation_date() < cache_expiration_time):
             # Get the entire index again and replace the cache.
             # This can take perhaps 20 minutes, which is why we seed the
             # fetcher with any previously cached data. This will fix itself
@@ -210,7 +217,15 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             # trailer_handler is a callback, so adds entries to the cache
 
+            # Create initial range of trailers to request. Can be adjusted as
+            # we go.
+
+            # Put first trailer at end, since we process from the end.
+
+            # Ignored at the moment. See YDStreamExtractorProxy
+            trailers_to_download = [23]
             finished = False
+            actual_trailer_count = None
             while not finished:
                 wait = youtube_data_stream_extractor_proxy.get_youtube_wait_seconds()
                 if wait > 0:
@@ -220,10 +235,13 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug(
                             'Can not download trailer for cache at this time')
-                    Monitor.throw_exception_if_abort_requested(timeout=float(wait))
+                    Monitor.throw_exception_if_abort_requested(
+                        timeout=float(wait))
+                # trailers_to_get_info is ignored at present
+                trailers_to_get_info: str = str(trailers_to_download.pop())
                 rc = youtube_data_stream_extractor_proxy.get_tfh_index(
-                    url, self.trailer_handler)
-                if rc == 0: # All Entries passed
+                    url, trailers_to_get_info, self.trailer_handler)
+                if rc == 0:  # All Entries passed
                     pass
                 if rc != 429:  # Last entry read failed
                     finished = True
@@ -231,26 +249,42 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 # In case any were read. Note, any read already added to
                 # discovered_trailers
 
-                TFHCache.save_cache(flush=True)
+                complete = False
 
-    def trailer_handler(self, json_text):
-        #  type: (str) -> bool
+                # Getting all trailer urls at once.
+
+                # if actual_trailer_count is None:
+                #     attempts = 0
+                #     while self.number_of_trailers_on_site == 0 and attempts < 10:
+                #         attempts += 1
+                #         Monitor.throw_exception_if_abort_requested(0.5)
+                #     if self.number_of_trailers_on_site == 0:
+                #         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                #             clz.logger.debug(
+                #                 'Could not determine number of Trailers From Hell')
+                #     trailers_to_download = list(
+                #         range(1, self.number_of_trailers_on_site))
+                #     DiskUtils.RandomGenerator.shuffle((trailers_to_download))
+                flush = False
+                if True:  # len(trailers_to_download) == 0:
+                    finished = True
+                    complete = True
+                    flush = True
+                TFHCache.set_creation_date()
+                TFHCache.save_cache(flush=flush, complete=complete)
+
+    def trailer_handler(self, tfh_trailer: Dict[str, Any]) -> bool:
         """
 
-        :param json_text:
+        :param tfh_trailer:
         :return:
         """
         clz = DiscoverTFHMovies
 
         Monitor.throw_exception_if_abort_requested()
-        try:
-            tfh_trailer = json.loads(json_text)
-        except Exception as e:
-            clz.logger.exception(e)
-            clz.logger.warning('Offending json:', json_text)
-            return False
 
-        trailer_id = tfh_trailer['id']
+        trailer_id = tfh_trailer[Movie.YOUTUBE_ID]
+
         if trailer_id not in self._unique_trailer_ids:
             self._unique_trailer_ids.add(trailer_id)
 
@@ -260,41 +294,19 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             # TFH may not like changing the title, however.
 
-            title = tfh_trailer['title']
-            #title_segments = title.split(' on ')
-            #real_title_index = len(title_segments) - 1
-            #movie_title = title_segments[real_title_index]
-            movie_title = title
-            trailer_url = 'https://youtu.be/' + trailer_id
-            upload_date = tfh_trailer['upload_date']  # 20120910
-            year = upload_date[0:4]
-            year = int(year)
-            thumbnail = tfh_trailer['thumbnail']
-            original_language = ''
-            description = tfh_trailer['description']
-            country_id = Settings.get_country_iso_3166_1().lower()
-            certifications = WorldCertifications.get_certifications(country_id)
-            unrated_id = certifications.get_unrated_certification().get_preferred_id()
-            trailer_entry = {Movie.SOURCE: Movie.TFH_SOURCE,
-                             Movie.TFH_ID: trailer_id,
-                             Movie.TITLE: movie_title,
-                             Movie.YEAR: year,
-                             Movie.ORIGINAL_LANGUAGE: original_language,
-                             Movie.TRAILER: trailer_url,
-                             Movie.PLOT: description,
-                             Movie.THUMBNAIL: thumbnail,
-                             Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                             Movie.MPAA: unrated_id,
-                             Movie.ADULT: False,
-                             Movie.RATING: 0.0
-                             }
+            tfh_trailer[Movie.SOURCE] = Movie.TFH_SOURCE
+            tfh_trailer[Movie.TFH_ID] = tfh_trailer[Movie.YOUTUBE_ID]
+            del tfh_trailer[Movie.YOUTUBE_ID]
+            trailers_in_playlist = tfh_trailer[Movie.YOUTUBE_TRAILERS_IN_PLAYLIST]
+
             # if (Settings.get_max_number_of_tfh_trailers()
             #        <= len(TFHCache.get_cached_trailers())):
             #    return True
             # else:
-            TFHCache.add_trailer(trailer_entry, flush=False)
+            TFHCache.add_trailer(
+                tfh_trailer, total=trailers_in_playlist, flush=False)
             cached_trailers = TFHCache.get_cached_trailers()
             max_trailers = Settings.get_max_number_of_tfh_trailers()
-            if len(cached_trailers) <= max_trailers:
-                self.add_to_discovered_trailers(trailer_entry)
+            self.add_to_discovered_trailers(tfh_trailer)
+            self.number_of_trailers_on_site = trailers_in_playlist
             return False

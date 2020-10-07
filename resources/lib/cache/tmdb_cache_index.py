@@ -444,13 +444,12 @@ class CachedPagesData:
         self._query_by_year = query_by_year
         self._years_to_query = None
         self._search_pages_configured = False
-        self._path = 'tmdb_' + key + '.json'
         self._logger.debug('remote_db_cache_path:',
                            Settings.get_remote_db_cache_path())
         self._path = os.path.join(Settings.get_remote_db_cache_path(),
-                                  'index', self._path)
+                                  'index', f'tmdb_{key}.json')
         self._temp_path = os.path.join(Settings.get_remote_db_cache_path(),
-                                       'index', f'tmdb{key}.json.tmp')
+                                       'index', f'tmdb_{key}.json.tmp')
         # type:
         self._cached_page_by_key: Optional[Dict[str, CachedPage]] = None
 
@@ -824,7 +823,7 @@ class CachedPagesData:
 
                 Monitor.throw_exception_if_abort_requested()
                 with io.open(temp_path, mode='wt', newline=None,
-                                              encoding='utf-8') as cacheFile:
+                             encoding='utf-8') as cacheFile:
                     json_dict = self.to_json()
 
                     # TODO: Need ability to interrupt when ABORT. Object_handler
@@ -906,6 +905,10 @@ class CachedPagesData:
         self.load_search_pages()
         self._cached_page_by_key = {}
         self._total_pages = 0
+        self._number_of_unsaved_changes = 1
+        self._total_pages_by_year = {}
+        self._years_to_query = None
+        self._search_pages_configured = False
         self.save_search_pages(flush=True)
 
 
@@ -958,14 +961,15 @@ class CacheIndex:
                 cls._parameters = CacheParameters.get_parameter_values()
                 cls._unprocessed_movies: Dict[int, MovieType] = {}
                 cls._found_tmdb_trailer_ids: Set(int) = set()
-                cls._unsaved_trailer_changes = 0
-                cls._unprocessed_movie_changes = 0
+                cls._unsaved_trailer_changes = 1
+                cls._unprocessed_movie_changes = 1
                 cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
                 cls._last_saved_trailer_timestamp = datetime.datetime.now()
                 cls.save_parameter_cache()
                 cls.save_unprocessed_movie_cache(flush=True)
                 cls.save_found_trailer_ids_cache(flush=True)
                 for cached_page_data in CachedPagesData.pages_data.values():
+                    cached_page_data: CachedPagesData
                     cached_page_data.clear()
             else:
                 cls.load_unprocessed_movie_cache()
@@ -1156,7 +1160,8 @@ class CacheIndex:
                     # Constants.TRAILER_CACHE_FLUSH_UPDATES)
                     (cls._unprocessed_movie_changes < 10)
                     and
-                    (datetime.datetime.now() - cls._last_saved_unprocessed_movie_timestamp)
+                    (datetime.datetime.now() - \
+                     cls._last_saved_unprocessed_movie_timestamp)
                     < datetime.timedelta(minutes=5)):
                 return
 
@@ -1209,7 +1214,7 @@ class CacheIndex:
             with CacheIndex.lock:
                 if os.path.exists(path):
                     with io.open(path, mode='rt', newline=None,
-                                                  encoding='utf-8') as cacheFile:
+                                 encoding='utf-8') as cacheFile:
                         cls._unprocessed_movies = json.load(
                             cacheFile, encoding='utf-8',
                             object_hook=CacheIndex.datetime_parser)
@@ -1255,7 +1260,8 @@ class CacheIndex:
                 try:
                     with io.open(path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
-                        found_trailer_id_list = list(cls._found_tmdb_trailer_ids)
+                        found_trailer_id_list = list(
+                            cls._found_tmdb_trailer_ids)
                         json_text = json.dumps(found_trailer_id_list,
                                                encoding='utf-8',
                                                ensure_ascii=False,

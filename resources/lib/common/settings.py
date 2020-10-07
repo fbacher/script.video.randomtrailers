@@ -137,6 +137,7 @@ class Settings(object):
     ENABLE_REMOTE_DATA_CACHE = 'use_remote_data_cache'
     ENABLE_TRAILER_CACHE = 'use_trailer_cache'
     CACHE_EXPIRATION_DAYS = 'json_cache_expiration_days'
+    TFH_CACHE_EXPIRATION_DAYS = 'tfh_cache_expiration_days'
     EXPIRE_TRAILER_CACHE_DAYS = 'trailer_cache_expiration_days'
     CACHE_TRAILER_CHECK_DAYS = 'trailer_existance_cache_check_days'
     TRAILER_CACHE_PATH = 'trailer_cache_path'
@@ -1215,6 +1216,10 @@ class Settings(object):
         :return:
         """
         return Settings.get_setting_bool(Settings.INCLUDE_TFH_TRAILERS)
+
+    @staticmethod
+    def get_tfh_cache_expiration_days() -> int:
+        return Settings.get_setting_int(Settings.TFH_CACHE_EXPIRATION_DAYS)
 
     @staticmethod
     def is_set_fullscreen_when_screensaver():

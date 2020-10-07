@@ -430,7 +430,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 else:
                     MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
 
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose('Finished second discovery level for movie:',
                                             trailer.get(Movie.TITLE),
                                             '(tentatively) keep:', keep_new_trailer)
@@ -914,7 +914,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not include_movie:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose(
-                        'Rejected due to GenreUtils or Keyword')
+                        f'Rejected due to GenreUtils or Keyword: {movie_title}')
                 add_movie = False
 
             language_information_found, original_language_found = is_language_present(
@@ -926,7 +926,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not ignore_failures and not (original_language_found
                                             or Settings.is_allow_foreign_languages()):
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose('Rejected due to language')
+                    clz._logger.debug_extra_verbose(
+                        f'Rejected due to foreign language: {movie_title}')
                 add_movie = False
 
             if vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
@@ -936,14 +937,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                         add_movie = False
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz._logger.debug_extra_verbose(
-                                'Rejected due to vote_average <')
+                                f'Rejected due to vote_average < {movie_title}')
                 elif vote_comparison == \
                         RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
                     if vote_average > vote_value:
                         add_movie = False
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz._logger.debug_extra_verbose(
-                                'Rejected due to vote_average >')
+                                f'Rejected due to vote_average > {movie_title}')
 
             original_title = tmdb_result['original_title']
             if original_title is not None:
@@ -953,7 +954,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             if adult_movie and not include_adult:
                 add_movie = False
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose('Rejected due to adult')
+                    clz._logger.debug_extra_verbose(
+                        f'Rejected due to adult, {movie_title}')
 
             dict_info[Movie.ADULT] = adult_movie
             dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
@@ -968,7 +970,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not certifications.filter(certification):
                 add_movie = False
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose('Rejected due to rating')
+                    clz._logger.debug_extra_verbose(
+                        f'Rejected due to rating: {movie_title}')
                     # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
 
         except AbortException as e:
@@ -1109,6 +1112,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                 movie = None
                 if tmdb_id is not None:
                     CacheIndex.remove_cached_tmdb_trailer_id(tmdb_id)
+
+            if (clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+                    and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                clz._logger.debug_verbose('Fully discovered and ready to play:',
+                                          movie[Movie.TITLE],
+                                          movie[Movie.DETAIL_TITLE],
+                                          trace=Trace.TRACE_DISCOVERY)
 
             return movie
         except AbortException:
@@ -1345,15 +1355,15 @@ class TrailerFetcher(TrailerFetcherInterface):
                     #
                     # Not in cache, download
                     #
-                    download_info = None
+                    downloaded_movie = None
                     error_code = 0
                     trailer_folder = xbmcvfs.translatePath('special://temp')
                     youtube_data_stream_extractor_proxy = YDStreamExtractorProxy()
                     if youtube_data_stream_extractor_proxy.get_youtube_wait_seconds() > 0:
                         error_code = 429
-                        download_info = None
+                        downloaded_movie = None
                     else:
-                        error_code, download_info = \
+                        error_code, downloaded_movie = \
                             youtube_data_stream_extractor_proxy.get_video(
                                 trailer_path, trailer_folder, movie_id)
                     if error_code == 429:
@@ -1361,8 +1371,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                             clz._logger.debug(
                                 'Can not download trailer for cache at this time')
-                    if download_info is not None:
-                        download_path = download_info.get('_filename', None)
+                    if downloaded_movie is not None:
+                        download_path = downloaded_movie[Movie.TRAILER]
 
                     """
                        To save json data from downloaded for debugging, uncomment
@@ -1372,7 +1382,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     import io
                     with io.open(temp_file, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
-                        jsonText = utils.py2_decode(json.dumps(trailer_info,
+                        jsonText = utils.py2_decode(json.dumps(downloaded_movie,
                                                                encoding='utf-8',
                                                                ensure_ascii=False))
                         cacheFile.write(jsonText)

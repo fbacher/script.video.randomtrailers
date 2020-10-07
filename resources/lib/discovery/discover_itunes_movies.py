@@ -6,6 +6,7 @@ Created on Apr 14, 2019
 """
 
 import datetime
+import simplejson as json
 import re
 import sys
 
@@ -487,7 +488,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             Monitor.throw_exception_if_abort_requested()
             youtube_data_extractor = YDStreamExtractorProxy()
             finished = False
-            downloadable_trailers: List[Movie] = []
+            downloadable_trailers: List[MovieType] = []
             while not finished:
                 wait = youtube_data_extractor.get_youtube_wait_seconds()
                 if wait > 0:
@@ -548,86 +549,95 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             promotions = []
             for downloadable_trailer in downloadable_trailers:
-                Monitor.throw_exception_if_abort_requested()
-                keep_promotion = True
-                media_type = downloadable_trailer.get(
-                    'title', '').lower()
-                media_type = media_type.split(' ')[0]
+                try:
+                    Monitor.throw_exception_if_abort_requested()
+                    keep_promotion = True
+                    media_type = downloadable_trailer.get(
+                        'title', '').lower()
+                    media_type = media_type.split(' ')[0]
 
-                # title = downloadable_trailer.get('title', '')
-                language = downloadable_trailer.get('language', '')
-                thumbnail = downloadable_trailer['thumbnail']
-                upload_date = downloadable_trailer['upload_date']
+                    # title = downloadable_trailer.get('title', '')
+                    language = downloadable_trailer.get('language', '')
+                    thumbnail = downloadable_trailer['thumbnail']
+                    upload_date = downloadable_trailer['upload_date']
 
-                if media_type not in DOWNLOADABLE_TYPES:
-                    continue
-                if language != '' and language != Settings.get_lang_iso_639_1():
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose('Rejecting:', title, 'media-type:',
-                                                 media_type, 'due to language:',
-                                                 language)
-                    continue
-                elif language == '' and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz.logger.debug_verbose('Empty language specified for:',
-                                             title, 'from media-type:', media_type)
-                if (not Settings.get_include_clips() and
-                        media_type == 'clip'):
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose('Rejecting due to clip')
-                    keep_promotion = False
-                elif not Settings.get_include_featurettes() and (
-                        media_type == 'featurette'):
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose(
-                            'Rejecting due to Featurette')
-                    keep_promotion = False
-                elif not Settings.get_include_teasers() and (
-                        media_type == 'teaser'):
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose('Rejecting due to Teaser')
-                    keep_promotion = False
-                elif ((Settings.get_include_itunes_trailer_type() ==
-                       iTunes.COMING_SOON) and
-                      (release_date < datetime.date.today())):
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose(
-                            'Rejecting due to COMING_SOON and already released')
-                    keep_promotion = False
+                    if media_type not in DOWNLOADABLE_TYPES:
+                        continue
+                    if language != '' and language != Settings.get_lang_iso_639_1():
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            clz.logger.debug_verbose('Rejecting:', title, 'media-type:',
+                                                     media_type, 'due to language:',
+                                                     language)
+                        continue
+                    elif language == '' and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose('Empty language specified for:',
+                                                 title, 'from media-type:', media_type)
+                    if (not Settings.get_include_clips() and
+                            media_type == 'clip'):
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose('Rejecting due to clip')
+                        keep_promotion = False
+                    elif not Settings.get_include_featurettes() and (
+                            media_type == 'featurette'):
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose(
+                                'Rejecting due to Featurette')
+                        keep_promotion = False
+                    elif not Settings.get_include_teasers() and (
+                            media_type == 'teaser'):
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            clz.logger.debug_verbose('Rejecting due to Teaser')
+                        keep_promotion = False
+                    elif ((Settings.get_include_itunes_trailer_type() ==
+                           iTunes.COMING_SOON) and
+                          (release_date < datetime.date.today())):
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose(
+                                'Rejecting due to COMING_SOON and already released')
+                        keep_promotion = False
 
-                if keep_promotion:
-                    for promotion_format in downloadable_trailer['formats']:
-                        language = promotion_format.get('language', '')
-                        height = promotion_format.get('height', 0)
-                        url = promotion_format.get('url', '')
+                    if keep_promotion:
+                        for promotion_format in downloadable_trailer['formats']:
+                            language = promotion_format.get('language', '')
+                            height = promotion_format.get('height', 0)
+                            url = promotion_format.get('url', '')
 
-                        if Utils.is_trailer_from_cache(url):
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                                clz.logger.debug('test passed')
+                            if Utils.is_trailer_from_cache(url):
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                                    clz.logger.debug('test passed')
 
-                        if language != '' and language != Settings.get_lang_iso_639_1():
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                                clz.logger.debug_verbose('Rejecting:', title,
-                                                         'due to language:',
-                                                         language, 'from media-type:',
-                                                         media_type, 'format:',
-                                                         format)
-                                continue
-                        elif language == '' and clz.logger.isEnabledFor(
-                                LazyLogger.DEBUG_VERBOSE):
-                            clz.logger.debug_verbose('Empty language specified for:',
-                                                     title, 'from media-type:',
-                                                     media_type, 'format:', format)
+                            if language != '' and language != Settings.get_lang_iso_639_1():
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                    clz.logger.debug_verbose('Rejecting:', title,
+                                                             'due to language:',
+                                                             language, 'from media-type:',
+                                                             media_type, 'format:',
+                                                             format)
+                                    continue
+                            elif language == '' and clz.logger.isEnabledFor(
+                                    LazyLogger.DEBUG_VERBOSE):
+                                clz.logger.debug_verbose('Empty language specified for:',
+                                                         title, 'from media-type:',
+                                                         media_type, 'format:', format)
 
-                        promotion = {}
-                        promotion['type'] = media_type
-                        promotion['language'] = language
-                        promotion['height'] = height
-                        promotion['url'] = url
-                        promotion['title'] = title
-                        promotion['thumbnail'] = thumbnail
-                        promotion['upload_date'] = upload_date
-                        promotions.append(promotion)
-                        media_types_map[media_type].append(promotion)
+                            promotion = {}
+                            promotion['type'] = media_type
+                            promotion['language'] = language
+                            promotion['height'] = height
+                            promotion['url'] = url
+                            promotion['title'] = title
+                            promotion['thumbnail'] = thumbnail
+                            promotion['upload_date'] = upload_date
+                            promotions.append(promotion)
+                            media_types_map[media_type].append(promotion)
+                except KeyError:
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz.logger.exception()
+                        clz.logger.debug('KeyError from json:',
+                                         json.dumps(downloadable_trailer,
+                                                    encoding='utf-8',
+                                                    ensure_ascii=False,
+                                                    indent=3, sort_keys=True))
 
             # Now have finished digesting data. Only acceptable media
             # remains. Pick the best promotional media.

@@ -956,6 +956,13 @@
 						<heading>32172</heading>
 					</control>
 				</setting>
+				<setting help="32276" id="tfh_cache_expiration_days" label="32277" type="integer">
+					<level>0</level>
+					<default>30</default>
+					<control format="integer" type="edit">
+						<heading>32277</heading>
+					</control>
+				</setting>
 			</group>
 		</category>
 		<category help="" id="folder" label="32024">
