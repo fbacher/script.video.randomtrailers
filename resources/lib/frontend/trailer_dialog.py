@@ -13,6 +13,10 @@ import threading
 
 import xbmc
 import xbmcgui
+from xbmcgui import (Control, ControlImage, ControlButton, ControlEdit,
+                     ControlGroup, ControlLabel, ControlList, ControlTextBox,
+                     ControlSpin, ControlSlider, ControlProgress, ControlFadeLabel,
+                     ControlRadioButton)
 
 from common.constants import Constants, Movie
 from common.debug_utils import Debug
@@ -93,7 +97,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         Movie.DETAIL_STUDIOS: ''
     }
 
-    _playlist_map = {xbmcgui.REMOTE_1: 1,
+    _playlist_map: Dict[int, int] = {xbmcgui.REMOTE_1: 1,
                      xbmcgui.REMOTE_2: 2,
                      xbmcgui.REMOTE_3: 3,
                      xbmcgui.REMOTE_4: 4,
@@ -261,21 +265,21 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     break
 
         except AbortException:
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug('Received abort')
+            if local_class.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                local_class.logger.debug_verbose('Received abort')
 
         except Exception as e:
             local_class.logger.exception('')
         finally:
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug('About to close TrailerDialog')
+            if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                local_class.logger.debug_extra_verbose('About to close TrailerDialog')
 
             self.cancel_long_playing_trailer_killer()
             # local_class.logger.debug('Stopped xbmc.Player')
 
             self._viewed_playlist.close()
-            if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                local_class.logger.debug('Closed TrailerDialog')
+            if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                local_class.logger.debug_extra_verbose('Closed TrailerDialog')
             self.shutdown()
             return  # Exit thread
 
@@ -397,7 +401,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                                       exact_match=True):
                     continue
                 if self.is_random_trailers_play_state():
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if local_class.logger.isEnabledFor(LazyLogger.DISABLED):
                         local_class.logger.debug_extra_verbose(
                             'breaking due to play_state 1 movie:',
                             self._movie[Movie.TITLE])
@@ -410,7 +414,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                         self._movie[Movie.TITLE])
                 self.show_movie_info(show_detail_info=show_movie_details,
                                      show_brief_info=show_movie_title)
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if local_class.logger.isEnabledFor(LazyLogger.DISABLED):
                     local_class.logger.debug_extra_verbose(
                         'finished show_movie_info, movie:',
                         self._movie[Movie.TITLE])
@@ -428,12 +432,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     continue
                 if self.is_random_trailers_play_state(
                         minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
-                        local_class.logger.debug('breaking due to play_state 2 movie:',
-                                                 self._movie[Movie.TITLE])
+                    if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        local_class.logger.debug_extra_verbose(
+                            'breaking due to play_state 2 movie:',
+                            self._movie[Movie.TITLE])
                     break
 
-                if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if local_class.logger.isEnabledFor(LazyLogger.DISABLED):
                     local_class.logger.debug_extra_verbose('About to play:',
                                              self._movie.get(Movie.TRAILER))
 
@@ -442,7 +447,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                     notification=False,
                                     information=show_movie_title)
                 if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    local_class.logger.debug_extra_verbose('about to play trailer:',
+                    local_class.logger.debug_extra_verbose('About to play trailer:',
                                              self._movie[Movie.TITLE])
                 normalized = False
                 cached = False
@@ -628,11 +633,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         return self._player_container.get_player()
 
     def is_random_trailers_play_state(self,
-                                      minimum_exit_state=DialogState.GROUP_QUOTA_REACHED,  # type: int
-                                      exact_match=False,  # type: bool
-                                      throw_exception_on_abort=True  # type: bool
-                                      ):
-        # type: (...) -> bool
+                                      minimum_exit_state: int = DialogState.GROUP_QUOTA_REACHED,
+                                      exact_match: bool = False,
+                                      throw_exception_on_abort: bool = True
+                                      ) -> bool:
         """
             Checks the current state of random trailers plugin against default
             or passed in values.
@@ -906,50 +910,91 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 local_class.logger.enter()
 
-            control = self.getControl(38002)  # type: xbmcgui.ControlImage
-            thumbnail = self._movie[Movie.THUMBNAIL]
-            control.setImage(thumbnail)
+            control: Union[ControlImage, Control] = self.getControl(38002)
+            thumbnail = self._movie.get(Movie.THUMBNAIL)
+            if thumbnail is None:
+                control.setVisible(False)
+            else:
+                control.setImage(thumbnail)
+                control.setVisible(True)
 
-            self.getControl(38004).setImage(self._movie[Movie.FANART])
+            control: Union[ControlImage, Control] = self.getControl(38004)
+            image = self._movie.get(Movie.FANART)
+            if image is None:
+                control.setVisible(False)
+            else:
+                control.setVisible(True)
+                control.setImage(self._movie[Movie.FANART])
+
             verbose = False
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 verbose = True
             title_string = self.get_title_string(self._movie, verbose)
 
-            title = self.getControl(38003)
-            title.setLabel(title_string)
+            title_control: Union[ControlLabel, Control] = self.getControl(38003)
+            title_control.setLabel(title_string)
 
             # title.setAnimations(
             #    [('Hidden', 'effect=fade end=0 time=1000')])
 
-            movie_directors = self._movie[Movie.DETAIL_DIRECTORS]
-            self.getControl(38005).setLabel(movie_directors)
+            control: Union[ControlLabel, Control] = self.getControl(38005)
+            movie_directors = self._movie.get(Movie.DETAIL_DIRECTORS)
+            if movie_directors is None:
+                control.setVisible(False)
+            else:
+                control.setLabel(movie_directors)
+                control.setVisible(True)
 
-            movie_actors = self._movie[Movie.DETAIL_ACTORS]
-            self.getControl(38006).setLabel(movie_actors)
+            movie_actors = self._movie.get(Movie.DETAIL_ACTORS)
+            control: Union[ControlLabel, Control] = self.getControl(38006)
+            if movie_actors is None:
+                control.setVisible(False)
+            else:
+                control.setLabel(movie_actors)
+                control.setVisible(True)
 
-            movie_writers = self._movie[Movie.DETAIL_WRITERS]
-            self.getControl(38007).setLabel(movie_writers)
+            control: Union[ControlLabel, Control] = self.getControl(38007)
+            movie_writers = self._movie.get(Movie.DETAIL_WRITERS)
+            if movie_writers is None:
+                control.setVisible(False)
+            else:
+                control.setLabel(movie_writers)
+                control.setVisible(True)
 
-            plot = self._movie[Movie.PLOT]
-            # noinspection PyUnresolvedReferences
-            self.getControl(38009).setText(plot)
+            control: Union[ControlTextBox, Control] = self.getControl(38009)
+            plot = self._movie.get(Movie.PLOT)
+            if plot is None:
+                control.setVisible(False)
+            else:
+                control.setText(plot)
+                control.setVisible(True)
 
-            movie_studios = self._movie[Movie.DETAIL_STUDIOS]
-            self.getControl(38010).setLabel(movie_studios)
+            control: Union[ControlLabel, Control] = self.getControl(38010)
+            movie_studios = self._movie.get(Movie.DETAIL_STUDIOS)
+            if movie_studios is None:
+                control.setVisible(False)
+            else:
+                control.setLabel(movie_studios)
+                control.setVisible(True)
 
             label = Messages.get_formatted_msg(Messages.RUNTIME_GENRE,
-                                               self._movie[Movie.DETAIL_RUNTIME],
-                                               self._movie[Movie.DETAIL_GENRES])
-            self.getControl(38011).setLabel(label)
+                                               self._movie.get(Movie.DETAIL_RUNTIME, ''),
+                                               self._movie.get(Movie.DETAIL_GENRES, ''))
+            control: Union[ControlLabel, Control] = self.getControl(38011)
+            control.setLabel(label)
 
             image = 'stars/{:.1f}.png'.format(self._movie.get(Movie.RATING, 0.0))
-            rating_control = self.getControl(38012)
+            rating_control: Union[ControlImage, Control] = self.getControl(38012)
             rating_control.setImage(image)
             rating_control.setColorDiffuse('0xC0FFD700')
 
-            image_rating = self._movie[Movie.DETAIL_CERTIFICATION_IMAGE]
-            self.getControl(38013).setImage(image_rating)
+            control: Union[ControlImage, Control] = self.getControl(38013)
+            image_rating = self._movie.get(Movie.DETAIL_CERTIFICATION_IMAGE)
+            if image_rating is None:
+                control.setVisible(False)
+            else:
+                control.setImage(image_rating)
+                control.setVisible(True)
 
             if local_class.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 local_class.logger.exit()
@@ -1256,7 +1301,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             local_class.logger.debug('Do not use.')
         return
 
-    def onAction(self, action):
+    def onAction(self, action: xbmcgui.Action):
         # type: (Action) -> None
         """
 
@@ -1488,11 +1533,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             text_to_speech.say_text(text, interrupt=True)
         return
 
-    def add_to_playlist(self, action_id, movie):
-        # type: (str, dict) -> None
+    def add_to_playlist(self, action_id: int, movie: MovieType) -> None:
         """
 
-        :param play_list_id:
+        :param action_id:
         :param movie:
         :return:
         """
