@@ -95,7 +95,7 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        start_time = datetime.datetime.now()
+        start_time: datetime.datetime = datetime.datetime.now()
         settings_path = os.path.join(
             Constants.FRONTEND_DATA_PATH, 'settings.xml')
 
@@ -113,17 +113,26 @@ class Monitor(xbmc.Monitor):
                 iterations = 600
                 try:
                     file_stat = os.stat(settings_path)
-                    mod_time = datetime.datetime.fromtimestamp(
+                    mod_time: datetime.datetime = datetime.datetime.fromtimestamp(
                         file_stat.st_mtime)
                 except Exception as e:
                     cls._logger.debug("Failed to read settings.xml")
                     mod_time = start_time
 
-                if mod_time > start_time:
+                # Wait at least a minute after settings changed, just in case there
+                # are multiple changes.
+                #
+                # Note that when settings are changed via kodi config that this
+                # will cause a second settings changed event a minute or two
+                # after the initial one. However, the Settings code should
+                # detect that nothing has actually changed and no harm should be
+                # done.
+
+                if mod_time + datetime.timedelta(seconds=60.0) > start_time:
                     start_time = datetime.datetime.now()
                     if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                         cls._logger.debug_verbose('Settings Changed!')
-                    cls._xbmc_monitor.onSettingsChanged()
+                    cls.on_settings_changed()
                     # Here we go again
 
     @classmethod
@@ -297,7 +306,11 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        type(self)._inform_settings_changed_listeners()
+        type(self).on_settings_changed()
+
+    @classmethod
+    def on_settings_changed(cls):
+        cls._inform_settings_changed_listeners()
 
     def onScreensaverActivated(self):
         # type: () -> None
