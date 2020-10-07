@@ -15,6 +15,7 @@ import queue
 from cache.trailer_cache import (TrailerCache)
 
 from common.constants import (Movie)
+from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.imports import *
 from common.monitor import Monitor
@@ -354,6 +355,7 @@ class PlayableTrailerService(object):
         if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             self.logger.debug_verbose('Playing:', trailer[Movie.DETAIL_TITLE],
                                       trace=Trace.TRACE)
+        Debug.validate_detailed_movie_properties(trailer)
 
         # Periodically report on played movie statistics
 
