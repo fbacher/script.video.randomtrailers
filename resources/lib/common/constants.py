@@ -16,7 +16,8 @@ from kodi65.kodiaddon import Addon
 
 from common.imports import *
 
-class Constants(object):
+
+class Constants:
     """
         Constants common to all Random Trailers plugins
     """
@@ -100,7 +101,7 @@ class Constants(object):
 
         Constants.YOUTUBE_DL_ADDON_UTIL = Addon('script.module.youtube.dl')
         Constants.YOUTUBE_DL_ADDON = Constants.YOUTUBE_DL_ADDON_UTIL.addon
-        Constants.YOUTUBE_DL_ADDON_PATH = Constants.YOUTUBE_DL_ADDON.getAddonInfo('path')
+        Constants.YOUTUBE_DL_ADDON_PATH = xbmcvfs.translatePath(Constants.YOUTUBE_DL_ADDON_UTIL.PATH)
         Constants.YOUTUBE_DL_ADDON_LIB_PATH = os.path.join(
             Constants.YOUTUBE_DL_ADDON_PATH, 'lib')
 
@@ -353,7 +354,10 @@ List.Sort
     LANGUAGE_MATCHES = 'language_matches'
 
     ITUNES_ID = 'rts.appleId'
+    YOUTUBE_ID = 'rts.youtubeId'
     TFH_ID = 'rts.tfhId'
+    YOUTUBE_PLAYLIST_INDEX = 'rts.youtube_index'
+    YOUTUBE_TRAILERS_IN_PLAYLIST = 'rts.youtube.trailers_in_index'
 
     # Processed values for InfoDialog
     DETAIL_ACTORS = 'rts.actors'
