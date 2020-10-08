@@ -397,6 +397,7 @@ class CacheManager(object):
             json_usage_data = DiskUtils.get_stats_for_path(
                 Settings.get_remote_db_cache_path(),
                 {'json': (JSON_PATTERN, JSON_TYPE)})
+            usage_data_map['json'] = json_usage_data['json']
 
         return usage_data_map
 
