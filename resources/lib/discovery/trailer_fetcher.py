@@ -28,6 +28,8 @@ from common.rating import WorldCertifications
 from common.settings import Settings
 from common.logger import (Trace, LazyLogger)
 from common.messages import Messages
+from backend.ffmpeg_normalize import RunCommand
+from backend import ffmpeg_normalize
 from backend.tmdb_utils import (TMDBUtils)
 from backend.movie_entry_utils import (MovieEntryUtils)
 
@@ -662,7 +664,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         dict_info[Movie.CAST] = []
         dict_info[Movie.RUNTIME] = 0
         dict_info[Movie.GENRE] = [missing_detail]
-        dict_info[Movie.DETAIL_TAGS] = [missing_detail]
+        dict_info[Movie.TMDB_TAGS] = [missing_detail]
         dict_info[Movie.RATING] = 0.0
         dict_info[Movie.VOTES] = 0
         dict_info[Movie.ADULT] = False
@@ -907,7 +909,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 kodi_movie_tags.append(tmdb_keyword['name'])
                 tmdb_keyword_ids.append(str(tmdb_keyword['id']))
 
-            dict_info[Movie.DETAIL_TAGS] = kodi_movie_tags
+            dict_info[Movie.TMDB_TAGS] = kodi_movie_tags
 
             include_movie = GenreUtils.include_movie(genres=tmdb_genre_ids,
                                                      tags=tmdb_keyword_ids)

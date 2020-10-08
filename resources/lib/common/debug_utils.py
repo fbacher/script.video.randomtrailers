@@ -227,7 +227,7 @@ class Debug(object):
                               Movie.DETAIL_CERTIFICATION_IMAGE: 'default_' + Movie.DETAIL_CERTIFICATION_IMAGE,
                               Movie.DETAIL_RUNTIME: 'default_' + Movie.RUNTIME,
                               Movie.DETAIL_WRITERS: 'default_' + Movie.WRITER,
-                              Movie.DETAIL_TAGS: 'default_' + Movie.TAG,
+                              # Movie.TMDB_TAGS: 'default_' + Movie.TAG,   # For TMDB
                               Movie.DETAIL_STUDIOS: 'default_' + Movie.STUDIO,
                               Movie.RUNTIME: 0,
                               # Movie.ADULT,

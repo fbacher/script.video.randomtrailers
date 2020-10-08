@@ -369,7 +369,6 @@ List.Sort
     DETAIL_STUDIOS = 'rts.studios'
     DETAIL_TITLE = 'rts.title'
     DETAIL_WRITERS = 'rts.writers'
-    DETAIL_TAGS = 'rts.tags'
 
     # For use with speech synthesis
     MAX_VOICED_ACTORS = 3
@@ -400,6 +399,7 @@ List.Sort
     TMDB_TYPE = 'TMDB_type'
     TMDB_PAGE = 'TMDB_page'  # For statistics, remember download page
     TMDB_TOTAL_PAGES = 'TMDB_TOTAL_PAGES'  # For statistics
+    TMDB_TAGS = 'rts.tags'
 
     # DISCOVERY_STATE element contains an ordered list of
     # states.The numeric prefix makes the values comparable like an
