@@ -1557,12 +1557,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                     DiskUtils.create_path_if_needed(
                         os.path.dirname(normalized_path))
 
-                    # TODO: terminate process if Abort occurs
+                    rc = ffmpeg_normalize.normalize(trailer_path, normalized_path)
 
+                    '''
+                    ffmpeg_path = Settings.get_ffmpeg_path()
                     cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                             'resources', 'lib', 'shell',
                                             'ffmpeg_normalize.sh')
-                    args = [cmd_path, trailer_path, normalized_path]
+                    args = [cmd_path, trailer_path, normalized_path, ffmpeg_path]
                     rc = -1
                     normalize_process = None
                     try:
@@ -1577,17 +1579,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 pass
                         Monitor.throw_exception_if_abort_requested(timeout=0.0)
                         # If abort did not occur, then process finished
-                    except AbortException:
-                        try:
-                            if normalize_process is not None:
-                                normalize_process.terminate()
-                        except Exception:
-                            pass
-                        reraise(*sys.exc_info())
-                    except ProcessLookupError:
-                        rc = -1
-                        clz._logger.exception('ProcessLookupError Movie:', movie[Movie.TITLE],
-                                              'Path:', normalized_path)
+                    '''
 
                     if rc == 0:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):

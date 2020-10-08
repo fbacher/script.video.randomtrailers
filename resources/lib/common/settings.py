@@ -106,6 +106,7 @@ class Settings(object):
     MAX_PERCENT_OF_CACHED_JSON = 'max_percent_of_cached_json_disk'
 
     ENABLE_MOVIE_STATS = 'enable_movie_stats'
+    FFMPEG_PATH = 'ffmpeg_path'
     REPORT_ACTOR_STATS = 'report_actor_stats'
     REPORT_TAG_STATS = 'report_tag_stats'
     REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS = 'max_report_top_actors'
@@ -155,8 +156,8 @@ class Settings(object):
 
     # HIDDEN SETTINGS
 
-    YOUTUBE_DL_COOKIE_PATH = 'youtube-dl-cookie-path'
-    YOUTUBE_DL_CACHE_PATH = 'youtube-dl-cache-path'
+    YOUTUBE_DL_COOKIE_PATH = 'youtube_dl_cookie_path'
+    YOUTUBE_DL_CACHE_PATH = 'youtube_dl_cache_path'
 
     ALL_SETTINGS = [
         ADJUST_VOLUME,
@@ -233,6 +234,7 @@ class Settings(object):
         MAX_PERCENT_OF_CACHED_JSON,
 
         ENABLE_MOVIE_STATS,
+        FFMPEG_PATH,
         REPORT_ACTOR_STATS,
         REPORT_TAG_STATS,
         REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS,
@@ -1408,6 +1410,11 @@ class Settings(object):
         return normalize
 
     @staticmethod
+    def get_ffmpeg_path() -> str:
+        path = Settings.get_setting_str(Settings.FFMPEG_PATH)
+        return path
+
+    @staticmethod
     def get_number_of_trailers_to_play():
         # type: () -> int
         """
@@ -1541,6 +1548,11 @@ class Settings(object):
             maximum_year = datetime.datetime.now().year
 
         return maximum_year
+
+    @staticmethod
+    def get_setting_str(setting_name: str) -> str:
+        value = Settings.get_addon().setting(setting_name)
+        return value
 
     @staticmethod
     def get_setting_bool(setting):

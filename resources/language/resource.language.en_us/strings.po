@@ -1400,3 +1400,8 @@ msgstr ""
 msgctxt "#32277"
 msgid "Days before updating trailer index"
 msgstr ""
+
+# Common- Normalization setting
+msgctxt "#32278"
+msgid "Path to ffmpeg command"
+msgstr ""

@@ -120,6 +120,25 @@
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
+				<setting help="" id="ffmpeg_path" label="32278" type="path">
+					<level>0</level>
+                    <default></default>
+					<constraints>
+						<writable>false</writable>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<or>
+								<condition operator="is" setting="normalize_volume_of_local_trailers">true</condition>
+								<condition operator="is" setting="normalize_volume_of_downloaded_trailers">true</condition>
+							</or>
+						</dependency>
+					</dependencies>
+					<control format="file" type="button">
+						<heading>32278</heading>
+					</control>
+				</setting>
 				<setting help="" id="do_volume" label="32006" type="boolean">
 					<level>0</level>
 					<default>false</default>
@@ -1495,7 +1514,7 @@
 					</dependencies>
 				</setting>
 				<!-- Hidden Settings -->
-				<setting help="" id="youtube-dl-cache-path" label="32178" type="string">
+				<setting help="" id="youtube_dl_cache_path" label="32178" type="string">
                     <level>0</level>
                     <constraints>
                         <allowempty>true</allowempty>
@@ -1505,7 +1524,7 @@
                     </control>
                     <visible>false</visible>
                 </setting>
-				<setting help="" id="youtube-dl-cookie-path" label="32178" type="string">
+				<setting help="" id="youtube_dl_cookie_path" label="32178" type="string">
                     <level>0</level>
                     <constraints>
                         <allowempty>true</allowempty>
