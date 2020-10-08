@@ -63,8 +63,10 @@ if REMOTE_DEBUG:
                 xbmc.log(
                     ' Looks like remote debugger was not started prior to plugin start',
                     xbmc.LOGDEBUG)
+                REMOTE_DEBUG = False
         except BaseException:
             xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
+            REMOTE_DEBUG = False
     except ImportError:
         REMOTE_DEBUG = False
         msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
@@ -72,6 +74,7 @@ if REMOTE_DEBUG:
         pydevd = 1
     except BaseException:
         xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
+        REMOTE_DEBUG = False
 
 RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -289,13 +292,7 @@ def bootstrap_random_trailers():
 def post_install():
     #
     # Ensure execute permission
-
-    cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
-                            'resources', 'lib', 'shell',
-                            'ffmpeg_normalize.sh')
-
-    current_permissions = stat.S_IMODE(os.lstat(cmd_path).st_mode)
-    os.chmod(cmd_path, current_permissions | stat.S_IEXEC | stat.S_IREAD)
+    pass
 
 
 def bootstrap_unit_test():
