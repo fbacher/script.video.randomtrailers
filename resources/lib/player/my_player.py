@@ -84,9 +84,6 @@ class MyPlayer(AdvancedPlayer):
         :param startpos:
         :return:
         """
-        title = listitem.getLabel()
-        self._logger.debug(f'Playing: {title} path: {item}',
-                           trace=Trace.TRACE_PLAY_STATS)
         super().play(item, listitem, windowed, startpos)
 
     def set_playing_title(self, title):
