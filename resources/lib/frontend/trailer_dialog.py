@@ -42,7 +42,7 @@ from frontend import text_to_speech
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class DialogState(object):
+class DialogState:
     """
 
     """
@@ -1384,7 +1384,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         #################################################################
 
         if (local_class.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
-                and action_id == xbmcgui.ACTION_PAGE_UP):
+                and (action_id == xbmcgui.ACTION_PAGE_UP
+                    or action_id == xbmcgui.ACTION_MOVE_UP)):
+
             from common.debug_utils import Debug
             Debug.dump_all_threads()
 
