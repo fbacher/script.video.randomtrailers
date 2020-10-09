@@ -8,6 +8,7 @@ Created on Oct 7, 2020
 
 import datetime
 import os
+import platform
 import random
 import subprocess
 import sys
@@ -213,11 +214,18 @@ class RunCommand:
         rc = 0
         env = os.environ.copy()
         try:
-            self.process = subprocess.Popen(
-                self.args, stdin=None, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, shell=False, universal_newlines=True, env=env,
-                close_fds=True,
-                creationflags=subprocess.DETACHED_PROCESS)
+            if xbmc.getCondVisibility('System.Platform.Windows'):
+                # Prevent console for ffmpeg from opening
+
+                self.process = subprocess.Popen(
+                    self.args, stdin=None, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, shell=False, universal_newlines=True, env=env,
+                    close_fds=True, creationflags=subprocess.DETACHED_PROCESS)
+            else:
+                self.process = subprocess.Popen(
+                    self.args, stdin=None, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, shell=False, universal_newlines=True, env=env,
+                    close_fds=True)
             self.stdout_thread = threading.Thread(target=self.stdout_reader,
                                                   name='normalize stdout reader')
             self.stdout_thread.start()
