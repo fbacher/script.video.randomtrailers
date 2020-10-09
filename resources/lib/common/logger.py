@@ -1166,6 +1166,7 @@ class Trace(logging.Filter):
     TRACE_TRANSLATION = 'TRANSLATION'
     TRACE_SHUTDOWN = 'SHUTDOWN'
     TRACE_PLAY_STATS = 'PLAY_STATISTICS'
+    TRACE_NETWORK = 'TRACE_NETWORK'
 
     TRACE_ENABLED = True
     TRACE_DISABLED = False
@@ -1193,7 +1194,12 @@ class Trace(logging.Filter):
         TRACE_CACHE_PAGE_DATA: TRACE_DISABLED,
         TRACE_TRANSLATION: TRACE_DISABLED,
         TRACE_SHUTDOWN: TRACE_DISABLED,
-        TRACE_PLAY_STATS: TRACE_DISABLED
+        TRACE_PLAY_STATS: TRACE_DISABLED,
+        TRACE_NETWORK: TRACE_DISABLED
+    }
+
+    _trace_exclude = {
+        TRACE_NETWORK: TRACE_DISABLED
     }
 
     _logger = None
@@ -1225,7 +1231,8 @@ class Trace(logging.Filter):
         :return:
         """
         for flag in cls._trace_map.keys():
-            cls._trace_map[flag] = cls.TRACE_ENABLED
+            if flag not in cls._trace_exclude.keys():
+                cls._trace_map[flag] = cls.TRACE_ENABLED
 
     @classmethod
     def disable(cls, *flags: Optional[List[str]]) -> None:
