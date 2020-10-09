@@ -41,9 +41,6 @@ class ITunes(object):
         '''
         iso_639_2_name = Settings.get_lang_iso_639_2()
         iso_639_1_name = Settings.get_lang_iso_639_1()
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.debug('iso_639_2:', iso_639_2_name,
-                               'iso_639_1:', iso_639_1_name)
 
         return {'- JP Sub', 'Interview', '- UK', '- BR Sub', '- FR', '- IT',
                 '- AU', '- MX', '- MX Sub', '- BR', '- RU', '- DE',
