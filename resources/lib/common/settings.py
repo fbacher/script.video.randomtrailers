@@ -140,7 +140,7 @@ class Settings(object):
     CACHE_EXPIRATION_DAYS = 'json_cache_expiration_days'
     TFH_CACHE_EXPIRATION_DAYS = 'tfh_cache_expiration_days'
     EXPIRE_TRAILER_CACHE_DAYS = 'trailer_cache_expiration_days'
-    CACHE_TRAILER_CHECK_DAYS = 'trailer_existance_cache_check_days'
+    CACHE_TRAILER_CHECK_DAYS = 'trailer_existence_cache_check_days'
     TRAILER_CACHE_PATH = 'trailer_cache_path'
     CACHE_PATH = 'remote_db_cache_path'
     PLAYLIST_1 = "playlist_name_1"
@@ -278,7 +278,9 @@ class Settings(object):
         PLAYLIST_7,
         PLAYLIST_8,
         PLAYLIST_9,
-        PLAYLIST_10
+        PLAYLIST_10,
+        YOUTUBE_DL_COOKIE_PATH,
+        YOUTUBE_DL_CACHE_PATH,
     ]
 
     TRAILER_LOADING_SETTINGS = [

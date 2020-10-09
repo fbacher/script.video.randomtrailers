@@ -1159,7 +1159,7 @@
 						<heading>32127</heading>
 					</control>
 				</setting>
-				<setting help="" id="trailer_existance_cache_check_days" label="32128" type="integer">
+				<setting help="" id="trailer_existence_cache_check_days" label="32128" type="integer">
 					<level>0</level>
 					<default>14</default>
 					<dependencies>
