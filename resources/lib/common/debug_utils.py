@@ -11,14 +11,12 @@ import json
 import threading
 import traceback
 
-
 import xbmc
 from common.constants import Constants, Movie
 from common.imports import *
 from common.logger import (LazyLogger)
 from common.rating import WorldCertifications
 from common.settings import Settings
-
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -137,7 +135,8 @@ class Debug(object):
 
         for key in trailer:
             if key in keys_of_primary_interest and (trailer.get(key) is not None
-                                                    and trailer.get(key) != new_trailer.get(key)):
+                                                    and trailer.get(
+                        key) != new_trailer.get(key)):
 
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
@@ -199,20 +198,19 @@ class Debug(object):
         assert not is_failed, 'LEAK: Invalid property values'
 
     @classmethod
-    def validate_detailed_movie_properties(cls, movie, stack_trace=True):
-        # type: (MovieType, bool) -> None
+    def validate_detailed_movie_properties(cls, movie: MovieType,
+                                           stack_trace: bool = True,
+                                           force_check: bool = False) -> bool:
         """
             Similar to validate_basic_movie_properties. Validates additional
             fields
         :param movie:
         :param stack_trace:
-        :return:
+        :param force_check: Check even if debug level less than DEBUG_VERBOSE
+        :return: True if no problems found
         """
-        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            return
-
-        DETAIL_WRITERS = 'rts.writers'
-        DETAIL_TAGS = 'rts.tags'
+        if not (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE) or force_check):
+            return True
 
         details_properties = {Movie.WRITER: 'default_' + Movie.WRITER,
                               Movie.DETAIL_DIRECTORS: 'default_' + Movie.DETAIL_DIRECTORS,
@@ -223,8 +221,10 @@ class Debug(object):
                               Movie.STUDIO: 'default_' + Movie.STUDIO,
                               Movie.DETAIL_ACTORS: 'default_' + Movie.ACTORS,
                               Movie.DETAIL_GENRES: 'default_' + Movie.GENRE,
-                              Movie.DETAIL_CERTIFICATION: 'default_' + Movie.DETAIL_CERTIFICATION,
-                              Movie.DETAIL_CERTIFICATION_IMAGE: 'default_' + Movie.DETAIL_CERTIFICATION_IMAGE,
+                              Movie.DETAIL_CERTIFICATION: 'default_' +
+                                                          Movie.DETAIL_CERTIFICATION,
+                              Movie.DETAIL_CERTIFICATION_IMAGE: 'default_' +
+                                                                Movie.DETAIL_CERTIFICATION_IMAGE,
                               Movie.DETAIL_RUNTIME: 'default_' + Movie.RUNTIME,
                               Movie.DETAIL_WRITERS: 'default_' + Movie.WRITER,
                               # Movie.TMDB_TAGS: 'default_' + Movie.TAG,   # For TMDB
@@ -235,12 +235,12 @@ class Debug(object):
 
         cls.validate_basic_movie_properties(movie, stack_trace=stack_trace)
         failing_properties = []
-        is_failed = False
+        is_ok = True
         for property_name in details_properties.keys():
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
                 movie.setdefault(property_name, details_properties[property_name])
-                is_failed = True
+                is_ok = False
 
         if len(failing_properties) > 0:
             msg = ', '.join(failing_properties)
@@ -254,9 +254,10 @@ class Debug(object):
         if not certifications.is_valid(movie[Movie.MPAA]):
             if movie[Movie.MPAA] != '':
                 cls._logger.debug_verbose(
-                    'Invalid certification: {} for movie: {} set to NR'
-                    .format(movie[Movie.MPAA], movie[Movie.TITLE]))
-            movie[Movie.MPAA] = certifications.get_unrated_certification()\
+                    f'Invalid certification: {movie[Movie.MPAA]} for movie: '
+                    '{movie[Movie.TITLE]} set to NR')
+            movie[Movie.MPAA] = certifications.get_unrated_certification() \
                 .get_preferred_id()
 
-        assert not is_failed, 'LEAK, Invalid property values'
+        # assert is_ok, 'LEAK, Invalid property values'
+        return is_ok
