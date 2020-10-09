@@ -13,6 +13,7 @@ import os
 import threading
 
 from common.constants import Constants, Movie
+from common.debug_utils import Debug
 from common.exceptions import AbortException, LogicError
 from common.imports import *
 from common.logger import (LazyLogger, Trace, log_entry_exit)
@@ -155,7 +156,8 @@ class MovieManager(object):
         try:
             while not Monitor.throw_exception_if_abort_requested():
                 status, trailer = FrontendBridge.get_next_trailer()
-                if trailer is not None:
+                if trailer is not None and Debug.validate_detailed_movie_properties(
+                        trailer):
                     added = False
                     while not added:
                         try:
