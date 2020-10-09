@@ -1561,28 +1561,6 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     rc = ffmpeg_normalize.normalize(trailer_path, normalized_path)
 
-                    '''
-                    ffmpeg_path = Settings.get_ffmpeg_path()
-                    cmd_path = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
-                                            'resources', 'lib', 'shell',
-                                            'ffmpeg_normalize.sh')
-                    args = [cmd_path, trailer_path, normalized_path, ffmpeg_path]
-                    rc = -1
-                    normalize_process = None
-                    try:
-                        normalize_process = subprocess.Popen(
-                            args, bufsize=1, stdin=None, stdout=None,
-                            stderr=None, shell=False)
-                        while not Monitor.wait_for_abort(timeout=0.1):
-                            try:
-                                rc = normalize_process.wait(0.0)
-                                break  # Complete
-                            except subprocess.TimeoutExpired:
-                                pass
-                        Monitor.throw_exception_if_abort_requested(timeout=0.0)
-                        # If abort did not occur, then process finished
-                    '''
-
                     if rc == 0:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                             clz._logger.debug_verbose(
