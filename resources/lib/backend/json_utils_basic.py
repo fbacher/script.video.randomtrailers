@@ -6,7 +6,6 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-
 import sys
 import datetime
 from email.utils import parsedate_tz
@@ -50,7 +49,8 @@ class JsonUtilsBasic(object):
             results per search.
             
             For iTunes see:
-         https://affiliate.itunes.apple.com/resources/documentation/itunes-store-web-service-search-api/#overview
+         https://affiliate.itunes.apple.com/resources/documentation/itunes-store-web
+         -service-search-api/#overview
              All iTunes results are JSON UTF-8
 
         In order to track the rate of requests over a minute, we have to
@@ -91,7 +91,6 @@ class JsonUtilsBasic(object):
         """
         if type(self)._logger is None:
             type(self)._logger = module_logger.getChild(type(self).__name__)
-
 
     # Each entry in the above _request_window* lists is
     # a list with the timestamp and running request count:
@@ -137,16 +136,16 @@ class JsonUtilsBasic(object):
         # many seconds ago we have to retain entries.
 
         window_expiration_time = newest_response_time_stamp - \
-            destination_data.window_time_period
+                                 destination_data.window_time_period
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose('destination', destination_name,
-                                                       'expiration:', window_expiration_time,
-                                                       '#request_window:', len(
-                                                           request_window), 'last_request_count:',
-                                                       last_request_count, 'transaction timestamp:',
-                                                       newest_response_time_stamp,
-                                                       trace=Trace.TRACE_JSON)
+                                            'expiration:', window_expiration_time,
+                                            '#request_window:', len(
+                    request_window), 'last_request_count:',
+                                            last_request_count, 'transaction timestamp:',
+                                            newest_response_time_stamp,
+                                            trace=Trace.TRACE_JSON)
         index = 0
         oldest_entry = None
         while index < len(request_window):
@@ -165,26 +164,30 @@ class JsonUtilsBasic(object):
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose('request_window length:', len(request_window),
-                                                       'destination_data.request_window length:',
-                                                       len(destination_data.get_request_window()))
+                                            'destination_data.request_window length:',
+                                            len(destination_data.get_request_window()))
 
             # At this point, request_window[0] should be the oldest, un-expired
             # entry
 
             if oldest_entry is None:
                 cls._logger.debug_extra_verbose('oldest_entry: None',
-                                                           'expiration:', window_expiration_time,
-                                                           'hardCodedRequestsPerTimePeriod:',
-                                                           destination_data.hard_coded_requests_per_time_period,
-                                                           trace=Trace.TRACE_JSON)
+                                                'expiration:',
+                                                window_expiration_time,
+                                                'hardCodedRequestsPerTimePeriod:',
+                                                destination_data.
+                                                    hard_coded_requests_per_time_period,
+                                                trace=Trace.TRACE_JSON)
             else:
-                cls._logger.debug_extra_verbose('oldest_entry:', oldest_entry.get_time_stamp(),
-                                                           'expiration:', window_expiration_time,
-                                                           'oldest RequestCount:',
-                                                           oldest_entry.get_request_count(),
-                                                           'hardCodedRequestsPerTimePeriod:',
-                                                           destination_data.hard_coded_requests_per_time_period,
-                                                           trace=Trace.TRACE_JSON)
+                cls._logger.debug_extra_verbose('oldest_entry:',
+                                                oldest_entry.get_time_stamp(),
+                                                'expiration:', window_expiration_time,
+                                                'oldest RequestCount:',
+                                                oldest_entry.get_request_count(),
+                                                'hardCodedRequestsPerTimePeriod:',
+                                                destination_data.
+                                                    hard_coded_requests_per_time_period,
+                                                trace=Trace.TRACE_JSON)
         #
         # Have we hit the maximum number of requests over this
         # time period? If we have, then how long do we have to wait before the
@@ -192,7 +195,8 @@ class JsonUtilsBasic(object):
         #
         # This calculation is based soley on counts
         # and ignores what the server may be telling us from the last response
-        # hard_coded_requests_per_time_period and actual_oldest_request_in_window_expiration_time
+        # hard_coded_requests_per_time_period and
+        # actual_oldest_request_in_window_expiration_time
 
         delay = datetime.timedelta(0)
         calculated_number_of_requests_pending = 0
@@ -201,21 +205,22 @@ class JsonUtilsBasic(object):
 
             # How many additional requests can be made before we are blocked?
 
-            calculated_number_of_requests_pending = last_request_count - starting_request_count + 1
+            calculated_number_of_requests_pending = last_request_count - \
+                                                    starting_request_count + 1
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose('calculated_number_of_requests_pending:',
-                                                           calculated_number_of_requests_pending,
-                                                           'length of request_window:',
-                                                           len(request_window),
-                                                           'numberOfAdditionalRequetsAllowedByServer from server:',
-                                                           destination_data.number_of_additional_requests_allowed_by_server,
-                                                           'starting_request_count',
-                                                           starting_request_count, 'limit:',
-                                                           destination_data.hard_coded_requests_per_time_period,
-                                                           trace=Trace.TRACE_JSON)
+                                                calculated_number_of_requests_pending,
+                                                'length of request_window:',
+                                                len(request_window),
+                                                'numberOfAdditionalRequetsAllowedByServer from server:',
+                                                destination_data.number_of_additional_requests_allowed_by_server,
+                                                'starting_request_count',
+                                                starting_request_count, 'limit:',
+                                                destination_data.hard_coded_requests_per_time_period,
+                                                trace=Trace.TRACE_JSON)
 
         # If the server gives us this info directly, then replace
-         # our calculated value with the server value.
+        # our calculated value with the server value.
 
         # If server does not give us actual number of remaining requests, then
         # see if server specifies the number in a time period
@@ -226,16 +231,18 @@ class JsonUtilsBasic(object):
                 cls._logger.debug_extra_verbose(
                     'Setting max_requests_in_time_period to value from server',
                     trace=Trace.TRACE_JSON)
-            max_requests_in_time_period = destination_data.actual_max_requests_per_time_period
+            max_requests_in_time_period = \
+                destination_data.actual_max_requests_per_time_period
 
         number_of_requests_that_can_still_be_made = max_requests_in_time_period - \
-            calculated_number_of_requests_pending
+                                                    calculated_number_of_requests_pending
 
         # If server gives us actual number of remaining requests, then
         # use that instead of what we calculated above.
 
         if destination_data.number_of_additional_requests_allowed_by_server >= 0:
-            number_of_requests_that_can_still_be_made = destination_data.number_of_additional_requests_allowed_by_server
+            number_of_requests_that_can_still_be_made = \
+                destination_data.number_of_additional_requests_allowed_by_server
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(
                     'Using number_of_additional_requests_allowed_by_server:',
@@ -249,17 +256,17 @@ class JsonUtilsBasic(object):
             delay = datetime.timedelta(0)  # Now, we should be ok
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose('delay:', delay,
-                                                           '#requests:', len(
-                                                               request_window),
-                                                           trace=Trace.TRACE_JSON)
+                                                '#requests:', len(
+                        request_window),
+                                                trace=Trace.TRACE_JSON)
         elif len(request_window) > 0:
             already_waited = newest_response_time_stamp - oldest_entry.get_time_stamp()
             delay = destination_data.window_time_period - already_waited
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose('already_waited:', already_waited,
-                                                           'delay:', delay,
-                                                           trace=Trace.TRACE_JSON)
+                                                'delay:', delay,
+                                                trace=Trace.TRACE_JSON)
             if delay.total_seconds() <= 0:
                 cls._logger.error(
                     'Logic error: timer delay should be > 0')
@@ -276,14 +283,16 @@ class JsonUtilsBasic(object):
         #
         corrected_delay = 0
         if number_of_requests_that_can_still_be_made <= 0:
-            if destination_data.actual_oldest_request_in_window_expiration_time is not None:
-                reset_time_from_server = (destination_data.actual_oldest_request_in_window_expiration_time
-                                          + datetime.timedelta(0, 1))
+            if destination_data.actual_oldest_request_in_window_expiration_time is not \
+                    None:
+                reset_time_from_server = (
+                            destination_data.actual_oldest_request_in_window_expiration_time
+                            + datetime.timedelta(0, 1))
                 corrected_delay = reset_time_from_server - datetime.datetime.now()
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     cls._logger.debug_verbose('correctedDelay:',
-                                                         corrected_delay.total_seconds(),
-                                                         trace=Trace.TRACE_JSON)
+                                              corrected_delay.total_seconds(),
+                                              trace=Trace.TRACE_JSON)
 
             # Second method:
         #
@@ -294,11 +303,11 @@ class JsonUtilsBasic(object):
         corrected_delay2 = 0
         if destination_data.server_blocking_request_until is not None:
             corrected_delay2 = destination_data.server_blocking_request_until - \
-                datetime.datetime.now()
+                               datetime.datetime.now()
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 cls._logger.debug_verbose('corrected_delay2:',
-                                                     corrected_delay2.total_seconds(),
-                                                     trace=Trace.TRACE_JSON)
+                                          corrected_delay2.total_seconds(),
+                                          trace=Trace.TRACE_JSON)
 
             # If server's calculated expirationTime disagrees significantly than ours,
         # then use it.
@@ -315,7 +324,7 @@ class JsonUtilsBasic(object):
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             cls._logger.debug_verbose('delay_seconds:', delay_seconds,
-                                                 trace=Trace.TRACE_JSON)
+                                      trace=Trace.TRACE_JSON)
 
         if delay_seconds < 0:
             delay_seconds = 0
@@ -466,7 +475,8 @@ class JsonUtilsBasic(object):
             # header.get('X-RateLimit-Limit')  # Was 40
             self.actual_max_requests_per_time_period = 0
 
-            # When X-RateLimt-Limit is not available, then hard_coded_requests_per_time_period
+            # When X-RateLimt-Limit is not available,
+            # then hard_coded_requests_per_time_period
             # contains the maximum number of requests that can occur over
             # a period of time. This is a constant per site.
 
@@ -517,7 +527,8 @@ class JsonUtilsBasic(object):
             # type: (int) -> JsonUtilsBasic.DestinationData
             """
             """
-            return JsonUtilsBasic.DestinationDataContainer.data_for_destination[destination]
+            return JsonUtilsBasic.DestinationDataContainer.data_for_destination[
+                destination]
 
         @staticmethod
         def initialize():
@@ -542,9 +553,10 @@ class JsonUtilsBasic(object):
 
             # TODO: supply correct info
 
-            rotten_tomatoes_data = JsonUtilsBasic.DestinationData(JsonUtilsBasic.ROTTEN_TOMATOES_NAME,
-                                                                  JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_MAX_REQUESTS,
-                                                                  JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_TIME_PERIOD)
+            rotten_tomatoes_data = JsonUtilsBasic.DestinationData(
+                JsonUtilsBasic.ROTTEN_TOMATOES_NAME,
+                JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_MAX_REQUESTS,
+                JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_TIME_PERIOD)
             JsonUtilsBasic.DestinationDataContainer.data_for_destination.append(
                 rotten_tomatoes_data)
 
@@ -561,7 +573,8 @@ class JsonUtilsBasic(object):
             if len(JsonUtilsBasic.DestinationDataContainer.data_for_destination) == 0:
                 JsonUtilsBasic.DestinationDataContainer.initialize()
 
-            return JsonUtilsBasic.DestinationDataContainer.data_for_destination[destination]
+            return JsonUtilsBasic.DestinationDataContainer.data_for_destination[
+                destination]
 
     @classmethod
     def get_json(cls, url,  # type; str
@@ -683,7 +696,8 @@ class JsonUtilsBasic(object):
                 request_failed = True
                 status_code = -1
                 returned_header = {
-                    'Retry-After': str(destination_data.window_time_period.total_seconds())}
+                    'Retry-After': str(
+                        destination_data.window_time_period.total_seconds())}
 
             except Exception as e:
                 try:
@@ -691,7 +705,7 @@ class JsonUtilsBasic(object):
 
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                         cls._logger.debug('Exception getting movie:', error_msg,
-                                                     'url:', url)
+                                          'url:', url)
                         cls._logger.exception('')
 
                     request_failed = True
@@ -704,14 +718,14 @@ class JsonUtilsBasic(object):
 
                         LazyLogger.dump_stack()
                         cls._logger.debug('request to', destination_string,
-                                                     'FAILED.', 'url', url, 'headers:',
-                                                     headers,
-                                                     'params', params, 'timeout', timeout,
-                                                     trace=[Trace.STATS, Trace.TRACE_JSON])
+                                          'FAILED.', 'url', url, 'headers:',
+                                          headers,
+                                          'params', params, 'timeout', timeout,
+                                          trace=[Trace.STATS, Trace.TRACE_JSON])
                         cls._logger.debug('request to', destination_string,
-                                                     'FAILED total requests:',
-                                                     requests_to_url,
-                                                     trace=[Trace.STATS, Trace.TRACE_JSON])
+                                          'FAILED total requests:',
+                                          requests_to_url,
+                                          trace=[Trace.STATS, Trace.TRACE_JSON])
                         JsonUtilsBasic.dump_delay_info(request_index)
 
                     if second_attempt:
@@ -766,8 +780,9 @@ class JsonUtilsBasic(object):
                             'Retry-After:', tmp)
                     seconds = float(tmp) + 1
                     server_blocking_request_until_value = response_time_stamp + \
-                        datetime.timedelta(0, seconds)
-                    destination_data.server_blocking_request_until = server_blocking_request_until_value
+                                                          datetime.timedelta(0, seconds)
+                    destination_data.server_blocking_request_until = \
+                        server_blocking_request_until_value
                     request_failed = True
 
                 # TODO: This is messy. The Date string returned is probably dependent
@@ -803,7 +818,9 @@ class JsonUtilsBasic(object):
             #            ' ' + json.dumps(json_text), xbmc.LOGDEBUG)
 
             if ((status_code == Constants.TOO_MANY_TMDB_REQUESTS)
-                    and (request_index == JsonUtilsBasic.TMDB_REQUEST_INDEX)):  # Too many requests,
+                    and (
+                            request_index == JsonUtilsBasic.TMDB_REQUEST_INDEX)):  #
+                # Too many requests,
                 if cls._logger.isEnabledFor(LazyLogger.INFO):
                     cls._logger.info(
                         'JSON Request rate to TMDB exceeds limits ('
@@ -818,18 +835,19 @@ class JsonUtilsBasic(object):
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose('JSON request source:',
-                                                           destination_string, 'total requests:', requests_to_url,
-                                                           'serverBlockingRequestUntil:',
-                                                           destination_data.server_blocking_request_until,
-                                                           'numberOfAdditionalRequetsAllowedByServer:',
-                                                           destination_data.number_of_additional_requests_allowed_by_server,
-                                                           'hardCodedRequestsPerTimePeriod:',
-                                                           destination_data.hard_coded_requests_per_time_period,
-                                                           'actualMaxRequestsPerTimePeriod:',
-                                                           destination_data.actual_max_requests_per_time_period,
-                                                           'actualOldestRequestInWindowExpirationTime:',
-                                                           destination_data.actual_oldest_request_in_window_expiration_time,
-                                                           trace=[Trace.STATS, Trace.TRACE_JSON])
+                                                destination_string, 'total requests:',
+                                                requests_to_url,
+                                                'serverBlockingRequestUntil:',
+                                                destination_data.server_blocking_request_until,
+                                                'numberOfAdditionalRequetsAllowedByServer:',
+                                                destination_data.number_of_additional_requests_allowed_by_server,
+                                                'hardCodedRequestsPerTimePeriod:',
+                                                destination_data.hard_coded_requests_per_time_period,
+                                                'actualMaxRequestsPerTimePeriod:',
+                                                destination_data.actual_max_requests_per_time_period,
+                                                'actualOldestRequestInWindowExpirationTime:',
+                                                destination_data.actual_oldest_request_in_window_expiration_time,
+                                                trace=[Trace.STATS, Trace.TRACE_JSON])
             JsonUtilsBasic.record_request_timestamp(
                 request_index, response_time_stamp, failed=request_failed)
             if request_failed:
@@ -854,7 +872,7 @@ class JsonUtilsBasic(object):
                         JsonUtilsBasic.record_request_timestamp(
                             request_index, response_time_stamp, failed=request_failed)
 
-        #if dump_results and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        # if dump_results and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
         #    cls._logger.debug_extra_verbose('JSON DUMP:', dump_msg)
         #    cls._logger.debug_extra_verbose(json.dumps(
         #        json_text, indent=3, sort_keys=True))
@@ -894,6 +912,7 @@ class JsonUtilsBasic(object):
         """
         Monitor.throw_exception_if_abort_requested()
         return dct
+
 
 # Force initialization of config_logger
 JsonUtilsBasic()
