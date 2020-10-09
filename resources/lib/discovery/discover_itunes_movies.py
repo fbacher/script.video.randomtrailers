@@ -314,13 +314,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
                 #  rating = Certifications.get_certification(
                 #      itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                     clz.logger.debug_extra_verbose('certification: ',
                                                    certification.get_label())
                 itunes_movie[Movie.MPAA] = certification.get_preferred_id()
 
                 genres = itunes_movie.get('genre', '')
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                     clz.logger.debug_extra_verbose('genres: ', genres)
 
                 directors = itunes_movie.get('directors', [])
@@ -376,7 +376,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             clz.logger.debug_extra_verbose('url: ', url)
 
                         trailer_type = itunes_trailer.get('type', '')
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                             clz.logger.debug_extra_verbose(
                                 'type: ', trailer_type)
 
@@ -399,7 +399,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         elif ((Settings.get_include_itunes_trailer_type() ==
                                 iTunes.COMING_SOON) and
                               (release_date < datetime.date.today())):
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                                 clz.logger.debug_extra_verbose(
                                     'Rejecting due to COMING_SOON and already released')
                             keep_promotion = False
@@ -411,17 +411,17 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                     (len(genres) > 0) and
                                     set(self._selected_genres).isdisjoint(set(genres))):
                                 keep_promotion = False
-                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                                     clz.logger.debug_verbose(
                                         'Rejecting due to genre')
                             if set(self._excluded_genres).intersection(set(genres)):
                                 keep_promotion = False
-                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                                     clz.logger.debug_verbose(
                                         'Rejecting due to excluded genre')
                         elif not certifications.filter(certification):
                             keep_promotion = False
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                                 clz.logger.debug_verbose('Rejecting due to certification:',
                                                          certification.get_label())
                         if keep_promotion:
