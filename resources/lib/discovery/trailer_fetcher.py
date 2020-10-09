@@ -14,7 +14,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 
 import xbmcvfs
 
@@ -42,7 +41,7 @@ from cache.trailer_cache import (TrailerCache)
 from cache.trailer_unavailable_cache import (TrailerUnavailableCache)
 from backend.genreutils import GenreUtils
 from backend.backend_constants import YOUTUBE_URL_PREFIX
-from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
+from backend.video_downloader import VideoDownloader
 
 from discovery.trailer_fetcher_interface import TrailerFetcherInterface
 from discovery.playable_trailers_container import PlayableTrailersContainer
@@ -560,7 +559,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 (DiskUtils.is_url(movie[Movie.TRAILER]) or
                  movie[Movie.SOURCE] != Movie.LIBRARY_SOURCE)):
 
-            if YDStreamExtractorProxy().get_youtube_wait_seconds() > 0:
+            if VideoDownloader().get_youtube_wait_seconds() > 0:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                     clz._logger.debug(
                         'Can not download trailer for cache at this time')
@@ -1360,7 +1359,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     downloaded_movie = None
                     error_code = 0
                     trailer_folder = xbmcvfs.translatePath('special://temp')
-                    youtube_data_stream_extractor_proxy = YDStreamExtractorProxy()
+                    youtube_data_stream_extractor_proxy = VideoDownloader()
                     if youtube_data_stream_extractor_proxy.get_youtube_wait_seconds() > 0:
                         error_code = 429
                         downloaded_movie = None

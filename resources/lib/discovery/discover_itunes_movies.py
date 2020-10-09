@@ -27,7 +27,7 @@ from backend.genreutils import GenreUtils
 from backend import backend_constants
 from backend.itunes import ITunes
 from backend.json_utils_basic import JsonUtilsBasic
-from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
+from backend.video_downloader import VideoDownloader
 
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.itunes_movie_data import ItunesMovieData
@@ -486,7 +486,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         try:
             Monitor.throw_exception_if_abort_requested()
-            youtube_data_extractor = YDStreamExtractorProxy()
+            youtube_data_extractor = VideoDownloader()
             finished = False
             downloadable_trailers: List[MovieType] = []
             while not finished:
@@ -1101,4 +1101,4 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-        return movie
+        return rc, movie

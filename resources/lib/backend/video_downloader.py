@@ -8,13 +8,10 @@ from common.imports import *
 
 import datetime
 import glob
-import subprocess
-from subprocess import CalledProcessError
 import simplejson as json
 import os
 import sys
 import re
-import threading
 
 import youtube_dl
 
@@ -37,8 +34,10 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 RETRY_DELAY = datetime.timedelta(0, float(60 * 2))
 
 
-class YDStreamExtractorProxy:
+class VideoDownloader:
     """
+    Downloads Videos, or video information for individual or playlists. Uses
+    embedded youtube-dl to accomplish this.
 
     """
     DOWNLOAD_ERROR = 10
@@ -50,15 +49,35 @@ class YDStreamExtractorProxy:
     #
     # Records when Too Many Requests began. Reset to None once successful.
     # Used to help improve estimate of how long to quarantine.
+    #
+    # For each use an instance must be created. Then one of
+    # get_video
+    # get_info
+    # or get_tfh_index
+    # is called.
+    # In addition, check_too_many_requests checks to see if any recent '429'
+    # errors have been returned indicating that there have been TOO MANY REQUESTS
+    # to the site. The site is not recorded here, but at this point it is either
+    # youtube or iTunes and I have yet to see iTunes return it.
+    # The amount of time that you must wait after a TOO_MANY_REQUESTS error is not
+    # specified, but probably measured in one or more days.
+    #
+    # If you search for youtube-dl 429 you will get to a workaround that involves
+    # you playing a youtube video from your browser, then exporting your youtube
+    # cookies and using that as input youtube-dl. There is a hidden option in
+    # settings.xml, youtube_dl_cookie_path, that you can set to point to your
+    # cookie file. Hopefully this is not needed. In my experience it is only
+    # with repeated testing, clearing caches and, in particular, clearing the
+    # TFH cache that would cause the 429 error.
 
     _initial_tmr_timestamp = None
-    _logger = module_logger.getChild('YDStreamExtractorProxy')
+    _logger = module_logger.getChild('VideoDownloader')
 
     def __init__(self) -> None:
         """
 
         """
-        clz = YDStreamExtractorProxy
+        clz = VideoDownloader
 
         self._command_process = None
         self._stderr_thread = None
@@ -72,7 +91,11 @@ class YDStreamExtractorProxy:
 
     @staticmethod
     def get_youtube_wait_seconds() -> ClassVar[datetime.timedelta]:
-        clz = YDStreamExtractorProxy
+        """
+          Returns how many seconds should be waited (after a 429 error) before
+          trying another download.
+        """
+        clz = VideoDownloader
 
         seconds_to_wait = (clz._too_many_requests_timestamp
                            - datetime.datetime.now()).total_seconds()
@@ -82,6 +105,10 @@ class YDStreamExtractorProxy:
 
     @classmethod
     def check_too_many_requests(cls, url: str) -> int:
+        """
+          Returns 429 if a 429 error has occurred within RETRY_DELAY seconds.
+          Otherwise, returns 0.
+        """
         if cls._too_many_requests_timestamp > datetime.datetime.now():
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 expiration_time = datetime.datetime.strftime(
@@ -96,13 +123,14 @@ class YDStreamExtractorProxy:
     def get_video(self, url, folder, movie_id):
         # type: (str, str, Union[int, str]) -> Tuple[int, Optional[MovieType]]
         """
+             Downloads a video from the given url into the given folder.
 
-        :param url:
-        :param folder:
-        :param movie_id:
+        :param url:      To download from
+        :param folder:   To download to
+        :param movie_id: To pass to youtube-dl to embed in the created file name
         :return:
         """
-        clz = YDStreamExtractorProxy
+        clz = VideoDownloader
 
         if clz.check_too_many_requests(url) != 0:
             return 429, None
@@ -111,7 +139,9 @@ class YDStreamExtractorProxy:
 
         template = os.path.join(folder, f'_rt_{movie_id}_%(title)s.%(ext)s')
         movie = None
-        video_logger = TfhVideoLogger(self, url)
+
+        # Collect and respond to output from youtube-dl
+        video_logger = VideoLogger(self, url)
         try:
             ydl_opts = {
                 'forcejson': 'true',
@@ -120,10 +150,13 @@ class YDStreamExtractorProxy:
                 'logger': video_logger,
                 'progress_hooks': [VideoDownloadProgressHook(self).status_hook]
             }
+            # Optional cookie-file used to avoid youtube 429 errors (see  above).
+
             cookie_path = Settings.get_youtube_dl_cookie_path()
             if len(cookie_path) > 0 and os.path.exists(cookie_path):
                 ydl_opts['cookiefile'] = cookie_path
 
+            # Start download
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
@@ -151,6 +184,7 @@ class YDStreamExtractorProxy:
                         movie[Movie.TRAILER] = trailer_file
 
         except AbortException:
+            self._error = 99
             movie = None
             to_delete = os.path.join(folder, f'_rt_{movie_id}*')
             to_delete = glob.glob(to_delete)
@@ -187,11 +221,12 @@ class YDStreamExtractorProxy:
 
     def get_info(self, url: str) -> Tuple[int, Optional[List[MovieType]]]:
         """
+        Instead of downloading a video, get basic information about the video
 
-        :param url:
-        :return:
+        :param url: To get information from
+        :return: a dictionary (MovieType) from the json returned by site
         """
-        clz = YDStreamExtractorProxy
+        clz = VideoDownloader
         trailer_info: Optional[List[MovieType]] = None
 
         if clz.check_too_many_requests(url) != 0:
@@ -209,13 +244,20 @@ class YDStreamExtractorProxy:
             if len(cookie_path) > 0 and os.path.exists(cookie_path):
                 ydl_opts['cookiefile'] = cookie_path
 
+            Monitor.throw_exception_if_abort_requested()
+
+            # Start Download
+
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
+
+            # Wait for download
 
             while info_logger.is_finished is None and self._error == 0:
                 Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
-            trailer_info: List[MovieType] = info_logger.get_trailer_info()
+            if self._error == 0:
+                trailer_info: List[MovieType] = info_logger.get_trailer_info()
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -228,7 +270,7 @@ class YDStreamExtractorProxy:
                         'Failed to download site info for:', url)
             trailer_info = None
 
-        if self._error != 0:
+        if self._error not in (0, 99):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
             info_logger.log_debug()
             info_logger.log_warning()
@@ -248,20 +290,21 @@ class YDStreamExtractorProxy:
         reducing how many trailers are requested at a time, caching and
         throttling of requests should be used.
 
-        :param url:
+        :param url: points to playlist
         :param trailers_to_download: Specifies the index of which trailers to get
                                      url of. An empty list means get all urls.
-        :param trailer_handler:
+        :param trailer_handler: Call back to DiscoverTFHMovies to process each
+                returned entry as it occurs.
         :return:
         """
 
-        clz = YDStreamExtractorProxy
+        clz = VideoDownloader
 
         rc = self.check_too_many_requests(url)
         if rc != 0:
             return rc
 
-        # Would prefer to get a list of playlist_items in order
+        # Would prefer to specify a list of playlist_items in order
         # to control rate of fetches (and hopefully avoid TOO_MANY REQUESTS)
         # But.. when you use playlist_items you do NOT get the total number
         # of items in the playlist as part of the results. Further, if you
@@ -295,11 +338,10 @@ class YDStreamExtractorProxy:
         if len(trailers_to_download) > 10:
             ydl_opts['playlist_items'] = trailers_to_download
 
-        clz._logger.debug('Start download')
+        Monitor.throw_exception_if_abort_requested()
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-            clz._logger.debug('End download. RC:', self._error)
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -308,7 +350,7 @@ class YDStreamExtractorProxy:
             if self._error == 0:
                 clz._logger.exception(e)
 
-        if self._error != 0:
+        if self._error not in (0, 99):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
             tfh_index_logger.log_error()
             tfh_index_logger.log_debug()
@@ -319,6 +361,12 @@ class YDStreamExtractorProxy:
 
 
 class BaseYDLogger:
+    """
+    Intercepts the output from YouTubeDL
+      - to log
+      - to scan and respond to events, such as json-text or diagnostic msgs
+    """
+
     logger = None
 
     def __init__(self, callback, url: str, parse_json_as_youtube: bool = True):
@@ -354,14 +402,26 @@ class BaseYDLogger:
            "upload_date": "20200908", "license": null, "creator": null,
           "title": "Brian Trenchard-Smith on ONCE UPON A TIME IN HOLLYWOOD",
            "alt_title": null,
-            "thumbnails": [{"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp=-oaymwEYCKgBEF5IVfKriqkDCwgBFQAAiEIYAXAB&rs=AOn4CLCPHEof66nqx4GxE04sOUocr9WywA",
+            "thumbnails": [{"url":
+            "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp
+            =-oaymwEYCKgBEF5IVfKriqkDCwgBFQAAiEIYAXAB&rs
+            =AOn4CLCPHEof66nqx4GxE04sOUocr9WywA",
              "width": 168, "height": 94, "resolution": "168x94", "id": "0"},
-             {"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp=-oaymwEYCMQBEG5IVfKriqkDCwgBFQAAiEIYAXAB&rs=AOn4CLAm-CXcCCu0LATG_R347wBxBQj4BQ",
+             {"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp
+             =-oaymwEYCMQBEG5IVfKriqkDCwgBFQAAiEIYAXAB&rs=AOn4CLAm
+             -CXcCCu0LATG_R347wBxBQj4BQ",
                "width": 196, "height": 110, "resolution": "196x110", "id": "1"},
-             {"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp=-oaymwEZCPYBEIoBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLAhW2AcVqdWYiPMZuKENgiCO0gykQ",...
+             {"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp
+             =-oaymwEZCPYBEIoBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs
+             =AOn4CLAhW2AcVqdWYiPMZuKENgiCO0gykQ",...
         :return:
         """
         clz = BaseYDLogger
+        if Monitor.is_abort_requested():
+            self._callback._error = 99
+            # Kill YoutubeDL
+            Monitor.throw_exception_if_abort_requested()
+
         self.debug_lines.append(line)
         if line.startswith('[download] Downloading video'):
             try:
@@ -382,13 +442,19 @@ class BaseYDLogger:
             try:
                 self.raw_data = json.loads(line)
                 if self._parse_json_as_youtube:
-                    self._parsed_movie = populate_movie(self.raw_data, self.url)
+                    self._parsed_movie = populate_youtube_movie_info(self.raw_data,
+                                                                     self.url)
                 # self._trailer_handler(movie_data)
             except Exception as e:
                 clz.logger.exception()
                 self._callback._error = 2
 
     def warning(self, line: str) -> None:
+        if Monitor.is_abort_requested():
+            self._callback._error = 99
+            # Kill YoutubeDL
+            Monitor.throw_exception_if_abort_requested()
+
         if 'merged' in line:
             # str: Requested formats are incompatible for merge and will be merged into
             # mkv.
@@ -397,6 +463,11 @@ class BaseYDLogger:
             self.warning_lines.append(line)
 
     def error(self, line: str) -> None:
+        if Monitor.is_abort_requested():
+            self._callback._error = 99
+            # Kill YoutubeDL
+            Monitor.throw_exception_if_abort_requested()
+
         clz = BaseYDLogger
         if 'Error 429' in line:
             self._callback._error = 429
@@ -409,9 +480,9 @@ class BaseYDLogger:
         # str: ERROR: (ExtractorError(...), 'wySw1lhMt1s: YouTube said: Unable
         # to extract video data')
         elif 'Unable to extract' in line:
-            self._callback._error = YDStreamExtractorProxy.DOWNLOAD_ERROR
+            self._callback._error = VideoDownloader.DOWNLOAD_ERROR
         elif 'blocked' in line:
-            self._callback._error = YDStreamExtractorProxy.BLOCKED_ERROR
+            self._callback._error = VideoDownloader.BLOCKED_ERROR
         else:
             self.error_lines.append(line)
 
@@ -437,6 +508,9 @@ class BaseYDLogger:
         return self.error_lines
 
     def log_lines(self, lines: List[str], label: str) -> None:
+        if self._callback._error == 99:
+            return
+
         clz = BaseYDLogger
         text = '\n'.join(lines)
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -463,40 +537,24 @@ class TfhIndexLogger(BaseYDLogger):
 
     def debug(self, line: str) -> None:
         """
-        {"_type": "url", "url": "vYALYAuD5Fw", "ie_key": "Youtube",
-        "id": "vYALYAuD5Fw", "title": "Larry Karaszewski on ROAD TO SALINA"}
-                                                   [download] Downloading video 14 of 1448
-                                                   {"_type": "url", "url":
-                                                   "dZzFqtlamV4", "ie_key": "Youtube",
-                                                   "id": "dZzFqtlamV4", "title": "Joe
-                                                   Dante on HALF HUMAN"}
-        [download] Downloading video 15 of 1448
-
-        {"id": "nrExo_KJROc", "uploader": "Trailers From Hell",
-            "uploader_id": "trailersfromhell",
-            "uploader_url": "http://www.youtube.com/user/trailersfromhell",
-            "channel_id": "UCg7Mllu8AnTjlZ4Vu1FNdjQ",
-            "channel_url": "http://www.youtube.com/channel/UCg7Mllu8AnTjlZ4Vu1FNdjQ"
-           "upload_date": "20200908", "license": null, "creator": null,
-          "title": "Brian Trenchard-Smith on ONCE UPON A TIME IN HOLLYWOOD",
-           "alt_title": null,
-            "thumbnails": [{"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp=-oaymwEYCKgBEF5IVfKriqkDCwgBFQAAiEIYAXAB&rs=AOn4CLCPHEof66nqx4GxE04sOUocr9WywA",
-             "width": 168, "height": 94, "resolution": "168x94", "id": "0"},
-             {"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp=-oaymwEYCMQBEG5IVfKriqkDCwgBFQAAiEIYAXAB&rs=AOn4CLAm-CXcCCu0LATG_R347wBxBQj4BQ",
-               "width": 196, "height": 110, "resolution": "196x110", "id": "1"},
-             {"url": "https://i.ytimg.com/vi/nrExo_KJROc/hqdefault.jpg?sqp=-oaymwEZCPYBEIoBSFXyq4qpAwsIARUAAIhCGAFwAQ==&rs=AOn4CLAhW2AcVqdWYiPMZuKENgiCO0gykQ",...
-        :return:
+             :return:
         """
         super().debug(line)
         clz = TfhIndexLogger
-        if self._parsed_movie is not None:
+        if self._parsed_movie is not None and self._callback._error != 0:
             try:
+                if self._parsed_movie.get(Movie.YOUTUBE_ID) is None:
+                    clz.logger.debug('Missing YOUTUBE_ID\n',
+                                     json.dumps(self._parsed_movie,
+                                                encoding='utf-8',
+                                                ensure_ascii=False,
+                                                indent=3, sort_keys=True))
                 self._trailer_handler(self._parsed_movie)
             except Exception as e:
                 clz.logger.exception()
 
 
-class TfhVideoLogger(BaseYDLogger):
+class VideoLogger(BaseYDLogger):
     logger = None
 
     def __init__(self, callback, url: str):
@@ -510,7 +568,7 @@ class TfhVideoLogger(BaseYDLogger):
         :return:
         """
         super().debug(line)
-        clz = TfhVideoLogger
+        clz = VideoLogger
 
         self.data = self._parsed_movie
 
@@ -541,14 +599,20 @@ class TfhInfoLogger(BaseYDLogger):
         # How do we know when finished?
 
 
-def populate_movie(movie_data: MovieType, url: str) -> MovieType:
+def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
+    """
+        Creates a Kodi MovieType from the data returned from Youtube.
+        Currently only used for TFH movies.
 
-    # TFH trailers are titled: <reviewer> on <MOVIE_TITLE_ALL_CAPS>
-    # Here we can try to get just the movie title and then look up
-    # a likely match in TMDB (with date, and other info).
+        Not used for iTunes movies. Rely on DiscoverItunesMovies for that.
 
-    # TFH may not like changing the title, however.
-    movie: MovieType = {}
+        TFH trailers are titled: <reviewer> on <MOVIE_TITLE_ALL_CAPS>
+        Here we can try to get just the movie title and then look up
+        a likely match in TMDB (with date, and other info).
+        TFH may not like us changing/guessing the movie title, however.
+    """
+
+    movie: Union[MovieType, None] = None
     dump_json = False
     missing_keywords = []
     try:
@@ -607,7 +671,6 @@ def populate_movie(movie_data: MovieType, url: str) -> MovieType:
                  Movie.MPAA: unrated_id,
                  Movie.ADULT: False,
                  Movie.RATING: movie_data.get('average_rating', 0.0),
-                 # 'tags': tags,
                  # Kodi measures in seconds
                  Movie.RUNTIME: movie_data.get('duration', 1.0) * 60
                  }
@@ -642,6 +705,10 @@ class BaseInfoHook:
 
     def status_hook(self, status: Dict[str, str]) -> None:
         clz = BaseInfoHook
+        if Monitor.is_abort_requested():
+            self._callback._error = 99
+            # Kill YoutubeDL
+            Monitor.throw_exception_if_abort_requested()
 
         status_str = status.get('status', 'missing status')
         if status_str is None:
@@ -651,7 +718,7 @@ class BaseInfoHook:
         elif status_str == 'error':
             clz._logger.error('Status:', str(status))
             self.error_lines.append('Error downloading')
-            self._error = YDStreamExtractorProxy.DOWNLOAD_ERROR
+            self._error = VideoDownloader.DOWNLOAD_ERROR
         elif status_str == 'finished':
             filename = status.get('filename')
             tmpfilename = status.get('tmpfilename')

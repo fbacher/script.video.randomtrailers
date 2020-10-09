@@ -24,7 +24,7 @@ from common.settings import Settings
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.tfh_movie_data import TFHMovieData
-from backend.yd_stream_extractor_proxy import YDStreamExtractorProxy
+from backend.video_downloader import VideoDownloader
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -212,7 +212,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             # fetcher with any previously cached data. This will fix itself
             # the next time the cache is read.
 
-            youtube_data_stream_extractor_proxy = YDStreamExtractorProxy()
+            youtube_data_stream_extractor_proxy = VideoDownloader()
             url = 'https://www.youtube.com/user/trailersfromhell/videos'
 
             # trailer_handler is a callback, so adds entries to the cache
@@ -222,7 +222,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             # Put first trailer at end, since we process from the end.
 
-            # Ignored at the moment. See YDStreamExtractorProxy
+            # Ignored at the moment. See VideoDownloader
             trailers_to_download = [23]
             finished = False
             actual_trailer_count = None
