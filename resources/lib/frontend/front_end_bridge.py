@@ -88,7 +88,7 @@ class FrontendBridge(PluginBridge):
         try:
             signal_payload = {}
             cls.send_signal('get_next_trailer', data=signal_payload,
-                             source_id=Constants.BACKEND_ID)
+                            source_id=Constants.BACKEND_ID)
 
             # It can take some time before we get responses back
             # Wait max 30 seconds
@@ -136,7 +136,7 @@ class FrontendBridge(PluginBridge):
             cls._logger.enter()
         signal_payload = {}
         cls.send_signal('settings_changed', data=signal_payload,
-                         source_id=Constants.BACKEND_ID)
+                        source_id=Constants.BACKEND_ID)
 
     @classmethod
     def ack(cls, what):
@@ -154,7 +154,8 @@ class FrontendBridge(PluginBridge):
         # if LazyLogger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
         #     cls._logger.enter()
         signal_payload = {'what': what}
-        cls.send_signal('ack', data=signal_payload, source_id=Constants.BACKEND_ID)
+        cls.send_signal('ack', data=signal_payload,
+                        source_id=Constants.BACKEND_ID)
 
     @classmethod
     def returned_trailer(cls, data):
