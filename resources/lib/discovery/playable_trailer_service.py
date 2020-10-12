@@ -175,8 +175,15 @@ class PlayableTrailerService(object):
                                                 'trailersToFetchQueue size:',
                                                 movie_data.get_trailers_to_fetch_queue_size())
 
-            projected_size = movie_data.get_projected_number_of_trailers()
+            projected_size = playable_trailers.get_projected_number_of_trailers()
             projected_sizes_map[source] = projected_size
+
+            if (self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                    and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
+                self.logger.debug_extra_verbose('source:', source,
+                                                'projected size:',
+                                                projected_size,
+                                                trace=Trace.TRACE_PLAY_STATS)
             total_number_of_trailers += projected_size
             if not movie_data.is_discovery_complete() or number_of_trailers != 0:
                 nothing_to_play = False
@@ -190,6 +197,11 @@ class PlayableTrailerService(object):
                                       trace=Trace.TRACE_DISCOVERY)
                 movie_data.shuffle_discovered_trailers(mark_unplayed=True)
 
+        if (self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
+            self.logger.debug_extra_verbose('total_number_of_trailers:',
+                                            total_number_of_trailers,
+                                            Trace.TRACE_PLAY_STATS)
         if nothing_to_play:
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 self.logger.debug_verbose('Nothing to Play! numTrailers:',
@@ -226,21 +238,10 @@ class PlayableTrailerService(object):
 
                 movie_data = playable_trailers.get_movie_data()
                 self.throw_exception_on_forced_to_stop(movie_data=movie_data)
-
-                projected_size = playable_trailers.get_projected_number_of_trailers()
-                if self.logger.isEnabledFor(LazyLogger.DISABLED):
-                    self.logger.debug_extra_verbose('source:', source,
-                                                    'projected size:',
-                                                    projected_size)
                 total_number_of_trailers += projected_sizes_map[source]
-
-                if self.logger.isEnabledFor(LazyLogger.DISABLED):
-                    self.logger.debug_extra_verbose('total_number_of_trailers:',
-                                                    total_number_of_trailers)
                 if trailer_index_to_play < total_number_of_trailers:
                     found_playable_trailers = playable_trailers
                     break
-
             try:
                 attempts += 1
                 if attempts > 1 and self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
