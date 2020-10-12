@@ -739,11 +739,6 @@
 		</category>
 		<category help="" id="remote trailers" label="32174">
 			<group id="1" label="32091">
-				<setting help="" id="do_remote_trailers" label="32092" type="boolean">
-					<level>0</level>
-					<default>true</default>
-					<control type="toggle"/>
-				</setting>
 				<setting help="" id="do_clips" label="32018" type="boolean">
 					<level>0</level>
 					<default>false</default>

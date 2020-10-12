@@ -82,7 +82,6 @@ class Settings(object):
     INCLUDE_LIBRARY_TRAILERS = 'do_library'
     INCLUDE_NOT_YET_RATED = 'do_notyetrated'
     INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS = 'do_library_remote_trailers'
-    LIBRARY_INCLUDE_REMOTE_TRAILERS = 'do_remote_trailers'
     INCLUDE_TMDB_TRAILERS = 'do_tmdb'
     INCLUDE_TRAILER_FOLDERS = 'do_folder'
     INCLUDE_TFH_TRAILERS = 'include_tfh_trailers'
@@ -211,7 +210,6 @@ class Settings(object):
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_NOT_YET_RATED,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        LIBRARY_INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TMDB_TRAILERS,
         INCLUDE_TRAILER_FOLDERS,
         LIMIT_CACHED_TRAILERS,
@@ -327,7 +325,6 @@ class Settings(object):
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_NOT_YET_RATED,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        LIBRARY_INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TMDB_TRAILERS,
         INCLUDE_TFH_TRAILERS,
         INCLUDE_TRAILER_FOLDERS,
@@ -393,7 +390,6 @@ class Settings(object):
         INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO,
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
-        LIBRARY_INCLUDE_REMOTE_TRAILERS,
         INCLUDE_TRAILER_FOLDERS]
 
     TMDB_SPECIFIC_SETTINGS = [
@@ -1189,15 +1185,6 @@ class Settings(object):
         """
         return Settings.get_setting_bool(
             Settings.INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS)
-
-    @staticmethod
-    def get_include_remote_trailers():
-        # type: () -> bool
-        """
-
-        :return:
-        """
-        return Settings.get_setting_bool(Settings.LIBRARY_INCLUDE_REMOTE_TRAILERS)
 
     @staticmethod
     def get_include_tmdb_trailers():
