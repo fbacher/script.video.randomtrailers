@@ -113,7 +113,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             Monitor.register_abort_listener(trailer_fetcher.shutdown_thread)
             TrailerFetcher._trailer_fetchers.append(trailer_fetcher)
             trailer_fetcher.start()
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                 clz._logger.debug_verbose('trailer fetcher started')
 
     def shutdown_thread(self) -> None:
@@ -273,7 +273,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # set to Movie.TMDB_SOURCE
             #
             # Debug.dump_json(text='Original trailer:', data=trailer)
-            tmdb_id: int = MovieEntryUtils.get_tmdb_id(trailer)
+            tmdb_id: Union[int, None] = MovieEntryUtils.get_tmdb_id(trailer)
             if tmdb_id is not None:
                 tmdb_id = int(tmdb_id)
 
@@ -560,6 +560,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             if VideoDownloader().get_youtube_wait_seconds() > 0:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                    clz._logger.debug_extra_verbose('Too Many Requests')
                     clz._logger.debug(
                         'Can not download trailer for cache at this time')
                 return trailer_ok
@@ -698,8 +699,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if ignore_failures:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(
-                            'Ignore_failures getting TMDB data for:,'
-                            'movie_title')
+                            f'Ignore_failures getting TMDB data for: {movie_title}')
                     return status_code, dict_info
                 clz._logger.debug_verbose('Error getting TMDB data for:', movie_title,
                                           'status:', status_code)
@@ -1347,7 +1347,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         movie[Movie.CACHED_TRAILER] = cached_trailers[0]
                         stop = datetime.datetime.now()
                         locate_time = stop - start
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                             clz._logger.debug_extra_verbose('time to locate movie:',
                                                             locate_time.seconds, 'path:',
                                                             movie[Movie.CACHED_TRAILER])
@@ -1369,6 +1369,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     if error_code == 429:
                         rc = 429
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                            clz._logger.debug_extra_verbose('Too Many Requests')
                             clz._logger.debug(
                                 'Can not download trailer for cache at this time')
                     if downloaded_movie is not None:
@@ -1389,7 +1390,10 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     """
 
-                    if download_path is None:
+                    if download_path is None and error_code != 429:
+                        if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                            clz._logger.debug('Video Download failed',
+                                              f'{movie[Movie.TITLE]}')
                         self._missing_trailers_playlist.record_played_trailer(
                             movie, use_movie_path=False, msg='Download FAILED')
                         if rc == 0:
@@ -1562,13 +1566,15 @@ class TrailerFetcher(TrailerFetcherInterface):
                     if rc == 0:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                             clz._logger.debug_verbose(
-                                'Normalized:', movie[Movie.TITLE])
+                                f'Normalized: {movie[Movie.TITLE]}',
+                                f'path: {normalized_path}')
                         cached_normalized_trailer = normalized_path
                         normalized_used = True
                     else:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                             clz._logger.debug('Normalize failed:',
-                                              movie[Movie.TITLE])
+                                              not movie[Movie.TITLE],
+                                              f'path: {normalized_path}')
 
             if cached_normalized_trailer is not None:
                 assert 'normalized_normalized' not in cached_normalized_trailer, \
