@@ -1358,14 +1358,15 @@ class TrailerFetcher(TrailerFetcherInterface):
                     downloaded_movie = None
                     error_code = 0
                     trailer_folder = xbmcvfs.translatePath('special://temp')
-                    youtube_data_stream_extractor_proxy = VideoDownloader()
-                    if youtube_data_stream_extractor_proxy.get_youtube_wait_seconds() > 0:
+                    video_downloader = VideoDownloader()
+                    if video_downloader.get_youtube_wait_seconds() > 0:
                         error_code = 429
                         downloaded_movie = None
                     else:
                         error_code, downloaded_movie = \
-                            youtube_data_stream_extractor_proxy.get_video(
-                                trailer_path, trailer_folder, movie_id)
+                            video_downloader.get_video(
+                                trailer_path, trailer_folder, movie_id,
+                                movie[Movie.TITLE], movie[Movie.SOURCE])
                     if error_code == 429:
                         rc = 429
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):

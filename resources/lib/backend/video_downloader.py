@@ -10,8 +10,9 @@ import datetime
 import glob
 import simplejson as json
 import os
-import sys
+import random
 import re
+import sys
 
 import youtube_dl
 
@@ -25,12 +26,28 @@ from common.settings import Settings
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 #  Intentional delay (seconds) to help prevent TOO_MANY_REQUESTS
-DELAY = 5.0
+YOUTUBE_DOWNLOAD_INFO_DELAY = (5.0, 10.0)
+ITUNES_DOWNLOAD_INFO_DELAY = (1.0, 3.0)
+TFH_INFO_DELAY = (1.0, 4.1)
+DOWNLOAD_INFO_DELAY_BY_SOURCE = {Movie.ITUNES_SOURCE: ITUNES_DOWNLOAD_INFO_DELAY,
+                                 Movie.TMDB_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
+                                 Movie.TFH_SOURCE: TFH_INFO_DELAY,
+                                 Movie.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
+                                 Movie.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY}
+#  Intentional delay (seconds) to help prevent TOO_MANY_REQUESTS
+YOUTUBE_DOWNLOAD_VIDEO_DELAY = (30.0, 120.0)
+ITUNES_DOWNLOAD_VIDEO_DELAY = (10.0, 60.0)
+DOWNLOAD_VIDEO_DELAY_BY_SOURCE = {Movie.ITUNES_SOURCE: ITUNES_DOWNLOAD_VIDEO_DELAY,
+                                  Movie.TMDB_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
+                                  Movie.TFH_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
+                                  Movie.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
+                                  Movie.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY}
+
 PYTHON_PATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
 PYTHON_EXEC = sys.executable
 YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                'resources', 'lib', 'shell', 'youtube_dl_main.py')
-# Delay one hour after encountering 429 (too many requests)
+# Delay two hours after encountering 429 (too many requests)
 RETRY_DELAY = datetime.timedelta(0, float(60 * 2))
 
 
@@ -71,6 +88,10 @@ class VideoDownloader:
     # TFH cache that would cause the 429 error.
 
     _initial_tmr_timestamp = None
+    _last_youtube_request_timestamp: datetime.datetime = datetime.datetime(
+        1990, 1, 1)
+    _last_itunes_request_timestamp: datetime.datetime = datetime.datetime(
+        1990, 1, 1)
     _logger = module_logger.getChild('VideoDownloader')
 
     def __init__(self) -> None:
@@ -88,6 +109,7 @@ class VideoDownloader:
         self.warning_lines: List[str] = []
         self.error_lines: List[str] = []
         self._download_eta = None
+        self._download_finished = False
 
     @staticmethod
     def get_youtube_wait_seconds() -> ClassVar[datetime.timedelta]:
@@ -104,11 +126,14 @@ class VideoDownloader:
         return seconds_to_wait
 
     @classmethod
-    def check_too_many_requests(cls, url: str) -> int:
+    def check_too_many_requests(cls, url: str, source: str) -> int:
         """
           Returns 429 if a 429 error has occurred within RETRY_DELAY seconds.
           Otherwise, returns 0.
         """
+        if source == Movie.ITUNES_SOURCE:
+            return 0
+
         if cls._too_many_requests_timestamp > datetime.datetime.now():
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 expiration_time = datetime.datetime.strftime(
@@ -120,28 +145,69 @@ class VideoDownloader:
                 return 429
         return 0
 
-    def get_video(self, url, folder, movie_id):
-        # type: (str, str, Union[int, str]) -> Tuple[int, Optional[MovieType]]
+    @classmethod
+    def wait_if_too_busy(cls, source: str, video: bool):
+        if video:
+            delay_range = DOWNLOAD_VIDEO_DELAY_BY_SOURCE[source]
+        else:
+            delay_range = DOWNLOAD_INFO_DELAY_BY_SOURCE[source]
+        delay = cls.get_delay(delay_range)
+        # min_time_between_requests = datetime.timedelta(seconds=10.0)
+        if source == Movie.ITUNES_SOURCE:
+            waited: datetime.timedelta = (
+                datetime.datetime.now() - cls._last_itunes_request_timestamp)
+        else:
+            waited: datetime.timedelta = (
+                datetime.datetime.now() - cls._last_youtube_request_timestamp)
+        time_to_wait = delay - waited.total_seconds()
+        if time_to_wait > 0.0:
+            Monitor.throw_exception_if_abort_requested(time_to_wait)
+        if source == Movie.ITUNES_SOURCE:
+            cls._last_itunes_request_timestamp = datetime.datetime.now()
+        else:
+            cls._last_youtube_request_timestamp = datetime.datetime.now()
+
+    @classmethod
+    def get_delay(cls, delay_range: Tuple[float, float]) -> float:
+        lower = int(13 * delay_range[0])
+        upper = int(13 * delay_range[1])
+        return float(random.randint(lower, upper)) / 13.0
+
+    def get_video(self, url: str, folder: str, movie_id: Union[int, str],
+                  title: str, source: str) -> Tuple[int, Optional[MovieType]]:
         """
              Downloads a video from the given url into the given folder.
 
         :param url:      To download from
         :param folder:   To download to
         :param movie_id: To pass to youtube-dl to embed in the created file name
+        :param title:    For logging
+        :param source:   Movie source used to determine delay
         :return:
         """
         clz = VideoDownloader
 
-        if clz.check_too_many_requests(url) != 0:
-            return 429, None
+        too_many_requests = clz.check_too_many_requests(url, source)
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz._logger.debug_verbose(
+                f'url: {url} Too Many Requests: {too_many_requests}')
 
+        if too_many_requests != 0:
+            return too_many_requests, None
+
+        clz.wait_if_too_busy(source, True)
         # The embedded % fields are for youtube_dl to fill  in.
 
         template = os.path.join(folder, f'_rt_{movie_id}_%(title)s.%(ext)s')
         movie = None
 
         # Collect and respond to output from youtube-dl
-        video_logger = VideoLogger(self, url)
+        if source == Movie.ITUNES_SOURCE:
+            parse_json_as_youtube = False
+        else:
+            parse_json_as_youtube = True
+        video_logger = VideoLogger(self, url,
+                                   parse_json_as_youtube=parse_json_as_youtube)
         try:
             ydl_opts = {
                 'forcejson': 'true',
@@ -150,7 +216,8 @@ class VideoDownloader:
                 'logger': video_logger,
                 'progress_hooks': [VideoDownloadProgressHook(self).status_hook]
             }
-            # Optional cookie-file used to avoid youtube 429 errors (see  above).
+            # Optional cookie-file used to avoid youtube 429 errors (see
+            # above).
 
             cookie_path = Settings.get_youtube_dl_cookie_path()
             if len(cookie_path) > 0 and os.path.exists(cookie_path):
@@ -160,7 +227,8 @@ class VideoDownloader:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
-            while video_logger.data is None and self._error == 0:
+            while (video_logger.data is None and self._error == 0 and not
+                    self._download_finished):
                 Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
             movie = video_logger.data
@@ -174,6 +242,7 @@ class VideoDownloader:
                     # Don't know why, but sometimes youtube_dl returns incorrect
                     # file extension
 
+                    movie.setdefault(Movie.TRAILER, trailer_file)
                     if trailer_file != movie[Movie.TRAILER]:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz._logger.debug_extra_verbose(
@@ -203,7 +272,8 @@ class VideoDownloader:
             self._error = 1
 
         if self._error != 0:
-            clz._logger.debug('Results for url:', url, 'error:', self._error)
+            clz._logger.debug(
+                f'Results for {title} url:{url} error: {self._error}')
             video_logger.log_debug()
             video_logger.log_warning()
             video_logger.log_error()
@@ -216,20 +286,28 @@ class VideoDownloader:
                 except Exception as e:
                     pass
 
-        Monitor.throw_exception_if_abort_requested(timeout=DELAY)
+        Monitor.throw_exception_if_abort_requested()
         return self._error, movie
 
-    def get_info(self, url: str) -> Tuple[int, Optional[List[MovieType]]]:
+    def get_info(self, url: str, movie_source: str) -> Tuple[
+            int, Optional[List[MovieType]]]:
         """
         Instead of downloading a video, get basic information about the video
 
         :param url: To get information from
+        :param movie_source: Used to determine delay between requests
         :return: a dictionary (MovieType) from the json returned by site
         """
         clz = VideoDownloader
         trailer_info: Optional[List[MovieType]] = None
 
-        if clz.check_too_many_requests(url) != 0:
+        clz.wait_if_too_busy(movie_source, False)
+        too_many_requests = clz.check_too_many_requests(url, movie_source)
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz._logger.debug_verbose(
+                f'url: {url} Too Many Requests: {too_many_requests}')
+
+        if too_many_requests != 0:
             return 429, None
 
         info_logger = TfhInfoLogger(self, url, parse_json_as_youtube=False)
@@ -276,7 +354,7 @@ class VideoDownloader:
             info_logger.log_warning()
             info_logger.log_error()
 
-        Monitor.throw_exception_if_abort_requested(timeout=DELAY)
+        Monitor.throw_exception_if_abort_requested()
         return 0, trailer_info
 
     def get_tfh_index(self, url: str, trailers_to_download: str,
@@ -300,9 +378,14 @@ class VideoDownloader:
 
         clz = VideoDownloader
 
-        rc = self.check_too_many_requests(url)
-        if rc != 0:
-            return rc
+        clz.wait_if_too_busy(Movie.TFH_SOURCE, False)
+        too_many_requests = clz.check_too_many_requests(url, Movie.TFH_SOURCE)
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz._logger.debug_verbose(
+                f'url: {url} Too Many Requests: {too_many_requests}')
+
+        if too_many_requests != 0:
+            return too_many_requests
 
         # Would prefer to specify a list of playlist_items in order
         # to control rate of fetches (and hopefully avoid TOO_MANY REQUESTS)
@@ -325,7 +408,7 @@ class VideoDownloader:
             #  'playlist_items': trailers_to_download,
             'playlistrandom': True,
             'progress_hooks': [TFHIndexProgressHook(self).status_hook],
-            #'debug_printtraffic': True
+            # 'debug_printtraffic': True
         }
         cookie_path = Settings.get_youtube_dl_cookie_path()
         if len(cookie_path) > 0 and os.path.exists(cookie_path):
@@ -356,7 +439,7 @@ class VideoDownloader:
             tfh_index_logger.log_debug()
             tfh_index_logger.log_warning()
 
-        Monitor.throw_exception_if_abort_requested(timeout=DELAY)
+        Monitor.throw_exception_if_abort_requested()
         return self._error
 
 
@@ -369,13 +452,14 @@ class BaseYDLogger:
 
     logger = None
 
-    def __init__(self, callback, url: str, parse_json_as_youtube: bool = True):
+    def __init__(self, downloader: VideoDownloader, url: str,
+                 parse_json_as_youtube: bool = True):
         clz = BaseYDLogger
         clz.logger = module_logger.getChild(clz.__name__)
         self.debug_lines: List[str] = []
         self.warning_lines: List[str] = []
         self.error_lines: List[str] = []
-        self._callback = callback
+        self._downloader: VideoDownloader = downloader
         self.index = 0
         self.total = 0
         self.url = url
@@ -418,7 +502,7 @@ class BaseYDLogger:
         """
         clz = BaseYDLogger
         if Monitor.is_abort_requested():
-            self._callback._error = 99
+            self._downloader._error = 99
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
@@ -430,7 +514,7 @@ class BaseYDLogger:
                 self.total = int(total_str)
             except Exception as e:
                 clz.logger.exception()
-                self._callback._error = 1
+                self._downloader._error = 1
 
         # if line.startswith('{"_type":'):
         #     try:
@@ -447,11 +531,11 @@ class BaseYDLogger:
                 # self._trailer_handler(movie_data)
             except Exception as e:
                 clz.logger.exception()
-                self._callback._error = 2
+                self._downloader._error = 2
 
     def warning(self, line: str) -> None:
         if Monitor.is_abort_requested():
-            self._callback._error = 99
+            self._downloader._error = 99
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
@@ -464,15 +548,15 @@ class BaseYDLogger:
 
     def error(self, line: str) -> None:
         if Monitor.is_abort_requested():
-            self._callback._error = 99
+            self._downloader._error = 99
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
         clz = BaseYDLogger
         if 'Error 429' in line:
-            self._callback._error = 429
-            clz._initial_tmr_timestamp = datetime.datetime.now()
-            clz._too_many_requests_timestamp = (
+            self._downloader._error = 429
+            self._downloader._initial_tmr_timestamp = datetime.datetime.now()
+            self._downloader._too_many_requests_timestamp = (
                 datetime.datetime.now() + RETRY_DELAY)
 
             clz.logger.info(
@@ -480,9 +564,9 @@ class BaseYDLogger:
         # str: ERROR: (ExtractorError(...), 'wySw1lhMt1s: YouTube said: Unable
         # to extract video data')
         elif 'Unable to extract' in line:
-            self._callback._error = VideoDownloader.DOWNLOAD_ERROR
+            self._downloader._error = VideoDownloader.DOWNLOAD_ERROR
         elif 'blocked' in line:
-            self._callback._error = VideoDownloader.BLOCKED_ERROR
+            self._downloader._error = VideoDownloader.BLOCKED_ERROR
         else:
             self.error_lines.append(line)
 
@@ -508,7 +592,7 @@ class BaseYDLogger:
         return self.error_lines
 
     def log_lines(self, lines: List[str], label: str) -> None:
-        if self._callback._error == 99:
+        if self._downloader._error == 99:
             return
 
         clz = BaseYDLogger
@@ -529,8 +613,9 @@ class BaseYDLogger:
 class TfhIndexLogger(BaseYDLogger):
     logger = None
 
-    def __init__(self, callback, trailer_handler, url: str):
-        super().__init__(callback, url, parse_json_as_youtube=True)
+    def __init__(self, downloader: VideoDownloader,
+                 trailer_handler, url: str):
+        super().__init__(downloader, url, parse_json_as_youtube=True)
         clz = TfhIndexLogger
         clz.logger = module_logger.getChild(clz.__name__)
         self._trailer_handler = trailer_handler
@@ -541,7 +626,7 @@ class TfhIndexLogger(BaseYDLogger):
         """
         super().debug(line)
         clz = TfhIndexLogger
-        if self._parsed_movie is not None and self._callback._error != 0:
+        if self._parsed_movie is not None and self._downloader._error != 0:
             try:
                 if self._parsed_movie.get(Movie.YOUTUBE_ID) is None:
                     clz.logger.debug('Missing YOUTUBE_ID\n',
@@ -550,6 +635,7 @@ class TfhIndexLogger(BaseYDLogger):
                                                 ensure_ascii=False,
                                                 indent=3, sort_keys=True))
                 self._trailer_handler(self._parsed_movie)
+                VideoDownloader.wait_if_too_busy(Movie.TFH_SOURCE, False)
             except Exception as e:
                 clz.logger.exception()
 
@@ -557,8 +643,10 @@ class TfhIndexLogger(BaseYDLogger):
 class VideoLogger(BaseYDLogger):
     logger = None
 
-    def __init__(self, callback, url: str):
-        super().__init__(callback, url, parse_json_as_youtube=False)
+    def __init__(self, downloader: VideoDownloader, url: str,
+                 parse_json_as_youtube: bool):
+        super().__init__(downloader, url,
+                         parse_json_as_youtube=parse_json_as_youtube)
         clz = TfhIndexLogger
         clz.logger = module_logger.getChild(clz.__name__)
         self.data = None
@@ -570,14 +658,18 @@ class VideoLogger(BaseYDLogger):
         super().debug(line)
         clz = VideoLogger
 
-        self.data = self._parsed_movie
+        if self._parse_json_as_youtube:
+            self.data = self._parsed_movie
+        else:
+            self.data = self.raw_data
 
 
 class TfhInfoLogger(BaseYDLogger):
     logger = None
 
-    def __init__(self, callback, url: str, parse_json_as_youtube: bool = False):
-        super().__init__(callback, url, parse_json_as_youtube=parse_json_as_youtube)
+    def __init__(self, downloader: VideoDownloader, url: str,
+                 parse_json_as_youtube: bool = False):
+        super().__init__(downloader, url, parse_json_as_youtube=parse_json_as_youtube)
         clz = TfhIndexLogger
         clz.logger = module_logger.getChild(clz.__name__)
         self._trailer_info: List[MovieType] = []
@@ -632,7 +724,8 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
         if movie_data.get('upload_date') is None:
             missing_keywords.append('upload_date')
             dump_json = True
-            movie_data['upload_date'] = datetime.datetime.now().strftime('%Y%m%d')
+            movie_data['upload_date'] = datetime.datetime.now(
+            ).strftime('%Y%m%d')
         upload_date = movie_data.get('upload_date', '19000101')  # 20120910
         year = upload_date[0:4]
         year = int(year)
@@ -695,18 +788,18 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
 class BaseInfoHook:
     _logger = module_logger.getChild('BaseInfoHook')
 
-    def __init__(self, callback):
+    def __init__(self, downloader: VideoDownloader):
         self.error_lines: List[str] = []
         self.warning_lines: List[str] = []
         self.debug_lines: List[str] = []
         self._download_eta: Optional[int] = None
         self._error: int = 0
-        self._callback = callback
+        self._downloader = downloader
 
     def status_hook(self, status: Dict[str, str]) -> None:
         clz = BaseInfoHook
         if Monitor.is_abort_requested():
-            self._callback._error = 99
+            self._downloader._error = 99
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
@@ -715,10 +808,12 @@ class BaseInfoHook:
             clz._logger.debug('Missing status indication')
         elif status_str == 'downloading':
             self._download_eta = status.get('eta', 0)  # In seconds
+            self._downloader._download_eta = self._download_eta
         elif status_str == 'error':
             clz._logger.error('Status:', str(status))
             self.error_lines.append('Error downloading')
             self._error = VideoDownloader.DOWNLOAD_ERROR
+            self._downloader._error = self._error
         elif status_str == 'finished':
             filename = status.get('filename')
             tmpfilename = status.get('tmpfilename')
@@ -730,6 +825,7 @@ class BaseInfoHook:
             speed = status.get('speed')
             fragment_index = status.get('fragment_index')
             fragment_count = status.get('fragment_count')
+            self._downloader._download_finished = True
 
             clz._logger.debug('Finished')
 
@@ -737,8 +833,8 @@ class BaseInfoHook:
 class TrailerInfoProgressHook(BaseInfoHook):
     _logger = module_logger.getChild('TrailerInfoProgressHook')
 
-    def __init__(self, callback):
-        super().__init__(callback)
+    def __init__(self, downloader: VideoDownloader):
+        super().__init__(downloader)
 
     def status_hook(self, status: Dict[str, str]) -> None:
         clz = TrailerInfoProgressHook
@@ -748,8 +844,8 @@ class TrailerInfoProgressHook(BaseInfoHook):
 class TFHIndexProgressHook(BaseInfoHook):
     _logger = module_logger.getChild('TFHIndexProgressHook')
 
-    def __init__(self, callback):
-        super().__init__(callback)
+    def __init__(self, downloader: VideoDownloader):
+        super().__init__(downloader)
 
     def status_hook(self, status: Dict[str, str]) -> None:
         clz = TFHIndexProgressHook
@@ -759,8 +855,8 @@ class TFHIndexProgressHook(BaseInfoHook):
 class VideoDownloadProgressHook(BaseInfoHook):
     _logger = module_logger.getChild('VideoDownloadProgressHook')
 
-    def __init__(self, callback):
-        super().__init__(callback)
+    def __init__(self, downloader: VideoDownloader):
+        super().__init__(downloader)
 
     def status_hook(self, status: Dict[str, str]) -> None:
         clz = VideoDownloadProgressHook

@@ -136,7 +136,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         duration = datetime.datetime.now() - start_time
         if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(Trace.STATS):
             clz.logger.debug('Time to discover:', duration.seconds,
-                                     'seconds', trace=Trace.STATS)
+                             'seconds', trace=Trace.STATS)
 
     def run_worker(self):
         # type: () -> None
@@ -486,23 +486,23 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         try:
             Monitor.throw_exception_if_abort_requested()
-            youtube_data_extractor = VideoDownloader()
+            video_downloader = VideoDownloader()
             finished = False
             downloadable_trailers: List[MovieType] = []
             while not finished:
-                wait = youtube_data_extractor.get_youtube_wait_seconds()
+                wait = video_downloader.get_youtube_wait_seconds()
                 if wait > 0:
                     if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                         clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
-                                                 'TOO MANY REQUESTS')
+                                                 'Too Many Requests')
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug(
                             'Can not download trailer for cache at this time')
                     Monitor.throw_exception_if_abort_requested(
                         timeout=float(wait))
                 rc: int
-                rc, downloadable_trailers = youtube_data_extractor.get_info(
-                    feature_url)
+                rc, downloadable_trailers = video_downloader.get_info(
+                    feature_url, Movie.ITUNES_SOURCE)
                 if rc != 429:
                     finished = True
 
