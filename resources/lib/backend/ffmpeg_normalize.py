@@ -69,7 +69,13 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
         output_trailer_file)
 
     output_file = os.path.join(output_directory,
-                               f'compand_{output_trailer_file}{output_trailer_extension}')
+                               f'{output_trailer_file}{output_trailer_extension}')
+
+    # file type (suffix) MUST be same as original since ffmpeg uses it to determine
+    # encoding parameters. So, put tmp_ at beginning
+
+    temp_output_file = os.path.join(output_directory,
+                               f'tmp_{output_trailer_file}{output_trailer_extension}')
 
     suffix = str(random.randint(0, 9999))
     tmp_dir = tempfile.gettempdir()
@@ -92,7 +98,7 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
                                    '-filter_complex:a',
                                    compand_params,
                                    '-y',
-                                   'NUL'
+                                   temp_output_file
                                    ]
 
             else:  # Second pass
@@ -108,7 +114,7 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
                                    '-filter_complex:a',
                                    compand_params,
                                    '-y',
-                                   output_file
+                                   temp_output_file
                                    ]
         else:  # Not compand
             if ffmpeg_pass == 1:
@@ -124,7 +130,7 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
                                    '-filter:a',
                                    'loudnorm',
                                    '-y',
-                                   output_file
+                                   temp_output_file
                                    ]
 
             else:   # Second Pass
@@ -140,7 +146,7 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
                                    '-filter:a',
                                    'loudnorm',
                                    '-y',
-                                   output_file
+                                   temp_output_file
                                    ]
 
         Monitor.throw_exception_if_abort_requested()
@@ -150,6 +156,24 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
             os.remove(first_pass_log_path)
         if rc != 0:
             break
+
+    if rc == 0:
+        if not os.path.exists(temp_output_file):
+            rc = 20
+            module_logger.debug(f'Normalized file missing: {temp_output_file}')
+    if rc == 0:
+        try:
+            if os.path.exists(output_file):
+                os.remove(output_file)
+        except Exception as e:
+            rc = 21
+            module_logger.debug(f'Can not remove: {output_file}')
+    if rc == 0:
+        try:
+            os.rename(temp_output_file, output_file)
+        except Exception:
+            rc = 22
+            module_logger.debug(f'Can not rename {temp_output_file} to {output_file}')
 
     return rc
 
@@ -181,8 +205,9 @@ class RunCommand:
         while not Monitor.wait_for_abort(timeout=0.1):
             try:
                 if self.process is not None:  # Wait to start
-                    self.rc = self.process.poll()
-                    if self.rc is not None:
+                    rc = self.process.poll()
+                    if rc is not None:
+                        self.rc = rc
                         self.cmd_finished = True
                         break  # Complete
             except subprocess.TimeoutExpired:
@@ -250,7 +275,9 @@ class RunCommand:
                 if len(line) > 0:
                     self.stderr_lines.append(line)
             except ValueError as e:
-                if self.process.poll() is not None:
+                rc = self.process.poll()
+                if rc is not None:
+                    self.rc = rc
                     # Command complete
                     finished = True
                     break
@@ -275,7 +302,9 @@ class RunCommand:
                 if len(line) > 0:
                     self.stdout_lines.append(line)
             except ValueError as e:
-                if self.process.poll() is not None:
+                rc = self.process.poll()
+                if rc is not None:
+                    self.rc = rc
                     # Command complete
                     finished = True
                     break
@@ -294,8 +323,9 @@ class RunCommand:
 
         clz = RunCommand
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug(
-                f'ffmpeg failed for {self.movie_name} rc: {self.rc}')
+            if self.rc != 0:
+                clz.logger.debug(
+                    f'ffmpeg failed for {self.movie_name} rc: {self.rc}')
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 stdout = '\n'.join(self.stdout_lines)
                 clz.logger.debug_verbose(f'STDOUT: {stdout}')
