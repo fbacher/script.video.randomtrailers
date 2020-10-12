@@ -22,6 +22,7 @@ class GarbageCollector:
     """
     _lock = threading.RLock()
     _threads_to_join: List[threading.Thread] = []
+
     def __init__(self):
         raise NotImplemented()
 
@@ -35,6 +36,8 @@ class GarbageCollector:
         garbage_collector = threading.Thread(
             target=cls.join_dead_threads,
             name='Thread garbage collection')
+
+        garbage_collector.start()
 
     @classmethod
     def join_dead_threads(cls):
@@ -51,7 +54,7 @@ class GarbageCollector:
                 for thread in joined_threads:
                     cls._threads_to_join.remove(thread)
 
-            if Monitor.is_abort_requested():
+            if Monitor.wait_for_abort(timeout=10.0):
                 finished = True
 
 
