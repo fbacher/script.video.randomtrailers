@@ -188,11 +188,10 @@ class VideoDownloader:
         clz = VideoDownloader
 
         too_many_requests = clz.check_too_many_requests(url, source)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz._logger.debug_verbose(
-                f'url: {url} Too Many Requests: {too_many_requests}')
-
         if too_many_requests != 0:
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz._logger.debug_verbose(
+                    f'url: {url} Too Many Requests: {too_many_requests}')
             return too_many_requests, None
 
         clz.wait_if_too_busy(source, True)
