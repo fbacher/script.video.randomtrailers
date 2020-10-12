@@ -349,8 +349,10 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
         DiskUtils.RandomGenerator.shuffle(movies)
         if self._libraryURLManager is None:
-            self._libraryURLManager = DiscoverLibraryURLTrailerMovies()
-            self._libraryNoTrailerInfoManager = DiscoverLibraryNoTrailerMovies()
+            if Settings.get_include_library_remote_trailers():
+                self._libraryURLManager = DiscoverLibraryURLTrailerMovies()
+            if Settings.get_include_library_no_trailer_info():
+                self._libraryNoTrailerInfoManager = DiscoverLibraryNoTrailerMovies()
         library_movies = []
         library_url_movies = []
         library_no_trailer_movies = []
@@ -397,7 +399,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                         clz.logger.debug_verbose(movie[Movie.TITLE],
                                                  'has invalid ADULT field: ',
                                                  movie[Movie.ADULT])
-                    movie[Movie.ADULT] = str(movie[Movie.ADULT]).lower == 'true'
+                    movie[Movie.ADULT] = str(
+                        movie[Movie.ADULT]).lower == 'true'
 
                 movie[Movie.SOURCE] = Movie.LIBRARY_SOURCE
                 movie.setdefault(Movie.TRAILER, '')
@@ -437,12 +440,14 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                         self._some_movies_discovered_event.set()
 
                 if len(library_no_trailer_movies) >= empty_limit:
-                    self._libraryNoTrailerInfoManager.add_to_discovered_trailers(
-                        library_no_trailer_movies)
+                    if Settings.get_include_library_no_trailer_info():
+                        self._libraryNoTrailerInfoManager.add_to_discovered_trailers(
+                            library_no_trailer_movies)
                     del library_no_trailer_movies[:]
                 if len(library_url_movies) >= empty_limit:
-                    self._libraryURLManager.add_to_discovered_trailers(
-                        library_url_movies)
+                    if Settings.get_include_library_remote_trailers():
+                        self._libraryURLManager.add_to_discovered_trailers(
+                            library_url_movies)
                     del library_no_trailer_movies[:]
 
                     # Unblock other discovery now that a few movies have been
@@ -458,11 +463,15 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             if len(library_movies) >= 0:
                 self.add_to_discovered_trailers(library_movies)
             if len(library_no_trailer_movies) >= 0:
-                self._libraryNoTrailerInfoManager.add_to_discovered_trailers(
-                    library_no_trailer_movies)
+                if Settings.get_include_library_no_trailer_info():
+                    self._libraryNoTrailerInfoManager.add_to_discovered_trailers(
+                        library_no_trailer_movies)
+                del library_no_trailer_movies[:]
             if len(library_url_movies) >= 0:
-                self._libraryURLManager.add_to_discovered_trailers(
-                    library_url_movies)
+                if Settings.get_include_library_remote_trailers():
+                    self._libraryURLManager.add_to_discovered_trailers(
+                        library_url_movies)
+                del library_url_movies[:]
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -670,7 +679,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         except Exception as e:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.debug('Invalid lastPlayed field for', movie_name,
-                                   ':', last_played_field)
+                                 ':', last_played_field)
             clz.logger.exception('')
             days_since_played = 365
         return days_since_played
