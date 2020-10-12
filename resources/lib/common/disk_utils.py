@@ -11,7 +11,6 @@ from common.imports import *
 import datetime
 import os
 import random
-import re
 import sys
 
 from common.constants import (Constants)
