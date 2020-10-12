@@ -231,7 +231,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 if wait > 0:
                     if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                         clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
-                                                 'TOO MANY REQUESTS')
+                                                 'Too Many Requests')
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug(
                             'Can not download trailer for cache at this time')
