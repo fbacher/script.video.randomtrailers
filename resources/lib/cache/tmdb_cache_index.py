@@ -973,7 +973,7 @@ class CacheIndex:
                     cached_page_data.clear()
             else:
                 cls.load_unprocessed_movie_cache()
-                cls.load_found_trailer_cache()
+                cls.load_found_trailer_ids_cache()
 
     @classmethod
     def is_tmdb_cache_empty(cls):
@@ -1322,7 +1322,7 @@ class CacheIndex:
             return dct
 
     @classmethod
-    def load_found_trailer_cache(cls) -> None:
+    def load_found_trailer_ids_cache(cls) -> None:
         """
 
         :return:
