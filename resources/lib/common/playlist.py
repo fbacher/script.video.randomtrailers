@@ -213,7 +213,7 @@ class Playlist(object):
 
         :return:
         """
-        now = datetime.datetime.now().strftime('%m/)%d/%y %H:%M:%S')
+        now = datetime.datetime.now().strftime('%m/%d/%y %H:%M:%S')
         self.writeLine('random trailers started: {!s}'.format(now))
 
     def record_played_trailer(self, trailer, use_movie_path=False, msg=''):
