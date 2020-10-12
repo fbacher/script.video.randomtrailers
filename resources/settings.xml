@@ -57,7 +57,7 @@
 			<group id="3" label="32059">
 				<setting help="" id="numberOfTrailersToPlay" label="32000" type="integer">
 					<level>0</level>
-					<default>10</default>
+					<default>0</default>
 					<control format="integer" type="edit">
 						<heading>32000</heading>
 					</control>
@@ -93,7 +93,7 @@
 				</setting>
 				<setting help="" id="do_animation" label="32001" type="boolean">
 					<level>0</level>
-					<default>true</default>
+					<default>false</default>
 					<control type="toggle"/>
 				</setting>
 				<setting help="" id="show_title" label="32008" type="boolean">
@@ -888,7 +888,7 @@
 				</setting>
 				<setting help="" id="tmdb_year_range_maximum" label="32110" type="integer">
 					<level>0</level>
-					<default>0</default>
+					<default>1980</default>
 					<dependencies>
 						<dependency type="enable">
 							<and>
@@ -916,7 +916,7 @@
 				</setting>
 				<setting help="" id="tmdb_max_download_movies" label="32112" type="integer">
 					<level>0</level>
-					<default>500</default>
+					<default>800</default>
 					<dependencies>
 						<dependency type="enable">
 							<condition operator="is" setting="do_tmdb">true</condition>
@@ -932,7 +932,7 @@
 			<group id="1" label="32013">
 				<setting help="" id="do_itunes" label="32023" type="boolean">
 					<level>0</level>
-					<default>true</default>
+					<default>false</default>
 					<control type="toggle"/>
 				</setting>
 				<setting help="" id="itunes_trailer_type" label="32043" type="integer">
@@ -960,12 +960,12 @@
 			<group id="1">
 				<setting help="" id="include_tfh_trailers" label="32171" type="boolean">
 					<level>0</level>
-					<default>false</default>
+					<default>true</default>
 					<control type="toggle"/>
 				</setting>
 				<setting help="" id="max_tfh_trailers" label="32172" type="integer">
 					<level>0</level>
-					<default>1000</default>
+					<default>1500</default>
 					<control format="integer" type="edit">
 						<heading>32172</heading>
 					</control>
@@ -1088,13 +1088,6 @@
 				<setting help="" id="remote_db_cache_path" label="32122" type="path">
 					<level>0</level>
 					<default>special://userdata/addon_data/script.video.randomtrailers/cache</default>
-                    <!--
-					<constraints>
-						<sources>
-							<source></source>
-						</sources>
-					</constraints>
-					-->
 					<dependencies>
 						<dependency type="enable">
 							<condition operator="is" setting="use_remote_data_cache">true</condition>
@@ -1126,13 +1119,6 @@
 				<setting help="" id="trailer_cache_path" label="32126" type="path">
 					<level>0</level>
 					<default>special://userdata/addon_data/script.video.randomtrailers/cache</default>
-					<!--
-					<constraints>
-						<sources>
-                            <source></source>
-						</sources>
-					</constraints>
-					-->
 					<dependencies>
 						<dependency type="enable">
 							<condition operator="is" setting="use_trailer_cache">true</condition>
@@ -1156,7 +1142,7 @@
 				</setting>
 				<setting help="" id="trailer_existence_cache_check_days" label="32128" type="integer">
 					<level>0</level>
-					<default>14</default>
+					<default>21</default>
 					<dependencies>
 						<dependency type="enable">
 							<condition operator="is" setting="use_trailer_cache">true</condition>
@@ -1382,7 +1368,7 @@
 			<group id="2" label="32148">
 				<setting help="" id="updateTmdbId" label="32268" type="boolean">
 					<level>0</level>
-					<default>true</default>
+					<default>false</default>
 					<control type="toggle"/>
 				</setting>
 			</group>
