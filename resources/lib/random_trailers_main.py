@@ -24,7 +24,7 @@ from common.logger import (LazyLogger, Trace)
 
 from frontend import random_trailers_ui
 
-REMOTE_DEBUG: bool = True
+REMOTE_DEBUG: bool = False
 
 pydevd_addon_path = None
 try:
