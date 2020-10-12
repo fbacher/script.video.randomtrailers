@@ -38,7 +38,6 @@ def load_trailers():
         lib_instance = DiscoverLibraryMovies()
         lib_instance.discover_basic_information()
 
-
     # Manufacture trailer entries for folders which contain trailer
     # files. Note that files are assumed to be videos.
     if Settings.get_include_trailer_folders():
