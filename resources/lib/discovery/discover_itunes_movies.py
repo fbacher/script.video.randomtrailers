@@ -1101,6 +1101,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                      Movie.FANART: fanart,
                      Movie.GENRE: genres,
                      Movie.DIRECTOR: directors,
+                     Movie.WRITER: '',  # Not supplied
                      Movie.CAST: cast,
                      Movie.STUDIO: studio,
                      Movie.SOURCE: Movie.ITUNES_SOURCE,
