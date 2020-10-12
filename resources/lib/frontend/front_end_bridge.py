@@ -98,11 +98,12 @@ class FrontendBridge(PluginBridge):
 
             cls._status = FrontendBridgeStatus.BUSY
             count = 0
-            while cls._status == FrontendBridgeStatus.BUSY and count < 300:
-                Monitor.throw_exception_if_abort_requested(timeout=0.10)
+            MAX_LOOPS = 150
+            while cls._status == FrontendBridgeStatus.BUSY and count < MAX_LOOPS:
+                Monitor.throw_exception_if_abort_requested(timeout=0.20)
                 count += 1
 
-            if count >= 300:
+            if count >= MAX_LOOPS:
                 cls._logger.error('Timed out waiting on get_next_trailer')
                 cls._next_trailer = None
                 cls._status = FrontendBridgeStatus.TIMED_OUT
