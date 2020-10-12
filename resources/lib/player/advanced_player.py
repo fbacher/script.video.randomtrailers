@@ -913,7 +913,7 @@ class AdvancedPlayer(xbmc.Player):
                     if (type(self).DEBUG_MONITOR and
                             local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                         local_class._logger.debug_verbose('Monitoring audio...')
-                    self._audio_monitor()
+                    # self._audio_monitor()
                 elif self.isPlaying():
                     if (type(self).DEBUG_MONITOR and
                             local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
