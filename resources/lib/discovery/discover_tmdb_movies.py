@@ -49,7 +49,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
         local_class = DiscoverTmdbMovies
         local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = local_class.__name__
+        thread_name = 'Disc TMDB'
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.TMDB_SOURCE
 

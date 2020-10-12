@@ -64,7 +64,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         clz = DiscoverLibraryMovies
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
-        thread_name = clz.__name__
+        thread_name = 'Discv Lib'
         if kwargs is None:
             kwargs = {}
         kwargs[Movie.SOURCE] = Movie.LIBRARY_SOURCE
@@ -327,7 +327,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             return
 
         start_time = datetime.datetime.now()
-        Monitor.throw_exception_if_abort_requested() # Expensive operation
+        Monitor.throw_exception_if_abort_requested()  # Expensive operation
         query_result = JsonUtilsBasic.get_kodi_json(query, dump_results=False)
         Monitor.throw_exception_if_abort_requested()
         elapsed_time = datetime.datetime.now() - start_time

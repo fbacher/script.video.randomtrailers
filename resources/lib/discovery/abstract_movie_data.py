@@ -345,7 +345,7 @@ class MovieList:
 
 
 # noinspection Annotator,PyArgumentList
-class AbstractMovieData(object):
+class AbstractMovieData:
     """
         Abstract class with common code for all Trailer Managers
 
@@ -368,7 +368,7 @@ class AbstractMovieData(object):
 
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__ +
-                                              ':' + movie_source)
+                                                ':' + movie_source)
 
         self._trailers_discovered_event = threading.Event()
         self._movie_source_data = {}  # type: Dict[str, MovieSourceData]
@@ -393,7 +393,8 @@ class AbstractMovieData(object):
         self._movie_source = movie_source
 
         from discovery.trailer_fetcher import TrailerFetcher
-        self._trailer_fetcher = TrailerFetcher(self)
+        fetcher_thread_name = 'Fetcher_' + movie_source
+        self._trailer_fetcher = TrailerFetcher(self, fetcher_thread_name)
         self._minimum_shuffle_seconds = 10
 
     def start_trailer_fetchers(self):

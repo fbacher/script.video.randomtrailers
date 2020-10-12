@@ -55,7 +55,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         clz = DiscoverItunesMovies
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
-        thread_name = clz.__name__
+        thread_name = 'Disc iTunes'
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.ITUNES_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,

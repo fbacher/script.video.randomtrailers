@@ -81,7 +81,6 @@ class TrailerFetcher(TrailerFetcherInterface):
         clz._logger = module_logger.getChild(clz.__name__ +
                                              ':' + movie_source)
         clz._logger.enter()
-        thread_name = thread_name
         super().__init__(thread_name=thread_name)
         self._movie_data = movie_data  # type: AbstractMovieData
         self._playable_trailers = PlayableTrailersContainer(
@@ -109,7 +108,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             i += 1
             trailer_fetcher = TrailerFetcher(
                 self._movie_data,
-                thread_name='TrailerFetcher_' +
+                thread_name='Fetcher_' +
                 self._movie_data.get_movie_source() + ':' + str(i))
             Monitor.register_abort_listener(trailer_fetcher.shutdown_thread)
             TrailerFetcher._trailer_fetchers.append(trailer_fetcher)

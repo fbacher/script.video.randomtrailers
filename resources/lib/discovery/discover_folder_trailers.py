@@ -48,7 +48,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         local_class = DiscoverFolderTrailers
         if local_class.logger is None:
             local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = local_class.__name__
+        thread_name = 'Disc Folder'
         kwargs = {Movie.SOURCE: Movie.FOLDER_SOURCE}
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)

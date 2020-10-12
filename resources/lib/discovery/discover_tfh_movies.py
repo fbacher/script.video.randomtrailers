@@ -46,7 +46,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         clz = DiscoverTFHMovies
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
-        thread_name = clz.__name__
+        thread_name = 'Disc TFH'
         kwargs = {Movie.SOURCE: Movie.TMDB_SOURCE}
 
         super().__init__(group=None, target=None, thread_name=thread_name,
