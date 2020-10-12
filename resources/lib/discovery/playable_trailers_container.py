@@ -123,6 +123,10 @@ class PlayableTrailersContainer(object):
                 clz._recently_played_trailers[title] = movie
                 if len(clz._recently_played_trailers) > 10:
                     clz._recently_played_trailers.popitem()
+            elif self._ready_to_play_queue.empty():
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug_verbose(
+                        f'Movie: {title} played recently, but starving')
             else:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz.logger.debug_verbose(
@@ -144,7 +148,7 @@ class PlayableTrailersContainer(object):
                 self._ready_to_play_queue.put(movie, block=True, timeout=0.05)
                 finished = True
                 self._number_of_added_trailers += 1
-            except (queue.Full):
+            except queue.Full:
                 waited += 1
 
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
