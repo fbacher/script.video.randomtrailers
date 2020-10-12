@@ -21,9 +21,11 @@ from common.logger import (LazyLogger, Trace)
 REMOTE_DEBUG: bool = False
 
 pydevd_addon_path = None
+
 try:
-    pydevd_addon_path = xbmcaddon.Addon(
-        'script.module.pydevd').getAddonInfo('path')
+    if REMOTE_DEBUG:
+        pydevd_addon_path = xbmcaddon.Addon(
+            'script.module.pydevd').getAddonInfo('path')
 except Exception:
     xbmc.log('Debugger disabled, script.module.pydevd NOT installed',
              xbmc.LOGDEBUG)
