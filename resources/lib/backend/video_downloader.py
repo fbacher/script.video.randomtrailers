@@ -48,7 +48,7 @@ PYTHON_EXEC = sys.executable
 YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                'resources', 'lib', 'shell', 'youtube_dl_main.py')
 # Delay two hours after encountering 429 (too many requests)
-RETRY_DELAY = datetime.timedelta(0, float(60 * 2))
+RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
 
 class VideoDownloader:
