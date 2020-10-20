@@ -83,13 +83,15 @@ class Debug(object):
 
         :return:
         """
+        addon_prefix = f'{Constants.ADDON_ID}/'
         string_buffer = '\n*** STACKTRACE - START ***\n'
         code = []
         for threadId, stack in sys._current_frames().items():
-            code.append("\n# ThreadID: %s" % threadId)
+            code.append(f'\n# ThreadID: {threadId}')
             for filename, lineno, name, line in traceback.extract_stack(stack):
-                code.append('File: "%s", line %d, in %s' % (filename,
-                                                            lineno, name))
+                filename: str
+                filename = filename.replace(Constants.ADDON_PATH, addon_prefix)
+                code.append(f'File: {filename}, line {lineno!s} in {name}')
                 if line:
                     code.append("  %s" % (line.strip()))
 
@@ -178,6 +180,7 @@ class Debug(object):
             # Movie.FILE,
             Movie.YEAR: 1492,
             Movie.RATING: 0.0,
+            # Movie.DISCOVERY_STATE: Movie.NOT_INITIALIZED,
             Movie.TITLE: 'default_' + Movie.TITLE}
 
         failing_properties = []
