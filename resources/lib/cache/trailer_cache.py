@@ -5,29 +5,13 @@ Created on Dec 3, 2019
 '''
 # -*- coding: utf-8 -*-
 
-from common.imports import *
-
-import sys
-import datetime
-import io
-import simplejson as json
 import os
-import re
-
-import threading
-import six
-
-import xbmc
 
 from common.constants import Constants, Movie
+from common.imports import *
 from common.logger import (LazyLogger)
-from common.exceptions import (AbortException, TrailerIdException)
-from common.messages import Messages
-from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import Settings
-from backend import backend_constants
 from common.disk_utils import DiskUtils
-from backend.json_utils_basic import (JsonUtilsBasic)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -53,37 +37,65 @@ class TrailerCache:
         return cls._logger
 
     @classmethod
-    def validate_cached_files(cls,
-                              movie  # type: MovieType
-                              ):
-        cache_file_missing = False
-        normalized_file_missing = False
+    def is_more_discovery_needed(cls, movie: MovieType) -> bool:
+        if movie[Movie.DISCOVERY_STATE] <= Movie.DISCOVERY_COMPLETE:
+            return False
 
-        if movie.get(Movie.CACHED_TRAILER, "") != "":
-            try:
-                if not os.path.exists(movie[Movie.CACHED_TRAILER]):
-                    movie[Movie.CACHED_TRAILER] = None
-                    cache_file_missing = True
-            except Exception:
-                cls._logger.error('Movie:', movie[Movie.TITLE],
-                                  'cached_trailer:', movie[Movie.CACHED_TRAILER])
-                movie[Movie.CACHED_TRAILER] = None
-                cache_file_missing = True
+        more_discovery_needed = False
+        title = movie[Movie.TITLE]
+        try:
+            normalized_trailer_path = movie.get(Movie.NORMALIZED_TRAILER)
+            if normalized_trailer_path is None:
+                normalized_trailer_path = ''
+            cached_trailer_path = movie.get(Movie.CACHED_TRAILER)
+            if cached_trailer_path is None:
+                cached_trailer_path = ''
 
-        if movie.get(Movie.NORMALIZED_TRAILER, "") != "":
-            try:
-                if not os.path.exists(movie[Movie.NORMALIZED_TRAILER]):
-                    movie[Movie.NORMALIZED_TRAILER] = None
-                    normalized_file_missing = True
-            except Exception:
-                cls._logger.error('Movie:', movie[Movie.TITLE],
-                                  'normalized_trailer:', movie[Movie.NORMALIZED_TRAILER])
-                movie[Movie.NORMALIZED_TRAILER] = None
-                normalized_file_missing = True
+            if DiskUtils.is_url(movie.get(Movie.TRAILER, '')):
+                # Remote Trailer
 
-        if (cache_file_missing and normalized_file_missing
-                and movie[Movie.DISCOVERY_STATE] > Movie.DISCOVERY_COMPLETE):
+                if Settings.is_normalize_volume_of_downloaded_trailers():
+                    try:
+                        if not os.path.exists(normalized_trailer_path):
+                            cls._logger.debug(
+                                f'title: {title} does not exist: '
+                                f'{normalized_trailer_path}')
+                            movie[Movie.NORMALIZED_TRAILER] = None
+                            more_discovery_needed = True
+                    except Exception as e:
+                        cls._logger.log_exception(e)
+
+                elif Settings.is_use_trailer_cache():
+                    try:
+                        if not os.path.exists(cached_trailer_path):
+                            cls._logger.debug(
+                                f'title: {title} does not exist: '
+                                f'{cached_trailer_path}')
+                            movie[Movie.CACHED_TRAILER] = None
+                            movie[Movie.NORMALIZED_TRAILER] = None
+                            more_discovery_needed = True
+                    except Exception as e:
+                        cls._logger.log_exception(e)
+            elif Settings.is_normalize_volume_of_local_trailers():
+                # Local trailer
+                try:
+                    if not os.path.exists(normalized_trailer_path):
+                        cls._logger.debug(
+                            f'title: {title} does not exist: '
+                            f'{normalized_trailer_path}')
+                        movie[Movie.NORMALIZED_TRAILER] = None
+                        more_discovery_needed = True
+                except Exception as e:
+                    cls._logger.log_exception(e)
+
+        except Exception as e:
+            cls._logger.log_exception()
+
+        if more_discovery_needed:
             movie[Movie.DISCOVERY_STATE] = Movie.DISCOVERY_COMPLETE
+            cls._logger.debug(f'More discovery needed: {title}')
+
+        return more_discovery_needed
 
 
 TrailerCache.config_logger()

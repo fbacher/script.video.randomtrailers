@@ -12,6 +12,7 @@ import json
 from cache.cache import (Cache)
 from cache.tmdb_cache_index import (CachedPage, CacheIndex, CacheParameters,
                                     CachedPagesData)
+from cache.trailer_cache import TrailerCache
 from common.constants import Constants, Movie, RemoteTrailerPreference
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
@@ -984,9 +985,12 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     discovery_needed_movies.append(movie)
                 if (discovery_state >= Movie.DISCOVERY_COMPLETE
                         and self.filter_movie(movie)):
-                    discovery_complete_movies.append(movie)
-                    tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-                    CacheIndex.remove_unprocessed_movies(tmdb_id)
+                    if TrailerCache.is_more_discovery_needed(movie):
+                        discovery_needed_movies.append(movie)
+                    else:
+                        discovery_complete_movies.append(movie)
+                        tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                        CacheIndex.remove_unprocessed_movies(tmdb_id)
 
             # Add the fully discovered movies first, this should be rare,
             # but might feed a few that can be displayed soon first.
