@@ -558,11 +558,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 (DiskUtils.is_url(movie[Movie.TRAILER]) or
                  movie[Movie.SOURCE] != Movie.LIBRARY_SOURCE)):
 
-            if VideoDownloader().get_youtube_wait_seconds() > 0:
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz._logger.debug_extra_verbose('Too Many Requests')
-                    clz._logger.debug(
-                        'Can not download trailer for cache at this time')
+            if VideoDownloader().check_too_many_requests(movie[Movie.TITLE],
+                                                         movie[Movie.SOURCE]) == 429:
                 return trailer_ok
 
             rc = self.cache_remote_trailer(movie)
