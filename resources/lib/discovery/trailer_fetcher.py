@@ -1421,16 +1421,18 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                             stop = datetime.datetime.now()
                             locate_time = stop - start
-                            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                                clz._logger.debug_extra_verbose('movie download to cache time:',
-                                                                locate_time.seconds)
+                            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+                                clz._logger.debug_extra_verbose(
+                                    'movie download to cache time:',
+                                    locate_time.seconds)
                         except AbortException:
                             reraise(*sys.exc_info())
                         except Exception as e:
                             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                                clz._logger.debug_extra_verbose('Failed to move movie to cache.',
-                                                                'movie:', trailer_path,
-                                                                'cachePath:', download_path)
+                                clz._logger.debug_extra_verbose(
+                                    'Failed to move movie to cache.',
+                                    'movie:', trailer_path,
+                                    'cachePath:', download_path)
                             # clz._logger.exception(
                             #                          'Failed to move movie to
                             #                          cache: ' +
