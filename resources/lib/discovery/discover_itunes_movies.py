@@ -496,24 +496,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         try:
             Monitor.throw_exception_if_abort_requested()
             video_downloader = VideoDownloader()
-            finished = False
-            downloadable_trailers: List[MovieType] = []
-            while not finished:
-                wait = video_downloader.get_youtube_wait_seconds()
-                if wait > 0:
-                    if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                        clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
-                                                 'Too Many Requests')
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug(
-                            'Can not download trailer for cache at this time')
-                    Monitor.throw_exception_if_abort_requested(
-                        timeout=float(wait))
-                rc: int
-                rc, downloadable_trailers = video_downloader.get_info(
-                    feature_url, Movie.ITUNES_SOURCE)
-                if rc != 429:
-                    finished = True
+            rc: int
+            rc, downloadable_trailers = video_downloader.get_info(
+                feature_url, Movie.ITUNES_SOURCE, block=True)
 
             # Have a series of released promotions for a movie.
             # Each promotion can have different formats based upon

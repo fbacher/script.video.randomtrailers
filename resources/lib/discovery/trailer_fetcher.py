@@ -213,7 +213,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # if cached files purged, then reload them
 
                     if discovery_state == Movie.DISCOVERY_READY_TO_DISPLAY:
-                        TrailerCache.is_more_discovery_needed(trailer)
+                        TrailerCache.validate_cached_files(trailer)
                         discovery_state = trailer[Movie.DISCOVERY_STATE]
                         if discovery_state < Movie.DISCOVERY_READY_TO_DISPLAY:
                             self.cache_and_normalize_trailer(trailer)
@@ -334,7 +334,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # Ok, tmdb_id not in Kodi database, query TMDB
 
                     if (tmdb_id is None or tmdb_id == ''
-                        ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
+                            ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
                         tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                             trailer[Movie.TITLE], trailer['year'])
                         self.throw_exception_on_forced_to_stop()
@@ -1359,20 +1359,19 @@ class TrailerFetcher(TrailerFetcherInterface):
                     error_code = 0
                     trailer_folder = xbmcvfs.translatePath('special://temp')
                     video_downloader = VideoDownloader()
-                    if video_downloader.get_youtube_wait_seconds() > 0:
-                        error_code = 429
-                        downloaded_movie = None
-                    else:
-                        error_code, downloaded_movie = \
-                            video_downloader.get_video(
-                                trailer_path, trailer_folder, movie_id,
-                                movie[Movie.TITLE], movie[Movie.SOURCE])
+                    error_code, downloaded_movie = \
+                        video_downloader.get_video(
+                            trailer_path, trailer_folder, movie_id,
+                            movie[Movie.TITLE], movie[Movie.SOURCE], block=False)
                     if error_code == 429:
                         rc = 429
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                            clz._logger.debug_extra_verbose('Too Many Requests')
+                            clz._logger.debug_extra_verbose(
+                                'Too Many Requests')
                             clz._logger.debug(
                                 'Can not download trailer for cache at this time')
+                        return rc
+
                     if downloaded_movie is not None:
                         download_path = downloaded_movie[Movie.TRAILER]
 
@@ -1391,7 +1390,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     """
 
-                    if download_path is None and error_code != 429:
+                    if download_path is None:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                             clz._logger.debug('Video Download failed',
                                               f'{movie[Movie.TITLE]}')

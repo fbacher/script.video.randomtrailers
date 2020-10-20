@@ -238,13 +238,10 @@ class PlayableTrailerService(object):
 
                 movie_data = playable_trailers.get_movie_data()
                 self.throw_exception_on_forced_to_stop(movie_data=movie_data)
-                try:
-                    total_number_of_trailers += projected_sizes_map[source]
-                    if trailer_index_to_play < total_number_of_trailers:
-                        found_playable_trailers = playable_trailers
-                        break
-                except Exception as e:
-                    self.logger.log_exception(e)
+                total_number_of_trailers += projected_sizes_map[source]
+                if trailer_index_to_play < total_number_of_trailers:
+                    found_playable_trailers = playable_trailers
+                    break
             try:
                 attempts += 1
                 if attempts > 1 and self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -252,7 +249,7 @@ class PlayableTrailerService(object):
                         'PlayableTrailerService.next Attempt:', attempts,
                         'manager:', found_playable_trailers.__class__.__name__)
                 trailer = found_playable_trailers.get_next_movie()
-                TrailerCache.is_more_discovery_needed(trailer)
+                TrailerCache.validate_cached_files(trailer)
 
                 # If cached trailer is invalid, then skip over this trailer.
 

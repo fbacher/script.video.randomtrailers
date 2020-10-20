@@ -222,25 +222,11 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             # Put first trailer at end, since we process from the end.
 
-            # Ignored at the moment. See VideoDownloader
-            trailers_to_download = [23]
             finished = False
             actual_trailer_count = None
             while not finished:
-                wait = youtube_data_stream_extractor_proxy.get_youtube_wait_seconds()
-                if wait > 0:
-                    if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                        clz.logger.debug_verbose(f'Waiting {wait} seconds) due to '
-                                                 'Too Many Requests')
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug(
-                            'Can not download trailer for cache at this time')
-                    Monitor.throw_exception_if_abort_requested(
-                        timeout=float(wait))
-                # trailers_to_get_info is ignored at present
-                trailers_to_get_info: str = str(trailers_to_download.pop())
                 rc = youtube_data_stream_extractor_proxy.get_tfh_index(
-                    url, trailers_to_get_info, self.trailer_handler)
+                    url, self.trailer_handler, block=True)
                 if rc == 0:  # All Entries passed
                     pass
                 if rc != 429:  # Last entry read failed
