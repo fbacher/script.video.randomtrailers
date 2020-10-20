@@ -32,81 +32,90 @@ class MovieEntryUtils (object):
         cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
-    def get_tmdb_id(cls, movie):
-        # type: (MovieType) -> int
+    def get_tmdb_id(cls, movie: MovieType) -> Union[int, None]:
         """
 
         :param movie:
         :return:
         """
-        tmdb_id: Optional[str] = None
+        tmdb_id: Union[str, int, None] = None
         imdb_id = None
-        title = movie[Movie.TITLE]
-        unique_id = movie.get(Movie.UNIQUE_ID, None)
-        if unique_id is not None:
-            # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            #     for key in unique_id:
-            #         cls._logger.debug_extra_verbose(title, key, unique_id.get(key, ''))
-            tmdb_id = unique_id.get(Movie.UNIQUE_ID_TMDB, None)
-            if tmdb_id is not None:
-                # Make sure we don't have a IMDB id in here by error
-                if tmdb_id.startswith('tt'):
-                    tmdb_id = None
-            if tmdb_id is not None:
-                tmdb_id: int = int(tmdb_id)
-            else:
-                imdb_id = unique_id.get(Movie.UNIQUE_ID_IMDB, None)
-                if imdb_id is None:
-                    imdb_id = unique_id.get(Movie.UNIQUE_ID_UNKNOWN, None)
-                    if imdb_id is not None and not imdb_id.startswith('tt'):
-                        imdb_id = None
-                if imdb_id is not None:
-                    data = {}
-                    data['external_source'] = 'imdb_id'
-
-                    # TODO: iso-639-1 gives two char lang. Prefer en-US
-
-                    data['language'] = Settings.get_lang_iso_639_1()
-                    data['api_key'] = Settings.get_tmdb_api_key()
-                    url = 'http://api.themoviedb.org/3/find/' + str(imdb_id)
+        title = movie.get(Movie.TITLE, 'No Title')
+        source = movie.get(Movie.SOURCE, 'No Source')
+        try:
+            unique_id = movie.get(Movie.UNIQUE_ID, None)
+            if unique_id is not None:
+                # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                #     for key in unique_id:
+                #         cls._logger.debug_extra_verbose(title, key, unique_id.get(key, ''))
+                tmdb_id = unique_id.get(Movie.UNIQUE_ID_TMDB, None)
+                if tmdb_id is not None:
+                    # Make sure we don't have a IMDB id in here by error
+                    if tmdb_id.startswith('tt'):
+                        tmdb_id = None
+                if tmdb_id is not None:
                     try:
-                        Monitor.throw_exception_if_abort_requested()
-                        status_code, tmdb_result = JsonUtilsBasic.get_json(
-                            url, error_msg=title,
-                            params=data, dump_results=True, dump_msg='')
+                        tmdb_id: int = int(tmdb_id)
+                    except ValueError:
+                        tmdb_id = None
+                if tmdb_id is None:
+                    imdb_id = unique_id.get(Movie.UNIQUE_ID_IMDB, None)
+                    if imdb_id is None:
+                        imdb_id = unique_id.get(Movie.UNIQUE_ID_UNKNOWN, None)
+                        if imdb_id is not None and not imdb_id.startswith('tt'):
+                            imdb_id = None
+                    if imdb_id is not None:
+                        data = {}
+                        data['external_source'] = 'imdb_id'
 
-                        Monitor.throw_exception_if_abort_requested()
+                        # TODO: iso-639-1 gives two char lang. Prefer en-US
 
-                        if status_code == 0 and tmdb_result is not None:
-                            s_code = tmdb_result.get('status_code', None)
-                            if s_code is not None:
-                                status_code = s_code
-                        if status_code != 0:
-                            pass
-                        elif tmdb_result is not None:
-                            movie_results = tmdb_result.get(
-                                'movie_results', [])
-                            if len(movie_results) == 0:
+                        data['language'] = Settings.get_lang_iso_639_1()
+                        data['api_key'] = Settings.get_tmdb_api_key()
+                        url = 'http://api.themoviedb.org/3/find/' + \
+                            str(imdb_id)
+                        try:
+                            Monitor.throw_exception_if_abort_requested()
+                            status_code, tmdb_result = JsonUtilsBasic.get_json(
+                                url, error_msg=title,
+                                params=data, dump_results=True, dump_msg='')
+
+                            Monitor.throw_exception_if_abort_requested()
+
+                            if status_code == 0 and tmdb_result is not None:
+                                s_code = tmdb_result.get('status_code', None)
+                                if s_code is not None:
+                                    status_code = s_code
+                            if status_code != 0:
                                 pass
-                            elif len(movie_results) > 1:
-                                pass
-                            else:
-                                tmdb_id = movie_results[0].get('id', None)
-                                if tmdb_id is None:
-                                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                                        cls._logger.debug('Did not find movie for',
-                                                          'imdb_id:', imdb_id,
-                                                          'title:', title)
+                            elif tmdb_result is not None:
+                                movie_results = tmdb_result.get(
+                                    'movie_results', [])
+                                if len(movie_results) == 0:
+                                    pass
+                                elif len(movie_results) > 1:
+                                    pass
                                 else:
-                                    cls.set_tmdb_id(movie, tmdb_id)
-                                    cls.update_database_unique_id(movie)
-                    except AbortException:
-                        reraise(*sys.exc_info())
-                    except Exception:
-                        cls._logger.exception('')
+                                    tmdb_id = movie_results[0].get('id', None)
+                                    if tmdb_id is None:
+                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                                            cls._logger.debug('Did not find movie for',
+                                                              'imdb_id:', imdb_id,
+                                                              'title:', title)
+                                    else:
+                                        cls.set_tmdb_id(movie, tmdb_id)
+                                        cls.update_database_unique_id(movie)
+                        except AbortException:
+                            reraise(*sys.exc_info())
+                        except Exception:
+                            cls._logger.exception(
+                                f'Title: {title} source: {source}')
+        except Exception as e:
+            cls._logger.exception(f'Title: {title} source: {source}')
+        tmdb_id_int: Union[int, None] = None
         if tmdb_id is not None:
-            tmdb_id = int(tmdb_id)
-        return tmdb_id
+            tmdb_id_int = int(tmdb_id)
+        return tmdb_id_int
 
         # noinspection SyntaxError
 
