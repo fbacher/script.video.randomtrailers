@@ -1460,13 +1460,11 @@ class MyFormatter(logging.Formatter):
             sio.close()
             return s
 
-    def print_exception(self, etype, value, tb, thread_name='',
-                        limit=None, log_file=None):
-
-        # type: ( Any, str, int, StringIO) -> None
+    def print_exception(self, etype, value, tb: Any, thread_name: str = '',
+                        limit: Optional[int] = None, log_file=None) -> None:
         """
 
-        :param frame:
+        :param tb:
         :param thread_name:
         :param limit:
         :param log_file:
