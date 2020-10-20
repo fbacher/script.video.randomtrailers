@@ -577,8 +577,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             normalized = False
             if (Settings.is_normalize_volume_of_downloaded_trailers() or
                     Settings.is_normalize_volume_of_local_trailers()):
-                self.normalize_trailer_sound(movie)
-                normalized = True
+                normalized = self.normalize_trailer_sound(movie)
 
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz._logger.debug_verbose(movie[Movie.TITLE], 'audio normalized:',
@@ -1446,7 +1445,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         return rc
 
-    def normalize_trailer_sound(self, movie: MovieType) -> None:
+    def normalize_trailer_sound(self, movie: MovieType) -> bool:
         """
             Normalize the sound of the movie. The movie may be local
             and in the library, or may have been downloaded and placed
@@ -1467,7 +1466,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                              Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
 
             if movie[Movie.SOURCE] not in valid_sources:
-                return
+                return False
 
             # Can not normalize remote files. Downloaded and cached trailers
             # are in Movie.CACHED_TRAILER as local paths.
@@ -1496,7 +1495,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     normalize = True
 
             if not normalize:
-                return
+                return False
 
             # Since the cached file name depends upon the movie's movie id,
             # then we can't cache a movie without one (like an iTunes movie
@@ -1504,7 +1503,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # for this, but iTunes trailers probably don't need normalizing.
 
             if Cache.get_video_id(movie) is None:
-                return
+                return False
 
             cached_normalized_trailer = None
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -1536,7 +1535,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         normalized_trailer_creation_time = \
                             os.path.getmtime(normalized_trailer)
                         if trailer_creation_time <= normalized_trailer_creation_time:
-                            return
+                            return False
                         else:
                             if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                                 clz._logger.debug_verbose(
@@ -1560,7 +1559,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                     DiskUtils.create_path_if_needed(
                         os.path.dirname(normalized_path))
 
-                    rc = ffmpeg_normalize.normalize(trailer_path, normalized_path)
+                    rc = ffmpeg_normalize.normalize(
+                        trailer_path, normalized_path)
 
                     if rc == 0:
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -1606,7 +1606,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose('time to normalize movie:',
                                                     elapsed_time.seconds)
-        return
+        return normalized_used
 
 
 def get_tmdb_id_from_title_year(title, year):
