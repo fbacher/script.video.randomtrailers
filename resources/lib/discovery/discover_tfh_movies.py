@@ -212,7 +212,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             # fetcher with any previously cached data. This will fix itself
             # the next time the cache is read.
 
-            youtube_data_stream_extractor_proxy = VideoDownloader()
+            video_downloader = VideoDownloader()
             url = 'https://www.youtube.com/user/trailersfromhell/videos'
 
             # trailer_handler is a callback, so adds entries to the cache
@@ -225,7 +225,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             finished = False
             actual_trailer_count = None
             while not finished:
-                rc = youtube_data_stream_extractor_proxy.get_tfh_index(
+                rc = video_downloader.get_tfh_index(
                     url, self.trailer_handler, block=True)
                 if rc == 0:  # All Entries passed
                     pass
