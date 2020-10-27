@@ -5,9 +5,8 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
-
-import sys
 import json
+import sys
 import threading
 import traceback
 
