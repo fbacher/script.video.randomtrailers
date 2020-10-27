@@ -151,7 +151,7 @@
                         <posy>1</posy>
                         <width>400</width>
                         <height>600</height>
-                        <aspectratio>stretch</aspectratio>
+                        <aspectratio>keep</aspectratio>
                         <fadetime>200</fadetime>
                         <texture background="true">noposter.png</texture>
                     </control>
@@ -201,7 +201,7 @@
                         <posy>1</posy>
                         <width>420</width>
                         <height>240</height>
-                        <aspectratio>stretch</aspectratio>
+                        <aspectratio>keep</aspectratio>
                         <fadetime>200</fadetime>
                         <texture background="true">preview.png</texture>
                     </control>
