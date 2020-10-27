@@ -101,16 +101,16 @@ class Monitor(xbmc.Monitor):
 
         # It seems that if multiple xbmc.WaitForAborts are pending, xbmc
         # Does not inform all of them when an abort occurs. So, instead
-        # of waiting for 60 seconds per iteration, we wait 0.1 seconds
-        # and act when 600 calls has been made. Not exactly 60 seconds, but
+        # of waiting for 60 seconds per iteration, we wait 1.0 seconds
+        # and act when 60 calls has been made. Not exactly 60 seconds, but
         # close enough for this
 
         iterations = 600
-        while not cls._wait_for_abort(timeout=0.1):
+        while not cls._wait_for_abort(timeout=1.0):
             # noinspection PyRedundantParentheses
             iterations -= 1
             if iterations < 0:
-                iterations = 600
+                iterations = 60
                 try:
                     file_stat = os.stat(settings_path)
                     mod_time: datetime.datetime = datetime.datetime.fromtimestamp(
