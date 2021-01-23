@@ -791,8 +791,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._show_details_event.clear()  # In case it was set
         # self.hide_detail_info()
         self._show_details_event.set()  # Force show_detail_info to unblock
+        if movie[Movie.SOURCE] == Movie.TFH_SOURCE:
+            scroll_plot = False
+        else:
+            scroll_plot = True
         self.set_visibility(video_window=False, info=False, brief_info=False,
-                            notification=False, information=False)
+                            notification=False, information=False,
+                            scroll_plot=scroll_plot)
         text_to_speech.say_text('.', interrupt=True)
 
     def hide_detail_info(self, reason=''):
@@ -808,13 +813,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.set_visibility(info=False, information=False)
 
     def set_visibility(self,
-                       video_window=None,  # type: Union[bool, None]
-                       info=None,  # type: Union[bool, None]
-                       brief_info=None,  # type: Union[bool, None]
-                       notification=None,  # type: Union[bool, None]
-                       information=None  # type: Union[bool, None]
-                       ):
-        # type: (...) -> None
+                       video_window: Union[bool, None] = None,
+                       info: Union[bool, None] = None,
+                       brief_info: Union[bool, None] = None,
+                       notification: Union[bool, None] = None,
+                       information: Union[bool, None] = None,
+                       scroll_plot: Union[bool, None] = None
+                       ) -> None:
         """
             Controls the visible elements of TrailerDialog
 
@@ -823,6 +828,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :param brief_info:
         :param notification:
         :param information:
+        :param scroll_plot: If True, then scroll plot text
         :return:
         """
         local_class = TrailerDialog
@@ -894,6 +900,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             else:
                 info_command = "Skin.Reset(NonVideo)"
             commands.append(info_command)
+
+        if scroll_plot is not None:
+            if scroll_plot:
+                scroll_plot_command = "Skin.SetBool(ScrollPlot)"
+            else:
+                scroll_plot_command = "Skin.Reset(ScrollPlot)"
+            commands.append(scroll_plot_command)
 
         for command in commands:
             if local_class.logger.isEnabledFor(LazyLogger.DISABLED):
