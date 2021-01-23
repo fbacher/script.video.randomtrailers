@@ -14,7 +14,7 @@ from player.dummy_player import DummyPlayer
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class PlayerContainer(object):
+class PlayerContainer:
     _instance = None
     @staticmethod
     def get_instance():
