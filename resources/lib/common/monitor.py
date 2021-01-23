@@ -507,6 +507,7 @@ class Monitor(xbmc.Monitor):
     @classmethod
     def abort_requested(cls):
         cls._xbmc_monitor.abortRequested()
+        cls._abort_received.set()
 
     def abortRequested(self):
         # type: () -> None
@@ -514,8 +515,7 @@ class Monitor(xbmc.Monitor):
 
         :return:
         """
-        Monitor._xbmc_monitor.abortRequested()
-        type(self)._abort_received.set()
+        Monitor.abort_requested()
 
     @classmethod
     def is_abort_requested(cls):
