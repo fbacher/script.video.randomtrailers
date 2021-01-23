@@ -89,8 +89,7 @@ class Monitor(xbmc.Monitor):
             cls._monitor_changes_in_settings_thread.start()
 
     @classmethod
-    def _monitor_changes_in_settings(cls):
-        # type: () -> None
+    def _monitor_changes_in_settings(cls) -> None:
         """
 
         :return:
@@ -106,11 +105,11 @@ class Monitor(xbmc.Monitor):
         # close enough for this
 
         iterations = 600
-        while not cls._wait_for_abort(timeout=1.0):
+        while not cls._wait_for_abort(timeout=0.1):
             # noinspection PyRedundantParentheses
             iterations -= 1
             if iterations < 0:
-                iterations = 60
+                iterations = 600
                 try:
                     file_stat = os.stat(settings_path)
                     mod_time: datetime.datetime = datetime.datetime.fromtimestamp(
