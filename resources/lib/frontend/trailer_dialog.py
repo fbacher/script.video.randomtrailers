@@ -7,7 +7,7 @@ Created on Apr 17, 2019
 """
 
 import datetime
-import os
+import re
 import sys
 import threading
 
@@ -219,8 +219,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.total_trailers_to_play = total_trailers_to_play
         self.delay_between_groups = delay_between_groups
 
-    def play_trailers(self):
-        # type: () -> None
+    def play_trailers(self) -> None:
         """
 
         :return:
@@ -765,8 +764,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.voice_detail_view()
             self.show_detail_info(self._movie, display_seconds)
 
-    def show_detail_info(self, movie, display_seconds=0):
-        # type: (MovieType, float) -> None
+    def show_detail_info(self, movie: MovieType, display_seconds: float = 0) -> None:
         """
 
         :param movie:
@@ -978,11 +976,38 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 control.setVisible(True)
 
             control: Union[ControlTextBox, Control] = self.getControl(38009)
-            plot = self._movie.get(Movie.PLOT)
+            plot: str = self._movie[Movie.PLOT]
             if plot is None:
+                plot = ''
+
+            cleaned_plot = plot
+            if self._movie[Movie.SOURCE] == Movie.TFH_SOURCE:
+                patterns = [
+                    r'(\n ?\n.*)',
+                    # r'\nA(nd, a)?s always, find more great cinematic classics at
+                    # http://www.trailersfromhell.com',
+                    # r'\n \nAnd, as always, find more cinematic greatness at
+                    # http://www.trailersfromhell.com',
+                    # r'\n \nAs always, you can find more commentary, more reviews,
+                    # more podcasts, and more deep-dives into the films you don\'t know
+                    # you love yet over on the Trailers From Hell mothership:',
+                    r'(http://www.trailersfromhell.com.*)',
+                    r'(ABOUT TRAILERS FROM HELL:.*)',
+                    r'(As always, you can find more commentary.*)',
+                    r'(But wait! There\'s more! TFH.*)',
+                    r'(Want more TFH.*)',
+                    r'(Want to know more? The TFH.*)',
+                    r'(DID YOU KNOW: we have a podcast.*)'
+                ]
+                for pattern in patterns:
+                    cleaned_plot = re.sub(pattern, r' || \g<1>', plot)
+                    if len(cleaned_plot) != len(plot):
+                        break
+
+            if cleaned_plot is None:
                 control.setVisible(False)
             else:
-                control.setText(plot)
+                control.setText(cleaned_plot)
                 control.setVisible(True)
 
             control: Union[ControlLabel, Control] = self.getControl(38010)
@@ -1088,8 +1113,37 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             plot_label = Messages.get_formatted_msg(Messages.PLOT_LABEL)
             text_to_speech.say_text(plot_label, interrupt=False)
 
-            plot = self._movie[Movie.PLOT]
-            text_to_speech.say_text(plot, interrupt=False)
+            plot: str = self._movie.get(Movie.PLOT)
+            if plot is None:
+                plot = ''
+
+            cleaned_plot = plot
+            if self._movie[Movie.SOURCE] == Movie.TFH_SOURCE:
+                patterns = [
+                    r'\n ?\n.*',
+                    # r'\nA(nd, a)?s always, find more great cinematic classics at
+                    # http://www.trailersfromhell.com',
+                    # r'\n \nAnd, as always, find more cinematic greatness at
+                    # http://www.trailersfromhell.com',
+                    # r'\n \nAs always, you can find more commentary, more reviews,
+                    # more podcasts, and more deep-dives into the films you don\'t know
+                    # you love yet over on the Trailers From Hell mothership:',
+                    r'http://www.trailersfromhell.com.*',
+                    r'ABOUT TRAILERS FROM HELL:.*',
+                    r'As always, you can find more commentary.*',
+                    r'But wait! There\'s more! TFH.*',
+                    r'Want more TFH.*',
+                    r'Want to know more? The TFH.*',
+                    r'DID YOU KNOW: we have a podcast.*'
+                ]
+                for pattern in patterns:
+                    cleaned_plot = re.sub(pattern, r'', plot)
+                    if len(cleaned_plot) != len(plot):
+                        break
+
+            self.logger.debug('Plot original text:', plot)
+            self.logger.debug('Plot text:', cleaned_plot)
+            text_to_speech.say_text(cleaned_plot, interrupt=False)
 
             movie_studios = self._movie[Movie.DETAIL_STUDIOS]
             text_to_speech.say_text(movie_studios, interrupt=False)
@@ -1101,8 +1155,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         finally:
             pass
 
-    def doModal(self):
-        # type: () -> bool
+    def doModal(self) -> bool:
         """
 
         :return:
@@ -1112,24 +1165,21 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         super().doModal()
         return self.exiting_playing_movie
 
-    def show(self):
-        # type: () -> None
+    def show(self) -> None:
         """
 
         :return:
         """
         super().show()
 
-    def close(self):
-        # type: () -> None
+    def close(self) -> None:
         """
 
         :return:
         """
         super().close()
 
-    def set_random_trailers_play_state(self, dialog_state):
-        # type: (int) -> None
+    def set_random_trailers_play_state(self, dialog_state: int) -> None:
         # TODO: Change to use named int type
         """
 
@@ -1192,8 +1242,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # noinspection PyTypeChecker
         xbmc.executebuiltin('Action(FullScreen,12005)')
 
-    def on_abort_event(self):
-        # type: () -> None
+    def on_abort_event(self) -> None:
         """
 
         :return:
