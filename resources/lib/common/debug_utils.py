@@ -214,23 +214,23 @@ class Debug(object):
         if not (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE) or force_check):
             return True
 
-        details_properties = {Movie.WRITER: 'default_' + Movie.WRITER,
-                              Movie.DETAIL_DIRECTORS: 'default_' + Movie.DETAIL_DIRECTORS,
+        details_properties = {Movie.WRITER: ['default_' + Movie.WRITER],
+                              Movie.DETAIL_DIRECTORS: ['default_' + Movie.DETAIL_DIRECTORS],
                               Movie.DETAIL_TITLE: 'default_' + Movie.TITLE,
-                              Movie.CAST: 'default_' + Movie.CAST,
+                              Movie.CAST: ['default_' + Movie.CAST],
                               Movie.PLOT: 'default_' + Movie.PLOT,
-                              Movie.GENRE: 'default_' + Movie.GENRE,
-                              Movie.STUDIO: 'default_' + Movie.STUDIO,
-                              Movie.DETAIL_ACTORS: 'default_' + Movie.ACTORS,
-                              Movie.DETAIL_GENRES: 'default_' + Movie.GENRE,
+                              Movie.GENRE: ['default_' + Movie.GENRE],
+                              Movie.STUDIO: ['default_' + Movie.STUDIO],
+                              Movie.DETAIL_ACTORS: ['default_' + Movie.ACTORS],
+                              Movie.DETAIL_GENRES: ['default_' + Movie.GENRE],
                               Movie.DETAIL_CERTIFICATION: 'default_' +
                                                           Movie.DETAIL_CERTIFICATION,
                               Movie.DETAIL_CERTIFICATION_IMAGE: 'default_' +
                                                                 Movie.DETAIL_CERTIFICATION_IMAGE,
                               Movie.DETAIL_RUNTIME: 'default_' + Movie.RUNTIME,
-                              Movie.DETAIL_WRITERS: 'default_' + Movie.WRITER,
+                              Movie.DETAIL_WRITERS: ['default_' + Movie.WRITER],
                               # Movie.TMDB_TAGS: 'default_' + Movie.TAG,   # For TMDB
-                              Movie.DETAIL_STUDIOS: 'default_' + Movie.STUDIO,
+                              Movie.DETAIL_STUDIOS: ['default_' + Movie.STUDIO],
                               Movie.RUNTIME: 0,
                               # Movie.ADULT,
                               Movie.MPAA: 'default_' + Movie.MPAA}
