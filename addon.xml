@@ -13,7 +13,7 @@
         <!-- youtube.dl needed to for download to cache option -->
         <import addon="script.module.youtube.dl" version="20.616.0+matrix.1" optional="true"/>
         <!-- Remote trailers (that are not downloaded by youtube.dl) -->
-        <import addon="plugin.video.youtube" version="v6.8.5+matrix.1" optional="true"/>
+        <import addon="plugin.video.youtube" version="6.8.4~beta2" optional="true"/>
         <import addon="script.module.requests" version="2.22.0"/>
         <import addon="script.module.six" version="1.14.0"/>
         <import addon="script.module.kodi65" version="1.2.1"/>
