@@ -138,6 +138,7 @@ class Settings(object):
     ENABLE_TRAILER_CACHE = 'use_trailer_cache'
     CACHE_EXPIRATION_DAYS = 'json_cache_expiration_days'
     TFH_CACHE_EXPIRATION_DAYS = 'tfh_cache_expiration_days'
+    LICENSE_DISPLAY_SECONDS = 'license_display_seconds'
     EXPIRE_TRAILER_CACHE_DAYS = 'trailer_cache_expiration_days'
     CACHE_TRAILER_CHECK_DAYS = 'trailer_existence_cache_check_days'
     TRAILER_CACHE_PATH = 'trailer_cache_path'
@@ -1216,6 +1217,10 @@ class Settings(object):
     @staticmethod
     def get_tfh_cache_expiration_days() -> int:
         return Settings.get_setting_int(Settings.TFH_CACHE_EXPIRATION_DAYS)
+
+    @staticmethod
+    def get_license_display_seconds() -> int:
+        return Settings.get_setting_int(Settings.LICENSE_DISPLAY_SECONDS)
 
     @staticmethod
     def is_set_fullscreen_when_screensaver():

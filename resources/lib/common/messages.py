@@ -42,6 +42,8 @@ class Messages(object):
     WRITER_LABEL = 'Writer'
     STARS_LABEL = 'Stars'
     PLOT_LABEL = 'Plot'
+    LICENSE_LABEL = 'Random Trailers is powered by:'
+    TFH_LICENSE = 'TFH_LICENSE'
 
     GENRE_ACTION = 'Action'
     GENRE_ALEGORY = 'Allegory'
@@ -174,7 +176,9 @@ class Messages(object):
         RATING_NC_17: 32247,
         RATING_NR: 32248,
         VOICED_CERTIFICATION: 32249,
-        VOICED_STARS: 32250
+        VOICED_STARS: 32250,
+        TFH_LICENSE: 32281,
+        LICENSE_LABEL: 32282
     }
 
     _instance = None

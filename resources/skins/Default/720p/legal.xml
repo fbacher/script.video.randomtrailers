@@ -14,7 +14,7 @@
                 <width>1280</width>
                 <height>720</height>
                 <aspectratio>stretch</aspectratio>
-                <texture>solid-black.png</texture>
+                <texture background="true">solid-black.png</texture>
             </control>
             <control type="label" id="38021">
                 <description>Legal info</description>

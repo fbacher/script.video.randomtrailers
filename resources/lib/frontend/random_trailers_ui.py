@@ -124,14 +124,23 @@ def play_trailers():
     my_trailer_dialog = None
     black_background = None
     exiting_playing_movie = False
+
+    # Hack to prevent Kodi from eating first Action (key press)
+
+    kodi_hack()
+
     try:
         black_background = BlackBackground.get_instance()
         black_background.show()
-        legal_info = LegalInfo('legal.xml', Constants.ADDON_PATH, 'Default')
-        legal_info.show()
-        Monitor.throw_exception_if_abort_requested(timeout=10.0)
-        legal_info.close()
-        legal_info.destroy()
+        license_display_seconds = Settings.get_license_display_seconds()
+        if license_display_seconds > 0:
+            legal_info = LegalInfo('legal.xml', Constants.ADDON_PATH, 'Default',
+                                   license_display_seconds=license_display_seconds)
+            legal_info.doModal()
+            # Monitor.throw_exception_if_abort_requested(timeout=license_display_seconds)
+            legal_info.destroy()
+            del legal_info
+
         my_trailer_dialog = TrailerDialog('script-trailerwindow.xml',
                                           Constants.ADDON_PATH, 'Default')
         exiting_playing_movie = my_trailer_dialog.doModal()
@@ -147,6 +156,21 @@ def play_trailers():
             if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
+
+
+def kodi_hack():
+    from player.my_player import MyPlayer
+    player = MyPlayer()
+    path_to_black_video = Constants.BLACK_VIDEO
+    title = 'black'
+    listitem = xbmcgui.ListItem(title)
+    listitem.setInfo(
+        'video', {'title': title, 'genre': 'randomtrailers',
+                  'Genre': 'randomtrailers',
+                  'trailer': title, 'path': path_to_black_video,
+                  'mediatype': 'video', 'tag': 'randomtrailers'})
+    listitem.setPath(path_to_black_video)
+    player.play(item=path_to_black_video, listitem=listitem)
 
 
 # noinspection Annotator
@@ -185,7 +209,7 @@ class StartUI(threading.Thread):
 
         finally:
             if logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('Stopping xbmc.Player')
+                self._logger.debug('Stopping random_trailers player')
 
             Monitor.abort_requested()
 

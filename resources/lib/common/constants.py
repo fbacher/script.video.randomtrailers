@@ -51,6 +51,7 @@ class Constants:
     FRONTEND_ID = ADDON_ID
     # BACKEND_ID = 'service.randomtrailers.backend'
     BACKEND_ID = FRONTEND_ID
+    BLACK_VIDEO = ''
 
     FRONTEND_DATA_PATH = None
     COUCH_POTATO_ID = 'plugin.video.couchpotato'
@@ -129,7 +130,7 @@ class Constants:
         Constants.PLAY_STATISTICS_REPORT_PATH = os.path.join(Constants.FRONTEND_DATA_PATH,
                                                              'debug', 'play_stats.txt')
         Constants.LOCALE = locale.getdefaultlocale()
-
+        Constants.BLACK_VIDEO = os.path.join(Constants.MEDIA_PATH, 'solid-black.mkv')
 
 Constants.static_init()
 
