@@ -440,8 +440,7 @@ class Monitor(xbmc.Monitor):
         pass
 
     @classmethod
-    def _wait_for_abort(cls, timeout=None):
-        # type: (float) -> bool
+    def _wait_for_abort(cls, timeout: float = -1.0) -> bool:
         """
         Wait for Abort
 
@@ -449,7 +448,7 @@ class Monitor(xbmc.Monitor):
         requested have already been made, return immediately.
 
         :param timeout: [opt] float - timeout in seconds.
-                        if None: wait forever
+                        if -1 or None: wait forever
                         if 0: check without wait & return
                         if > 0: wait at max wait seconds
 
@@ -461,7 +460,7 @@ class Monitor(xbmc.Monitor):
         abort = True
         if not cls._abort_received.isSet():
             abort = False
-            if timeout is None:  # Wait forever
+            if timeout is None or timeout < 0.0:  # Wait forever
                 while not abort:
                     abort = cls._xbmc_monitor.waitForAbort(timeout=0.10)
             else:
@@ -479,7 +478,7 @@ class Monitor(xbmc.Monitor):
 
         return abort
 
-    def waitForAbort(self, timeout=None):
+    def waitForAbort(self, timeout: float = -1.0) -> None:
         # Provides signature of super class (xbmc.Monitor)
         abort = Monitor._abort_received.isSet()
         if not abort:
@@ -489,8 +488,7 @@ class Monitor(xbmc.Monitor):
         return abort
 
     @classmethod
-    def wait_for_abort(cls, timeout=None):
-        # type: (float) -> bool
+    def wait_for_abort(cls, timeout: float = -1.0) -> None:
         """
         Wait for Abort
 
