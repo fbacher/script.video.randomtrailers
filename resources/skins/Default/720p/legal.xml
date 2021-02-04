@@ -63,6 +63,7 @@
                 <width>300</width>
                 <height>200</height>
                 <texture border="5">tmdb_1.png</texture>
+                <aspectratio>keep</aspectratio>
                 <!-- <animation effect="fade" start="100" end="60" time="0" condition="String.IsEmpty(ListItem.Rating)">Conditional</animation> -->
             </control>
         </control>

@@ -328,6 +328,7 @@
                         <posy>110r</posy>
                         <width>223</width>
                         <height>38</height>
+                        <aspectratio>keep</aspectratio>
                         <!-- <animation effect="fade" start="100" end="60" time="0" condition="String.IsEmpty(ListItem.Rating)">Conditional</animation> -->
                     </control>
 
