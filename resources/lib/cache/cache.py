@@ -152,7 +152,8 @@ class Cache(object):
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     cls._logger.debug_extra_verbose('cache file not found for:',
                                                     error_msg,
-                                                    'id:', movie_id, 'source:', source)
+                                                    'id:', movie_id, 'source:', source,
+                                                    f'path: {path}')
                 return None
 
             if not os.access(path, os.R_OK):
@@ -247,8 +248,7 @@ class Cache(object):
             cls._logger.exception('')
 
     @classmethod
-    def get_video_id(cls, trailer):
-        # type: (MovieType) -> str
+    def get_video_id(cls, trailer: MovieType) -> str:
         """
             Gets the unique id to use in the cache for the given movie.
 
@@ -270,7 +270,6 @@ class Cache(object):
                     movie_id = MovieEntryUtils.get_tmdb_id(trailer)
                 elif source == Movie.TFH_SOURCE:
                     movie_id = trailer[Movie.TFH_ID]
-
                 elif source == Movie.ITUNES_SOURCE:
                     # Apple doesn't provide ID, use TMDB ID instead.
 
@@ -422,9 +421,9 @@ class Cache(object):
         return False
 
     @classmethod
-    def get_trailer_cache_file_path_for_movie_id(cls, trailer, orig_file_name,
-                                                 normalized):
-        # type: (Dict[str, Any], str, bool) -> Union[str, None]
+    def get_trailer_cache_file_path_for_movie_id(cls, trailer: MovieType,
+                                                 orig_file_name: str,
+                                                 normalized: bool) -> Union[str, None]:
         """
             Generates the path for a file in the cache
             for a trailer for given movie.

@@ -21,7 +21,7 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection PyClassHasNoInit
-class Debug(object):
+class Debug:
     """
         Define several methods useful for debugging
     """
@@ -29,20 +29,31 @@ class Debug(object):
     _currentAddonName = Constants.CURRENT_ADDON_NAME
 
     @classmethod
-    def dump_dictionary(cls, d):
-        # type: (Dict[str, Any]) -> None
+    def dump_dictionary(cls, d: Dict[str, Any], prefix: str = '',
+                        heading: str = '',
+                        log_level=LazyLogger.DEBUG_EXTRA_VERBOSE) -> None:
         """
             Dump key and value fields of a dictionary in human
             readable form.
 
         :param d:
+        :param prefix:
+        :param heading:
+        :param log_level:
         :return:
         """
-        for k, v in d.items():
-            if isinstance(v, dict):
-                cls.dump_dictionary(v)
+        if cls._logger.isEnabledFor(log_level):
+            cls._logger.debug(heading, log_level=log_level)
+            if d is None:
+                cls._logger.debug('None')
             else:
-                cls._logger.debug('{0} : {1}'.format(k, v))
+                for k, v in d.items():
+                    if isinstance(v, dict):
+                        child_prefix = f'{prefix}{k}: '
+                        cls.dump_dictionary(v, prefix=child_prefix)
+                    else:
+                        cls._logger.debug(f'{prefix}{k} : {v}',
+                                          log_level=log_level)
 
     @classmethod
     def dump_json(cls, text: str = '', data: str = '',
@@ -55,9 +66,13 @@ class Debug(object):
         :param log_level:
         :return:
         """
-        cls._logger.log(text, json.dumps(data, ensure_ascii=False,
-                                         encoding='unicode', indent=4,
-                                         sort_keys=True), log_level=log_level)
+        if cls._logger.isEnabledFor(log_level):
+            if data is None:
+                cls._logger.log('json None', log_level=log_level)
+            else:
+                cls._logger.log(text, json.dumps(data, ensure_ascii=False,
+                                                 encoding='unicode', indent=4,
+                                                 sort_keys=True), log_level=log_level)
 
     @classmethod
     def dump_all_threads(cls, delay: float = None) -> None:
@@ -75,8 +90,7 @@ class Debug(object):
             dump_threads.start()
 
     @classmethod
-    def _dump_all_threads(cls):
-        # type: () -> None
+    def _dump_all_threads(cls) -> None:
         """
             Worker method that dumps all threads.
 
@@ -103,8 +117,10 @@ class Debug(object):
         xbmc.log(string_buffer, xbmc.LOGDEBUG)
 
     @classmethod
-    def compare_movies(cls, trailer, new_trailer, max_value_length=60):
-        # type: (MovieType, MovieType, int) ->None
+    def compare_movies(cls,
+                       trailer: MovieType,
+                       new_trailer: MovieType,
+                       max_value_length: int = 60) -> None:
         """
             Compares some of the more important fields between to Kodi VideoInfo
             dictionaries. Any differences are logged.
@@ -116,15 +132,18 @@ class Debug(object):
         """
         if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             return
+        if trailer is None or new_trailer is None:
+            cls._logger.debug_verbose('At least one argument is None')
+            return
 
         keys_of_primary_interest = [Movie.TRAILER,
                                     Movie.SOURCE, Movie.TITLE,
-                                    Movie.YEAR, Movie.TYPE]
+                                    Movie.YEAR, Movie.TRAILER_TYPE]
         keys_of_interest = [Movie.TRAILER,
                             Movie.SOURCE, Movie.TITLE,
                             Movie.FANART, Movie.PLOT,
                             Movie.FILE, Movie.THUMBNAIL,
-                            Movie.YEAR, Movie.TYPE]
+                            Movie.YEAR, Movie.TRAILER_TYPE]
         for key in trailer:
             if key in keys_of_interest and new_trailer.get(key) is None:
                 value = str(trailer.get(key))
@@ -157,8 +176,9 @@ class Debug(object):
                                           value)
 
     @classmethod
-    def validate_basic_movie_properties(cls, movie, stack_trace=True):
-        # type: (MovieType, bool) -> None
+    def validate_basic_movie_properties(cls,
+                                        movie: MovieType,
+                                        stack_trace: bool = True) -> None:
         """
             Verifies that certain fields in a Kodi VideoInfo dictionary
             have values. Fields with Missing fields are logged and dummy
@@ -170,17 +190,15 @@ class Debug(object):
         if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             return
 
-        basic_properties = {
-            Movie.TYPE: 'default_' + Movie.TYPE,
-            Movie.FANART: 'default_' + Movie.TYPE,
-            Movie.THUMBNAIL: 'default_ ' + Movie.THUMBNAIL,
-            Movie.TRAILER: 'default_' + Movie.TRAILER,
-            Movie.SOURCE: 'default_' + Movie.SOURCE,
-            # Movie.FILE,
-            Movie.YEAR: 1492,
-            Movie.RATING: 0.0,
-            # Movie.DISCOVERY_STATE: Movie.NOT_INITIALIZED,
-            Movie.TITLE: 'default_' + Movie.TITLE}
+        if movie is None:
+            cls._logger.debug_verbose('movie is None')
+            return
+
+        basic_properties = {}
+
+        for key in (Movie.TRAILER_TYPE, Movie.FANART, Movie.THUMBNAIL, Movie.TRAILER,
+                    Movie.SOURCE, Movie.YEAR, Movie.RATING, Movie.TITLE):
+            basic_properties[key] = Movie.DEFAULT_MOVIE[key]
 
         failing_properties = []
         is_failed = False
@@ -191,7 +209,8 @@ class Debug(object):
                 movie.setdefault(property_name, basic_properties[property_name])
 
         if len(failing_properties) > 0:
-            msg = ', '.join(failing_properties)
+            msg = f'{movie.get(Movie.TITLE, "title missing")} ' \
+                    f'{",".join(failing_properties)}'
             if stack_trace:
                 LazyLogger.dump_stack('Missing basic property: ' + msg)
             else:
@@ -214,26 +233,21 @@ class Debug(object):
         if not (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE) or force_check):
             return True
 
-        details_properties = {Movie.WRITER: ['default_' + Movie.WRITER],
-                              Movie.DETAIL_DIRECTORS: ['default_' + Movie.DETAIL_DIRECTORS],
-                              Movie.DETAIL_TITLE: 'default_' + Movie.TITLE,
-                              Movie.CAST: ['default_' + Movie.CAST],
-                              Movie.PLOT: 'default_' + Movie.PLOT,
-                              Movie.GENRE: ['default_' + Movie.GENRE],
-                              Movie.STUDIO: ['default_' + Movie.STUDIO],
-                              Movie.DETAIL_ACTORS: ['default_' + Movie.ACTORS],
-                              Movie.DETAIL_GENRES: ['default_' + Movie.GENRE],
-                              Movie.DETAIL_CERTIFICATION: 'default_' +
-                                                          Movie.DETAIL_CERTIFICATION,
-                              Movie.DETAIL_CERTIFICATION_IMAGE: 'default_' +
-                                                                Movie.DETAIL_CERTIFICATION_IMAGE,
-                              Movie.DETAIL_RUNTIME: 'default_' + Movie.RUNTIME,
-                              Movie.DETAIL_WRITERS: ['default_' + Movie.WRITER],
-                              # Movie.TMDB_TAGS: 'default_' + Movie.TAG,   # For TMDB
-                              Movie.DETAIL_STUDIOS: ['default_' + Movie.STUDIO],
-                              Movie.RUNTIME: 0,
-                              # Movie.ADULT,
-                              Movie.MPAA: 'default_' + Movie.MPAA}
+        if movie is None:
+            cls._logger.debug_verbose('movie is None')
+            return False
+
+        details_properties = {}
+
+        for key in (Movie.TRAILER_TYPE, Movie.FANART, Movie.THUMBNAIL, Movie.TRAILER,
+                    Movie.SOURCE, Movie.YEAR, Movie.RATING, Movie.TITLE,
+                    Movie.WRITER, Movie.DETAIL_DIRECTORS, Movie.DETAIL_TITLE,
+                    Movie.CAST, Movie.PLOT, Movie.GENRE, Movie.STUDIO,
+                    Movie.DETAIL_ACTORS, Movie.DETAIL_GENRES,
+                    Movie.DETAIL_CERTIFICATION, Movie.DETAIL_CERTIFICATION_IMAGE,
+                    Movie.DETAIL_RUNTIME, Movie.DETAIL_WRITERS,
+                    Movie.DETAIL_STUDIOS, Movie.RUNTIME, Movie.MPAA):
+            details_properties[key] = Movie.DEFAULT_MOVIE[key]
 
         cls.validate_basic_movie_properties(movie, stack_trace=stack_trace)
         failing_properties = []

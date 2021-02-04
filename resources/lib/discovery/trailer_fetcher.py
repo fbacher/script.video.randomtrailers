@@ -19,6 +19,7 @@ import xbmcvfs
 
 from common.monitor import Monitor
 from common.constants import Constants, Movie, RemoteTrailerPreference
+from cache.tfh_cache import TFHCache
 from common.disk_utils import DiskUtils
 from common.playlist import Playlist
 from common.exceptions import AbortException
@@ -70,16 +71,14 @@ class TrailerFetcher(TrailerFetcherInterface):
     _logger: LazyLogger = None
 
     def __init__(self, movie_data: AbstractMovieData,
-                 thread_name: str='No TrailerFetcher Thread Name') -> None:
+                 thread_name: str = 'No TrailerFetcher Thread Name') -> None:
         """
 
                  :param movie_data
                  :param thread_name:
         """
         clz = TrailerFetcher
-        movie_source = movie_data.get_movie_source()
-        clz._logger = module_logger.getChild(clz.__name__ +
-                                             ':' + movie_source)
+        clz._logger = module_logger.getChild(clz.__name__)
         clz._logger.enter()
         super().__init__(thread_name=thread_name)
         self._movie_data = movie_data  # type: AbstractMovieData
@@ -304,7 +303,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 keep_new_trailer = False
             elif populated_trailer is not None:
                 trailer.update(populated_trailer)
-            elif status == 0:
+            elif status == 0:  # No trailer returned but 0 status
                 # Not sure what happened. Reject movie anyway.
                 self._missing_trailers_playlist.record_played_trailer(
                     trailer, use_movie_path=True, msg='No Trailer')
@@ -333,10 +332,11 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     # Ok, tmdb_id not in Kodi database, query TMDB
 
-                    if (tmdb_id is None or tmdb_id == ''
-                        ) and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
+                    if ((tmdb_id is None or tmdb_id == '')
+                            and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False)):
                         tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
-                            trailer[Movie.TITLE], trailer['year'])
+                            trailer[Movie.TITLE], trailer['year'],
+                            runtime_seconds=trailer[Movie.RUNTIME])
                         self.throw_exception_on_forced_to_stop()
 
                         if tmdb_id is None:
@@ -350,14 +350,18 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 msg=' Movie not found at tmdb')
                             trailer[Movie.TMDB_ID_NOT_FOUND] = True
                         else:
-                            MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
+                            changed = MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
 
                             # We found an id from TMDB, update Kodi database
                             # so that we don't have to go through this again
 
-                            if Settings.get_update_tmdb_id():
-                                MovieEntryUtils.update_database_unique_id(
-                                    trailer)
+                            if changed:
+                                if Settings.get_update_tmdb_id():
+                                    MovieEntryUtils.update_database_unique_id(
+                                        trailer)
+
+                                if trailer[Movie.SOURCE] == Movie.TFH_SOURCE:
+                                    TFHCache.update_trailer(trailer)
 
                     if tmdb_id is not None:
 
@@ -386,8 +390,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                     'Unexpected REJECTED_STATUS. Ignoring')
 
                         elif (new_trailer_data is None
-                              or new_trailer_data.get(Movie.TRAILER) is None
-                              or new_trailer_data.get(Movie.TRAILER) == ''):
+                              or new_trailer_data.get(Movie.TRAILER, '') == ''):
                             keep_new_trailer = False
                             TrailerUnavailableCache.add_missing_library_trailer(
                                 tmdb_id=tmdb_id,
@@ -410,25 +413,32 @@ class TrailerFetcher(TrailerFetcherInterface):
                             keep_new_trailer = False
                             trailer[Movie.TRAILER] = new_trailer_data[Movie.TRAILER]
 
-            elif source == Movie.ITUNES_SOURCE:
+            elif source in (Movie.ITUNES_SOURCE, Movie.TFH_SOURCE):
                 if not trailer.get(Movie.TMDB_ID_NOT_FOUND, False):
+                    if source == Movie.TFH_SOURCE:
+                        year = None
+                    else:
+                        year = trailer[Movie.YEAR]
                     tmdb_id: Optional[int] = TMDBUtils.get_tmdb_id_from_title_year(
-                        trailer[Movie.TITLE], trailer[Movie.YEAR])
+                        trailer[Movie.TITLE], year,
+                        runtime_seconds=trailer.get(Movie.RUNTIME, 0))
                 else:
                     tmdb_id = None
 
                 self.throw_exception_on_forced_to_stop()
                 if tmdb_id is None:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz._logger.debug_verbose('Can not get TMDB id for iTunes movie:',
-                                                  trailer[Movie.TITLE], 'year:',
-                                                  trailer[Movie.YEAR])
+                        clz._logger.debug_verbose(f'Can not get TMDB id for {source} movie: '
+                                                  f'{trailer[Movie.TITLE]} year: '
+                                                  f'[{trailer[Movie.YEAR]}')
                     self._missing_trailers_playlist.record_played_trailer(
                         trailer, use_movie_path=True,
                         msg=' Movie not found at TMDB')
                     trailer[Movie.TMDB_ID_NOT_FOUND] = True
                 else:
-                    MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
+                    changed = MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
+                    if changed and source == Movie.TFH_SOURCE:
+                        TFHCache.update_trailer(trailer)
 
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose('Finished second discovery level for movie:',
@@ -528,7 +538,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         self._stop_add_ready_to_play_time = datetime.datetime.now()
         discovery_time = self._stop_fetch_time - self._start_fetch_time
         queue_time = self._stop_add_ready_to_play_time - self._stop_fetch_time
-        trailer_type = trailer.get(Movie.TYPE, '')
+        trailer_type = trailer.get(Movie.TRAILER_TYPE, '')
         if (clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                 and clz._logger.is_trace_enabled(Trace.STATS)):
             clz._logger.debug('took:', discovery_time.microseconds / 10000,
@@ -589,13 +599,12 @@ class TrailerFetcher(TrailerFetcherInterface):
 
     # noinspection SyntaxError
     def get_tmdb_trailer(self,
-                         movie_title,  # type: str
-                         tmdb_id,  # type: Union[int, str]
-                         source,  # type: str
-                         ignore_failures=False,  # type: bool
-                         library_id=None  # type: Union[None, str]
-                         ):
-        # type: (...) -> (int, MovieType)
+                         movie_title: str,
+                         tmdb_id: Union[int, str],
+                         source: str,
+                         ignore_failures: bool = False,
+                         library_id: Union[None, str] = None
+                         ) -> (int, MovieType):
         """
             Called in two situations:
                 1) When a local movie does not have any trailer information
@@ -614,6 +623,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :return:
         """
         clz = TrailerFetcher
+        rejection_reasons = []
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz._logger.debug_verbose('title:', movie_title, 'tmdb_id:', tmdb_id,
                                       'library_id:', library_id, 'ignore_failures:',
@@ -621,6 +631,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         if TrailerUnavailableCache.is_tmdb_id_missing_trailer(tmdb_id):
             CacheIndex.remove_unprocessed_movies(tmdb_id)
+            rejection_reasons.append(Movie.REJECTED_NO_TRAILER)
             if not ignore_failures:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz._logger.exit(
@@ -664,15 +675,16 @@ class TrailerFetcher(TrailerFetcherInterface):
         dict_info[Movie.VOTES] = 0
         dict_info[Movie.ADULT] = False
         dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
-        dict_info[Movie.TYPE] = 'Trailer'
+        dict_info[Movie.TRAILER_TYPE] = Movie.VIDEO_TYPE_TRAILER
 
         # Query The Movie DB for Credits, Trailers and Releases for the
         # Specified Movie ID. Many other details are returned as well
 
-        data = {}
-        data['append_to_response'] = 'credits,releases,keywords,videos,alternative_titles'
-        data['language'] = Settings.get_lang_iso_639_1()
-        data['api_key'] = Settings.get_tmdb_api_key()
+        data = {
+            'append_to_response': 'credits,releases,keywords,videos,alternative_titles',
+            'language': Settings.get_lang_iso_639_1(),
+            'api_key': Settings.get_tmdb_api_key()
+        }
         url = 'http://api.themoviedb.org/3/movie/' + str(tmdb_id)
 
         tmdb_result = None
@@ -692,11 +704,12 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if s_code is not None:
                     status_code = s_code
             if status_code != 0:
+                rejection_reasons.append(Movie.REJECTED_FAIL)
                 if ignore_failures:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(
                             f'Ignore_failures getting TMDB data for: {movie_title}')
-                    return status_code, dict_info
+                    return Constants.REJECTED_STATUS, {Movie.REJECTED: rejection_reasons}
                 clz._logger.debug_verbose('Error getting TMDB data for:', movie_title,
                                           'status:', status_code)
                 return Constants.REJECTED_STATUS, None
@@ -705,11 +718,18 @@ class TrailerFetcher(TrailerFetcherInterface):
         except Exception:
             clz._logger.exception('Error processing movie: ', movie_title)
             if ignore_failures:
-                return -1, dict_info
+                return -1, None
             return -1, None
 
         add_movie = True
         # release_date TMDB key is different from Kodi's
+
+        # TFH titles are all caps, or otherwise wonky: use TMDb's title
+
+        if source == Movie.TFH_SOURCE:
+            movie_title = tmdb_result[Movie.TITLE]
+            dict_info[Movie.TITLE] = movie_title
+
         try:
             year = tmdb_result['release_date'][:-6]
             year = int(year)
@@ -717,6 +737,15 @@ class TrailerFetcher(TrailerFetcherInterface):
             year = 0
 
         dict_info[Movie.YEAR] = year
+
+        # Leave it to initial discovery date filter, except for TFH
+        # Currently, even TFH YEAR filtering ignored.
+
+        if source == Movie.TFH_SOURCE:
+            if year not in range(Settings.get_tmdb_minimum_year(),
+                                 Settings.get_tmdb_maximum_year()):
+                rejection_reasons.append(Movie.REJECTED_FILTER_DATE)
+
         try:
             if tmdb_result.get(Movie.CACHED) is not None:
                 dict_info[Movie.CACHED] = tmdb_result.get(Movie.CACHED)
@@ -765,8 +794,11 @@ class TrailerFetcher(TrailerFetcherInterface):
                 trailer_key = best_size_map['Clip']['key']
                 trailer_type = 'Clip'
 
-            dict_info[Movie.TYPE] = trailer_type
-            MovieEntryUtils.set_tmdb_id(dict_info, tmdb_id)
+            dict_info[Movie.TRAILER_TYPE] = trailer_type
+            changed = MovieEntryUtils.set_tmdb_id(dict_info, tmdb_id)
+
+            # Do NOT update TFH_cache or local DB since this is dict_info is
+            # NOT in the DB or TFH cache. External user will decide.
 
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 tmdb_countries = tmdb_result['releases']['countries']
@@ -796,6 +828,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         year=year,
                         source=source)
                 CacheIndex.remove_unprocessed_movies(tmdb_id)
+                rejection_reasons.append(Movie.REJECTED_NO_TRAILER)
                 if not ignore_failures:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz._logger.exit('No trailer found for movie:',
@@ -823,19 +856,23 @@ class TrailerFetcher(TrailerFetcherInterface):
                 mpaa = unrated_id
             dict_info[Movie.MPAA] = mpaa
 
-            fanart = image_base_url + 'w380' + \
-                str(tmdb_result['backdrop_path'])
+            # fanart = image_base_url + 'w380' + \
+            #     str(tmdb_result['backdrop_path'])
+            fanart = image_base_url + 'original' + \
+                     str(tmdb_result['backdrop_path'])
             dict_info[Movie.FANART] = fanart
 
-            thumbnail = image_base_url + 'w342' + \
-                str(tmdb_result['poster_path'])
+            # thumbnail = image_base_url + 'w342' + \
+            #     str(tmdb_result['poster_path'])
+            thumbnail = image_base_url + 'original' + \
+                        str(tmdb_result['poster_path'])
             dict_info[Movie.THUMBNAIL] = thumbnail
 
             title = tmdb_result[Movie.TITLE]
             if title is not None:
                 dict_info[Movie.TITLE] = title
 
-            plot = tmdb_result['overview']
+            plot = tmdb_result.get('overview', None)
             if plot is not None:
                 dict_info[Movie.PLOT] = plot
 
@@ -912,6 +949,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     clz._logger.debug_extra_verbose(
                         f'Rejected due to GenreUtils or Keyword: {movie_title}')
                 add_movie = False
+                rejection_reasons.append(Movie.REJECTED_FILTER_GENRE)
 
             language_information_found, original_language_found = is_language_present(
                 tmdb_result, movie_title)
@@ -925,12 +963,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                     clz._logger.debug_extra_verbose(
                         f'Rejected due to foreign language: {movie_title}')
                 add_movie = False
+                rejection_reasons.append(Movie.REJECTED_LANGUAGE)
 
             if vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
                 if vote_comparison == \
                         RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
                     if vote_average < vote_value:
                         add_movie = False
+                        rejection_reasons.append(Movie.REJECTED_VOTE)
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz._logger.debug_extra_verbose(
                                 f'Rejected due to vote_average < {movie_title}')
@@ -938,6 +978,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
                     if vote_average > vote_value:
                         add_movie = False
+                        rejection_reasons.append(Movie.REJECTED_VOTE)
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz._logger.debug_extra_verbose(
                                 f'Rejected due to vote_average > {movie_title}')
@@ -949,6 +990,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             adult_movie = tmdb_result['adult'] == 'true'
             if adult_movie and not include_adult:
                 add_movie = False
+                rejection_reasons.append(Movie.REJECTED_ADULT)
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose(
                         f'Rejected due to adult, {movie_title}')
@@ -965,6 +1007,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             if not certifications.filter(certification):
                 add_movie = False
+                rejection_reasons.append(Movie.REJECTED_CERTIFICATION)
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose(
                         f'Rejected due to rating: {movie_title}')
@@ -983,7 +1026,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:
-                clz._logger('failed to get Json data')
+                clz._logger.error('failed to get Json data')
 
             if not ignore_failures:
                 dict_info = None
@@ -993,11 +1036,12 @@ class TrailerFetcher(TrailerFetcherInterface):
         if add_movie:
             return 0, dict_info
         else:
+            if len(rejection_reasons) > 0:
+                dict_info[Movie.REJECTED] = rejection_reasons
+
             return Constants.REJECTED_STATUS, dict_info
 
-    def get_detail_info(self,
-                        movie: MovieType
-                        ) -> MovieType:
+    def get_detail_info(self, movie: MovieType) -> MovieType:
         """
 
         :param movie:
@@ -1005,30 +1049,44 @@ class TrailerFetcher(TrailerFetcherInterface):
         """
         clz = TrailerFetcher
         keep_trailer = True
-        kodi_movie = None
         try:
             source = movie[Movie.SOURCE]
             tmdb_id: Optional[int] = MovieEntryUtils.get_tmdb_id(movie)
             if tmdb_id is not None:
                 tmdb_id = int(tmdb_id)
 
-            if source == Movie.ITUNES_SOURCE and tmdb_id is None:
+            if (clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+                    and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                clz._logger.debug_verbose(f'title: {movie[Movie.TITLE]}'
+                                          f' source: {source}'
+                                          f' tmdb_id: {tmdb_id}'
+                                          f' {movie.get(Movie.TMDB_ID_NOT_FOUND, "")}')
+
+            if ((source in (Movie.ITUNES_SOURCE, Movie.TFH_SOURCE))
+                    and tmdb_id is None):
                 Monitor.throw_exception_if_abort_requested()
                 if not movie.get(Movie.TMDB_ID_NOT_FOUND, False):
+                    if source == Movie.TFH_SOURCE:
+                        year = None
+                    else:
+                        year = movie[Movie.YEAR]
                     tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
-                        movie[Movie.TITLE], movie[Movie.YEAR])
+                        movie[Movie.TITLE], year,
+                        runtime_seconds=movie.get(Movie.RUNTIME, 0))
                     if tmdb_id is None:
                         movie[Movie.TMDB_ID_NOT_FOUND] = True
                 else:
                     tmdb_id = None
 
-                MovieEntryUtils.set_tmdb_id(movie, tmdb_id)
+                changed = MovieEntryUtils.set_tmdb_id(movie, tmdb_id)
+                if changed and source == Movie.TFH_SOURCE:
+                    TFHCache.update_trailer(movie)
 
             movie.setdefault(Movie.THUMBNAIL, '')
-            tmdb_detail_movie_info = None
+            tmdb_detail_info = None
             if source == Movie.ITUNES_SOURCE:
                 Monitor.throw_exception_if_abort_requested()
-                status, tmdb_detail_movie_info = self.get_tmdb_trailer(
+                status, tmdb_detail_info = self.get_tmdb_trailer(
                     movie[Movie.TITLE], tmdb_id, source, ignore_failures=True)
 
                 # TODO: Verify that more fields should be cloned
@@ -1042,15 +1100,72 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # not have this movie registered at all (it could be very
                     # new).
 
-                    if not tmdb_detail_movie_info[Movie.LANGUAGE_MATCHES]:
+                    if (tmdb_detail_info is not None
+                            and not tmdb_detail_info[Movie.LANGUAGE_MATCHES]):
                         keep_trailer = False
 
-                if tmdb_detail_movie_info is None:  # An error occurred
-                    tmdb_detail_movie_info = {}
+                if tmdb_detail_info is None:  # An error occurred
+                    tmdb_detail_info = {}
 
-                self.clone_fields(tmdb_detail_movie_info, movie, Movie.PLOT)
-            elif source == Movie.TMDB_SOURCE:
-                # If a movie movie was downloaded from TMDB, check to see if
+                tmdb_detail_info[Movie.PLOT] = tmdb_detail_info.get(Movie.PLOT, '')
+                self.clone_fields(tmdb_detail_info, movie, Movie.PLOT)
+
+            if source == Movie.TFH_SOURCE:
+                Monitor.throw_exception_if_abort_requested()
+                status, tmdb_detail_info = self.get_tmdb_trailer(
+                    movie[Movie.TITLE], tmdb_id, source, ignore_failures=True)
+
+                if status == Constants.REJECTED_STATUS and tmdb_detail_info is not None:
+                    rejection_reasons = tmdb_detail_info[Movie.REJECTED]
+                    if (Movie.REJECTED_ADULT, Movie.REJECTED_CERTIFICATION) \
+                            in rejection_reasons:
+                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz._logger.debug_extra_verbose(f'Rejecting TFH move'
+                                                            f' {movie[Movie.TITLE]} '
+                                                            f'due to Certification')
+                        keep_trailer = False
+
+                if (clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+                        and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                    tfh_movie_title = movie[Movie.TFH_TITLE]
+                    if tmdb_detail_info is None:
+                        tmdb_movie_title = 'None'
+                    else:
+                        tmdb_movie_title = tmdb_detail_info[Movie.TITLE]
+                    clz._logger.debug_verbose(f'TFH trailer: {tfh_movie_title}'
+                                              f' {tmdb_movie_title}')
+
+                if tmdb_detail_info is not None:
+                    if (clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                            and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                        from common.debug_utils import Debug
+                        Debug.dump_dictionary(movie, heading='Dumping TFH movie_info',
+                                              log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+
+                    self.clone_fields(tmdb_detail_info, movie,  # Movie.PLOT,
+                                      Movie.TITLE, Movie.YEAR, Movie.CAST,
+                                      Movie.DIRECTOR, Movie.WRITER, Movie.GENRE,
+                                      Movie.STUDIO, Movie.MPAA, Movie.ADULT,
+                                      Movie.FANART, Movie.TRAILER_TYPE,
+                                      Movie.RUNTIME, set_default=True)
+                    tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+
+                    if (movie.get(Movie.THUMBNAIL, '') == ''
+                            and tmdb_detail_info[Movie.THUMBNAIL].startswith('http')):
+                        movie[Movie.THUMBNAIL] = tmdb_detail_info[Movie.THUMBNAIL]
+
+                    if movie[Movie.PLOT] == '':
+                        movie[Movie.PLOT] = tmdb_detail_info[Movie.PLOT]
+
+                    if (clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                            and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                        from common.debug_utils import Debug
+                        Debug.dump_dictionary(movie,
+                                              heading='Dumping Modified movie info',
+                                              log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+
+            if source in (Movie.TMDB_SOURCE, Movie.TFH_SOURCE):
+                # If a movie was downloaded from TMDB or TFH, check to see if
                 # the movie is in our library so that it can be included in the
                 # UI.
                 library_id = movie.get(Movie.MOVIEID, None)
@@ -1060,35 +1175,52 @@ class TrailerFetcher(TrailerFetcherInterface):
                         tmdb_id = int(tmdb_id)
 
                     kodi_movie = TMDBUtils.get_movie_by_tmdb_id(tmdb_id)
+
                     if kodi_movie is not None:
                         movie[Movie.MOVIEID] = kodi_movie.get_kodi_id()
                         movie[Movie.FILE] = kodi_movie.get_kodi_file()
 
-            movie_writers = self.get_writers(
-                movie, tmdb_detail_movie_info, source)
+                    if (clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                            and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                        clz._logger.debug_extra_verbose(
+                            f'{movie[Movie.TITLE]}: '
+                            f' source: {source}'
+                            f' tmdbId: {str(tmdb_id)}'
+                            f' MovieId: {movie.get(Movie.MOVIEID, "")}')
+
+            (movie_writers, voiced_writers) = self.get_writers(movie,
+                                                               tmdb_detail_info,
+                                                               source)
             movie[Movie.DETAIL_WRITERS] = movie_writers
+            movie[Movie.VOICED_DETAIL_WRITERS] = voiced_writers
 
             movie[Movie.DETAIL_DIRECTORS] = ', '.join(
                 movie.get(Movie.DIRECTOR, []))
 
-            actors = self.get_actors(movie, tmdb_detail_movie_info, source)
+            movie[Movie.VOICED_DETAIL_DIRECTORS] = movie.get(Movie.DIRECTOR, [])
+            if len(movie[Movie.VOICED_DETAIL_DIRECTORS]) > Movie.MAX_VOICED_DIRECTORS:
+                movie[Movie.VOICED_DETAIL_DIRECTORS] = \
+                    movie[Movie.VOICED_DETAIL_DIRECTORS][:Movie.MAX_VOICED_DIRECTORS - 1]
+
+            actors, voiced_actors_list = self.get_actors(movie, tmdb_detail_info,
+                                                         source)
             movie[Movie.DETAIL_ACTORS] = actors
-
-            actors = self.get_actors(movie, tmdb_detail_movie_info, source,
-                                     max_actors=Movie.MAX_VOICED_ACTORS)
-            movie[Movie.VOICED_DETAIL_ACTORS] = actors
-
-            movie_studios = ', '.join(movie.get(Movie.STUDIO, []))
+            movie[Movie.VOICED_DETAIL_ACTORS] = voiced_actors_list
 
             title_string = Messages.get_formated_title(movie)
             movie[Movie.DETAIL_TITLE] = title_string
 
+            movie_studios = ', '.join(movie.get(Movie.STUDIO, []))
             movie[Movie.DETAIL_STUDIOS] = movie_studios
+            voiced_studios = movie.get(Movie.STUDIO, [])
+            if len(voiced_studios) > Movie.MAX_VOICED_STUDIOS:
+                voiced_studios = voiced_studios[:Movie.MAX_VOICED_STUDIOS - 1]
+            movie[Movie.VOICED_DETAIL_STUDIOS] = voiced_studios
 
             movie[Movie.DETAIL_GENRES] = ' / '.join(
                 movie.get(Movie.GENRE, []))
 
-            run_time = self.get_runtime(movie, tmdb_detail_movie_info, source)
+            run_time = self.get_runtime(movie, tmdb_detail_info, source)
             movie[Movie.DETAIL_RUNTIME] = run_time
 
             country_id = Settings.get_country_iso_3166_1().lower()
@@ -1108,13 +1240,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                 movie = None
                 if tmdb_id is not None:
                     CacheIndex.remove_cached_tmdb_trailer_id(tmdb_id)
-
-            if (clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
-                    and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
-                clz._logger.debug_verbose('Fully discovered and ready to play:',
-                                          movie[Movie.TITLE],
-                                          movie[Movie.DETAIL_TITLE],
-                                          trace=Trace.TRACE_DISCOVERY)
+            else:
+                if (clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+                        and clz._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                    clz._logger.debug_verbose('Fully discovered and ready to play:',
+                                              movie[Movie.TITLE],
+                                              movie[Movie.DETAIL_TITLE],
+                                              trace=Trace.TRACE_DISCOVERY)
 
             return movie
         except AbortException:
@@ -1124,40 +1256,44 @@ class TrailerFetcher(TrailerFetcherInterface):
             return {}
 
     def clone_fields(self,
-                     trailer,  # type: MovieType
-                     detail_trailer,  # type: MovieType
-                     *argv  # type: str
-                     ):
-        # type: (...) -> None
+                     trailer: MovieType,
+                     detail_trailer: MovieType,
+                     *argv: str,
+                     set_default: bool = False
+                     ) -> None:
         """
 
         :param self:
         :param trailer:
         :param detail_trailer:
         :param argv:
+        :param set_default:
         :return:
         """
         clz = TrailerFetcher
         try:
             for arg in argv:
-                detail_trailer[arg] = trailer.get(arg, None)
+                value = trailer.get(arg, None)
+                if value is None and set_default:
+                    value = ''
+                detail_trailer[arg] = value
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
             clz._logger.exception('')
 
     def get_writers(self,
-                    trailer,  # type: MovieType
-                    tmdb_info,  # type: MovieType
-                    source  # type: str
-                    ):
-        # type: (...) ->  str
+                    trailer: MovieType,
+                    tmdb_info: MovieType,
+                    source: str
+                    ) -> (str, List[str]):
         """
 
         :param self:
         :param trailer:
         :param tmdb_info:
         :param source:
+        :param max_writers:
         :return:
         """
         # Itunes does not supply writer info, get from TMDB query
@@ -1179,25 +1315,24 @@ class TrailerFetcher(TrailerFetcherInterface):
                 writers.append(writer)
 
         movie_writers = ', '.join(writers)
+        if len(writers) > Movie.MAX_VOICED_WRITERS:
+            writers = writers[:(Movie.MAX_VOICED_WRITERS - 1)]
+        return movie_writers, writers
 
-        return movie_writers
-
-    def get_actors(self, trailer, info, source, max_actors=6):
-        # type: ( MovieType, MovieType, str, int) -> str
+    def get_actors(self, movie: MovieType, info: MovieType, source: str
+                   ) -> (str, List[str]):
         """
-
         :param self:
-        :param trailer:
+        :param movie:
         :param info:
         :param source:
-        :param max_actors:
         :return:
         """
         clz = TrailerFetcher
         movie_actors = ''
-        actors = trailer.get(Movie.CAST, [])
-        if len(actors) > max_actors:
-            actors = actors[:(max_actors - 1)]
+        actors = movie.get(Movie.CAST, [])
+        if len(actors) > Movie.MAX_DISPLAYED_ACTORS:
+            actors = actors[:Movie.MAX_DISPLAYED_ACTORS - 1]
         actors_list = []
         try:
             for actor in actors:
@@ -1208,13 +1343,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             reraise(*sys.exc_info())
         except Exception:
             movie_actors = ''
-            clz._logger.error('Movie:', trailer[Movie.TITLE],
-                              'cast:', trailer[Movie.CAST])
+            clz._logger.error('Movie:', movie[Movie.TITLE],
+                              'cast:', movie[Movie.CAST])
 
-        return movie_actors
+        if len(actors) > Movie.MAX_VOICED_ACTORS:
+            actors_list = actors_list[:Movie.MAX_VOICED_ACTORS - 1]
+        return movie_actors, actors_list
 
-    def get_plot(self, trailer, info, source):
-        # type: ( MovieType, MovieType, str) -> str
+    def get_plot(self, trailer: MovieType, info: MovieType, source: str) -> str:
         """
 
         :param self:
@@ -1235,8 +1371,10 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         return plot
 
-    def get_runtime(self, trailer, info, source):
-        # type: ( MovieType, MovieType, str) -> str
+    def get_runtime(self,
+                    trailer: MovieType,
+                    info: MovieType,
+                    source: str) -> str:
         """
 
         :param self:
@@ -1297,7 +1435,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                 return rc
 
             # No need for cached trailer if we have a cached normalized trailer
-            if movie.get(Movie.NORMALIZED_TRAILER) is not None:
+
+            if (movie.get(Movie.NORMALIZED_TRAILER) is not None
+                    and os.path.exists(movie[Movie.NORMALIZED_TRAILER])):
                 return rc
 
             if trailer_path.startswith('plugin'):
@@ -1450,6 +1590,9 @@ class TrailerFetcher(TrailerFetcherInterface):
             Normalize the sound of the movie. The movie may be local
             and in the library, or may have been downloaded and placed
             in the cache.
+
+            :param movie: Movie trailer to consider normalizing
+            :return: True if trailer was normalized by this call
         """
         clz = TrailerFetcher
         normalized_path = None
@@ -1462,16 +1605,34 @@ class TrailerFetcher(TrailerFetcherInterface):
             # FOLDER_SOURCE not supported at this time because a key
             # would have to be created.
 
+            # iTunes and TFH trailers probably don't require normalization, at
+            # least not due to low-quality recordings by amateurs. However,
+            # maybe you want to smooth them out a bit.
+
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
                              Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
 
             if movie[Movie.SOURCE] not in valid_sources:
                 return False
 
-            # Can not normalize remote files. Downloaded and cached trailers
-            # are in Movie.CACHED_TRAILER as local paths.
+            # We have to have a uniqueid for caching to work. If we don't
+            # have one, give up. iTunes trailers have no id, so we get the
+            # id from tmdb, but if the movie is unknown to TMDb, then we
+            # give up.
+            #
+            # We could come up with another key (perhaps a hash of name & date)
+            # but iTunes trailers probably don't need normalizing. Besides,
+            # using tmdbIds allows us to share trailers across TFH, TMDb and
+            # iTunes, if we choose.
+            #
 
-            # If cache purged, then delete cached trailer info
+            if Cache.get_video_id(movie) is None:
+                return False
+
+            # Can not normalize remote files. Movie.CACHED_TRAILER contains
+            # the path to any downloaded trailers (by cache_remote_trailer)
+
+            # Verify cache was not purged
 
             if (movie.get(Movie.CACHED_TRAILER) is not None and
                     not os.path.exists(movie[Movie.CACHED_TRAILER])):
@@ -1482,14 +1643,23 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             normalize = False
 
-            # Prefer to use Cached Trailer, if available
+            # Assume trailer is local
+            trailer_path = movie[Movie.TRAILER]  # Might be a URL
 
-            if (Settings.is_normalize_volume_of_downloaded_trailers() and
-                    movie.get(Movie.CACHED_TRAILER) is not None):
-                trailer_path = movie[Movie.CACHED_TRAILER]
-                normalize = True
+            # Presence of cached trailer means there is no Movie.TRAILER, or
+            # that it is a url and already downloaded. So use it if present.
+
+            if Settings.is_normalize_volume_of_downloaded_trailers():
+                if movie.get(Movie.CACHED_TRAILER) is not None:
+                    #
+                    # If remote trailer was downloaded by cache_remote_trailer,
+                    # then use it.
+                    #
+                    trailer_path = movie[Movie.CACHED_TRAILER]
+                    normalize = True
+                elif movie.get(Movie.NORMALIZED_TRAILER) is not None:
+                    normalize = True  # Verify that we don't have to re-normalize
             else:
-                trailer_path = movie[Movie.TRAILER]
                 if (Settings.is_normalize_volume_of_local_trailers() and
                         os.path.exists(trailer_path)):
                     normalize = True
@@ -1497,45 +1667,40 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not normalize:
                 return False
 
-            # Since the cached file name depends upon the movie's movie id,
-            # then we can't cache a movie without one (like an iTunes movie
-            # which is not yet registered with TMDB). There is a work-around
-            # for this, but iTunes trailers probably don't need normalizing.
-
-            if Cache.get_video_id(movie) is None:
-                return False
-
-            cached_normalized_trailer = None
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.debug_extra_verbose('trailer', movie.get(Movie.TRAILER, ''),
+                clz._logger.debug_extra_verbose('trailer',
+                                                movie.get(Movie.TRAILER, ''),
                                                 'cached trailer:',
                                                 movie.get(Movie.CACHED_TRAILER, ''))
 
-            # NORMALIZED_TRAILER is not automatically discovered from disk
-            if movie.get(Movie.NORMALIZED_TRAILER, None) is None:
+            # Populate NORMALIZED_TRAILER path, if needed.
+
+            normalized_trailer_path = movie.get(Movie.NORMALIZED_TRAILER, None)
+            if normalized_trailer_path is None:
                 # trailer_path is either a cached_path or a library path.
 
                 # Discover from cache
                 parent_dir, trailer_file_name = os.path.split(trailer_path)
-                normalized_path = Cache.get_trailer_cache_file_path_for_movie_id(
+                normalized_trailer_path = Cache.get_trailer_cache_file_path_for_movie_id(
                     movie, trailer_file_name, True)
 
-                cached_normalized_trailers = glob.glob(normalized_path)
+                cached_normalized_trailers = glob.glob(normalized_trailer_path)
                 if len(cached_normalized_trailers) > 0:
-                    cached_normalized_trailer = cached_normalized_trailers[0]
-                    movie[Movie.NORMALIZED_TRAILER] = cached_normalized_trailer
+                    normalized_trailer_path = cached_normalized_trailers[0]
 
-            normalized_trailer = movie.get(Movie.NORMALIZED_TRAILER, None)
-            if normalized_trailer is not None:
-                # If local movie is newer than normalized file, then
-                # re-normalize it
-                if os.path.exists(normalized_trailer):
-                    if os.path.exists(trailer_path):
+                movie[Movie.NORMALIZED_TRAILER] = normalized_trailer_path
+
+            if normalized_trailer_path is not None:
+                if os.path.exists(normalized_trailer_path):
+                    # If local movie is newer than normalized file, then
+                    # re-normalize it
+                    if (not DiskUtils.is_url(trailer_path)
+                            and os.path.exists(trailer_path)):
                         trailer_creation_time = os.path.getmtime(trailer_path)
                         normalized_trailer_creation_time = \
-                            os.path.getmtime(normalized_trailer)
+                            os.path.getmtime(normalized_trailer_path)
                         if trailer_creation_time <= normalized_trailer_creation_time:
-                            return False
+                            return False  # Already Normalized
                         else:
                             if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                                 clz._logger.debug_verbose(
@@ -1543,8 +1708,6 @@ class TrailerFetcher(TrailerFetcherInterface):
                                     'title:', movie[Movie.TITLE])
 
             # TODO: Handle the case where files are NOT cached
-            # Delete temp file once falls off of TrailerDialog's movie
-            # history.
 
             # A bit redundant, but perhaps clearer.
 
@@ -1554,46 +1717,33 @@ class TrailerFetcher(TrailerFetcherInterface):
                 trailer_path = movie[Movie.TRAILER]
 
             normalized_used = False
-            if cached_normalized_trailer is None:
-                if not os.path.exists(normalized_path):
-                    DiskUtils.create_path_if_needed(
-                        os.path.dirname(normalized_path))
+            if not os.path.exists(normalized_trailer_path):
+                DiskUtils.create_path_if_needed(
+                    os.path.dirname(normalized_trailer_path))
 
-                    rc = ffmpeg_normalize.normalize(
-                        trailer_path, normalized_path)
+                rc = ffmpeg_normalize.normalize(
+                    trailer_path, normalized_trailer_path)
 
-                    if rc == 0:
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                            clz._logger.debug_verbose(
-                                f'Normalized: {movie[Movie.TITLE]}',
-                                f'path: {normalized_path}')
-                        cached_normalized_trailer = normalized_path
-                        normalized_used = True
-                    else:
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                            clz._logger.debug('Normalize failed:',
-                                              not movie[Movie.TITLE],
-                                              f'path: {normalized_path}')
+                if rc == 0:
+                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz._logger.debug_verbose(
+                            f'Normalized: {movie[Movie.TITLE]}',
+                            f'path: {normalized_trailer_path}')
+                    normalized_used = True
+                else:
+                    if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz._logger.debug('Normalize failed:',
+                                          movie[Movie.TITLE],
+                                          f'path: {normalized_trailer_path}')
 
-            if cached_normalized_trailer is not None:
-                assert 'normalized_normalized' not in cached_normalized_trailer, \
-                    clz._logger.error('Invalid normalized path name. Movie:',
-                                      movie[Movie.TITLE],
-                                      'trailer_path:', trailer_path,
-                                      'cached_normalized_trailer:',
-                                      cached_normalized_trailer)
                 #
                 # If source file was downloaded and cached, then just blow it away
                 #
                 if Cache.is_trailer_from_cache(trailer_path):
                     if os.path.exists(trailer_path):
                         os.remove(trailer_path)
-                movie[Movie.NORMALIZED_TRAILER] = cached_normalized_trailer
-                normalized_used = True
-            if (normalized_used
-                    and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-                clz._logger.debug_extra_verbose(
-                    'Used Normalized:', normalized_used)
+                movie[Movie.NORMALIZED_TRAILER] = normalized_trailer_path
+
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -1603,14 +1753,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             stop = datetime.datetime.now()
             elapsed_time = stop - start
             if normalized_used:
+                #  TODO: Log in statistics module
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose('time to normalize movie:',
                                                     elapsed_time.seconds)
         return normalized_used
 
 
-def get_tmdb_id_from_title_year(title, year):
-    # type: (str, int) -> int
+def get_tmdb_id_from_title_year(title: str, year: Union[int, str]) -> int:
     """
 
     :param title:
@@ -1638,7 +1788,7 @@ def get_tmdb_id_from_title_year(title, year):
     return tmdb_id
 
 
-def _get_tmdb_id_from_title_year(title: str, year: int) -> int:
+def _get_tmdb_id_from_title_year(title: str, year: Union[int, str]) -> int:
     """
     TODO: This is nearly a duplicate in another class!!!
 
@@ -1754,8 +1904,7 @@ def _get_tmdb_id_from_title_year(title: str, year: int) -> int:
     return tmdb_id
 
 
-def is_language_present(tmdb_json, title):
-    # type: (MovieType, str) -> (bool, bool, bool)
+def is_language_present(tmdb_json: MovieType, title: str) -> (bool, bool, bool):
     """
 
     :param tmdb_json:

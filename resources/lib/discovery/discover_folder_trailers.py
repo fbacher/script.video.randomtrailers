@@ -153,7 +153,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                             title = os.path.splitext(title)[0]
                             new_trailer = {Movie.TITLE: title,
                                            Movie.TRAILER: file_path,
-                                           Movie.TYPE: 'trailer file',
+                                           Movie.TRAILER_TYPE: 'trailer file',
                                            Movie.SOURCE:
                                            Movie.FOLDER_SOURCE,
                                            Movie.FANART: '',

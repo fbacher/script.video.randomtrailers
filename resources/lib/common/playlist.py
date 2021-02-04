@@ -230,7 +230,7 @@ class Playlist(object):
 
         name = trailer.get(Movie.TITLE, 'unknown Title')
         year = '(' + str(trailer.get(Movie.YEAR, 'unknown Year')) + ')'
-        movie_type = trailer.get(Movie.TYPE, 'Unknown MovieType')
+        movie_type = trailer.get(Movie.TRAILER_TYPE, 'Unknown MovieType')
         movie_path = trailer.get(Movie.FILE, None)
         if movie_path is None:
             if use_movie_path:  # Nothing to do if there is no movie path

@@ -451,14 +451,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             elif self._maximum_year is not None \
                     and movie[Movie.YEAR] > self._maximum_year:
                 result = False
-            movie_type = movie.get(Movie.TYPE, '')
-            if (movie_type == Constants.VIDEO_TYPE_FEATURETTE
+            movie_type = movie.get(Movie.TRAILER_TYPE, '')
+            if (movie_type == Movie.VIDEO_TYPE_FEATURETTE
                     and not Settings.get_include_featurettes()):
                 result = False
-            elif (movie_type == Constants.VIDEO_TYPE_CLIP
+            elif (movie_type == Movie.VIDEO_TYPE_CLIP
                     and not Settings.get_include_clips()):
                 result = False
-            elif (movie_type == Constants.VIDEO_TYPE_TRAILER
+            elif (movie_type == Movie.VIDEO_TYPE_TRAILER
                   and not Settings.get_include_tmdb_trailers()):
                 result = False
             # if Settings.get_country_iso_3166_1() != movie[Movie.COUNTRY]:

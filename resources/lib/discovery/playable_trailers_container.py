@@ -35,16 +35,21 @@ class PlayableTrailersContainer(object):
         Discovery classes for the various TrailerManager subclasses. The
         interfaces would be largely the same.
     """
+    DUPLICATE_TRAILER_CHECK_LIMIT = 15
+
     _any_trailers_available_to_play = threading.Event()
     _singleton_instance = None
     _instances = {}
     logger = None
     _recently_played_trailers = OrderedDict()
 
+    # Avoid playing duplicate trailers when we first start up.
+
+    _aggregate_trailers_queued: int = 0
+
     def __init__(self,
-                 source  # type: str
-                 ):
-        # type: (...) -> None
+                 source: str
+                 ) -> None:
         """
 
         :return:
@@ -59,18 +64,17 @@ class PlayableTrailersContainer(object):
         self._ready_to_play_queue = queue.Queue(maxsize=3)
         self._number_of_added_trailers = 0
         self._starving = False
+        self._starve_check_timer = None
         self._is_playable_trailers = threading.Event()
 
-    def set_movie_data(self, movie_data):
-        # type: (AbstractMovieData) -> None
+    def set_movie_data(self, movie_data: AbstractMovieData) -> None:
         """
 
         :return:
         """
         self._movie_data = movie_data
 
-    def get_movie_data(self):
-        # type: () -> AbstractMovieData
+    def get_movie_data(self) -> AbstractMovieData:
         """
 
         :return:
@@ -78,8 +82,7 @@ class PlayableTrailersContainer(object):
 
         return self._movie_data
 
-    def prepare_for_restart_discovery(self, stop_thread):
-        # type: (bool) -> None
+    def prepare_for_restart_discovery(self, stop_thread: bool) -> None:
         """
 
         :param stop_thread
@@ -97,9 +100,9 @@ class PlayableTrailersContainer(object):
                     break
 
             self._movie_data = None
+            self._aggregate_trailers_queued = 0
 
-    def settings_changed(self):
-        # type: () -> None
+    def settings_changed(self) -> None:
         """
             Instance method
         """
@@ -117,24 +120,30 @@ class PlayableTrailersContainer(object):
                 clz.logger.warning('Invalid movie entry. Missing title: ',
                                    str(movie))
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
+        """
         try:
             title = movie[Movie.TITLE]
-            if title not in clz._recently_played_trailers:
-                clz._recently_played_trailers[title] = movie
-                if len(clz._recently_played_trailers) > 10:
-                    clz._recently_played_trailers.popitem()
-            elif self._ready_to_play_queue.empty():
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz.logger.debug_verbose(
-                        f'Movie: {title} played recently, but starving')
-            else:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz.logger.debug_verbose(
-                        f'Movie: {title} played recently, skipping')
+            
+            self._aggregate_trailers_queued += 1
 
-                return
+            if self._aggregate_trailers_queued <= clz.DUPLICATE_TRAILER_CHECK_LIMIT:
+                if title in clz._recently_played_trailers:
+                    if self._ready_to_play_queue.empty():
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            clz.logger.debug_verbose(
+                                f'Movie: {title} played recently, but starving')
+                    elif clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose(
+                            f'Movie: {title} played recently, skipping')
+                        return
+
+                # Adding to queue, below, will block if it is full, preventing this
+                # from running away
+
+                clz._recently_played_trailers[title] = movie
         except Exception as e:
             clz.logger.exception(e)
+        """
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.debug_verbose('movie:', movie[Movie.TITLE], 'queue empty:',
@@ -167,16 +176,14 @@ class PlayableTrailersContainer(object):
                                            waited)
         return
 
-    def get_ready_to_play_queue(self):
-        # type: () -> queue.Queue
+    def get_ready_to_play_queue(self) -> queue.Queue:
         """
 
         :return:
         """
         return self._ready_to_play_queue
 
-    def get_number_of_playable_movies(self):
-        # type: () -> int
+    def get_number_of_playable_movies(self) -> int:
         """
 
         :return:
@@ -184,19 +191,17 @@ class PlayableTrailersContainer(object):
         return self._ready_to_play_queue.qsize()
 
     @classmethod
-    def get_recently_played_trailers(cls):
+    def get_recently_played_trailers(cls) -> Dict[str, MovieType]:
         return cls._recently_played_trailers
 
-    def get_number_of_added_trailers(self):
-        # type: () -> int
+    def get_number_of_added_trailers(self) -> int:
         """
 
         :return:
         """
         return int(self._number_of_added_trailers)
 
-    def get_next_movie(self):
-        # type: () -> MovieType
+    def get_next_movie(self) -> MovieType:
         """
 
         :return:
@@ -204,6 +209,9 @@ class PlayableTrailersContainer(object):
         clz = PlayableTrailersContainer
         movie = self._ready_to_play_queue.get(block=False)
         if movie is not None:
+            title = movie[Movie.TITLE]
+            clz._recently_played_trailers[title] = movie
+
             PlayStatistics.increase_play_count(movie)
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz.logger.exit('movie:', movie[Movie.TITLE])
@@ -238,22 +246,53 @@ class PlayableTrailersContainer(object):
         """
         return self._movie_data.get_projected_number_of_trailers()
 
-    def set_starving(self, is_starving):
-        # type: (bool) -> None
+    #
+    #
+    def set_starving(self, is_starving) -> None:
         """
 
-        :param is_starving:
         :return:
         """
+        #
+        # Inform the fetching code that at least one of the queues is out of
+        # playable trailers.
+        #
+        # Since TrailerDialog pre-fetches the next trailer to play and because
+        # we don't want to force replaying the currently running trailer when if
+        # we just waited a few seconds we would have more options, we put a delay
+        # before passing along the starving message.
+
+        self._starving = False
+
+        if is_starving:
+            if self._starve_check_timer is not None:
+                try:
+                    self._starve_check_timer.join(timeout=0.05)
+                except Exception:
+                    pass
+
+                self._starve_check_timer = None
+
+            # Wait ten seconds before declaring starvation. This gives the
+            # trailer_fetcher time to do something useful while trailer is
+            # playing.
+
+            self._starve_check_timer = threading.Timer(10.0, self.starving_check)
+            self._starve_check_timer.setName('Starve Check')
+            self._starve_check_timer.start()
+
+    def starving_check(self) -> None:
+        is_starving = self._ready_to_play_queue.empty()
         self._starving = is_starving
 
-    def is_starving(self):
-        # type: () -> bool
+    def is_starving(self) -> bool:
         """
 
         :return:
         """
-        return self._starving
+        starving = self._starving
+        self._starving = False
+        return starving
 
     @staticmethod
     def get_instances():
@@ -265,8 +304,7 @@ class PlayableTrailersContainer(object):
         return PlayableTrailersContainer._instances
 
     @staticmethod
-    def remove_instance(source):
-        # type: (str) -> None
+    def remove_instance(source: str) -> None:
         """
 
         :param source:
@@ -274,7 +312,7 @@ class PlayableTrailersContainer(object):
         """
         del PlayableTrailersContainer._instances[source]
 
-    def clear(self):
+    def clear(self) -> None:
         self._movie_data = None
         while not self._ready_to_play_queue.empty():
             self._ready_to_play_queue.get_nowait()

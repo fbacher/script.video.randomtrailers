@@ -10,6 +10,7 @@ import simplejson as json
 import re
 import sys
 
+from cache.itunes_cache_index import ItunesCacheIndex
 from common.constants import Constants, Movie, iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
@@ -137,6 +138,104 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(Trace.STATS):
             clz.logger.debug('Time to discover:', duration.seconds,
                              'seconds', trace=Trace.STATS)
+
+    '''
+    def send_cached_movies_to_discovery(self) -> None:
+        """
+
+        :return:
+        """
+        clz = DiscoverItunesMovies
+        try:
+            # Send any cached TMDB trailers to the discovered list first,
+            # since they require least processing.
+
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose(
+                    "Sending cached TMDB trailers to discovered list")
+
+            tmdb_trailer_ids: Set[int] = \
+                ItunesCacheIndex.get_itunes_trailer_ids().copy()
+            movies = []
+            for tmdb_id in tmdb_trailer_ids:
+                cached_movie = Cache.read_tmdb_cache_json(tmdb_id, Movie.TMDB_SOURCE,
+                                                          error_msg='TMDB trailer '
+                                                                    'not found')
+                if cached_movie is not None:
+                    year = cached_movie['release_date'][:-6]
+                    year = int(year)
+                    movie_entry = {Movie.TRAILER: Movie.TMDB_SOURCE,
+                                   Movie.SOURCE: Movie.TMDB_SOURCE,
+                                   Movie.TITLE: cached_movie[Movie.TITLE],
+                                   Movie.YEAR: year,
+                                   Movie.ORIGINAL_LANGUAGE:
+                                       cached_movie[Movie.ORIGINAL_LANGUAGE]}
+                    MovieEntryUtils.set_tmdb_id(movie_entry, tmdb_id)
+                    if self.filter_movie(movie_entry):
+                        movies.append(movie_entry)
+
+            # Don't add found trailers to unprocessed_movies
+
+            self.add_to_discovered_trailers(movies)
+            #
+            # Give fetcher time to load ready_to_play list. The next add
+            # will likely shuffle and mix these up with some that will take
+            # longer to process.
+            #
+            if len(movies) > 0:
+                Monitor.throw_exception_if_abort_requested(timeout=5.0)
+        except Exception as e:
+            clz.logger.exception('')
+
+        try:
+            # Send any unprocessed TMDB trailers to the discovered list
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose(
+                    "Sending unprocessed movies to discovered list")
+
+            discovery_complete_movies: List[MovieType] = []
+            discovery_needed_movies: List[MovieType] = []
+            unprocessed_movies = ItunesCacheIndex.get_unprocessed_movies()
+            for movie in unprocessed_movies.values():
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
+                        cert = movie.get(Movie.MPAA, 'none')
+                        clz.logger.debug_extra_verbose('No certification. Title:',
+                                                       movie[Movie.TITLE],
+                                                       'year:',
+                                                       movie.get(
+                                                           Movie.YEAR),
+                                                       'certification:', cert,
+                                                       'trailer:',
+                                                       movie.get(
+                                                           Movie.TRAILER),
+                                                       trace=Trace.TRACE_DISCOVERY)
+                        movie[Movie.MPAA] = ''
+
+                discovery_state = movie.get(Movie.DISCOVERY_STATE,
+                                            Movie.NOT_FULLY_DISCOVERED)
+                if (discovery_state < Movie.DISCOVERY_COMPLETE
+                        and self.filter_movie(movie)):
+                    discovery_needed_movies.append(movie)
+                if (discovery_state >= Movie.DISCOVERY_COMPLETE
+                        and self.filter_movie(movie)):
+                    discovery_complete_movies.append(movie)
+                    tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                    ItunesCacheIndex.remove_unprocessed_movies(tmdb_id)
+
+            # Add the fully discovered movies first, this should be rare,
+            # but might feed a few that can be displayed soon first.
+            # There will likely be a shuffle on each call, so they will be
+            # blended together anyway.
+
+            self.add_to_discovered_trailers(discovery_complete_movies)
+            if len(discovery_complete_movies) > 0:
+                Monitor.throw_exception_if_abort_requested(timeout=5.0)
+            self.add_to_discovered_trailers(discovery_needed_movies)
+
+        except Exception as e:
+            clz.logger.exception('')
+    '''
 
     def run_worker(self):
         # type: () -> None
@@ -454,6 +553,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                     Debug.validate_basic_movie_properties(
                                         movie)
                                 self.add_to_discovered_trailers(movie)
+                                # ItunesCacheIndex.cache_movie(movie)
                     except AbortException:
                         reraise(*sys.exc_info())
                     except Exception as e:
@@ -1078,7 +1178,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                      Movie.FILE: '',
                      # It looks like TrailerType is simply "trailer-" +
                      # trailer number
-                     Movie.TYPE: trailer_type,
+                     Movie.TRAILER_TYPE: trailer_type,
                      Movie.MPAA: rating,
                      Movie.ADULT: adult,
                      Movie.YEAR: str(release_date.year),

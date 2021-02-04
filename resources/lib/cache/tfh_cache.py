@@ -76,6 +76,64 @@ class TFHCache:
         :param flush:
         :param complete:
         :return:
+
+        Typical json entry
+        Items marked with * are kodi/TMDb artifacts
+
+            "BZwDpOQNgpw": {
+              "adult": false,
+              "cast": [],
+              "fanart": "default_fanart",
+              "genre": [],
+              "mpaa": "NR",
+              "normalized_trailer": "/home/fbacher/.kodi/userdata/addon_data/script.video.randomtrailers/cache/hB/tfh_BZwDpOQNgpw_normalized_Larry Karaszewski on SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3) (2017)-movie.mkv",
+              "original_language": "",
+              "plot": "But wait! There's more! TFH has a podcast! \n\nIt's THE MOVIES THAT MADE ME, where you can join Oscar-nominated screenwriter Josh Olson and his, ummm, \"co-host\" Joe Dante in conversation with filmmakers, comedians, and all-around interesting people about the movies that made them who they are. Check it out now, and please subscribe wherever podcasts can be found.\n\nBut wait! There's more! TFH has a podcast! \n\nIt's THE MOVIES THAT MADE ME, where you can join Oscar-nominated screenwriter Josh Olson and his, ummm, \"co-host\" Joe Dante in conversation with filmmakers, comedians, and all-around interesting people about the movies that made them who they are. Check it out now, and please subscribe wherever podcasts can be found.\n\niTunes: http://itunes.trailersfromhell.com\nSpotify: http://spotify.trailersfromhell.com\nLibsyn: http://podcast.trailersfromhell.com\nGoogle Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7\n\nAs always, you can find more commentary, more reviews, more podcasts, and more deep-dives into the films you don't know you love yet over at the Trailers From Hell mothership: \n\nhttp://www.trailersfromhell.com",
+              "rating": 4.8974357,
+              "genre": [],
+              "rts.actors": "",
+              "rts.certification": "Unrated",
+              "rts.certificationImage": "ratings/us/unrated.png",
+              "rts.directors": "",
+              "rts.genres": "",
+              "rts.runtime": "143 [B]Minutes[/B] - ",
+              "rts.studios": "",
+              "rts.tfhId": "BZwDpOQNgpw",
+              "rts.tfh_title": "SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3)",
+              "rts.title": "SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3) (2017) - TFH ",
+              "rts.tmdb_id_not_found": true,
+              "rts.voiced.actors": [],
+              "rts.voiced.directors": [],
+              "rts.voiced.studios": [],
+              "rts.voiced.writers": [],
+              "rts.writers": "",
+              "rts.youtube.trailers_in_index": 1449,
+              "rts.youtube_index": 204,
+              "runtime": 8580,
+              "source": "TFH",
+              "studio": [
+                 []
+              ],
+              "tags": [
+                 "smokey and the bandit 3",
+                 "larry karaszewski",
+                 "jackie gleason"
+              ],
+              "thumbnail": "https://i.ytimg.com/vi_webp/BZwDpOQNgpw/maxresdefault.webp",
+              "title": "SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3)",
+              "trailer": "https://youtu.be/BZwDpOQNgpw",
+              "trailerDiscoveryState": "04_discoveryReadyToDisplay",
+              "trailerPlayed": true,
+              "trailerType": "default_trailerType",
+              "uniqueid": {
+                 "tmdb": "None"
+              },
+              "writer": [
+                 []
+              ],
+              "year": 2017
+           }
+
         """
         with cls.lock:
             if (not flush and
@@ -227,6 +285,26 @@ class TFHCache:
             key = movie[Movie.TFH_ID]
             if total is not None:
                 cls._number_of_trailers_on_site = total
+            cls._cached_trailers[key] = movie
+            cls._unsaved_trailer_changes += 1
+            cls.save_cache(flush=flush)
+
+    @classmethod
+    def update_trailer(cls, movie: MovieType, flush=False) -> None:
+        """
+            Nearly identical (for now) to add_trailer.
+
+            Typically, due to shallow_copy of get_cached_trailers, the
+            movie is already in the _cached_trailers map. It is important
+            to bump the unsaved_trailer_changes count.
+
+        :param movie:
+        :param flush:
+        :return:
+        """
+
+        with cls.lock:
+            key = movie[Movie.TFH_ID]
             cls._cached_trailers[key] = movie
             cls._unsaved_trailer_changes += 1
             cls.save_cache(flush=flush)

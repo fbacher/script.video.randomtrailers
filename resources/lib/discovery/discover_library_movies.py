@@ -161,12 +161,11 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                              trace=Trace.STATS)
 
     def create_query(self,
-                     included_genres,  # type: List[str]
-                     excluded_genres,  # type: List[str]
-                     included_tags,  # type: List[str]
-                     excluded_tags  # type: List[str]
-                     ):
-        # type: (...) -> str
+                     included_genres: List[str],
+                     excluded_genres: List[str],
+                     included_tags: List[str],
+                     excluded_tags: List[str]
+                     ) -> str:
         """
 
         :param included_genres:
@@ -194,7 +193,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                     "params": {\
                     "properties": \
                         ["title", "lastplayed", "studio", "cast", "plot", "writer", \
-                        "director", "fanart", "rating", "ratings", "runtime", "mpaa", "thumbnail", "file", \
+                        "director", "fanart", "rating", "ratings", "runtime", "mpaa", \
+                        "thumbnail", "file", \
                         "year", "genre", "tag", "trailer", "uniqueid", "userrating",' \
                        '"votes"]'
         query_suffix = '}, "id": 1}'
@@ -404,7 +404,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
                 movie[Movie.SOURCE] = Movie.LIBRARY_SOURCE
                 movie.setdefault(Movie.TRAILER, '')
-                movie[Movie.TYPE] = ''
+                movie[Movie.TRAILER_TYPE] = ''
 
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     Debug.validate_basic_movie_properties(movie)

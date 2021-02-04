@@ -9,6 +9,7 @@ Created on Feb 10, 2019
 import datetime
 import locale
 import os
+import re
 
 import xbmcvfs
 from kodi65 import addon
@@ -75,10 +76,6 @@ class Constants:
         'script.video.randomtrailers': 'randomtrailers'
     }
 
-    VIDEO_TYPE_TRAILER = 'Trailer'
-    VIDEO_TYPE_FEATURETTE = 'Featurette'
-    VIDEO_TYPE_CLIP = 'Clip'
-
     @staticmethod
     def static_init():
         # type: () -> None
@@ -136,7 +133,7 @@ Constants.static_init()
 
 
 # noinspection PyClassHasNoInit
-class RemoteTrailerPreference(object):
+class RemoteTrailerPreference:
     """
         A few constants useful for trailers from remote sources (iTunes or
         TMDB). They likely should be moved to those classes.
@@ -154,7 +151,7 @@ class RemoteTrailerPreference(object):
 
 
 # noinspection PyClassHasNoInit
-class Movie(object):
+class Movie:
     """
         Defines constant values for Kodi trailer dict fields. Including some
         defined for this plugin.
@@ -340,12 +337,12 @@ List.Sort
     # Properties invented by this plugin:
 
     # From iTunes
-    # From Tmdb
+    # From TMDb
 
     # Probably don't need this field in kodi movie dict
     ADULT = 'adult'
 
-    TYPE = 'trailerType'
+    TRAILER_TYPE = 'trailerType'
     # TODO rename to trailerSource
     SOURCE = 'source'
     CACHED_TRAILER = 'cached_trailer'
@@ -354,14 +351,20 @@ List.Sort
     LANGUAGE_INFORMATION_FOUND = 'language_information_found'
     LANGUAGE_MATCHES = 'language_matches'
 
+    VIDEO_TYPE_TRAILER = 'Trailer'
+    VIDEO_TYPE_FEATURETTE = 'Featurette'
+    VIDEO_TYPE_CLIP = 'Clip'
+
     ITUNES_ID = 'rts.appleId'
     YOUTUBE_ID = 'rts.youtubeId'
     TFH_ID = 'rts.tfhId'
+    TFH_TITLE = 'rts.tfh_title'
     YOUTUBE_PLAYLIST_INDEX = 'rts.youtube_index'
     YOUTUBE_TRAILERS_IN_PLAYLIST = 'rts.youtube.trailers_in_index'
 
     # Processed values for InfoDialog
     DETAIL_ACTORS = 'rts.actors'
+    MAX_DISPLAYED_ACTORS = 6
     DETAIL_DIRECTORS = 'rts.directors'
     DETAIL_GENRES = 'rts.genres'
     DETAIL_CERTIFICATION = 'rts.certification'
@@ -374,6 +377,12 @@ List.Sort
     # For use with speech synthesis
     MAX_VOICED_ACTORS = 3
     VOICED_DETAIL_ACTORS = 'rts.voiced.actors'
+    MAX_VOICED_DIRECTORS = 2
+    VOICED_DETAIL_DIRECTORS = 'rts.voiced.directors'
+    MAX_VOICED_WRITERS = 2
+    VOICED_DETAIL_WRITERS = 'rts.voiced.writers'
+    MAX_VOICED_STUDIOS = 2
+    VOICED_DETAIL_STUDIOS = 'rts.voiced.studios'
 
     # Reference to corresponding movie dict entry
     DETAIL_ENTRY = 'rts.movie.entry'
@@ -427,14 +436,59 @@ List.Sort
 
     TMDB_ID_NOT_FOUND = 'rts.tmdb_id_not_found'
 
-    # Indicates whether this entry is from the Tmdb cache
+    # Indicates whether this entry is from the TMDb cache
 
     CACHED = 'cached'
 
-# noinspection PyClassHasNoInit
+    # Reasons a TMDB movie was rejected
+
+    REJECTED = 'rts.rejected'  # Value is a List of the following reasons:
+    REJECTED_NO_TRAILER = 1
+    REJECTED_FILTER_GENRE = 2
+    REJECTED_FAIL = 3  # Request to TMDB failed
+    REJECTED_FILTER_DATE = 4
+    REJECTED_LANGUAGE = 5
+    REJECTED_CERTIFICATION = 6
+    REJECTED_ADULT = 7
+    REJECTED_VOTE = 8
 
 
-class iTunes(object):
+    DEFAULT_MOVIE = {
+        DISCOVERY_STATE: NOT_INITIALIZED,
+        TITLE: 'default_' + TITLE,
+        ORIGINAL_TITLE: 'default_' + ORIGINAL_TITLE,
+        YEAR: 0,
+        STUDIO: [],
+        MPAA: '',
+        THUMBNAIL: 'default_' + THUMBNAIL,
+        TRAILER: 'default_' + TRAILER,
+        FANART: 'default_' + FANART,
+        FILE: 'default_' + FILE,
+        DIRECTOR: ['default_' + DIRECTOR],
+        WRITER: ['default_' + WRITER],
+        PLOT: 'default_' + PLOT,
+        CAST: [],  # Cast is a list of Dict entries
+        RUNTIME: 0,
+        GENRE: [],
+        TMDB_TAGS: ['default_' + TMDB_TAGS],
+        RATING: 0.0,
+        VOTES: 0,
+        ADULT: False,
+        SOURCE: 'default_' + SOURCE,
+        TRAILER_TYPE: 'default_' + TRAILER_TYPE,
+        DETAIL_DIRECTORS: ['default_' + DETAIL_DIRECTORS],
+        DETAIL_TITLE: 'default_' + TITLE,
+        DETAIL_ACTORS: ['default_' + DETAIL_ACTORS],
+        DETAIL_GENRES: ['default_' + DETAIL_GENRES],
+        DETAIL_CERTIFICATION: ['default_' + DETAIL_CERTIFICATION],
+        DETAIL_CERTIFICATION_IMAGE: 'default_' + DETAIL_CERTIFICATION_IMAGE,
+        DETAIL_RUNTIME: 0,
+        DETAIL_WRITERS: ['default_' + DETAIL_WRITERS],
+        DETAIL_STUDIOS: ['default_' + DETAIL_STUDIOS],
+    }
+
+
+class iTunes:
     """
         Defines constants that apply to iTunes
     """
@@ -462,6 +516,10 @@ class iTunes(object):
         # type: (int) -> str
         url = iTunes._trailerForTypeMap.get(trailerType, None)
         return url
+
+
+class TFH:
+    TITLE_RE = re.compile(r'(([A-Z0-9.!?_$#-]) ?[A-Zc0-9.!?_#&@:$\'" -]*$)')
 
 
 """
@@ -495,7 +553,7 @@ class TMDB(object):
 """
 
 
-class GenreEnum(object):
+class GenreEnum:
     # Possible values returned by settings.xml
 
     IGNORE = 0  # This Genre will be ignored in filtering
@@ -505,7 +563,7 @@ class GenreEnum(object):
 # noinspection PyClassHasNoInit
 
 
-class GenreConstants(object):
+class GenreConstants:
     # Ids used in settings.xml
     ACTION = 'g_action'
     ALEGORY = 'g_alegory'  # NOT USED
@@ -549,7 +607,7 @@ class GenreConstants(object):
     WESTERN = 'g_western'
 
 
-class DebugLevel(object):
+class DebugLevel:
     """
 
     """

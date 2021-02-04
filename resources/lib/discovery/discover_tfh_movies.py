@@ -5,14 +5,14 @@ Created on Apr 14, 2019
 @author: Frank Feuerbacher
 """
 
-import sys
 import datetime
-import json
+import re
+import sys
 
 import xbmcvfs
 
 from cache.tfh_cache import (TFHCache)
-from common.constants import Constants, Movie
+from common.constants import Constants, Movie, TFH
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
 from common.imports import *
@@ -35,6 +35,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         TMDB, like iTunes, provides trailers. Query TMDB for trailers
         and manufacture trailer entries for them.
     """
+    FORCE_TFH_REDISCOVERY = True
+
     _singleton_instance = None
     logger: LazyLogger = None
 
@@ -107,7 +109,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 try:
                     self.run_worker()
                     self.wait_until_restart_or_shutdown()
-                except (RestartDiscoveryException):
+                except RestartDiscoveryException:
                     # Restart discovery
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug('Restarting discovery')
@@ -193,13 +195,105 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         cached_trailers = TFHCache.get_cached_trailers()
         max_trailers = Settings.get_max_number_of_tfh_trailers()
         trailer_list = list(cached_trailers.values())
-        DiskUtils.RandomGenerator.shuffle((trailer_list))
+        DiskUtils.RandomGenerator.shuffle(trailer_list)
 
         # Limit trailers added by settings, but don't throw away what
         # we have discovered.
 
         if max_trailers < len(trailer_list):
             del trailer_list[max_trailers:]
+
+        #
+        # PATCH PATCH PATCH PATCH
+        #
+        # Patch to extract Movie title from TFH "title"
+        #
+        # Formats: Reviewer on CAPS TITLE (most common)
+        #          Reviewer talks TITLE
+        #          Reviewer talks about TITLE
+        #          Reviewer discusses TITLE
+        #          Reviewer's TITLE
+        #          TITLE
+        #          Reviewer In Conversation With Person
+        #          Reviewer covers TITLE
+        #          Reviewer introduces TITLE for the Cinenasty series
+        #
+        # Occasionally, CAPS_TITLE has some lower case chars (grr)
+        #               ex: BIG JIM McLEAN
+
+        for tfh_trailer in trailer_list:
+
+            # Mostly to protect against cached entries produced by bugs which
+            # are now fixed, reset certain fields to force rediscovery.
+
+            if clz.FORCE_TFH_REDISCOVERY:
+                tfh_trailer[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
+                # Fields read from youtube
+                """
+                    = {Movie.SOURCE: 'unknown',
+                       Movie.YOUTUBE_ID: trailer_id,
+                       Movie.TFH_TITLE: tfh_title,
+                       Movie.TITLE: movie_title,
+                       Movie.YEAR: year,
+                       Movie.TRAILER: trailer_url,
+                       Movie.PLOT: description,
+                       Movie.THUMBNAIL: thumbnail,
+                       Movie.RATING: movie_data.get('average_rating', 0.0),
+                       # Kodi measures in seconds
+                       # At least for TFH, this appears to be time of trailer
+                       # (not movie), measured in 1/60 of a
+                       # second, or 60Hz frames. Weird.
+                       Movie.RUNTIME: movie_data.get('duration', 1.0) * 60
+                       }
+                       
+                Initial values set in youtube video_downloader:
+                       Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
+                       Movie.MPAA: unrated_id,
+                       Movie.ADULT: False,
+                   
+                Fields read from cache:
+                J- Junk
+                D- Detail (no need to persist)
+                
+                    "cached_trailer": "/home/fbacher/.kodi/userdata/addon_data/script.video.randomtrailers/cache/hA/tfh_AniaXIWKKuc_John Landis on KIND HEARTS AND CORONETS (2013)-movie.mkv",
+                      "cast": [],
+                      "fanart": "",
+                      "genre": [],
+                      "mpaa": "NR",
+                      "original_language": "",
+                      "plot": "Perhaps the greatest of the Ealing comedies, this blackly humorous multiple murder farce is best known for Alec Guinness's eight roles as all the D'ascoyne family victims, but it's really murderous lead Dennis Price who walks away with the acting honors.\n\nAs always, find more great cinematic classics at http://www.trailersfromhell.com\n\nABOUT TRAILERS FROM HELL:  \n\nTFH is the premier showcase for a breathtakingly eclectic assortment of trailers from classic era films both in their original form and punctuated with informative and amusing commentary by contemporary filmmakers.\n\nFollow us on Twitter: ‪‪http://www.twitter.com/trailersfromhel‬‬\nLike us on Facebook: ‪‪http://www.facebook.com/trailersfromhell‬‬",
+                      "rating": 4.9272728,
+                D     "rts.actors": [],
+                D     "rts.certification": "Unrated",
+                D     "rts.certificationImage": "ratings/us/unrated.png",
+                D     "rts.directors": "",
+                D     "rts.genres": [],
+                D     "rts.runtime": "199 [B]Minutes[/B] - ",
+                D     "rts.studios": "",
+                      "rts.tfhId": "AniaXIWKKuc",
+                      "rts.tfh_title": "KIND HEARTS AND CORONETS",
+                D     "rts.title": "John Landis on KIND HEARTS AND CORONETS (2013) - TFH ",
+                D     "rts.voiced.actors": "",
+                D     "rts.writers": "",
+                      "rts.youtube.trailers_in_index": 1449,
+                      "rts.youtube_index": 164,
+                      "runtime": 11940,
+                      "source": "TFH",
+                      "studio": "default_studio",
+                      "tags": [
+                         "John Landis (Music Video Director)",
+                         "Kind Hearts And Coronets (Film)"
+                      ],
+                      "thumbnail": "https://i.ytimg.com/vi/AniaXIWKKuc/maxresdefault.jpg",
+                      "title": "KIND HEARTS AND CORONETS",
+                      "trailer": "https://youtu.be/AniaXIWKKuc",
+                      "trailerDiscoveryState": "04_discoveryReadyToDisplay",
+                      "trailerPlayed": false,
+                      "trailerType": "default_trailerType",
+                      "writer": [],
+                      "year": 2013
+                """
+
         self.add_to_discovered_trailers(trailer_list)
 
         cache_expiration_time = datetime.timedelta(
@@ -259,7 +353,49 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 TFHCache.set_creation_date()
                 TFHCache.save_cache(flush=flush, complete=complete)
 
-    def trailer_handler(self, tfh_trailer: Dict[str, Any]) -> bool:
+    def fix_title(self, tfh_trailer: MovieType) -> str:
+        clz = type(self)
+
+        # TFH Title formats prefix the movie title with the name of the
+        # reviewer and the date of review (or post to Youtube). Strip this
+        # out to leave only the Movie Name (but in uppercase). Later, TMDb
+        # will be consulted to get the correct title and date.
+        #
+        # Formats: Reviewer on CAPS TITLE (most common)
+        #          Reviewer talks TITLE
+        #          Reviewer talks about TITLE
+        #          Reviewer discusses TITLE
+        #          Reviewer's TITLE
+        #          TITLE
+        #          Reviewer In Conversation With Person
+        #          Reviewer covers TITLE
+        #          Reviewer introduces TITLE for the Cinenasty series
+        #
+        # Occasionally, CAPS_TITLE has some lower case chars (grr)
+        #               ex: BIG JIM McLEAN
+        #                   Eli Roth on EXCORCIST II: THE HERETIC
+
+        tfh_title = tfh_trailer[Movie.TFH_TITLE]
+        title_segments = re.split(TFH.TITLE_RE, tfh_title)
+        # director : on : title
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.debug(
+                f'tfh_raw: {tfh_title} title_segments: {str(title_segments)}')
+
+        reviewer = title_segments[0]
+
+        # Is this a non-standard format for movie?
+        if len(title_segments) > 1:
+            movie_title = title_segments[1]
+        else:
+            movie_title = tfh_title  # Not sure what else to do
+
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.debug(f'reviewer: {reviewer} title: {movie_title}')
+
+        return movie_title
+
+    def trailer_handler(self, tfh_trailer: MovieType) -> bool:
         """
 
         :param tfh_trailer:
@@ -274,14 +410,14 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         if trailer_id not in self._unique_trailer_ids:
             self._unique_trailer_ids.add(trailer_id)
 
-            # TFH trailers are titled: <reviewer> on <MOVIE_TITLE_ALL_CAPS>
-            # Here we can try to get just the movie title and then look up
-            # a likely match in TMDB (with date, and other info).
+            # The movie's title is embedded within the TFH title
+            # The title will be extracted from it, but save the original
 
-            # TFH may not like changing the title, however.
-
+            tfh_trailer[Movie.TFH_TITLE] = tfh_trailer[Movie.TITLE]
+            tfh_trailer[Movie.TITLE] = self.fix_title(tfh_trailer)
             tfh_trailer[Movie.SOURCE] = Movie.TFH_SOURCE
             tfh_trailer[Movie.TFH_ID] = tfh_trailer[Movie.YOUTUBE_ID]
+            tfh_trailer[Movie.TRAILER_TYPE] = Movie.VIDEO_TYPE_TRAILER
             del tfh_trailer[Movie.YOUTUBE_ID]
             trailers_in_playlist = tfh_trailer[Movie.YOUTUBE_TRAILERS_IN_PLAYLIST]
 
@@ -291,8 +427,6 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             # else:
             TFHCache.add_trailer(
                 tfh_trailer, total=trailers_in_playlist, flush=False)
-            cached_trailers = TFHCache.get_cached_trailers()
-            max_trailers = Settings.get_max_number_of_tfh_trailers()
             self.add_to_discovered_trailers(tfh_trailer)
             self.number_of_trailers_on_site = trailers_in_playlist
             return False

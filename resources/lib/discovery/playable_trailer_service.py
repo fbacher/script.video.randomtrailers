@@ -64,6 +64,7 @@ class PlayableTrailerService(object):
         self._next_second_attempts = 0
         self._next_second_total_Duration = 0
         self._played_movies_count = 0
+        self._previous_title = ''
 
     def iter(self):
         # type: () -> Iterable
@@ -225,7 +226,7 @@ class PlayableTrailerService(object):
                     self.logger.debug_extra_verbose(
                         'PlayableTrailerService.next trailer_index_to_play:',
                         trailer_index_to_play)
-            except (ValueError) as e:  # Empty range
+            except ValueError as e:  # Empty range
                 Monitor.throw_exception_if_abort_requested(timeout=0.10)
                 continue
 
@@ -291,7 +292,8 @@ class PlayableTrailerService(object):
                         movie_data=movie_data)
 
                     if (playable_trailers.get_number_of_playable_movies() == 0
-                            and playable_trailers.get_movie_data().get_number_of_movies() > 0
+                            and playable_trailers.get_movie_data().
+                                    get_number_of_movies() > 0
                             and playable_trailers.is_playable_trailers()):
                         if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                             self.logger.debug_verbose(
@@ -299,6 +301,10 @@ class PlayableTrailerService(object):
                                 'discoveredTrailerQueue empty',
                                 'source:', source,
                                 trace=Trace.TRACE_DISCOVERY)
+                        #
+                        # discovered trailer queue empty because all have played.
+                        # Reload.
+
                         playable_trailers.get_movie_data().\
                             shuffle_discovered_trailers(mark_unplayed=True)
                     trailer = playable_trailers.get_next_movie()
@@ -330,11 +336,16 @@ class PlayableTrailerService(object):
                     Monitor.throw_exception_if_abort_requested(
                         timeout=0.5)
 
-        if trailer is None:
+        if trailer is None:  # No trailer found from all our sources (lib, tmdb, tfh, etc)
             self._next_failures += 1
         else:
             trailer[Movie.TRAILER_PLAYED] = True
             title = trailer[Movie.TITLE] + ' : ' + trailer[Movie.TRAILER]
+            if self._previous_title == title:
+                if clz.logger.isEnabledFor(LazyLogger.debug_verbose):
+                    clz.logger.debug_verbose(f'Skipping previously played: {title}')
+                trailer = None
+                self._previous_title = ''  # Don't do twice in a row
 
         duration = datetime.datetime.now() - start_time
         self._next_total_duration += duration.seconds

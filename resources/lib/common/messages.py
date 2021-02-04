@@ -36,7 +36,7 @@ class Messages(object):
     PLAYING_PREVIOUS_MOVIE = 'Playing: %s'
     GENRE_LABEL = 'Genre: '
     MINUTES_DETAIL = '{} [B]Minutes[/B] - '
-    RUNTIME_GENRE = '{} [B]Genre:[/B] {}'
+    RUNTIME_GENRE = '{} [B]Genre:[/B]'
     TITLE_LABEL = 'Title'
     DIRECTOR_LABEL = 'Director'
     WRITER_LABEL = 'Writer'
@@ -268,14 +268,13 @@ class Messages(object):
         return msg
 
     @classmethod
-    def get_formated_title(cls, movie):
-        # type: (Dict[str, str]) -> str
+    def get_formated_title(cls, movie: MovieType) -> str:
         """
 
         :param movie:
         :return:
         """
-        trailer_type = movie.get(Movie.TYPE, '')
+        trailer_type = movie.get(Movie.TRAILER_TYPE, '')
 
         year = str(movie.get(Movie.YEAR, ''))
         if year != '':

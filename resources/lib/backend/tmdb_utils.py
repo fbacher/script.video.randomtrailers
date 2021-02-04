@@ -6,7 +6,8 @@ Created on Feb 10, 2019
 @author: Frank Feuerbacher
 """
 
-import os
+from math import sqrt
+import re
 import sys
 
 from common.imports import *
@@ -24,7 +25,242 @@ from backend.json_utils_basic import (JsonUtilsBasic)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class TMDBUtils(object):
+class TMDBMatcher:
+    FILTER_TITLE_PATTERN = re.compile(r'(?:(?:the)|(?:a) )(.*)(?:[?!:-]?)')
+
+    _logger = None
+
+    class CandidateMovie:
+        _logger = None
+
+        def __init__(self, tmdb_movie: [Dict[str, Any]],
+                     tmdb_title: str,
+                     tmdb_year: str,
+                     tmdb_language: str,
+                     tmdb_id: str,
+                     runtime_seconds: int):
+            clz = type(self)
+            if clz._logger is None:
+                clz._logger = module_logger.getChild(clz.__name__)
+
+            self._movie: [Dict[str, Any]] = tmdb_movie
+            self._title: str = tmdb_title
+            self._year:str = tmdb_year
+            self._language: str = tmdb_language
+            self._runtime_seconds: int = runtime_seconds
+            self._tmdb_id: str = tmdb_id
+            self._lower_title = self._title.lower()
+            self._score = 0
+
+        def score(self, movie_title: str, movie_year: Union[str, None],
+                  movie_tmdb_id: str = None, runtime_seconds: int = 0) -> None:
+
+            # Score tmdb movie:
+            #  Highest score if movie title, year and original language match
+            #  perfectly
+            #       (When searching for match of TFH movie, there is no date)
+            #
+            #  Second highest score if all but original language matches
+            #
+            #  Third score if title, original language match perfectly
+            #
+            #  Fourth score if title nearly matches and year and original language
+            #  match perfectly
+            #
+            #  Fifth score if title nearly matches, year matches but not language
+            #
+            #  Sixth score if title nearly matches and original language matches
+            #
+            #  Seventh score
+
+            clz = type(self)
+            try:
+                score = 0
+                lower_movie_title = movie_title.lower()
+                if lower_movie_title == self._lower_title:
+                    score = 1000
+                else:
+                    #
+                    # Perhaps there is a erroneous leading prefix, such as: 'The'
+                    #
+                    filtered_tmdb_title = re.sub(TMDBMatcher.FILTER_TITLE_PATTERN,
+                                                 r'\1', self._lower_title)
+                    filtered_movie_title = re.sub(TMDBMatcher.FILTER_TITLE_PATTERN,
+                                                  r'\1', lower_movie_title)
+                    if filtered_tmdb_title == lower_movie_title:
+                        score = 900
+                    elif self._lower_title == filtered_movie_title:
+                        score = 900
+
+                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz._logger.debug_extra_verbose(
+                            f'tmdb_title: {self._lower_title}'
+                            f' filtered: {filtered_tmdb_title}'
+                            f' movie_title: {lower_movie_title}'
+                            f' filtered: {filtered_movie_title}'
+                            f' score: {score}')
+
+                # Check if within a year of expected year
+                if movie_year is not None:
+                    if abs(int(movie_year) - int(self._year)) < 2:
+                        score += 500
+
+                if self._language == Settings.get_lang_iso_639_1():
+                    score += 10
+
+                if runtime_seconds > 0 and self._runtime_seconds > 0:
+                    # Movie duration may be off a bit
+                    time_delta = abs(runtime_seconds - self._runtime_seconds)
+
+                    # Non-linear penalty for more error
+
+                    score += 250 * (sqrt(runtime_seconds ** 2 - time_delta ** 2) /
+                                    runtime_seconds)
+                else:
+                    if self._runtime_seconds >= 50 * 60:  # Avoid movies < 50 minutes
+                        score += 50
+
+                self._score = score
+
+            except AbortException:
+                reraise(*sys.exc_info())
+
+            except Exception as e:
+                clz._logger.exception(e)
+
+        def get_score(self) -> int:
+            return self._score
+
+        def get_movie(self) -> MovieType:
+            return self._movie
+
+    def __init__(self, title: str, year: Union[str, None], runtime_seconds: int):
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
+
+        self._title_to_match: str = title
+        self._year_to_match: Union[str, None] = year
+        self._runtime_seconds_to_match: int = runtime_seconds
+
+        self.candidate_movies: List[clz.CandidateMovie] = []
+
+        data = {
+            'api_key': Settings.get_tmdb_api_key(),
+            'page': '1',
+            'query': title,
+            'language': Settings.get_lang_iso_639_1()
+        }
+
+        if year is not None:
+            data['primary_release_year'] = year
+
+        try:
+            include_adult = 'false'
+
+            country_id = Settings.get_country_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            adult_certification = certifications.get_certification('dummy', True)
+            if certifications.filter(adult_certification):
+                include_adult = 'true'
+            data['include_adult'] = include_adult
+            data['append_to_response'] = 'alternative_titles'
+
+            url = 'https://api.themoviedb.org/3/search/movie'
+            status_code, _info_string = \
+                JsonUtilsBasic.get_json(url, params=data,
+                                        dump_msg='get_tmdb_id_from_title_year',
+                                        dump_results=True,
+                                        error_msg=title +
+                                        f' ({year})')
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                clz._logger.debug_extra_verbose(
+                    f'Getting TMDB movie for title: {title} year: {year} '
+                    f'runtime: {runtime_seconds}')
+
+            if _info_string is not None:
+                results = _info_string.get('results', [])
+                if len(results) > 1:
+                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz._logger.debug_extra_verbose(
+                            f'Got multiple matching movies: {title} '
+                            f'year: {year} runtime: {runtime_seconds}')
+
+                # TODO: Improve. Create best trailer function from get_tmdb_trailer
+                # TODO: find best trailer_id
+
+                current_language = Settings.get_lang_iso_639_1()
+
+                for movie in results:
+                    release_date = movie.get('release_date', '')  # 1932-04-22
+                    tmdb_year = release_date[:-6]
+                    movie[Movie.YEAR] = tmdb_year
+                    tmdb_title = movie.get('title', '')
+                    tmdb_id = movie.get('id', None)
+                    tmdb_language = movie.get('original_language')
+                    runtime_minutes = movie.get(Movie.RUNTIME, 0)
+                    runtime_seconds = int(runtime_minutes * 60)
+
+                    titles = movie.get('alternative_titles', {'titles': []})
+                    alt_titles = []
+                    for title in titles['titles']:
+                        alt_title = (title['title'], title['iso_3166_1'])
+                        alt_titles.append(alt_title)
+
+                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz._logger.debug_extra_verbose(
+                            f'Matching Movie date: {tmdb_year}'
+                            f' tmdb_title: {tmdb_title}'
+                            f' lang: {tmdb_language}'
+                            f' current_lang: {current_language}')
+
+                    self._add(movie, tmdb_title, tmdb_year,
+                              tmdb_language, tmdb_id, runtime_seconds)
+
+        except AbortException:
+            reraise(*sys.exc_info())
+
+        except Exception as e:
+            clz._logger.exception(e)
+
+    def _add(self,
+             tmdb_movie: [Dict[str, Any]],
+             tmdb_title: str,
+             tmdb_year: str,
+             tmdb_language: str,
+             tmdb_id: str,
+             runtime_seconds: int = 0):
+        clz = type(self)
+
+        candidate = clz.CandidateMovie(tmdb_movie, tmdb_title, tmdb_year,
+                                       tmdb_language, tmdb_id,
+                                       runtime_seconds=runtime_seconds)
+        self.candidate_movies.append(candidate)
+        candidate.score(self._title_to_match,
+                        self._year_to_match,
+                        runtime_seconds=self._runtime_seconds_to_match)
+
+    def get_best_score(self) -> (Union[MovieType, None], int):
+        clz = type(self)
+
+        best_match = None
+        best_score = 0
+        for candidate in self.candidate_movies:
+            if candidate.get_score() > best_score:
+                best_score = candidate.get_score()
+                best_match = candidate.get_movie()
+
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            title = 'Not Found'
+            if best_match is not None:
+                title = best_match[Movie.TITLE]
+
+            clz._logger.debug_extra_verbose(f'Best match: score: {best_score}'
+                                            f' title: {title}')
+        return best_match, best_score
+
+
+class TMDBUtils:
     """
 
 
@@ -69,9 +305,13 @@ class TMDBUtils(object):
         return self._tmdb_id
 
     @classmethod
-    def load_cache(cls):
-        # type () -> None
+    def load_cache(cls) -> None:
         """
+        Loads kodi-id and tmdb-id for ENTIRE database for every entry with tmdb-id.
+        This cache is not saved and is loaded on first query.
+
+        TODO: Change to query database for entry with tmdb-id on demand. May not
+              be possible to do cheaply.
 
         :return:
         """
@@ -95,9 +335,9 @@ class TMDBUtils(object):
         if result_field is not None:
             for movie in result_field.get('movies', []):
                 title = movie[Movie.TITLE]
-                kodi_id = movie['movieid']
+                kodi_id = movie[Movie.MOVIEID]
                 kodi_file = movie[Movie.FILE]
-                year = movie['year']
+                year = movie[Movie.YEAR]
                 tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
                 if tmdb_id is None:
                     tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
@@ -108,8 +348,7 @@ class TMDBUtils(object):
                     TMDBUtils.kodi_data_for_tmdb_id[tmdb_id] = entry
 
     @classmethod
-    def get_kodi_id_for_tmdb_id(cls, tmdb_id):
-        # type: (int) -> str
+    def get_kodi_id_for_tmdb_id(cls, tmdb_id: int) -> str:
         """
 
         :param tmdb_id:
@@ -135,23 +374,28 @@ class TMDBUtils(object):
         return entry
 
     @staticmethod
-    def get_tmdb_id_from_title_year(title: str, year: int) -> int:
+    def get_tmdb_id_from_title_year(title: str, year: Union[int, str],
+                                    runtime_seconds: int = 0) -> int:
         """
 
         :param title:
         :param year:
+        :param runtime_seconds:
         :return:
         """
         tmdb_id = None
         try:
-            year = int(year)
-            tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(title, year)
-            if tmdb_id is None:
+            if year is not None:
+                year = int(year)
+            tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(title, year,
+                                                             runtime_seconds=
+                                                             runtime_seconds)
+            if tmdb_id is None and year is not None:
                 tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(
-                    title, year + 1)
-            if tmdb_id is None:
+                    title, year + 1, runtime_seconds=runtime_seconds)
+            if tmdb_id is None and year is not None:
                 tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(
-                    title, year - 1)
+                    title, year - 1, runtime_seconds=runtime_seconds)
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -163,104 +407,25 @@ class TMDBUtils(object):
         return tmdb_id
 
     @staticmethod
-    def _get_tmdb_id_from_title_year(title: str, year: int) -> Optional[int]:
+    def _get_tmdb_id_from_title_year(title: str, year: int,
+                                     runtime_seconds: int = 0) -> Optional[int]:
         """
             When we don't have a trailer for a movie, we can
             see if TMDB has one.
         :param title:
         :param year:
+        :param runtime_seconds:
         :return:
         """
-        year_str = str(year)
-        found_movie = None
-        trailer_id = None
-        data = {}
-        data['api_key'] = Settings.get_tmdb_api_key()
-        data['page'] = '1'
-        data['query'] = title
-        data['language'] = Settings.get_lang_iso_639_1()
-        data['primary_release_year'] = year
+        year_str = None
+        if year is not None:
+            year_str = str(year)
 
+        best_match = None
         try:
-            include_adult = 'false'
+            matcher = TMDBMatcher(title, year_str, runtime_seconds)
+            best_match, best_score = matcher.get_best_score()
 
-            country_id = Settings.get_country_iso_3166_1().lower()
-            certifications = WorldCertifications.get_certifications(country_id)
-            adult_certification = certifications.get_certification('dummy', True)
-            if certifications.filter(adult_certification):
-                include_adult = 'true'
-            data['include_adult'] = include_adult
-
-            url = 'https://api.themoviedb.org/3/search/movie'
-            status_code, _info_string = \
-                JsonUtilsBasic.get_json(url, params=data,
-                                        dump_msg='get_tmdb_id_from_title_year',
-                                        dump_results=True,
-                                        error_msg=title +
-                                                  ' (' + year_str + ')')
-            if _info_string is not None:
-                results = _info_string.get('results', [])
-                if len(results) > 1:
-                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        TMDBUtils._logger.debug_extra_verbose(
-                            'Got multiple matching movies:',
-                            title,
-                            'year:', year)
-
-                # TODO: Improve. Create best trailer function from get_tmdb_trailer
-                # TODO: find best trailer_id
-
-                matches = []
-                current_language = Settings.get_lang_iso_639_1()
-                movie = None
-                for movie in results:
-                    release_date = movie.get('release_date', '')  # 1932-04-22
-                    found_year = release_date[:-6]
-                    found_title = movie.get('title', '')
-
-                    if (found_title.lower() == title.lower()
-                            and found_year == year_str
-                            and movie.get('original_language') == current_language):
-                        matches.append(movie)
-
-                # TODO: Consider close match heuristics.
-
-                if len(matches) == 1:
-                    found_movie = matches[0]
-                elif len(matches) > 1:
-                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        TMDBUtils._logger.debug_extra_verbose(
-                            'More than one matching movie in same year choosing first '
-                            'one matching current language.',
-                            'Num choices:', len(matches))
-                    found_movie = matches[0]
-
-                if movie is None:
-                    if TMDBUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        TMDBUtils._logger.debug_extra_verbose('Could not find movie:',
-                                                              title, 'year:', year,
-                                                              'at TMDB. found',
-                                                              len(results), 'candidates')
-                    for a_movie in results:
-                        release_date = a_movie.get(
-                            'release_date', '')  # 1932-04-22
-                        found_year = release_date[:-6]
-                        found_title = a_movie.get('title', '')
-                        tmdb_id = a_movie.get('id', None)
-                        if TMDBUtils._logger.isEnabledFor(LazyLogger.DISABLED):
-                            TMDBUtils._logger.debug_extra_verbose('found:', found_title,
-                                                                  '(', found_year, ')',
-                                                                  'tmdb id:', tmdb_id)
-                        tmdb_data = MovieEntryUtils.get_alternate_titles(
-                            title, tmdb_id)
-                        for alt_title, country in tmdb_data['alt_titles']:
-                            if alt_title.lower() == title.lower():
-                                found_movie = tmdb_data  # Not actually in "movie" format
-                                break
-            else:
-                if TMDBUtils._logger.isEnabledFor(LazyLogger.INFO):
-                    TMDBUtils._logger.info('Could not find movie:', title, 'year:', year,
-                                            'at TMDB. found no candidates')
         except AbortException:
             reraise(*sys.exc_info())
 
@@ -268,10 +433,11 @@ class TMDBUtils(object):
             TMDBUtils._logger.exception('')
 
         tmdb_id = None
-        if found_movie is not None:
-            tmdb_id = found_movie.get('id', None)
+        if best_match is not None:
+            tmdb_id = best_match.get('id', None)
         if tmdb_id is None:
             return None
         return int(tmdb_id)
+
 
 TMDBUtils.class_init()

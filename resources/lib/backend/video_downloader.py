@@ -17,7 +17,7 @@ import threading
 
 import youtube_dl
 
-from common.constants import Constants, Movie, MovieType
+from common.constants import Constants, Movie, MovieType, TFH
 from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.exceptions import AbortException
@@ -276,11 +276,13 @@ class VideoDownloader:
                 ydl_opts['cookiefile'] = cookie_path
 
             # Start download
+            # Sometimes fail with Nonetyp or other errors because of a URL that
+            # requires a login, is for an ADULT movie, etc.
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
             while (video_logger.data is None and self._error == 0 and not
-            self._download_finished):
+                    self._download_finished):
                 Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
             movie = video_logger.data
@@ -570,7 +572,6 @@ class BaseYDLogger:
                 type(self).logger.debug_extra_verbose(
                     f'Abandoning download of {self.url}. Too Many Requests')
 
-
     def debug(self, line: str) -> None:
         """
         {"_type": "url", "url": "vYALYAuD5Fw", "ie_key": "Youtube",
@@ -800,7 +801,18 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
 
         Not used for iTunes movies. Rely on DiscoverItunesMovies for that.
 
-        TFH trailers are titled: <reviewer> on <MOVIE_TITLE_ALL_CAPS>
+        TFH trailers are titled:
+
+         Formats: Reviewer on CAPS TITLE (most common)
+                  Reviewer talks TITLE
+                  Reviewer talks about TITLE
+                  Reviewer discusses TITLE
+                  Reviewer's TITLE
+                  TITLE
+                  Reviewer In Conversation With Person
+                  Reviewer covers TITLE
+                  Reviewer introduces TITLE for the Cinenasty series
+
         Here we can try to get just the movie title and then look up
         a likely match in TMDB (with date, and other info).
         TFH may not like us changing/guessing the movie title, however.
@@ -817,11 +829,8 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
         if movie_data.get('title') is None:
             missing_keywords.append('title')
             dump_json = True
-        title = movie_data.get('title', 'missing title')
-        # title_segments = title.split(' on ')
-        # real_title_index = len(title_segments) - 1
-        # movie_title = title_segments[real_title_index]
-        movie_title = title
+
+        movie_title = movie_data.get('title', 'Missing Title')
         trailer_url = 'https://youtu.be/' + trailer_id
         if movie_data.get('upload_date') is None:
             missing_keywords.append('upload_date')
@@ -829,14 +838,14 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
             movie_data['upload_date'] = datetime.datetime.now(
             ).strftime('%Y%m%d')
         upload_date = movie_data.get('upload_date', '19000101')  # 20120910
-        year = upload_date[0:4]
-        year = int(year)
+        year_str = upload_date[0:4]
+
+        year = int(year_str)
         if movie_data.get('thumbnail') is None:
             missing_keywords.append('thumbnail')
             dump_json = True
         thumbnail = movie_data.get('thumbnail', '')
 
-        original_language = ''
         if movie_data.get('description') is None:
             missing_keywords.append('description')
             dump_json = True
@@ -858,7 +867,7 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
                  Movie.YOUTUBE_ID: trailer_id,
                  Movie.TITLE: movie_title,
                  Movie.YEAR: year,
-                 Movie.ORIGINAL_LANGUAGE: original_language,
+                 Movie.ORIGINAL_LANGUAGE: '',
                  Movie.TRAILER: trailer_url,
                  Movie.PLOT: description,
                  Movie.THUMBNAIL: thumbnail,
@@ -867,7 +876,10 @@ def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
                  Movie.ADULT: False,
                  Movie.RATING: movie_data.get('average_rating', 0.0),
                  # Kodi measures in seconds
-                 Movie.RUNTIME: movie_data.get('duration', 1.0) * 60
+                 # At least for TFH, this appears to be time of trailer
+                 # (not movie), measured in 1/60 of a
+                 # second, or 60Hz frames. Weird.
+                 Movie.RUNTIME: 0  # Ignore trailer length
                  }
         if playlist_index is not None:
             movie[Movie.YOUTUBE_PLAYLIST_INDEX] = playlist_index
