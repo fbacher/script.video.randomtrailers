@@ -112,7 +112,7 @@ msgid "Library"
 msgstr ""
 
 # settings.xml
-# First tab, for settings common to trailers from local db, TMDB, TFH, iTunes
+# First tab, for settings common to trailers from local db, TMDb, TFH, iTunes
 msgctxt "#32016"
 msgid "Common"
 msgstr ""
@@ -576,7 +576,7 @@ msgstr ""
 
 # settings.xml
 # Under library tab
-# When now trailer info is present, query TMDB (and perhaps other)
+# When now trailer info is present, query TMDb (and perhaps other)
 # sources for the trailer.
 msgctxt "#32090"
 msgid "Include Movies with no Trailer Info"
@@ -811,7 +811,7 @@ msgid "Personal API key- See themoviedatabase.org"
 msgstr ""
 
 msgctxt "#32148"
-msgid "Store Movie's TMDB ID in Database (Reduces Requests to TMDB)"
+msgid "Store Movie's TMDb ID in Database (Reduces Requests to TMDb)"
 msgstr ""
 
 msgctxt "#32149"
@@ -944,7 +944,7 @@ msgid "This trailer exceeds the maximum play time. Terminating"
 msgstr ""
 
 msgctxt "#32181"
-msgid "TMDB"
+msgid "TMDb"
 msgstr ""
 
 msgctxt "#32182"
@@ -1337,10 +1337,10 @@ msgid "Include thread info"
 msgstr ""
 
 # settings.xml
-# Add the TMDB ID of movies as they are discovered. This
+# Add the TMDb ID of movies as they are discovered. This
 # eliminates extra requests to themoviedatabase.org
 msgctxt "#32268"
-msgid "Update TMDB ID in database"
+msgid "Update TMDb ID in database"
 msgstr ""
 
 # Movie Certification authority for this country. In the US it is MPAA
