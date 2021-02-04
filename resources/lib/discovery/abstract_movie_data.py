@@ -45,14 +45,13 @@ class MovieSourceData:
         self.movie_source = movie_source
 
 
-class UniqQueue(object):
+class UniqQueue:
     """
 
     """
     logger: LazyLogger = None
 
-    def __init__(self, maxsize=0, movie_source=''):
-        # type: (int, str) -> None
+    def __init__(self, maxsize: int = 0, movie_source:str = '') ->None :
         """
         :param maxsize:
         :param movie_source:
@@ -67,8 +66,7 @@ class UniqQueue(object):
         self._lock = threading.RLock()
         self.movie_source = movie_source
 
-    def clear(self):
-        # type: () -> None
+    def clear(self) -> None:
         """
 
         :return:
@@ -82,8 +80,8 @@ class UniqQueue(object):
             assert len(self._duplicate_check) == 0
             assert self._queue.empty()
 
-    def put(self, movie, block=True, timeout=None):
-        # type: (Any, bool, Optional[float]) -> None
+    def put(self, movie: MovieType, block: bool = True,
+            timeout: Union[float, None] = None) -> None:
         """
 
         :param movie:
@@ -113,8 +111,8 @@ class UniqQueue(object):
                                          'key:', key)
             raise exception
 
-    def get(self, block=True, timeout=None):
-        # type: (bool, Optional[float]) -> object
+    def get(self, block: bool = True,
+            timeout: Union[float, None] = None) -> MovieType:
         """
 
         :param block:
@@ -138,8 +136,7 @@ class UniqQueue(object):
             #                    item[Movie.SOURCE], 'key:', key)
         return movie
 
-    def qsize(self):
-        # type: () -> int
+    def qsize(self) -> int:
         """
 
         :return:
@@ -150,8 +147,7 @@ class UniqQueue(object):
         # self.logger.exit('size:', size)
         return size
 
-    def get_key(self, movie):
-        # type: (MovieType) -> str
+    def get_key(self, movie: MovieType) -> str:
         """
 
         :param movie:
@@ -171,8 +167,7 @@ class UniqQueue(object):
 
         return key
 
-    def empty(self):
-        # type: () -> bool
+    def empty(self) -> bool:
         """
 
         :return:
@@ -185,8 +180,7 @@ class UniqQueue(object):
         # self.logger.exit('empty:', empty)
         return empty
 
-    def full(self):
-        # type () -> bool
+    def full(self) -> bool:
         """
 
         :return:
@@ -226,8 +220,7 @@ class MovieList:
         self._number_of_added_movies = 0
         self._ordered_dict = OrderedDict()
 
-    def clear(self):
-        # type: () -> None
+    def clear(self) -> None:
         """
 
         :return:
@@ -246,8 +239,7 @@ class MovieList:
 
         # self.logger.exit()
 
-    def add(self, movie):
-        # type: (MovieType) -> None
+    def add(self, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -271,8 +263,7 @@ class MovieList:
     def get_trailers(self) -> List[MovieType]:
         return list(self._ordered_dict.values())
 
-    def remove(self, movie):
-        # type: (MovieType) -> None
+    def remove(self, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -307,8 +298,7 @@ class MovieList:
         """
         return self.len()
 
-    def shuffle(self):
-        # type: () -> None
+    def shuffle(self) -> None:
         """
 
         :return:
@@ -358,15 +348,13 @@ class AbstractMovieData:
         interfaces would be largely the same.
     """
     _aggregate_trailers_by_name_date_lock = threading.RLock()
-    _aggregate_trailers_by_name_date = dict()
+    _aggregate_trailers_by_name_date: Dict[str, MovieType] = dict()
 
     def __init__(self, movie_source: str = '') -> None:
         """
         """
         clz = AbstractMovieData
-        self.logger: LazyLogger = None
-
-        self.logger = module_logger.getChild(f'{clz.__name__}:{movie_source}')
+        self.logger: LazyLogger = module_logger.getChild(f'{clz.__name__}:{movie_source}')
         self._trailers_discovered_event = threading.Event()
         self._movie_source_data = {}  # type: Dict[str, MovieSourceData]
         self._removed_trailers = 0
@@ -394,24 +382,21 @@ class AbstractMovieData:
         self._trailer_fetcher = TrailerFetcher(self, fetcher_thread_name)
         self._minimum_shuffle_seconds = 10
 
-    def start_trailer_fetchers(self):
-        # type: () -> None
+    def start_trailer_fetchers(self) -> None:
         """
 
         :return:
         """
         self._trailer_fetcher.start_fetchers()
 
-    def get_movie_source(self):
-        # type: () -> str
+    def get_movie_source(self) -> str:
         """
 
         :return:
         """
         return self._movie_source
 
-    def prepare_for_restart_discovery(self, stop_thread):
-        # type: (bool) -> None
+    def prepare_for_restart_discovery(self, stop_thread: bool) -> None:
         """
         :param stop_thread
         :return:
@@ -442,8 +427,7 @@ class AbstractMovieData:
                 del self._trailer_fetcher
                 self._trailer_fetcher = None
 
-    def finished_discovery(self):
-        # type: () -> None
+    def finished_discovery(self) -> None:
         """
 
         :return:
@@ -454,8 +438,7 @@ class AbstractMovieData:
             self.shuffle_discovered_trailers(mark_unplayed=False)
             self._discovery_complete = True
 
-    def is_discovery_complete(self):
-        # type: () -> bool
+    def is_discovery_complete(self) -> bool:
         """
 
         :return:
@@ -463,8 +446,7 @@ class AbstractMovieData:
         return self._discovery_complete
 
     @classmethod
-    def get_aggregate_trailers_by_name_date_lock(cls):
-        # type: () -> threading.RLock
+    def get_aggregate_trailers_by_name_date_lock(cls) -> threading.RLock:
         """
 
         :return:
@@ -472,8 +454,7 @@ class AbstractMovieData:
         return cls._aggregate_trailers_by_name_date_lock
 
     @classmethod
-    def get_aggregate_trailers_by_name_date(cls):
-        # type: () -> dict
+    def get_aggregate_trailers_by_name_date(cls) -> Dict[str, MovieType]:
         """
 
         :return:
@@ -554,8 +535,7 @@ class AbstractMovieData:
 
             self.shuffle_discovered_trailers(mark_unplayed=False)
 
-    def have_trailers_been_discovered(self):
-        # type: () -> bool
+    def have_trailers_been_discovered(self) -> bool:
         """
 
         :return:
@@ -563,8 +543,7 @@ class AbstractMovieData:
         clz = AbstractMovieData
         return self._trailers_discovered_event.isSet()
 
-    def shuffle_discovered_trailers(self, mark_unplayed=False):
-        # type: (bool) -> None
+    def shuffle_discovered_trailers(self, mark_unplayed: bool = False) -> None:
         """
 
         :param mark_unplayed:
@@ -610,24 +589,21 @@ class AbstractMovieData:
                                                '_discovered_trailers length:',
                                                len(self._discovered_trailers))
 
-    def get_number_of_movies(self):
-        # type: () -> int
+    def get_number_of_movies(self) -> int:
         """
 
         :return:
         """
         return self._discovered_trailers.len()
 
-    def get_number_of_added_movies(self):
-        # type: () -> int
+    def get_number_of_added_movies(self) -> int:
         """
 
         :return:
         """
         return int(self._number_of_added_movies)
 
-    def get_projected_number_of_trailers(self):
-        # type: () -> int
+    def get_projected_number_of_trailers(self) -> int:
         """
 
         :return:
@@ -650,16 +626,14 @@ class AbstractMovieData:
         #                                      projected_number_of_trailers)
         return int(projected_number_of_trailers)
 
-    def get_trailers_to_fetch_queue_size(self):
-        # type: () -> int
+    def get_trailers_to_fetch_queue_size(self) -> int:
         """
 
         :return:
         """
         return self._trailers_to_fetch_queue.qsize()
 
-    def get_number_of_removed_trailers(self):
-        # type: () -> int
+    def get_number_of_removed_trailers(self) -> int:
         """
 
         :return:
@@ -667,8 +641,7 @@ class AbstractMovieData:
 
         return int(self._removed_trailers)
 
-    def remove_discovered_movie(self, movie):
-        # type: (MovieType) -> None
+    def remove_discovered_movie(self, movie: MovieType) -> None:
         """
             When a trailer can not be found for a movie, then we need to remove it
             so that we don't keep looking for it.
@@ -708,8 +681,7 @@ class AbstractMovieData:
 
     _first_load = True
 
-    def load_fetch_queue(self):
-        # type: () -> None
+    def load_fetch_queue(self) -> None:
         """
             Load the _trailers_to_fetch_queue from._discovered_trailers_queue.
 
@@ -945,8 +917,7 @@ class AbstractMovieData:
         #     self.logger.debug_verbose('took', duration.seconds,
         #                                'seconds', trace=Trace.STATS)
 
-    def get_from_fetch_queue(self, player_starving=False):
-        # type: (bool) -> MovieType
+    def get_from_fetch_queue(self, player_starving: bool = False) -> MovieType:
         """
 
         :return:
@@ -974,8 +945,8 @@ class AbstractMovieData:
 
         return trailer
 
-    def put_in_fetch_queue(self, trailer, timeout=None):
-        # type: (MovieType, float) -> None
+    def put_in_fetch_queue(self, trailer: MovieType,
+                           timeout: float = None) -> None:
         """
             Simple wrapper around queue.put so that a debug message can
             be consistently issued on success. All exceptions to be handled
@@ -988,8 +959,7 @@ class AbstractMovieData:
         clz = AbstractMovieData
         self._trailers_to_fetch_queue.put(trailer, timeout=timeout)
 
-    def get_from_starvation_queue(self):
-        # type: () -> MovieType
+    def get_from_starvation_queue(self) -> MovieType:
         """
 
         :return:
@@ -1030,8 +1000,7 @@ class AbstractMovieData:
             self.logger.debug_verbose('movie:', title)
         return movie
 
-    def get_discovered_trailer_queue_size(self):
-        # type: () -> int
+    def get_discovered_trailer_queue_size(self) -> int:
         """
 
             :return: int
@@ -1039,8 +1008,7 @@ class AbstractMovieData:
 
         return self._discovered_trailers_queue.qsize()
 
-    def remove(self):
-        # type: () -> None
+    def remove(self) -> None:
         """
             The Discoverxx thread is being shutdown, perhaps due to changed
             settings.
@@ -1049,8 +1017,7 @@ class AbstractMovieData:
         """
         pass
 
-    def increase_play_count(self, movie):
-        # type: (MovieType) -> None
+    def increase_play_count(self, movie: MovieType) -> None:
         """
 
         :param movie:
