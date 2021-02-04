@@ -1515,8 +1515,7 @@ class Settings(object):
         return select_by_year_range
 
     @staticmethod
-    def get_tmdb_minimum_year():
-        # type: () -> int
+    def get_tmdb_minimum_year() -> int:
         """
 
         :return:
@@ -1525,12 +1524,11 @@ class Settings(object):
             minimum_year = Settings.get_setting_int(
                 Settings.TMDB_YEAR_RANGE_MINIMUM)
         except Exception:
-            minimum_year = 1928  # Start of talkies
+            minimum_year = 1901  # Start of talkies
         return minimum_year
 
     @staticmethod
-    def get_tmdb_maximum_year():
-        # type: () -> int
+    def get_tmdb_maximum_year() -> int:
         """
 
         :return:
@@ -1539,7 +1537,7 @@ class Settings(object):
             maximum_year = Settings.get_setting_int(
                 Settings.TMDB_YEAR_RANGE_MAXIMUM)
         except Exception:
-            maximum_year = datetime.datetime.now().year
+            maximum_year = 3000
 
         return maximum_year
 
@@ -1653,8 +1651,7 @@ class Settings(object):
     '''
 
     @staticmethod
-    def get_time_to_display_detail_info():
-        # type: () -> int
+    def get_time_to_display_detail_info() -> int:
         """
 
         :return:
