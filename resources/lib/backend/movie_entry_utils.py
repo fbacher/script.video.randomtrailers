@@ -5,9 +5,7 @@ Created on Apr 14, 2019
 @author: Frank Feuerbacher
 """
 
-import os
 import sys
-import datetime
 import json
 
 from common.imports import *
@@ -39,7 +37,6 @@ class MovieEntryUtils (object):
         :return:
         """
         tmdb_id: Union[str, int, None] = None
-        imdb_id = None
         title = movie.get(Movie.TITLE, 'No Title')
         source = movie.get(Movie.SOURCE, 'No Source')
         try:
@@ -103,8 +100,14 @@ class MovieEntryUtils (object):
                                                               'imdb_id:', imdb_id,
                                                               'title:', title)
                                     else:
-                                        cls.set_tmdb_id(movie, tmdb_id)
-                                        cls.update_database_unique_id(movie)
+                                        changed = cls.set_tmdb_id(movie, tmdb_id)
+                                        if changed:
+                                            if source == Movie.TFH_SOURCE:
+                                                from cache.tfh_cache import TFHCache
+
+                                                TFHCache.update_trailer(movie)
+
+                                            cls.update_database_unique_id(movie)
                         except AbortException:
                             reraise(*sys.exc_info())
                         except Exception:
@@ -121,30 +124,29 @@ class MovieEntryUtils (object):
 
     @classmethod
     def get_alternate_titles(cls,
-                             movie_title,  # type: str
-                             movie_id,  # type: Union[int, str]
-                             ):
-        # type: (...) -> MovieType
+                             movie_title: str,
+                             tmdb_id: Union[int, str],
+                             ) -> Union[MovieType, None]:
         """
 
         :param cls:
         :param movie_title:
-        :param movie_id:
+        :param tmdb_id:
         :return:
         """
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.debug('title:', movie_title, 'movie_id:', movie_id)
+            cls._logger.debug('title:', movie_title, 'tmdb_id:', tmdb_id)
 
         data = {}
         # data['append_to_response'] = 'credits,releases'
         data['language'] = Settings.get_lang_iso_639_1()
         data['api_key'] = Settings.get_tmdb_api_key()
         data['append_to_response'] = 'alternative_titles'
-        url = 'http://api.themoviedb.org/3/movie/' + str(movie_id)
+        url = 'http://api.themoviedb.org/3/movie/' + str(tmdb_id)
 
         tmdb_result = None
         year = 0
-        dump_msg = 'movie_id: ' + str(movie_id)
+        dump_msg = 'tmdb_id: ' + str(tmdb_id)
         try:
             Monitor.throw_exception_if_abort_requested()
 
@@ -231,7 +233,7 @@ class MovieEntryUtils (object):
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('%s %s'.format(
-                'Error getting info for movie_id:', movie_id))
+                'Error getting info for tmdb_id:', tmdb_id))
             try:
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                     json_text = json.dumps(
@@ -249,8 +251,7 @@ class MovieEntryUtils (object):
         return parsed_data
 
     @classmethod
-    def get_imdb_id(cls, movie):
-        # type: (MovieType) -> int
+    def get_imdb_id(cls, movie: MovieType) -> int:
         """
 
         :param movie:
@@ -269,19 +270,24 @@ class MovieEntryUtils (object):
         return imdb_id
 
     @staticmethod
-    def set_tmdb_id(movie: MovieType, tmdb_id: Union[str, int]) -> None:
+    def set_tmdb_id(movie: MovieType, tmdb_id: Union[str, int]) -> bool:
         """
 
         :param movie:
         :param tmdb_id:
         :return:
         """
+        changed = False
         unique_id = movie.get(Movie.UNIQUE_ID, None)
         if unique_id is None:
             unique_id = {}
             movie[Movie.UNIQUE_ID] = unique_id
 
-        unique_id[Movie.UNIQUE_ID_TMDB] = str(tmdb_id)
+        if str(tmdb_id) != unique_id.get(Movie.UNIQUE_ID_TMDB, ''):
+            changed = True
+            unique_id[Movie.UNIQUE_ID_TMDB] = str(tmdb_id)
+
+        return changed
 
     @classmethod
     def update_database_unique_id(cls, trailer):
