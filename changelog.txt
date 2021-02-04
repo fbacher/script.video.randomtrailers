@@ -1,3 +1,17 @@
+v.2.0.4 (February, 04,2021)
+ - Alpha  candidate
+ - Nearly complete rewrite
+   - Randomly plays trailers for local movies, from a local folder and remote trailers from TMDb and TFH.
+   - Ability to locally cache remote trailers
+   - Ability to normalize the audio of remote and local trailers in order to reduce overly-loud or quiet trailers, commonly found from fan-generated trailers on youtube.
+   - Cache downloaded metadata to reduce network traffic
+   - Filtering for Date, Genre, Certification
+   - Ability to save movie for currently playing trailer to playlists
+   - Front-end plugin provides UI to play trailers. Exits when you stop playing trailers
+   - Back-end plugin handles the high-cost of prepairing trailers for view and continues to download trailers in the background even when front-end is not active.
+   - Supports Text-to-Speech plugin (still under development).
+   - XML files define genres and certifications based on country or language.
+ 
 v.1.1.17 (April 05,2014)
  - fixed issue causing crash with tmdb selected, and layout error in tmdb settings
 
