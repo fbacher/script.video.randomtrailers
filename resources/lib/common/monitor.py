@@ -24,32 +24,28 @@ from common.logger import (Logger, LazyLogger, Trace)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection
-# Annotator,Annotator,Annotator,Annotator,PyArgumentList,PyArgumentList
-# noinspection Annotator
 class Monitor(xbmc.Monitor):
     """
         Provides a number of customizations to xbmc.monitor
     """
-    startup_complete_event = None
-    _monitor_changes_in_settings_thread = None
+    startup_complete_event: threading.Event = None
+    _monitor_changes_in_settings_thread: threading.Thread = None
     _logger = None
-    _xbmc_monitor = None
-    _screen_saver_listeners = None
-    _screen_saver_listener_lock = None
-    _settings_changed_listeners = None
-    _settings_changed_listener_lock = None
-    _abort_listeners = None
-    _abort_listener_lock = None
-    _abort_listeners_informed = False
-    _abort_received = None
+    _xbmc_monitor: xbmc.Monitor = None
+    _screen_saver_listeners: List[Callable[[None], None]] = None
+    _screen_saver_listener_lock: threading.RLock = None
+    _settings_changed_listeners: List[Callable[[None], None]] = None
+    _settings_changed_listener_lock: threading.RLock = None
+    _abort_listeners: List[Callable[[None], None]] = None
+    _abort_listener_lock: threading.RLock = None
+    _abort_listeners_informed: bool = False
+    _abort_received: threading.Event = None
 
     def __init__(self):
         super().__init__()
 
     @classmethod
-    def class_init(cls):
-        # type;() -> None
+    def class_init(cls) -> None:
         """
 
         """
@@ -78,11 +74,9 @@ class Monitor(xbmc.Monitor):
             # woke up, in case they need to take more drastic action.
             #
             # The same scheme is used for wait_for_startup_complete,
-            # onScreensaverActivated, onScreensaverDeactivated
 
             cls.startup_complete_event = threading.Event()
 
-            # noinspection PyTypeChecker
             cls._monitor_changes_in_settings_thread = threading.Thread(
                 target=cls._monitor_changes_in_settings,
                 name='monitorSettingsChanges')
@@ -100,13 +94,12 @@ class Monitor(xbmc.Monitor):
 
         # It seems that if multiple xbmc.WaitForAborts are pending, xbmc
         # Does not inform all of them when an abort occurs. So, instead
-        # of waiting for 60 seconds per iteration, we wait 1.0 seconds
-        # and act when 60 calls has been made. Not exactly 60 seconds, but
+        # of waiting for 60 seconds per iteration, we wait 0.1 seconds
+        # and act when 600 calls has been made. Not exactly 60 seconds, but
         # close enough for this
 
         iterations = 600
-        while not cls._wait_for_abort(timeout=0.1):
-            # noinspection PyRedundantParentheses
+        while not cls.real_waitForAbort(timeout=0.1):
             iterations -= 1
             if iterations < 0:
                 iterations = 600
@@ -135,8 +128,8 @@ class Monitor(xbmc.Monitor):
                     # Here we go again
 
     @classmethod
-    def register_screensaver_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
+    def register_screensaver_listener(cls,
+                                      listener: Callable[[None], None]) -> None:
         """
 
         :param listener:
@@ -147,8 +140,8 @@ class Monitor(xbmc.Monitor):
                 cls._screen_saver_listeners.append(listener)
 
     @classmethod
-    def unregister_screensaver_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
+    def unregister_screensaver_listener(cls,
+                                        listener: Callable[[None], None]) -> None:
         """
 
         :param listener:
@@ -161,8 +154,8 @@ class Monitor(xbmc.Monitor):
                 pass
 
     @classmethod
-    def register_settings_changed_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
+    def register_settings_changed_listener(cls,
+                                           listener: Callable[[None], None]) -> None:
         """
 
         :param listener:
@@ -173,8 +166,8 @@ class Monitor(xbmc.Monitor):
                 cls._settings_changed_listeners.append(listener)
 
     @classmethod
-    def unregister_settings_changed_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
+    def unregister_settings_changed_listener(cls,
+                                             listener: Callable[[None], None]) -> None:
         """
 
         :param listener:
@@ -187,8 +180,8 @@ class Monitor(xbmc.Monitor):
                 pass
 
     @classmethod
-    def register_abort_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
+    def register_abort_listener(cls,
+                                listener: Callable[[None], None]) -> None:
         """
 
         :param listener:
@@ -201,8 +194,8 @@ class Monitor(xbmc.Monitor):
                 raise AbortException()
 
     @classmethod
-    def unregister_abort_listener(cls, listener):
-        # type: (Callable[[None], None]) -> None
+    def unregister_abort_listener(cls,
+                                  listener: Callable[[None], None]) -> None:
         """
 
         :param listener:
@@ -215,8 +208,7 @@ class Monitor(xbmc.Monitor):
                 pass
 
     @classmethod
-    def _inform_abort_listeners(cls):
-        # type: () ->None
+    def _inform_abort_listeners(cls) -> None:
         """
 
         :return:
@@ -255,8 +247,7 @@ class Monitor(xbmc.Monitor):
             Debug.dump_all_threads()
 
     @classmethod
-    def _inform_settings_changed_listeners(cls):
-        # type: () -> None
+    def _inform_settings_changed_listeners(cls) -> None:
         """
 
         :return:
@@ -275,8 +266,8 @@ class Monitor(xbmc.Monitor):
             thread.start()
 
     @classmethod
-    def _inform_screensaver_listeners(cls, activated=True):
-        # type () -> None
+    def _inform_screensaver_listeners(cls,
+                                      activated: bool = True) -> None:
         """
 
         :param activated:
@@ -296,8 +287,7 @@ class Monitor(xbmc.Monitor):
                 args=(activated,))
             thread.start()
 
-    def onSettingsChanged(self):
-        # type: () -> None
+    def onSettingsChanged(self) -> None:
         """
         on_settings_changed method.
 
@@ -308,11 +298,10 @@ class Monitor(xbmc.Monitor):
         type(self).on_settings_changed()
 
     @classmethod
-    def on_settings_changed(cls):
+    def on_settings_changed(cls) -> None:
         cls._inform_settings_changed_listeners()
 
-    def onScreensaverActivated(self):
-        # type: () -> None
+    def onScreensaverActivated(self) -> None:
         """
         onScreensaverActivated method.
 
@@ -324,8 +313,7 @@ class Monitor(xbmc.Monitor):
 
         # return super().onScreensaverActivated()
 
-    def onScreensaverDeactivated(self):
-        # type: () -> None
+    def onScreensaverDeactivated(self) -> None:
         """
         onScreensaverDeactivated method.
 
@@ -337,92 +325,7 @@ class Monitor(xbmc.Monitor):
 
         # return super().onScreensaverDeactivated()
 
-    def onDPMSActivated(self):
-        # type: () -> None
-        """
-        onDPMSActivated method.
-
-        Will be called when energysaving/DPMS gets active
-
-        :return:
-        """
-        # return super().onDPMSActivated()
-
-    def onDPMSDeactivated(self):
-        # type: () -> None
-        """
-        onDPMSDeactivated method.
-
-        Will be called when energysaving/DPMS is turned off
-
-        :return:
-        """
-        # return super().onDPMSDeactivated()
-
-    def onScanStarted(self, library):
-        # type: (str) -> None
-        """
-        onScanStarted method.
-
-        :param library: Video / music as string
-
-        Will be called when library clean has ended and return video or music
-        to indicate which library is being scanned
-
-        New function added.
-
-        :return:
-        """
-        # return super().onScanStarted(library)
-
-    def onScanFinished(self, library):
-        # type: (str) -> None
-        """
-        onScanFinished method.
-
-        :param library: Video / music as string
-
-        Will be called when library clean has ended and return video or music
-        to indicate which library has been scanned
-
-        New function added.
-
-        :return:
-        """
-        # return super().onScanFinished(library)
-
-    def onCleanStarted(self, library):
-        # type: (str) -> None
-        """
-        onCleanStarted method.
-
-        :param library: Video / music as string
-        :return:
-
-        Will be called when library clean has ended and return video or music
-        to indicate which library has been cleaned
-
-        New function added.
-        """
-        # return super().onCleanStarted(library)
-
-    def onCleanFinished(self, library):
-        # type: (str) -> None
-        """
-        onCleanFinished method.
-
-        :param library: Video / music as string
-        :return:
-
-        Will be called when library clean has ended and return video or music
-        to indicate which library has been finished
-
-        New function added.
-        """
-        # return super().onCleanFinished(library)
-
-    def onNotification(self, sender, method, data):
-        # type: (str, str, str) -> None
+    def onNotification(self, sender: str, method: str, data: str) -> None:
         """
         onNotification method.
 
@@ -439,55 +342,62 @@ class Monitor(xbmc.Monitor):
         pass
 
     @classmethod
-    def _wait_for_abort(cls, timeout: float = -1.0) -> bool:
+    def real_waitForAbort(cls, timeout: float = -1.0) -> bool:
         """
         Wait for Abort
 
         Block until abort is requested, or until timeout occurs. If an abort
         requested have already been made, return immediately.
 
+        This method is the only one which calls xbmc.Monitor.waitForAbort. It is
+        only called from the Main thread in a main module for the plugin. This is
+        done because their is some weirdness about calling Monitor.waitForAbort
+        from a non-main thread.
+
         :param timeout: [opt] float - timeout in seconds.
                         if -1 or None: wait forever
                         if 0: check without wait & return
                         if > 0: wait at max wait seconds
 
-        :return: True when abort have been requested,
+        :return: True when abort has been requested,
             False if a timeout is given and the operation times out.
 
         New function added.
         """
-        abort = True
-        if not cls._abort_received.isSet():
-            abort = False
-            if timeout is None or timeout < 0.0:  # Wait forever
-                while not abort:
-                    abort = cls._xbmc_monitor.waitForAbort(timeout=0.10)
-            else:
-                timeout_arg = float(timeout)
-                if timeout_arg == 0.0:
-                    timeout_arg = 0.001  # Otherwise waits forever
+        abort = False
+        if timeout is None or timeout < 0.0:  # Wait forever
+            while not abort:
+                abort = cls._xbmc_monitor.waitForAbort(timeout=0.10)
+        else:
+            timeout_arg = float(timeout)
+            if timeout_arg == 0.0:
+                timeout_arg = 0.001  # Otherwise waits forever
 
-                abort = cls._xbmc_monitor.waitForAbort(timeout=timeout_arg)
-            if abort:
-                cls._abort_received.set()
-                if cls._logger.isEnabledFor(Logger.DEBUG):
-                    cls._logger.debug(
-                        'SYSTEM ABORT received', trace=Trace.TRACE_MONITOR)
-                cls._inform_abort_listeners()
+            abort = cls._xbmc_monitor.waitForAbort(timeout=timeout_arg)
+        if abort and not cls._abort_received.is_set():
+            cls._abort_received.set()
+            if cls._logger.isEnabledFor(Logger.DEBUG):
+                cls._logger.debug('SYSTEM ABORT received',
+                                  trace=Trace.TRACE_MONITOR)
+            cls._inform_abort_listeners()
 
         return abort
 
-    def waitForAbort(self, timeout: float = -1.0) -> None:
+    def waitForAbort(self, timeout: float = -1.0) -> bool:
         # Provides signature of super class (xbmc.Monitor)
-        abort = Monitor._abort_received.isSet()
-        if not abort:
-            abort = Monitor._xbmc_monitor.waitForAbort(timeout=timeout)
-            # Let _wait_for_abort control setting _abort_received since
-            # it is responsible for notifications
+        #
+        # Only real_waitForAbort() calls xbmc.Monitor.waitForAbort, which is
+        # called only by back_end_service, front_end_service or screensaver and
+        # only from the main thread.
+        #
+        # WaitForAbort and wait_for_abort depend upon _abort_received
+
+        clz = type(self)
+        abort = clz._abort_received.wait(timeout=timeout)
         return abort
 
     @classmethod
-    def wait_for_abort(cls, timeout: float = -1.0) -> None:
+    def wait_for_abort(cls, timeout: float = -1.0) -> bool:
         """
         Wait for Abort
 
@@ -505,12 +415,11 @@ class Monitor(xbmc.Monitor):
         return abort
 
     @classmethod
-    def abort_requested(cls):
+    def abort_requested(cls) -> None:
         cls._xbmc_monitor.abortRequested()
         cls._abort_received.set()
 
-    def abortRequested(self):
-        # type: () -> None
+    def abortRequested(self) -> None:
         """
 
         :return:
@@ -518,8 +427,7 @@ class Monitor(xbmc.Monitor):
         Monitor.abort_requested()
 
     @classmethod
-    def is_abort_requested(cls):
-        # type: () -> bool
+    def is_abort_requested(cls) -> bool:
         """
         Returns True if abort has been requested.
 
@@ -530,8 +438,7 @@ class Monitor(xbmc.Monitor):
         return cls._abort_received.isSet()
 
     @classmethod
-    def set_startup_complete(cls):
-        # type () -> None
+    def set_startup_complete(cls) -> None:
         """
 
         :return:
@@ -542,8 +449,7 @@ class Monitor(xbmc.Monitor):
                 'startup_complete_event set', trace=Trace.TRACE_MONITOR)
 
     @classmethod
-    def is_startup_complete(cls):
-        # type: () -> bool
+    def is_startup_complete(cls) -> bool:
         """
 
         :return:
@@ -551,8 +457,7 @@ class Monitor(xbmc.Monitor):
         return cls.startup_complete_event.isSet()
 
     @classmethod
-    def wait_for_startup_complete(cls, timeout=None):
-        # type: (float) -> bool
+    def wait_for_startup_complete(cls, timeout: float = None) -> bool:
         """
 
         :param timeout:
@@ -561,7 +466,7 @@ class Monitor(xbmc.Monitor):
         is_set = False
         approximate_wait_time = 0.0
         while not is_set:
-            is_set = cls.startup_complete_event.wait(tmeout=None)
+            is_set = cls.startup_complete_event.wait(timeout=None)
             Monitor.throw_exception_if_abort_requested(timeout=0.1)
             approximate_wait_time += 0.1
             if timeout is not None and approximate_wait_time >= timeout:
@@ -570,8 +475,7 @@ class Monitor(xbmc.Monitor):
         return is_set
 
     @classmethod
-    def throw_exception_if_abort_requested(cls, timeout=0):
-        # type: (float) -> None
+    def throw_exception_if_abort_requested(cls, timeout: float = 0) -> None:
         """
          Throws an AbortException if Abort has been set within the specified
           time period.

@@ -91,6 +91,8 @@ class BackendBridge(PluginBridge):
 
             thread.start()
             GarbageCollector.add_thread(thread)
+        except AbortException:
+            pass #  Don't pass up to AddonSignals
         except Exception:
             cls._logger.exception('')
 
@@ -158,7 +160,7 @@ class BackendBridge(PluginBridge):
             thread.start()
             GarbageCollector.add_thread(thread)
         except AbortException:
-            reraise(*sys.exc_info())
+            pass  # Don't pass up to AddonSignals
         except Exception:
             cls._logger.exception('')
 

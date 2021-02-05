@@ -12,7 +12,6 @@ from common.imports import *
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.logger import (LazyLogger, Trace)
-from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -35,15 +34,14 @@ class ScreensaverBridge(PluginBridge):
     _ack_received = None
     _context = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
         super().__init__()
 
     @classmethod
-    def class_init(cls):
+    def class_init(cls) -> None:
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
             cls._context = Constants.SCREENSAVER_SERVICE
@@ -57,8 +55,7 @@ class ScreensaverBridge(PluginBridge):
     ###########################################################
 
     @classmethod
-    def request_activate_screensaver(cls):
-        # type: () -> bool
+    def request_activate_screensaver(cls) -> bool:
         """
             Used by screensaver service to tell front-end to activate
             screensaver

@@ -140,12 +140,12 @@ class MainThreadLoop(object):
             i = 0
             timeout = initial_timeout
 
-            # Using _wait_for_abort to
+            # Using real_waitForAbort to
             # cause Monitor to query Kodi for Abort on the main thread.
             # If this is not done, then Kodi will get constipated
             # sending/receiving events to plugins.
 
-            while not Monitor._wait_for_abort(timeout=timeout):
+            while not Monitor.real_waitForAbort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 0.10

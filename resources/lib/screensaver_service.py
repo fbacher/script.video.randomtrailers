@@ -12,9 +12,7 @@ import sys
 import xbmc
 import xbmcaddon
 
-from common.constants import Constants
 from common.exceptions import AbortException
-from common.imports import *
 from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
 

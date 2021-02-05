@@ -181,7 +181,7 @@ class FrontendBridge(PluginBridge):
                                                 'received trailer for:',
                                                 title)
         except AbortException:
-            reraise(*sys.exc_info())
+            pass  # Don't pass exception to AddonSignals
         except Exception as e:
             cls._logger.exception('')
 
@@ -202,7 +202,7 @@ class FrontendBridge(PluginBridge):
             # Inform monitor
             cls.ack('screensaver')
         except AbortException:
-            reraise(*sys.exc_info())
+            pass  #  Don't pass on to AddonSignals
         except Exception as e:
             cls._logger.exception('')
 

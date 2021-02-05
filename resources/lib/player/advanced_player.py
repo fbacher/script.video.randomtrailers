@@ -924,7 +924,7 @@ class AdvancedPlayer(xbmc.Player):
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.debug_verbose('Player: Closed')
         except AbortException:
-            pass # Just exit thread
+            pass  # Just exit thread
         except Exception as e:
             local_class._logger.exception('')
         finally:
@@ -949,7 +949,7 @@ class AdvancedPlayer(xbmc.Player):
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.exit()
         except AbortException:
-            raise AbortException
+            reraise(*sys.exc_info())
         except Exception as e:
             local_class._logger.exception('')
 
@@ -1012,7 +1012,7 @@ class AdvancedPlayer(xbmc.Player):
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.exit()
         except AbortException:
-            raise AbortException
+            reraise(*sys.exc_info())
         except Exception as e:
             local_class._logger.exception('')
 
