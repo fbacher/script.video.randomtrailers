@@ -37,6 +37,7 @@ class MovieEntryUtils (object):
         :return:
         """
         tmdb_id: Union[str, int, None] = None
+
         title = movie.get(Movie.TITLE, 'No Title')
         source = movie.get(Movie.SOURCE, 'No Source')
         try:
@@ -278,20 +279,20 @@ class MovieEntryUtils (object):
         :return:
         """
         changed = False
-        unique_id = movie.get(Movie.UNIQUE_ID, None)
-        if unique_id is None:
-            unique_id = {}
-            movie[Movie.UNIQUE_ID] = unique_id
+        if tmdb_id is not None:
+            unique_id = movie.get(Movie.UNIQUE_ID, None)
+            if unique_id is None:
+                unique_id = {}
+                movie[Movie.UNIQUE_ID] = unique_id
 
-        if str(tmdb_id) != unique_id.get(Movie.UNIQUE_ID_TMDB, ''):
-            changed = True
-            unique_id[Movie.UNIQUE_ID_TMDB] = str(tmdb_id)
+            if str(tmdb_id) != unique_id.get(Movie.UNIQUE_ID_TMDB, ''):
+                changed = True
+                unique_id[Movie.UNIQUE_ID_TMDB] = str(tmdb_id)
 
         return changed
 
     @classmethod
-    def update_database_unique_id(cls, trailer):
-        # type: ( MovieType) -> None
+    def update_database_unique_id(cls, trailer: MovieType) -> None:
         """
             Update UNIQUE_ID field in database
 
