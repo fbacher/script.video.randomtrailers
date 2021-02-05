@@ -1172,6 +1172,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                             f' tmdbId: {str(tmdb_id)}'
                             f' MovieId: {movie.get(Movie.MOVIEID, "")}')
 
+            if tmdb_detail_info is None:
+                tmdb_detail_info = {}
+
             (movie_writers, voiced_writers) = self.get_writers(movie,
                                                                tmdb_detail_info,
                                                                source)
