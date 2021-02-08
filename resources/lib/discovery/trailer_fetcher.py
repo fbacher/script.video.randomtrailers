@@ -11,6 +11,7 @@ import sys
 import datetime
 import glob
 import json
+from pathlib import Path
 import os
 import re
 import shutil
@@ -1270,14 +1271,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             clz._logger.exception('')
 
     def get_writers(self,
-                    trailer: MovieType,
+                    movie: MovieType,
                     tmdb_info: MovieType,
                     source: str
                     ) -> (str, List[str]):
         """
 
         :param self:
-        :param trailer:
+        :param movie:
         :param tmdb_info:
         :param source:
         :param max_writers:
@@ -1289,7 +1290,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         if source == Movie.ITUNES_SOURCE:
             writers_temp = tmdb_info.get(Movie.WRITER, [])
         else:
-            writers_temp = trailer.get(Movie.WRITER, [])
+            writers_temp = movie.get(Movie.WRITER, [])
 
         # The same person can be the book author, the script writer,
         # etc.
@@ -1402,12 +1403,15 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         try:
             start = datetime.datetime.now()
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz._logger.debug_verbose(
-                    movie[Movie.TITLE], movie[Movie.TRAILER])
-
             movie_id = ''
             trailer_path = movie[Movie.TRAILER]
+            is_url = DiskUtils.is_url(trailer_path)
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz._logger.debug_verbose(
+                    f'{movie[Movie.TITLE]} {movie[Movie.TRAILER]} url: {is_url}')
+
+            if not is_url:
+                return rc
 
             # If cached files purged, then remove references
 
@@ -1417,9 +1421,6 @@ class TrailerFetcher(TrailerFetcherInterface):
             if (movie.get(Movie.NORMALIZED_TRAILER) is not None and
                     not os.path.exists(movie[Movie.NORMALIZED_TRAILER])):
                 movie[Movie.NORMALIZED_TRAILER] = None
-
-            if not DiskUtils.is_url(trailer_path):
-                return rc
 
             # No need for cached trailer if we have a cached normalized trailer
 
@@ -1497,6 +1498,9 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     if downloaded_movie is not None:
                         download_path = downloaded_movie[Movie.TRAILER]
+						if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+	                        clz._logger.debug_extra_verbose(f'Successful Download path: '
+     	                                                   f'{download_path}')
 
                     """
                        To save json data from downloaded for debugging, uncomment
@@ -1543,6 +1547,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 DiskUtils.create_path_if_needed(
                                     os.path.dirname(cached_path))
                                 shutil.move(download_path, cached_path)
+                                Path(cached_path).touch()
                                 movie[Movie.CACHED_TRAILER] = cached_path
 
                             stop = datetime.datetime.now()
@@ -1599,6 +1604,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
                              Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
 
+            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+                clz._logger.debug_extra_verbose(f'{movie[Movie.TITLE]} '
+                                                f'source: {movie[Movie.SOURCE]} '
+                                                f'video_id: {Cache.get_video_id(movie)} '
+                                                f'trailer: {movie.get(Movie.TRAILER, "")} '
+                                                f'cached trailer: '
+                                                f'{movie.get(Movie.CACHED_TRAILER, "")} '
+                                                f'{movie.get(Movie.NORMALIZED_TRAILER, "")}')
             if movie[Movie.SOURCE] not in valid_sources:
                 return False
 
@@ -1646,10 +1659,11 @@ class TrailerFetcher(TrailerFetcherInterface):
                     normalize = True
                 elif movie.get(Movie.NORMALIZED_TRAILER) is not None:
                     normalize = True  # Verify that we don't have to re-normalize
-            else:
-                if (Settings.is_normalize_volume_of_local_trailers() and
-                        os.path.exists(trailer_path)):
-                    normalize = True
+
+            if (movie[Movie.SOURCE] == Movie.LIBRARY_SOURCE and
+                    Settings.is_normalize_volume_of_local_trailers() and
+                    os.path.exists(trailer_path)):
+                normalize = True
 
             if not normalize:
                 return False
