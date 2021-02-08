@@ -95,8 +95,8 @@ class VideoDownloader:
         1990, 1, 1)
     _logger = module_logger.getChild('VideoDownloader')
 
-    _youtube_lock = threading.RLock()
-    _itunes_lock = threading.RLock()
+    _youtube_lock: threading.RLock = threading.RLock()
+    _itunes_lock: threading.RLock = threading.RLock()
     locks = {
         Movie.ITUNES_SOURCE: _itunes_lock,
         Movie.LIBRARY_SOURCE: _youtube_lock,
@@ -181,10 +181,9 @@ class VideoDownloader:
         delay = cls.get_delay(delay_range)
         # min_time_between_requests = datetime.timedelta(seconds=10.0)
 
-        while not cls.locks[source].acquire(blocking=False):
-            Monitor.throw_exception_if_abort_requested(timeout=0.5)
-        # HAVE LOCK
         try:
+            cls.get_lock(source)  # Block new transaction
+            # HAVE LOCK
             if source == Movie.ITUNES_SOURCE:
                 waited: datetime.timedelta = (
                         datetime.datetime.now() - cls._last_itunes_request_timestamp)
@@ -196,7 +195,7 @@ class VideoDownloader:
                 Monitor.throw_exception_if_abort_requested(time_to_wait)
 
         finally:
-            cls.locks[source].release()
+            cls.release_lock(source)
 
         # LOCK RELEASED
 
@@ -234,9 +233,10 @@ class VideoDownloader:
         movie = None
         video_logger: Optional[VideoLogger] = None
 
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(f'title: {title}')
         try:
-            while not clz.locks[source].acquire(blocking=False):
-                Monitor.throw_exception_if_abort_requested(timeout=0.5)
+            clz.get_lock(source)
             # HAVE LOCK
 
             if not block:
@@ -259,6 +259,8 @@ class VideoDownloader:
                 parse_json_as_youtube = False
             else:
                 parse_json_as_youtube = True
+
+            # clz._logger.debug_extra_verbose(f'title: {title} Getting VideoLogger')
             video_logger = VideoLogger(self, url,
                                        parse_json_as_youtube=parse_json_as_youtube)
             ydl_opts = {
@@ -276,8 +278,11 @@ class VideoDownloader:
                 ydl_opts['cookiefile'] = cookie_path
 
             # Start download
-            # Sometimes fail with Nonetyp or other errors because of a URL that
+            # Sometimes fail with Nonetype or other errors because of a URL that
             # requires a login, is for an ADULT movie, etc.
+
+            # clz._logger.debug_extra_verbose(f'title: {title} starting download')
+
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
 
@@ -298,7 +303,7 @@ class VideoDownloader:
 
                     movie.setdefault(Movie.TRAILER, trailer_file)
                     if trailer_file != movie[Movie.TRAILER]:
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                             clz._logger.debug_extra_verbose(
                                 'youtube_dl gave incorrect file name:',
                                 movie[Movie.TRAILER], 'changing to:',
@@ -321,6 +326,9 @@ class VideoDownloader:
             if self._error == 3:
                 clz._logger.exception(f'Error downloading: {title} {source} url: {url}')
         finally:
+            clz.release_lock(source)
+            # LOCK RELEASED
+
             if self._error != 429:
                 clz._retry_attempts = 0
             else:
@@ -328,10 +336,6 @@ class VideoDownloader:
                 VideoDownloader._too_many_requests_resume_time = (
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
-            if block:
-                clz.locks[source].release()
-
-            # LOCK RELEASED
 
         if movie is None:
             self.set_error(1)
@@ -372,8 +376,7 @@ class VideoDownloader:
         info_logger = TfhInfoLogger(self, url, parse_json_as_youtube=False)
 
         try:
-            while not clz.locks[movie_source].acquire(blocking=False):
-                Monitor.throw_exception_if_abort_requested(timeout=0.5)
+            clz.get_lock(movie_source)
             # HAVE LOCK
 
             if not block:
@@ -422,6 +425,7 @@ class VideoDownloader:
                         'Failed to download site info for:', url)
             trailer_info = None
         finally:
+            clz.release_lock(movie_source)  # LOCK RELEASED
             if self._error != 429:
                 clz._retry_attempts = 0
             else:
@@ -429,8 +433,6 @@ class VideoDownloader:
                 VideoDownloader._too_many_requests_resume_time = (
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
-            if block:
-                clz.locks[movie_source].release()  # LOCK RELEASED
 
         if self._error not in (0, 99):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
@@ -464,8 +466,7 @@ class VideoDownloader:
         tfh_index_logger = TfhIndexLogger(self, trailer_handler, url)
 
         try:
-            while not clz.locks[Movie.TFH_SOURCE].acquire(blocking=False):
-                Monitor.throw_exception_if_abort_requested(timeout=0.5)
+            clz.get_lock(TFH.SRCE)
             # HAVE LOCK
 
             if not block:
@@ -520,6 +521,8 @@ class VideoDownloader:
             if self._error == 0:
                 clz._logger.exception(f'Error downloading: url: {url}')
         finally:
+            clz.release_lock([Movie.TFH_SOURCE])
+
             if self._error != 429:
                 clz._retry_attempts = 0
             else:
@@ -527,8 +530,6 @@ class VideoDownloader:
                 VideoDownloader._too_many_requests_resume_time = (
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
-            if block:
-                clz.locks[Movie.TFH_SOURCE].release()  # LOCK RELEASED
 
         if self._error not in (0, 99):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
@@ -538,6 +539,38 @@ class VideoDownloader:
 
         Monitor.throw_exception_if_abort_requested()
         return self._error
+
+    @classmethod
+    def get_lock(cls, source: str):
+        lock_source = cls.get_lock_source(source)
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_extra_verbose(f'Getting Lock: {lock_source} '
+                                            f'for {source}')
+
+        while not cls.locks[source].acquire(blocking=False):
+            Monitor.throw_exception_if_abort_requested(timeout=0.5)
+
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_extra_verbose(f'Got Lock: {source}')
+
+    @classmethod
+    def release_lock(cls, source: str):
+        lock_source = cls.get_lock_source(source)
+
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_extra_verbose(f'Releasing Lock: {lock_source} '
+                                            f'for {source}')
+
+        cls.locks[source].release()
+
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_extra_verbose(f'Released Lock {source}')
+
+    @classmethod
+    def get_lock_source(cls, source: str) -> str:
+        if cls.locks[source] == cls._itunes_lock:
+            return 'itunes_lock'
+        return 'youtube_lock'
 
 
 class BaseYDLogger:
@@ -729,16 +762,22 @@ class TfhIndexLogger(BaseYDLogger):
         """
         super().debug(line)
         clz = TfhIndexLogger
-        if self._parsed_movie is not None and self._downloader._error != 0:
+        if self._parsed_movie is not None and self._downloader._error == 0:
             try:
-                if self._parsed_movie.get(Movie.YOUTUBE_ID) is None:
-                    type(self).logger.debug('Missing YOUTUBE_ID\n',
-                                     json.dumps(self._parsed_movie,
-                                                encoding='utf-8',
-                                                ensure_ascii=False,
-                                                indent=3, sort_keys=True))
                 self._trailer_handler(self._parsed_movie)
                 VideoDownloader.delay_between_transactions(Movie.TFH_SOURCE, False)
+                #
+                # Give another thread a chance to fetch a trailer
+                #
+                self._downloader.release_lock(Movie.TFH_SOURCE)
+                # LOCK RELEASED
+
+                # ..... Some other thread can get video
+
+                # GET LOCK
+                self._downloader.get_lock(Movie.TFH_SOURCE)
+                # HAVE LOCK
+
             except Exception as e:
                 type(self).logger.exception(f'url: {self.url}')
 
