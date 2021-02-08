@@ -938,6 +938,7 @@
 			</group>
 		</category>
 		<category help="" id="apple itunes" label="32025">
+			<visible>false</visible>
 			<group id="1" label="32013">
 				<setting help="" id="do_itunes" label="32023" type="boolean">
 					<level>0</level>
