@@ -299,8 +299,11 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         cache_expiration_time = datetime.timedelta(
             float(Settings.get_tfh_cache_expiration_days()))
         cache_expiration_time = datetime.datetime.now() - cache_expiration_time
-        if (len(trailer_list) < max_trailers
-                or TFHCache.get_creation_date() < cache_expiration_time):
+
+        # Entire TFH index is read, so only re-do if the cache was not
+        # completely built, or expired
+
+        if TFHCache.get_creation_date() < cache_expiration_time:
             # Get the entire index again and replace the cache.
             # This can take perhaps 20 minutes, which is why we seed the
             # fetcher with any previously cached data. This will fix itself
@@ -350,8 +353,10 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     finished = True
                     complete = True
                     flush = True
-                TFHCache.set_creation_date()
+
                 TFHCache.save_cache(flush=flush, complete=complete)
+
+        clz.logger.debug(f'TFH Discovery Complete')
 
     def fix_title(self, tfh_trailer: MovieType) -> str:
         clz = type(self)
@@ -395,7 +400,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         return movie_title
 
-    def trailer_handler(self, tfh_trailer: MovieType) -> bool:
+    def trailer_handler(self, tfh_trailer: MovieType) -> None:
         """
 
         :param tfh_trailer:
@@ -405,7 +410,16 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         Monitor.throw_exception_if_abort_requested()
 
-        trailer_id = tfh_trailer[Movie.YOUTUBE_ID]
+        trailer_id = tfh_trailer.get(Movie.TFH_ID, None)
+        if trailer_id is None:
+            trailer_id = tfh_trailer.get(Movie.YOUTUBE_ID, None)
+        if trailer_id is None:
+            import json
+            type(self).logger.error('Can not find TFH_ID',
+                                    json.dumps(tfh_trailer,
+                                               encoding='utf-8',
+                                               ensure_ascii=False,
+                                               indent=3, sort_keys=True))
 
         if trailer_id not in self._unique_trailer_ids:
             self._unique_trailer_ids.add(trailer_id)
@@ -429,4 +443,4 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 tfh_trailer, total=trailers_in_playlist, flush=False)
             self.add_to_discovered_trailers(tfh_trailer)
             self.number_of_trailers_on_site = trailers_in_playlist
-            return False
+            return

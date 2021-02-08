@@ -159,13 +159,15 @@ class TFHCache:
                 Monitor.throw_exception_if_abort_requested()
                 with io.open(tmp_path, mode='at', newline=None,
                              encoding='utf-8', ) as cacheFile:
+
                     if complete:
-                        creation_date_str = datetime.datetime.strftime(
-                            cls._time_of_index_creation, '%Y:%m:%d')
-                    else:
-                        creation_date_str = TFHCache.INCOMPLETE_CREATION_DATE_STR
-                    cls._cached_trailers[TFHCache.INDEX_CREATION_DATE] = {
-                        TFHCache.INDEX_CREATION_DATE: creation_date_str,
+                        cls.set_creation_date()
+
+                    creation_date_str = datetime.datetime.strftime(
+                        cls._time_of_index_creation, '%Y:%m:%d')
+
+                    cls._cached_trailers[cls.INDEX_CREATION_DATE] = {
+                        cls.INDEX_CREATION_DATE: creation_date_str
                     }
 
                     json_text = json.dumps(cls._cached_trailers,
@@ -177,7 +179,7 @@ class TFHCache:
                     cacheFile.flush()
 
                     # Get rid of dummy entry
-                    del cls._cached_trailers['INDEX_CREATION_DATE']
+                    del cls._cached_trailers[cls.INDEX_CREATION_DATE]
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
                     cls._unsaved_trailer_changes = 0
 
@@ -211,7 +213,7 @@ class TFHCache:
                 if os.path.exists(path):
                     with io.open(path, mode='rt', newline=None,
                                  encoding='utf-8') as cacheFile:
-                        cls._cached_trailers = json.load(
+                        cls._cached_trailers: Dict[str, MovieType] = json.load(
                             cacheFile,
                             # object_hook=TFHCache.abort_checker,
                         )
@@ -222,7 +224,6 @@ class TFHCache:
                     cls._cached_trailers = dict()
                     # Set to an old time so that cache is expired
                     cls._time_of_index_creation = datetime.datetime(2000, 1, 1)
-                    cls._index_complete = False
 
             except IOError as e:
                 TFHCache.logger().exception('')
@@ -240,15 +241,15 @@ class TFHCache:
         # If no cached entry with the timestamp exists, set it to now.
 
         creation_date = None
-        creation_date_entry = cls._cached_trailers.get('INDEX_CREATION_DATE')
+        creation_date_entry = cls._cached_trailers.get(cls.INDEX_CREATION_DATE)
         if creation_date_entry is not None:
-            creation_date = creation_date_entry.get('INDEX_CREATION_DATE')
+            creation_date = creation_date_entry.get(cls.INDEX_CREATION_DATE)
         if creation_date is None:
             cls.set_creation_date()
             return
         else:
             # Remove dummy entry from cache
-            del cls._cached_trailers['INDEX_CREATION_DATE']
+            del cls._cached_trailers[cls.INDEX_CREATION_DATE]
 
         # Just to be consistent, all cached_trailer entries are MovieType (i.e. Dict)
         # So, get the actual timestamp from it
@@ -259,7 +260,6 @@ class TFHCache:
     @classmethod
     def set_creation_date(cls) -> None:
         cls._time_of_index_creation = datetime.datetime.now()
-        cls._index_complete = False
 
     @classmethod
     def get_creation_date(cls) -> datetime.datetime:
@@ -275,7 +275,6 @@ class TFHCache:
             for key, trailer in trailers.items():
                 cls._cached_trailers[key] = trailer
                 cls._unsaved_trailer_changes += 1
-                cls.set_creation_date()
 
             cls.save_cache(flush=flush)
 
