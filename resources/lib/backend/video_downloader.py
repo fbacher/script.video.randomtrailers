@@ -466,7 +466,7 @@ class VideoDownloader:
         tfh_index_logger = TfhIndexLogger(self, trailer_handler, url)
 
         try:
-            clz.get_lock(TFH.SRCE)
+            clz.get_lock(TFH.SOURCE)
             # HAVE LOCK
 
             if not block:
