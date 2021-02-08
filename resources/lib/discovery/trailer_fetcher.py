@@ -1498,9 +1498,9 @@ class TrailerFetcher(TrailerFetcherInterface):
 
                     if downloaded_movie is not None:
                         download_path = downloaded_movie[Movie.TRAILER]
-						if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-	                        clz._logger.debug_extra_verbose(f'Successful Download path: '
-     	                                                   f'{download_path}')
+                        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+                            clz._logger.debug_extra_verbose(f'Successful Download path: '
+                                                            f'{download_path}')
 
                     """
                        To save json data from downloaded for debugging, uncomment
