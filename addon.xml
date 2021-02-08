@@ -36,9 +36,9 @@
         <summary lang="en_GB">Plays Random Trailers from Multiple Sources</summary>
         <description lang="en_GB">
 Plays random movie trailers from a variety of sources:
- - Movie Library, Apple iTunes, Themoviedb.org, Specified folder
+ - Movie Library, Themoviedb.org, TrailersFromHell.com, Specified folder
 
-Installs as a Screensaver and a Program. There are Options to filter by genre, and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations.
+Installs as a Screensaver and a Program. There are Options to filter by genre, year and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations.
 
 Navigation:
   ACTION_MOVE_LEFT previous trailer
@@ -48,9 +48,7 @@ Navigation:
   ACTION_ENTER, ACTION_SELECT_ITEM or
       ACTION_SHOW_GUI to play movie from library
   ACTION_SHOW_INFO to toggle display of detailed info
-  ACTION_QUEUE_ITEM queue to Coach Potato, if installed
-
-Experimental:
+  ACTION_QUEUE_ITEM queue to Coach Potato, if installed.
   ACTION_REMOTE_[0-9] and ACTION_JUMP_SMS[2-9] writes
      to playlist. See playlist setting for more information.
         </description>
@@ -62,9 +60,8 @@ Experimental:
         <website></website>
         <email>fbacher@brisbin.net</email>
         <source>https://github.com/fbacher/Kodi-script.video.randomtrailers</source>
-        <news>v1.2.3 (01/02/201x)
-            [new] some new feature
-            [fix] some fix
+        <news>v2.0.4 (02/05/2021)
+            [new] Major Release See Readme.txt
         </news>
         <assets>
             <icon>resources/icon.png</icon>
@@ -78,7 +75,6 @@ Experimental:
             <screenshot>resources/screenshots/Settings Genre 1.png</screenshot>
             <screenshot>resources/screenshots/Settings Library.png</screenshot>
             <screenshot>resources/screenshots/Settings TMDB 1.png</screenshot>
-            <screenshot>resources/screenshots/Settings iTunes.png</screenshot>
             <screenshot>resources/screenshots/Settings Folder.png</screenshot>
             <screenshot>resources/screenshots/Settings Cache 1.png</screenshot>
             <screenshot>resources/screenshots/Settings Advanced.png</screenshot>
