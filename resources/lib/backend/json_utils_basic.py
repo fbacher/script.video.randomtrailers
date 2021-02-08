@@ -584,15 +584,15 @@ class JsonUtilsBasic(object):
                 destination]
 
     @classmethod
-    def get_json(cls, url,  # type; str
-                 second_attempt=False,  # type: bool
-                 dump_results=False,  # type: bool
-                 dump_msg='',  # type: str
-                 error_msg=None,  # type: Union[str, int, None]
-                 headers=None,  # type: Union[dict, None]
-                 params=None,  # type: Union[Dict[str, Any], None]
-                 timeout=3.0  # type: float
-                 ):
+    def get_json(cls, url: str,
+                 second_attempt: bool = False,
+                 dump_results: bool = False,
+                 dump_msg: str = '',
+                 error_msg: Union[str, int, None] = None,
+                 headers: Union[dict, None] = None,
+                 params: Union[Dict[str, Any], None] = None,
+                 timeout: float = 3.0
+                 ) -> (int, str):
         # type: (...) -> (int, str)
         """
             Queries external site for movie/trailer information.
@@ -906,8 +906,7 @@ class JsonUtilsBasic(object):
             Monitor.throw_exception_if_abort_requested()
             cls._logger.debug_extra_verbose('JASON DUMP:',
                                             json.dumps(
-                                                json_text, indent=3, sort_keys=True,
-                                                object_hook=JsonUtilsBasic.abort_checker))
+                                                json_text, indent=3, sort_keys=True))
         return movie_results
 
     @staticmethod
