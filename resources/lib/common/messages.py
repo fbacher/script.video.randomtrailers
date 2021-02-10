@@ -5,21 +5,22 @@ Created on Feb 28, 2019
 @author: fbacher
 """
 
-import xbmc
 import xbmcaddon
 from common.imports import *
 from common.constants import Movie, Constants
-from common.logger import (LazyLogger, Trace, log_entry_exit)
+from common.logger import LazyLogger
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class Messages(object):
+class Messages:
     """
-    Provides methods, message tags and default messages for accessing translated messages.
+    Provides methods, message tags and default messages for accessing translated
+    messages.
     """
 
-    TRAILER_EXCEEDS_MAX_PLAY_TIME = 'This trailer exceeds the maximum play time. Terminating'
+    TRAILER_EXCEEDS_MAX_PLAY_TIME = 'This trailer exceeds the maximum play time.' \
+                                    ' Terminating'
     TMDB_LABEL = 'TMDb'  # Offical name
     ITUNES_LABEL = 'iTunes'  # VERIFY
     MISSING_TITLE = 'Missing movie title'
@@ -44,6 +45,7 @@ class Messages(object):
     PLOT_LABEL = 'Plot'
     LICENSE_LABEL = 'Random Trailers is powered by:'
     TFH_LICENSE = 'TFH_LICENSE'
+    TMDB_LICENSE = 'TMDB_LICENSE'
 
     GENRE_ACTION = 'Action'
     GENRE_ALEGORY = 'Allegory'
@@ -177,7 +179,8 @@ class Messages(object):
         RATING_NR: 32248,
         VOICED_CERTIFICATION: 32249,
         VOICED_STARS: 32250,
-        TFH_LICENSE: 32281,
+        TFH_LICENSE: 32283,
+        TMDB_LICENSE: 32281,
         LICENSE_LABEL: 32282
     }
 
@@ -185,8 +188,7 @@ class Messages(object):
     _debug_dump = False
     _logger = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -194,7 +196,7 @@ class Messages(object):
 
     @staticmethod
     def get_instance():
-        # type: () -> Messages
+        #  type: () -> Messages
         """
 
         :return:
@@ -204,8 +206,7 @@ class Messages(object):
         return Messages._instance
 
     @classmethod
-    def get_msg(cls, msg_key):
-        # type: (str) -> str
+    def get_msg(cls, msg_key: str) -> str:
         """
 
         :param msg_key:
@@ -215,8 +216,8 @@ class Messages(object):
         return cls.get_formatted_msg(msg_key)
 
     @classmethod
-    def get_formatted_msg(cls, msg_key, *args):
-        # type: (str, Optional[Union[List[str], str]]) -> str
+    def get_formatted_msg(cls, msg_key: str,
+                          *args: Optional[Union[List[str]]]) -> str:
         """
 
         :param msg_key:
@@ -236,7 +237,7 @@ class Messages(object):
         unformatted_msg = 'Message not defined'
         try:
             msg_id = int(msg_key)
-        except:
+        except Exception:
             msg_id = None
 
         if msg_id is None:

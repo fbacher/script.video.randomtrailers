@@ -1405,3 +1405,28 @@ msgstr ""
 msgctxt "#32278"
 msgid "Path to ffmpeg command"
 msgstr ""
+
+# Common setting
+msgctxt "#32279"
+msgid "Seconds to display License"
+msgstr ""
+
+# Common setting
+msgctxt "#32280"
+msgid "License"
+msgstr ""
+
+# TMDb License Agreement
+msgctxt "#32281"
+msgid "\"The Movie Database (TMDb)\" provides movie and trailer information."
+msgstr ""
+
+# Third Party License Label
+msgctxt "#32282"
+msgid "DRAFT- Random Trailers is powered by:"
+msgstr ""
+
+# TFH License Agreement
+msgctxt "#32283"
+msgid "\"Trailers From Hell (TFH)\" provides content by a non-exclusive agreement which requires that there is no financial gain from the use of this content. TFH reserves the right to change the terms of this agreement.\n\nTrailers From Hell. All Rights Reserved.\nAll trailers appearing on TrailersFromHell.com are the property of their respective owners.\n\nTrailers From Hell\n\n© 2007-2021"
+msgstr ""
