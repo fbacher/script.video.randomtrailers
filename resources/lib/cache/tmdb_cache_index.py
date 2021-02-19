@@ -35,7 +35,7 @@ from diagnostics.statistics import (Statistics)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class CachedPage(object):
+class CachedPage:
     """
 
     """
@@ -48,8 +48,7 @@ class CachedPage(object):
                  # placed in unprocessed list.
                  processed=False,  # type: bool
                  total_pages_for_year=None  # type: Union[int, None]
-                 ):
-        # type: (...) -> None
+                 ) -> None:
         """
 
         """
@@ -62,16 +61,14 @@ class CachedPage(object):
         self._total_pages_for_year = total_pages_for_year
         self._timestamp = datetime.datetime.now()  # Time read, None if not read
 
-    def get_page_number(self):
-        # type: () -> int
+    def get_page_number(self) -> int:
         """
 
         :return:
         """
         return self._page_number
 
-    def get_year(self):
-        # type: () -> int
+    def get_year(self) -> int:
         """
 
         :return:
@@ -102,7 +99,7 @@ class CachedPage(object):
         return year_str + '_' + str(self._page_number)
 
 
-class CacheParameters(object):
+class CacheParameters:
     """
 
     """
@@ -718,8 +715,7 @@ class CachedPagesData:
         self.load_search_pages()
         return int(self._number_of_unsaved_changes)
 
-    def get_time_since_last_save(self):
-        # type: () -> datetime.timedelta
+    def get_time_since_last_save(self) -> datetime.timedelta:
         """
 
         :return:
@@ -948,9 +944,8 @@ class CacheIndex:
 
     @classmethod
     def load_cache(cls,
-                   cache_changed  # type: bool
-                   ):
-        # type: (...) -> None
+                   cache_changed: bool
+                   ) -> None:
         """
         :param cache_changed:
         :return:
@@ -1030,8 +1025,7 @@ class CacheIndex:
         return int(number_of_discovered_pages)
 
     @classmethod
-    def logger(cls):
-        #  type: () -> LazyLogger
+    def logger(cls) -> LazyLogger:
         """
 
         :return:
@@ -1129,8 +1123,7 @@ class CacheIndex:
             return cls._unprocessed_movies
 
     @classmethod
-    def save_parameter_cache(cls):
-        # type: () -> None
+    def save_parameter_cache(cls) -> None:
         """
 
         :return:
@@ -1144,8 +1137,7 @@ class CacheIndex:
         cached_pages_data.save_search_pages(flush=flush)
 
     @classmethod
-    def save_unprocessed_movie_cache(cls, flush=False):
-        # type: (bool) -> None
+    def save_unprocessed_movie_cache(cls, flush: bool = False) -> None:
         """
         :param flush:
         :return:
@@ -1160,21 +1152,21 @@ class CacheIndex:
                     # Constants.TRAILER_CACHE_FLUSH_UPDATES)
                     (cls._unprocessed_movie_changes < 10)
                     and
-                    (datetime.datetime.now() - \
-                     cls._last_saved_unprocessed_movie_timestamp)
+                    ((datetime.datetime.now() -
+                      cls._last_saved_unprocessed_movie_timestamp))
                     < datetime.timedelta(minutes=5)):
                 return
 
-            path = os.path.join(Settings.get_remote_db_cache_path(),
-                                'index', 'tmdb_unprocessed_movies.json')
-            path = xbmcvfs.validatePath(path)
-            parent_dir, file_name = os.path.split(path)
-            if not os.path.exists(parent_dir):
-                DiskUtils.create_path_if_needed(parent_dir)
-
             try:
+                path = os.path.join(Settings.get_remote_db_cache_path(),
+                                    'index', 'tmdb_unprocessed_movies.json')
+                path = xbmcvfs.validatePath(path)
+                parent_dir, file_name = os.path.split(path)
+                if not os.path.exists(parent_dir):
+                    DiskUtils.create_path_if_needed(parent_dir)
+
                 with io.open(path, mode='wt', newline=None,
-                             encoding='utf-8', ) as cacheFile:
+                             encoding='utf-8', ) as cache_file:
 
                     # TODO: Need ability to interrupt when ABORT. Object_handler
                     # not a valid arg to dumps
@@ -1184,8 +1176,8 @@ class CacheIndex:
                                            ensure_ascii=False,
                                            default=CacheIndex.handler,
                                            indent=3, sort_keys=True)
-                    cacheFile.write(json_text)
-                    cacheFile.flush()
+                    cache_file.write(json_text)
+                    cache_file.flush()
                     cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
                     cls._unprocessed_movie_changes = 0
 
@@ -1215,9 +1207,15 @@ class CacheIndex:
                 if os.path.exists(path):
                     with io.open(path, mode='rt', newline=None,
                                  encoding='utf-8') as cacheFile:
-                        cls._unprocessed_movies = json.load(
+                        unprocessed_movies = json.load(
                             cacheFile, encoding='utf-8',
                             object_hook=CacheIndex.datetime_parser)
+                        cls._unprocessed_movies.clear()
+                        for key, value in unprocessed_movies.items():
+                            if not isinstance(key, int):
+                                key = int(key)
+                            cls._unprocessed_movies[key] = value
+
                         cls.last_saved_movie_timestamp = None
                         cls._unprocessed_movie_changes = 0
                 else:
@@ -1233,8 +1231,7 @@ class CacheIndex:
             CacheIndex.logger().exception('')
 
     @classmethod
-    def save_found_trailer_ids_cache(cls, flush=False):
-        # type: (bool) -> None
+    def save_found_trailer_ids_cache(cls, flush: bool = False) -> None:
         """
         :param flush:
         :return:
@@ -1251,34 +1248,33 @@ class CacheIndex:
                     datetime.timedelta(minutes=5)):
                 return
 
-            path = os.path.join(Settings.get_remote_db_cache_path(),
-                                'index', 'tmdb_found_trailers.json')
-            path = xbmcvfs.validatePath(path)
-            parent_dir, file_name = os.path.split(path)
-            if not os.path.exists(parent_dir):
-                DiskUtils.create_path_if_needed(parent_dir)
-                try:
-                    with io.open(path, mode='wt', newline=None,
-                                 encoding='utf-8', ) as cacheFile:
-                        found_trailer_id_list = list(
-                            cls._found_tmdb_trailer_ids)
-                        json_text = json.dumps(found_trailer_id_list,
-                                               encoding='utf-8',
-                                               ensure_ascii=False,
-                                               default=CacheIndex.handler,
-                                               indent=3, sort_keys=True)
-                        cacheFile.write(json_text)
-                        cacheFile.flush()
-                        cls._last_saved_trailer_timestamp = datetime.datetime.now()
-                        cls._unsaved_trailer_changes = 0
+            try:
+                path = os.path.join(Settings.get_remote_db_cache_path(),
+                                    'index', 'tmdb_found_trailers.json')
+                path = xbmcvfs.validatePath(path)
+                parent_dir, file_name = os.path.split(path)
+                if not os.path.exists(parent_dir):
+                    DiskUtils.create_path_if_needed(parent_dir)
+                with io.open(path, mode='wt', newline=None,
+                             encoding='utf-8', ) as cacheFile:
+                    found_trailer_id_list = list(
+                        cls._found_tmdb_trailer_ids)
+                    json_text = json.dumps(found_trailer_id_list,
+                                           ensure_ascii=False,
+                                           default=CacheIndex.handler,
+                                           indent=3, sort_keys=True)
+                    cacheFile.write(json_text)
+                    cacheFile.flush()
+                    cls._last_saved_trailer_timestamp = datetime.datetime.now()
+                    cls._unsaved_trailer_changes = 0
 
-                    Monitor.throw_exception_if_abort_requested()
-                except AbortException:
-                    reraise(*sys.exc_info())
-                except IOError as e:
-                    CacheIndex.logger().exception('')
-                except Exception as e:
-                    CacheIndex.logger().exception('')
+                Monitor.throw_exception_if_abort_requested()
+            except AbortException:
+                reraise(*sys.exc_info())
+            except IOError as e:
+                CacheIndex.logger().exception('')
+            except Exception as e:
+                CacheIndex.logger().exception('')
 
     @staticmethod
     def abort_checker(dct: Dict[str, Any]) -> Dict[str, Any]:
