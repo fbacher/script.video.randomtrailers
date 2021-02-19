@@ -76,17 +76,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         self._rejected_due_to_year = None
         self._total_pages_read = 0
 
-    @classmethod
-    def get_instance(cls):
-        # type: () -> DiscoverTmdbMovies
-        """
-
-        :return:
-        """
-        local_class = DiscoverTmdbMovies
-
-        return super(DiscoverTmdbMovies, cls).get_instance()
-
     def discover_basic_information(self):
         # type: () -> None
         """
@@ -102,8 +91,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         if local_class.logger.isEnabledFor(LazyLogger.DEBUG):
             local_class.logger.debug(': started')
 
-    def on_settings_changed(self):
-        # type: () -> None
+    def on_settings_changed(self) -> None:
         """
             Rediscover trailers if the changed settings impacts this manager.
 
