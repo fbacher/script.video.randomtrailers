@@ -354,10 +354,6 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         # Entire TFH index is read, so only re-do if the cache was not
         # completely built, or expired
 
-        if TFHCache.get_creation_date() < cache_expiration_time:
-            # Get the entire index again and replace the cache.
-            # This can take perhaps 20 minutes, which is why we seed the
-            # fetcher with any previously cached data. This will fix itself
         if (TFHCache.get_creation_date() < cache_expiration_time
                 or not TFHCache.is_complete()):
             video_downloader = VideoDownloader()
