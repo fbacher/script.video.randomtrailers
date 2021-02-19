@@ -5,13 +5,11 @@ Created on Feb 10, 2019
 @author: Frank Feuerbacher
 """
 
-from .imports import *
-
 import xbmc
 from kodi65.kodiaddon import Addon
 
 
-class CriticalSettings(object):
+class CriticalSettings:
     """
         A subset of settings that are used by modules which can not have a
         dependency on Settings.
@@ -27,8 +25,7 @@ class CriticalSettings(object):
                  level=xbmc.LOGERROR)
 
     @staticmethod
-    def is_debug_enabled():
-        # type: () -> bool
+    def is_debug_enabled() -> bool:
         """
 
         :return:
@@ -36,12 +33,11 @@ class CriticalSettings(object):
         if CriticalSettings.addon is None:
             return False
 
-        is_debug_enabled = CriticalSettings.addon.setting('debug')
+        is_debug_enabled = CriticalSettings.addon.setting('do_debug')
         return bool(is_debug_enabled)
 
     @staticmethod
-    def is_debug_include_thread_info():
-        # type: () -> bool
+    def is_debug_include_thread_info() -> bool:
         """
 
         :return:
@@ -51,11 +47,11 @@ class CriticalSettings(object):
 
         is_debug_include_thread_info = CriticalSettings.addon.setting(
                                             CriticalSettings.DEBUG_INCLUDE_THREAD_INFO)
-        return bool(is_debug_include_thread_info)
+        return (bool(is_debug_include_thread_info)
+                and CriticalSettings.get_logging_level() >= 10)
 
     @staticmethod
-    def get_logging_level():
-        # type: () -> int
+    def get_logging_level() -> int:
         """
 
         :return:
@@ -70,10 +66,8 @@ class CriticalSettings(object):
             # Convert to values utilized by our Python logging library
             # based config_logger:
             #  FATAL = logging.CRITICAL # 50
-            #  SEVERE = 45
             #  ERROR = logging.ERROR       # 40
             #  WARNING = logging.WARNING   # 30
-            #  NOTICE = 25
             #  INFO = logging.INFO         # 20
             #  DEBUG_EXTRA_VERBOSE = 15
             #  DEBUG_VERBOSE = 12
@@ -85,7 +79,7 @@ class CriticalSettings(object):
             translated_value = 3
             try:
                 CriticalSettings.addon
-            except (NameError):
+            except NameError:
                 CriticalSettings.addon = None
                 xbmc.log('addon was not defined.', level=xbmc.LOGDEBUG)
 
@@ -97,19 +91,20 @@ class CriticalSettings(object):
                 log_level = CriticalSettings.addon.setting('log_level')
                 msg = 'got log_level from settings: {!s}'.format(log_level)
                 xbmc.log(msg, level=xbmc.LOGDEBUG)
-                translated_value = 0
-                if log_level == '0':  # Warning
+                log_level = int(log_level)
+                translated_value = 50
+                if log_level <= 0:  # Warning
                     translated_value = 30
-                elif log_level == '1':  # Notice
-                    translated_value = 25
-                elif log_level == '2':  # Info
+                elif log_level == 1:  # Info
                     translated_value = 20
-                elif log_level == '3':  # Debug
-                    translated_value = 10
-                elif log_level == '4':  # Verbose Debug
-                    translated_value = 8
-                elif log_level == '5':  # Extra Verbose Debug
-                    translated_value = 6
+                elif CriticalSettings.is_debug_enabled():
+                    translated_value = 0  # Not Set
+                    if log_level == 2:  # Debug
+                        translated_value = 10
+                    elif log_level == 3:  # Verbose Debug
+                        translated_value = 8
+                    elif log_level >= 4:  # Extra Verbose Debug
+                        translated_value = 6
 
                 # prefix = '[Thread {!s} {!s}.{!s}:{!s}]'.format(
                 # record.threadName, record.name, record.funcName,

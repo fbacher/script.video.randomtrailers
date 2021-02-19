@@ -854,10 +854,6 @@ msgctxt "#32158"
 msgid "WARNING"
 msgstr ""
 
-msgctxt "#32159"
-msgid "NOTICE"
-msgstr ""
-
 msgctxt "#32160"
 msgid "INFO"
 msgstr ""

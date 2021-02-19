@@ -217,7 +217,7 @@ class Messages:
 
     @classmethod
     def get_formatted_msg(cls, msg_key: str,
-                          *args: Optional[Union[List[str]]]) -> str:
+                          *args: str) -> str:
         """
 
         :param msg_key:

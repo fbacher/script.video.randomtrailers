@@ -1465,11 +1465,10 @@
 					<constraints>
 						<options>
 							<option label="32158">0</option>
-							<option label="32159">1</option>
-							<option label="32160">2</option>
-							<option label="32161">3</option>
-							<option label="32162">4</option>
-							<option label="32163">5</option>
+							<option label="32160">1</option>
+							<option label="32161">2</option>
+							<option label="32162">3</option>
+							<option label="32163">4</option>
 						</options>
 					</constraints>
 					<dependencies>
