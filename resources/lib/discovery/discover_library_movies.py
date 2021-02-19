@@ -448,7 +448,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                     if Settings.get_include_library_remote_trailers():
                         self._libraryURLManager.add_to_discovered_trailers(
                             library_url_movies)
-                    del library_no_trailer_movies[:]
+                    del library_url_movies[:]
 
                     # Unblock other discovery now that a few movies have been
                     # found.
