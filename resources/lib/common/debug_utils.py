@@ -5,7 +5,7 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
-import json
+import simplejson as json
 import sys
 import threading
 import traceback

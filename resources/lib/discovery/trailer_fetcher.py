@@ -10,7 +10,7 @@ Created on Feb 10, 2019
 import sys
 import datetime
 import glob
-import json
+import simplejson as json
 from pathlib import Path
 import os
 import re

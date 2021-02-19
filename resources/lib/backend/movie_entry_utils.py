@@ -6,7 +6,7 @@ Created on Apr 14, 2019
 """
 
 import sys
-import json
+import simplejson as json
 
 from common.imports import *
 from common.constants import Constants, Movie, RemoteTrailerPreference

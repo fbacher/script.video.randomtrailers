@@ -237,7 +237,6 @@ class Cache(object):
             with io.open(path, mode='wt', newline=None,
                          encoding='utf-8', ) as cacheFile:
                 json_text = json.dumps(trailer,
-                                       encoding='utf-8',
                                        ensure_ascii=False,
                                        indent=3, sort_keys=True)
                 cacheFile.write(json_text)

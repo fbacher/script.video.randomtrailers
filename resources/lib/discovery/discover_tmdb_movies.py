@@ -7,7 +7,7 @@ Created on Apr 14, 2019
 
 import sys
 import datetime
-import json
+import simplejson as json
 
 from cache.cache import (Cache)
 from cache.tmdb_cache_index import (CachedPage, CacheIndex, CacheParameters,
