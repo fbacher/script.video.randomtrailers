@@ -29,19 +29,17 @@ from backend.video_downloader import VideoDownloader
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator
 class DiscoverTFHMovies(BaseDiscoverMovies):
     """
-        TMDB, like iTunes, provides trailers. Query TMDB for trailers
+        TFH, like iTunes, provides trailers. Query TFH for trailers
         and manufacture trailer entries for them.
     """
-    FORCE_TFH_REDISCOVERY = True
+    FORCE_TFH_REDISCOVERY = False  # For development use
 
     _singleton_instance = None
     logger: LazyLogger = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -57,8 +55,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         self._unique_trailer_ids = set()
         self.number_of_trailers_on_site = 0
 
-    def discover_basic_information(self):
-        # type: () -> None
+    def discover_basic_information(self) -> None:
         """
             Starts the discovery thread
 
@@ -72,8 +69,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.debug(': started')
 
-    def on_settings_changed(self):
-        # type: () -> None
+    def on_settings_changed(self) -> None:
         """
             Rediscover trailers if the changed settings impacts this manager.
 
@@ -88,8 +84,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             stop_thread = not Settings.is_include_tfh_trailers()
             self.restart_discovery(stop_thread)
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
             Thread run method that is started as a result of running
             discover_basic_information
@@ -129,8 +124,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-    def run_worker(self):
-        # type: () -> None
+    def run_worker(self) -> None:
         """
             Examines the settings that impact the discovery and then
             calls discover_movies which initiates the real work
@@ -148,8 +142,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-    def discover_movies(self):
-        # type: () -> None
+    def discover_movies(self) -> None:
         """
         :return: # type: None (Lower code uses add_to_discovered_trailers).
         """
@@ -160,12 +153,64 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         
         time youtube-dl --ignore-errors --skip-download https://www.youtube.com/watch?v=YbqC0b_jfxQ
 
-        or-
+        or
+        
+       youtube-dl --flat-playlist -J --skip-download  https://www.youtube.com/user/trailersfromhell/videos 
+        
+        Returns:
+     {
+      "_type": "playlist",
+          "entries": [
+                {
+                  "_type": "url_transparent",
+                  "ie_key": "Youtube",
+                  "id": "1rPbXlQFJCw",
+                  "url": "1rPbXlQFJCw",
+                  "title": "Michael Schlesinger on TOUGH GUYS DON'T DANCE",
+                  "description": null,
+                  "duration": null,
+                  "view_count": 1722,
+                  "uploader": null
+                    }
+                ]
+            }
+        
+        ydl_opts = {
+            'forcejson': True,
+            'noplaylist': False,
+            'extract_flat': True,
+            'skip_download': True,
+            'logger': tfh_index_logger,
+            'sleep_interval': 1,
+            'max_sleep_interval': 8,
+            #  'playlist_items': trailers_to_download,
+            'playlistrandom': True,
+            'progress_hooks': [TFHIndexProgressHook(self).status_hook],
+            # 'debug_printtraffic': True
+        }
+            
+       or-
         Get JSON for TFH entire trailers in playlist:
         youtube-dl --ignore-errors --skip-download --playlist-random  
             --print-json https://www.youtube.com/user/trailersfromhell/videos >>downloads2
         Each line is a separate JSON "file" for a single trailer.
-        
+             
+             -J --dump-single-json: -> dump_single_json
+             --skip-download: -> skip_download
+             
+        ydl_opts = {
+                'forcejson': True,
+                'noplaylist': False,
+                # 'extract_flat': 'in_playlist',
+                'skip_download': True,
+                'logger': tfh_index_logger,
+                'sleep_interval': 10,
+                'max_sleep_interval': 240,
+                #  'playlist_items': trailers_to_download,
+                'playlistrandom': True,
+                'progress_hooks': [TFHIndexProgressHook(self).status_hook],
+                # 'debug_printtraffic': True
+                       
         From JSON youtube download for a single trailer:
           "license": null,
            "title": "Allan Arkush on SMALL CHANGE",
@@ -192,10 +237,20 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         """
         clz = DiscoverTFHMovies
 
-        cached_trailers = TFHCache.get_cached_trailers()
+        cache_expiration_time = datetime.timedelta(
+            float(Settings.get_tfh_cache_expiration_days()))
+        cache_expiration_time = datetime.datetime.now() - cache_expiration_time
+        if TFHCache.get_creation_date() > cache_expiration_time:
+            cached_trailers = TFHCache.get_cached_trailers()
+        else:
+            cached_trailers: Dict[str, MovieType] = {}
+
         max_trailers = Settings.get_max_number_of_tfh_trailers()
         trailer_list = list(cached_trailers.values())
+        del cached_trailers
         DiskUtils.RandomGenerator.shuffle(trailer_list)
+
+        trailer_list = []
 
         # Limit trailers added by settings, but don't throw away what
         # we have discovered.
@@ -296,10 +351,6 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         self.add_to_discovered_trailers(trailer_list)
 
-        cache_expiration_time = datetime.timedelta(
-            float(Settings.get_tfh_cache_expiration_days()))
-        cache_expiration_time = datetime.datetime.now() - cache_expiration_time
-
         # Entire TFH index is read, so only re-do if the cache was not
         # completely built, or expired
 
@@ -307,54 +358,20 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             # Get the entire index again and replace the cache.
             # This can take perhaps 20 minutes, which is why we seed the
             # fetcher with any previously cached data. This will fix itself
-            # the next time the cache is read.
-
+        if (TFHCache.get_creation_date() < cache_expiration_time
+                or not TFHCache.is_complete()):
             video_downloader = VideoDownloader()
             url = 'https://www.youtube.com/user/trailersfromhell/videos'
 
             # trailer_handler is a callback, so adds entries to the cache
 
-            # Create initial range of trailers to request. Can be adjusted as
-            # we go.
-
-            # Put first trailer at end, since we process from the end.
-
             finished = False
-            actual_trailer_count = None
             while not finished:
                 rc = video_downloader.get_tfh_index(
                     url, self.trailer_handler, block=True)
-                if rc == 0:  # All Entries passed
-                    pass
                 if rc != 429:  # Last entry read failed
+                    TFHCache.save_cache(flush=True, complete=True)
                     finished = True
-
-                # In case any were read. Note, any read already added to
-                # discovered_trailers
-
-                complete = False
-
-                # Getting all trailer urls at once.
-
-                # if actual_trailer_count is None:
-                #     attempts = 0
-                #     while self.number_of_trailers_on_site == 0 and attempts < 10:
-                #         attempts += 1
-                #         Monitor.throw_exception_if_abort_requested(0.5)
-                #     if self.number_of_trailers_on_site == 0:
-                #         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                #             clz.logger.debug(
-                #                 'Could not determine number of Trailers From Hell')
-                #     trailers_to_download = list(
-                #         range(1, self.number_of_trailers_on_site))
-                #     DiskUtils.RandomGenerator.shuffle((trailers_to_download))
-                flush = False
-                if True:  # len(trailers_to_download) == 0:
-                    finished = True
-                    complete = True
-                    flush = True
-
-                TFHCache.save_cache(flush=flush, complete=complete)
 
         clz.logger.debug(f'TFH Discovery Complete')
 
@@ -410,14 +427,29 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         Monitor.throw_exception_if_abort_requested()
 
+        """
+        
+            Handle entry for one trailer
+            
+                   "_type": "url_transparent",
+                  "ie_key": "Youtube",
+                  "id": "1rPbXlQFJCw",
+                  "url": "1rPbXlQFJCw",
+                  "title": "Michael Schlesinger on TOUGH GUYS DON'T DANCE",
+                  "description": null,
+                  "duration": null,
+                  "view_count": 1722,
+                  "uploader": null
+                    }
+            
+        """
         trailer_id = tfh_trailer.get(Movie.TFH_ID, None)
         if trailer_id is None:
             trailer_id = tfh_trailer.get(Movie.YOUTUBE_ID, None)
         if trailer_id is None:
-            import json
+            import simplejson as json
             type(self).logger.error('Can not find TFH_ID',
                                     json.dumps(tfh_trailer,
-                                               encoding='utf-8',
                                                ensure_ascii=False,
                                                indent=3, sort_keys=True))
 
@@ -433,14 +465,13 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             tfh_trailer[Movie.TFH_ID] = tfh_trailer[Movie.YOUTUBE_ID]
             tfh_trailer[Movie.TRAILER_TYPE] = Movie.VIDEO_TYPE_TRAILER
             del tfh_trailer[Movie.YOUTUBE_ID]
-            trailers_in_playlist = tfh_trailer[Movie.YOUTUBE_TRAILERS_IN_PLAYLIST]
 
             # if (Settings.get_max_number_of_tfh_trailers()
             #        <= len(TFHCache.get_cached_trailers())):
             #    return True
             # else:
             TFHCache.add_trailer(
-                tfh_trailer, total=trailers_in_playlist, flush=False)
+                tfh_trailer, flush=False)
             self.add_to_discovered_trailers(tfh_trailer)
-            self.number_of_trailers_on_site = trailers_in_playlist
+            self.number_of_trailers_on_site += 1
             return

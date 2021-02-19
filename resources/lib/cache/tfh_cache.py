@@ -42,19 +42,23 @@ class TFHCache:
     """
     UNINITIALIZED_STATE = 'uninitialized_state'
     INDEX_CREATION_DATE = 'INDEX_CREATION_DATE'
+    CACHE_COMPLETE = "CACHE_COMPLETE"
     INCOMPLETE_CREATION_DATE_STR = '1900:01:01'
     lock = threading.RLock()
     _logger = None
     _cached_trailers: Dict[str, MovieType] = {}
     _last_saved_trailer_timestamp = datetime.datetime.now()
     _unsaved_trailer_changes: int = 0
+
+    # Cache is marked with timestamp of last update of trailer ids from TFH
+    # Also marked whether the cache was completely updated.
+
     _time_of_index_creation = datetime.datetime(2000, 1, 1)  # expired
+    _cache_complete = False
     _number_of_trailers_on_site: int = 0
 
     @classmethod
-    def class_init(cls,
-                   ):
-        # type: (...) -> None
+    def class_init(cls) -> None:
         """
         :return:
         """
@@ -62,8 +66,7 @@ class TFHCache:
         cls.load_cache()
 
     @classmethod
-    def logger(cls):
-        #  type: () -> LazyLogger
+    def logger(cls) -> LazyLogger:
         """
 
         :return:
@@ -162,12 +165,17 @@ class TFHCache:
 
                     if complete:
                         cls.set_creation_date()
+                        # Set to True when complete, but don't set to False
+                        # when not complete.
+
+                        cls._cache_complete = True
 
                     creation_date_str = datetime.datetime.strftime(
                         cls._time_of_index_creation, '%Y:%m:%d')
 
                     cls._cached_trailers[cls.INDEX_CREATION_DATE] = {
-                        cls.INDEX_CREATION_DATE: creation_date_str
+                        cls.INDEX_CREATION_DATE: creation_date_str,
+                        cls.CACHE_COMPLETE: cls._cache_complete
                     }
 
                     json_text = json.dumps(cls._cached_trailers,
@@ -178,7 +186,7 @@ class TFHCache:
                     cacheFile.write(json_text)
                     cacheFile.flush()
 
-                    # Get rid of dummy entry
+                    # Get rid of dummy entry from local dict
                     del cls._cached_trailers[cls.INDEX_CREATION_DATE]
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
                     cls._unsaved_trailer_changes = 0
@@ -244,8 +252,10 @@ class TFHCache:
         creation_date_entry = cls._cached_trailers.get(cls.INDEX_CREATION_DATE)
         if creation_date_entry is not None:
             creation_date = creation_date_entry.get(cls.INDEX_CREATION_DATE)
+            cls._cache_complete = creation_date_entry.get(cls.CACHE_COMPLETE, False)
         if creation_date is None:
             cls.set_creation_date()
+            cls._cache_complete = False
             return
         else:
             # Remove dummy entry from cache
@@ -264,6 +274,10 @@ class TFHCache:
     @classmethod
     def get_creation_date(cls) -> datetime.datetime:
         return cls._time_of_index_creation
+
+    @classmethod
+    def is_complete(cls) -> bool:
+        return cls._cache_complete
 
     @classmethod
     def add_trailers(cls, trailers: Dict[str, MovieType],

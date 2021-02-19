@@ -29,7 +29,7 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 #  Intentional delay (seconds) to help prevent TOO_MANY_REQUESTS
 YOUTUBE_DOWNLOAD_INFO_DELAY = (5.0, 10.0)
 ITUNES_DOWNLOAD_INFO_DELAY = (1.0, 3.0)
-TFH_INFO_DELAY = (1.0, 4.1)
+TFH_INFO_DELAY = (0.0, 0.0)   # Requires few calls for full index
 DOWNLOAD_INFO_DELAY_BY_SOURCE = {Movie.ITUNES_SOURCE: ITUNES_DOWNLOAD_INFO_DELAY,
                                  Movie.TMDB_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
                                  Movie.TFH_SOURCE: TFH_INFO_DELAY,
@@ -60,6 +60,8 @@ class VideoDownloader:
     """
     DOWNLOAD_ERROR = 10
     BLOCKED_ERROR = 11
+    UNAVAILABLE = 12
+    PARSE_ERROR = 13
 
     # Initialize to a year ago
     # Is an estimate of when the Too Many Requests will expire
@@ -359,8 +361,7 @@ class VideoDownloader:
         return self._error, movie
 
     def get_info(self, url: str, movie_source: str,
-                 block: bool = False) -> Tuple[
-        int, Optional[List[MovieType]]]:
+                 block: bool = False) -> Tuple[int, Optional[List[MovieType]]]:
         """
         Instead of downloading a video, get basic information about the video
 
@@ -444,6 +445,7 @@ class VideoDownloader:
         return 0, trailer_info
 
     def get_tfh_index(self, url: str, trailer_handler,
+                      existing_ids: Set[str] = None,
                       block: bool = False) -> int:
         """
         Fetches all of the urls in the Trailers From Hell playlist. Note that
@@ -457,6 +459,8 @@ class VideoDownloader:
         :param url: points to playlist
         :param trailer_handler: Call back to DiscoverTFHMovies to process each
                 returned entry as it occurs.
+        :param existing_ids: Set of ids that have already been discovered
+                            and do not need to be rediscovered
         :param block: If true, then wait until no longer TOO_MANY_REQUESTS
         :return:
         """
@@ -488,17 +492,38 @@ class VideoDownloader:
             # Therefore, reluctantly not using playlist_items and getting everything
             # at once (although no downloaded trailers).
 
+            """
+            Returns:
+                {
+                    "_type": "playlist",
+                    "entries": [
+                        {
+                            "_type": "url_transparent",
+                            "ie_key": "Youtube",
+                            "id": "Sz0FCYJaQUc",
+                            "url": "Sz0FCYJaQUc",
+                            "title": "WATCH LIVE: The Old Path Bible Exposition - April 24, "
+                                     "2020, 7 PM PHT",
+                            "description": null,
+                            "duration": 10235.0,
+                            "view_count": null,
+                            "uploader": null
+                        }
+                    ]
+                }
+            """
             ydl_opts = {
                 'forcejson': True,
                 'noplaylist': False,
-                # 'extract_flat': 'in_playlist',
+                'extract_flat': 'in_playlist',
+                'ignoreerrors': True,
                 'skip_download': True,
                 'logger': tfh_index_logger,
-                'sleep_interval': 10,
-                'max_sleep_interval': 240,
+                'sleep_interval': 1,
+                'max_sleep_interval': 8,
                 #  'playlist_items': trailers_to_download,
                 'playlistrandom': True,
-                'progress_hooks': [TFHIndexProgressHook(self).status_hook],
+                'progress_hooks': [TFHIndexProgressHook(self).status_hook]
                 # 'debug_printtraffic': True
             }
             cookie_path = Settings.get_youtube_dl_cookie_path()
@@ -521,7 +546,7 @@ class VideoDownloader:
             if self._error == 0:
                 clz._logger.exception(f'Error downloading: url: {url}')
         finally:
-            clz.release_lock([Movie.TFH_SOURCE])
+            clz.release_lock(Movie.TFH_SOURCE)
 
             if self._error != 429:
                 clz._retry_attempts = 0
@@ -584,7 +609,7 @@ class BaseYDLogger:
 
     def __init__(self, downloader: VideoDownloader, url: str,
                  parse_json_as_youtube: bool = True):
-        clz = BaseYDLogger
+        clz = type(self)
         clz.logger = module_logger.getChild(clz.__name__)
         self.debug_lines: List[str] = []
         self.warning_lines: List[str] = []
@@ -638,7 +663,7 @@ class BaseYDLogger:
              =AOn4CLAhW2AcVqdWYiPMZuKENgiCO0gykQ",...
         :return:
         """
-        clz = BaseYDLogger
+        clz = type(self)
         if Monitor.is_abort_requested():
             self.set_error(99, force=True)
             # Kill YoutubeDL
@@ -651,27 +676,112 @@ class BaseYDLogger:
                 self.index = int(index_str)
                 self.total = int(total_str)
             except Exception as e:
-                type(self).logger.exception(f'url: {self.url}')
+                clz.logger.exception(f'url: {self.url}')
                 self.set_error(1)
 
-        # if line.startswith('{"_type":'):
-        #     try:
-        #         data = json.loads(line)
-        #         self._trailer_handler(data)
-        #     except Exception as e:
-        #         clz.logger.exception()
+        if line.startswith('{"_type":'):
+            try:
+                self.raw_data = json.loads(line)
+                if self._parse_json_as_youtube:
+                    self._parsed_movie = clz.populate_youtube_movie_info(self.raw_data,
+                                                                         self.url)
+            except Exception as e:
+                clz.logger.exception(f'url: {self.url}')
+                self.set_error(VideoDownloader.PARSE_ERROR)
         if line.startswith('{"id":'):
             try:
                 self.raw_data = json.loads(line)
                 # VideoDownloader._retry_attempts = 0
                 if self._parse_json_as_youtube:
-                    self._parsed_movie = populate_youtube_movie_info(self.raw_data,
-                                                                     self.url)
+                    self._parsed_movie = clz.populate_youtube_movie_info(self.raw_data,
+                                                                         self.url)
 
                 # self._trailer_handler(movie_data)
             except Exception as e:
-                type(self).logger.exception(f'url: {self.url}')
+                clz.logger.exception(f'url: {self.url}')
                 self.set_error(2)
+
+    @classmethod
+    def populate_youtube_movie_info(cls, movie_data: MovieType,
+                                    url: str) -> MovieType:
+        """
+            Creates a Kodi MovieType from the data returned from Youtube.
+
+        """
+        movie: Union[MovieType, None] = None
+        dump_json = False
+        missing_keywords = []
+        try:
+            trailer_id = movie_data.get('id')
+            if trailer_id is None:
+                missing_keywords.append('id')
+                dump_json = True
+            if movie_data.get('title') is None:
+                missing_keywords.append('title')
+                dump_json = True
+
+            movie_title = movie_data.get('title', 'Missing Title')
+            trailer_url = 'https://youtu.be/' + trailer_id
+            if movie_data.get('upload_date') is None:
+                missing_keywords.append('upload_date')
+                dump_json = True
+                movie_data['upload_date'] = datetime.datetime.now(
+                ).strftime('%Y%m%d')
+            upload_date = movie_data.get('upload_date', '19000101')  # 20120910
+            year_str = upload_date[0:4]
+
+            year = int(year_str)
+            if movie_data.get('thumbnail') is None:
+                missing_keywords.append('thumbnail')
+                dump_json = True
+            thumbnail = movie_data.get('thumbnail', '')
+
+            if movie_data.get('description') is None:
+                missing_keywords.append('description')
+                dump_json = True
+            description = movie_data.get('description', '')
+            country_id = Settings.get_country_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            unrated_id = certifications.get_unrated_certification().get_preferred_id()
+
+            # Tags might have some good stuff, but very unorganized and full of junk
+            # tags: Dict[str, str] = movie_data.get('tags', {})
+            if movie_data.get('average_rating') is None:
+                missing_keywords.append('average_rating')
+                dump_json = True
+            if movie_data.get('duration') is None:
+                missing_keywords.append('duration')
+                dump_json = True
+            movie = {Movie.SOURCE: 'unknown',
+                     Movie.YOUTUBE_ID: trailer_id,
+                     Movie.TITLE: movie_title,
+                     Movie.YEAR: year,
+                     Movie.ORIGINAL_LANGUAGE: '',
+                     Movie.TRAILER: trailer_url,
+                     Movie.PLOT: description,
+                     Movie.THUMBNAIL: thumbnail,
+                     Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
+                     Movie.MPAA: unrated_id,
+                     Movie.ADULT: False,
+                     Movie.RATING: movie_data.get('average_rating', 0.0),
+                     # Kodi measures in seconds
+                     # At least for TFH, this appears to be time of trailer
+                     # (not movie), measured in 1/60 of a
+                     # second, or 60Hz frames. Weird.
+                     Movie.RUNTIME: 0  # Ignore trailer length
+                     }
+        except Exception as e:
+            dump_json = True
+            cls.logger.exception(f'url: {url}')
+        if dump_json:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug('Missing json data. Missing keywords:',
+                                 ', '.join(missing_keywords), 'URL:', url,
+                                 '\njson:',
+                                 json.dumps(movie_data,
+                                            ensure_ascii=False,
+                                            indent=3, sort_keys=True))
+        return movie
 
     def warning(self, line: str) -> None:
         if Monitor.is_abort_requested():
@@ -703,6 +813,8 @@ class BaseYDLogger:
             self.set_error(VideoDownloader.DOWNLOAD_ERROR)
         elif 'blocked' in line:
             self.set_error(VideoDownloader.BLOCKED_ERROR)
+        elif 'unavailable' in line:
+            self.set_error(VideoDownloader.UNAVAILABLE)
         else:
             self.error_lines.append(line)
 
@@ -733,7 +845,7 @@ class BaseYDLogger:
 
         clz = BaseYDLogger
         text = '\n'.join(lines)
-        if type(self).logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if type(self).logger.isEnabledFor(LazyLogger.DISABLED):
             type(self).logger.debug_extra_verbose(label, text)
 
     def log_debug(self) -> None:
@@ -752,7 +864,7 @@ class TfhIndexLogger(BaseYDLogger):
     def __init__(self, downloader: VideoDownloader,
                  trailer_handler, url: str):
         super().__init__(downloader, url, parse_json_as_youtube=True)
-        clz = TfhIndexLogger
+        clz = type(self)
         clz.logger = module_logger.getChild(clz.__name__)
         self._trailer_handler = trailer_handler
 
@@ -761,7 +873,7 @@ class TfhIndexLogger(BaseYDLogger):
              :return:
         """
         super().debug(line)
-        clz = TfhIndexLogger
+        clz = type(self)
         if self._parsed_movie is not None and self._downloader._error == 0:
             try:
                 self._trailer_handler(self._parsed_movie)
@@ -781,6 +893,90 @@ class TfhIndexLogger(BaseYDLogger):
             except Exception as e:
                 type(self).logger.exception(f'url: {self.url}')
 
+    @classmethod
+    def populate_youtube_movie_info(cls, movie_data: MovieType,
+                                    url: str) -> MovieType:
+        """
+            Creates a Kodi MovieType from the data returned from Youtube.
+
+            Not used for iTunes movies. Rely on DiscoverItunesMovies for that.
+
+            TFH trailers are titled:
+
+             Formats: Reviewer on CAPS TITLE (most common)
+                      Reviewer talks TITLE
+                      Reviewer talks about TITLE
+                      Reviewer discusses TITLE
+                      Reviewer's TITLE
+                      TITLE
+                      Reviewer In Conversation With Person
+                      Reviewer covers TITLE
+                      Reviewer introduces TITLE for the Cinenasty series
+
+            Here we can try to get just the movie title and then look up
+            a likely match in TMDB (with date, and other info).
+            TFH may not like us changing/guessing the movie title, however.
+        """
+        movie: Union[MovieType, None] = None
+        dump_json = False
+        missing_keywords = []
+        try:
+            trailer_id = movie_data.get('id')
+            if trailer_id is None:
+                missing_keywords.append('id')
+                dump_json = True
+            url = movie_data.get('url')
+            if movie_data.get('title') is None:
+                missing_keywords.append('title')
+                dump_json = True
+
+            movie_title = movie_data.get('title', 'Missing Title')
+            trailer_url = 'https://youtu.be/' + trailer_id
+
+            upload_date = movie_data.get('upload_date', '19000101')
+            year_str = upload_date[0:4]
+
+            year = int(year_str)
+            if movie_data.get('thumbnail') is not None:
+                thumbnail = movie_data.get('thumbnail')
+
+            if movie_data.get('description') is None:
+                description = movie_data.get('description', '')
+            country_id = Settings.get_country_iso_3166_1().lower()
+            certifications = WorldCertifications.get_certifications(country_id)
+            unrated_id = certifications.get_unrated_certification().get_preferred_id()
+            trailers_in_playlist = movie_data.get('n_entries', 1)
+            movie = {Movie.SOURCE: 'unknown',
+                     Movie.YOUTUBE_ID: trailer_id,
+                     Movie.TITLE: movie_title,
+                     Movie.YEAR: 0,
+                     Movie.ORIGINAL_LANGUAGE: '',
+                     Movie.TRAILER: trailer_url,
+                     Movie.PLOT: '',
+                     Movie.THUMBNAIL: '',
+                     Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
+                     Movie.MPAA: unrated_id,
+                     Movie.ADULT: False,
+                     Movie.RATING: movie_data.get('average_rating', 0.0),
+                     # Kodi measures in seconds
+                     # At least for TFH, this appears to be time of trailer
+                     # (not movie), measured in 1/60 of a
+                     # second, or 60Hz frames. Weird.
+                     Movie.RUNTIME: 0  # Ignore trailer length
+                     }
+        except Exception as e:
+            dump_json = True
+            cls.logger.exception(f'url: {url}')
+        if dump_json:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug('Missing json data. Missing keywords:',
+                                 ', '.join(missing_keywords), 'URL:', url,
+                                 '\njson:',
+                                 json.dumps(movie_data,
+                                            ensure_ascii=False,
+                                            indent=3, sort_keys=True))
+        return movie
+
 
 class VideoLogger(BaseYDLogger):
     logger = None
@@ -789,8 +985,9 @@ class VideoLogger(BaseYDLogger):
                  parse_json_as_youtube: bool):
         super().__init__(downloader, url,
                          parse_json_as_youtube=parse_json_as_youtube)
-        clz = VideoLogger
-        clz.logger = module_logger.getChild(clz.__name__)
+        clz = type(self)
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__)
         self.data = None
 
     def debug(self, line: str) -> None:
@@ -808,12 +1005,20 @@ class VideoLogger(BaseYDLogger):
 
 class TfhInfoLogger(BaseYDLogger):
     logger = None
+    country_id = None
+    certifications = None
+    unrated_id = None
 
     def __init__(self, downloader: VideoDownloader, url: str,
                  parse_json_as_youtube: bool = False):
         super().__init__(downloader, url, parse_json_as_youtube=parse_json_as_youtube)
-        clz = TfhIndexLogger
-        clz.logger = module_logger.getChild(clz.__name__)
+        clz = type(self)
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__)
+            clz.country_id = Settings.get_country_iso_3166_1().lower()
+            clz.certifications = WorldCertifications.get_certifications(clz.country_id)
+            clz.unrated_id = clz.certifications.get_unrated_certification().get_preferred_id()
+
         self._trailer_info: List[MovieType] = []
         self.is_finished = False
 
@@ -825,7 +1030,7 @@ class TfhInfoLogger(BaseYDLogger):
              :return:
         """
         super().debug(line)
-        clz = TfhIndexLogger
+        clz = type(self)
 
         if self.raw_data is not None:
             self._trailer_info.append(self.raw_data)
@@ -833,115 +1038,14 @@ class TfhInfoLogger(BaseYDLogger):
         # How do we know when finished?
 
 
-def populate_youtube_movie_info(movie_data: MovieType, url: str) -> MovieType:
-    """
-        Creates a Kodi MovieType from the data returned from Youtube.
-        Currently only used for TFH movies.
-
-        Not used for iTunes movies. Rely on DiscoverItunesMovies for that.
-
-        TFH trailers are titled:
-
-         Formats: Reviewer on CAPS TITLE (most common)
-                  Reviewer talks TITLE
-                  Reviewer talks about TITLE
-                  Reviewer discusses TITLE
-                  Reviewer's TITLE
-                  TITLE
-                  Reviewer In Conversation With Person
-                  Reviewer covers TITLE
-                  Reviewer introduces TITLE for the Cinenasty series
-
-        Here we can try to get just the movie title and then look up
-        a likely match in TMDB (with date, and other info).
-        TFH may not like us changing/guessing the movie title, however.
-    """
-
-    movie: Union[MovieType, None] = None
-    dump_json = False
-    missing_keywords = []
-    try:
-        trailer_id = movie_data.get('id')
-        if trailer_id is None:
-            missing_keywords.append('id')
-            dump_json = True
-        if movie_data.get('title') is None:
-            missing_keywords.append('title')
-            dump_json = True
-
-        movie_title = movie_data.get('title', 'Missing Title')
-        trailer_url = 'https://youtu.be/' + trailer_id
-        if movie_data.get('upload_date') is None:
-            missing_keywords.append('upload_date')
-            dump_json = True
-            movie_data['upload_date'] = datetime.datetime.now(
-            ).strftime('%Y%m%d')
-        upload_date = movie_data.get('upload_date', '19000101')  # 20120910
-        year_str = upload_date[0:4]
-
-        year = int(year_str)
-        if movie_data.get('thumbnail') is None:
-            missing_keywords.append('thumbnail')
-            dump_json = True
-        thumbnail = movie_data.get('thumbnail', '')
-
-        if movie_data.get('description') is None:
-            missing_keywords.append('description')
-            dump_json = True
-        description = movie_data.get('description', '')
-        country_id = Settings.get_country_iso_3166_1().lower()
-        certifications = WorldCertifications.get_certifications(country_id)
-        unrated_id = certifications.get_unrated_certification().get_preferred_id()
-        trailers_in_playlist = movie_data.get('n_entries', 1)
-        playlist_index = movie_data.get('playlist_index', 0)
-        # Tags might have some good stuff, but very unorganized and full of junk
-        # tags: Dict[str, str] = movie_data.get('tags', {})
-        if movie_data.get('average_rating') is None:
-            missing_keywords.append('average_rating')
-            dump_json = True
-        if movie_data.get('duration') is None:
-            missing_keywords.append('duration')
-            dump_json = True
-        movie = {Movie.SOURCE: 'unknown',
-                 Movie.YOUTUBE_ID: trailer_id,
-                 Movie.TITLE: movie_title,
-                 Movie.YEAR: year,
-                 Movie.ORIGINAL_LANGUAGE: '',
-                 Movie.TRAILER: trailer_url,
-                 Movie.PLOT: description,
-                 Movie.THUMBNAIL: thumbnail,
-                 Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                 Movie.MPAA: unrated_id,
-                 Movie.ADULT: False,
-                 Movie.RATING: movie_data.get('average_rating', 0.0),
-                 # Kodi measures in seconds
-                 # At least for TFH, this appears to be time of trailer
-                 # (not movie), measured in 1/60 of a
-                 # second, or 60Hz frames. Weird.
-                 Movie.RUNTIME: 0  # Ignore trailer length
-                 }
-        if playlist_index is not None:
-            movie[Movie.YOUTUBE_PLAYLIST_INDEX] = playlist_index
-            movie[Movie.YOUTUBE_TRAILERS_IN_PLAYLIST] = trailers_in_playlist
-    except Exception as e:
-        dump_json = True
-        module_logger.exception(f'url: {url}')
-    if dump_json:
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            module_logger.debug('Missing json data. Missing keywords:',
-                                ', '.join(missing_keywords), 'URL:', url,
-                                '\njson:',
-                                json.dumps(movie_data,
-                                           encoding='utf-8',
-                                           ensure_ascii=False,
-                                           indent=3, sort_keys=True))
-    return movie
-
-
 class BaseInfoHook:
-    _logger = module_logger.getChild('BaseInfoHook')
+    _logger = None
 
     def __init__(self, downloader: VideoDownloader):
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
+
         self.error_lines: List[str] = []
         self.warning_lines: List[str] = []
         self.debug_lines: List[str] = []
@@ -953,7 +1057,7 @@ class BaseInfoHook:
             self._downloader._error = rc
 
     def status_hook(self, status: Dict[str, str]) -> None:
-        clz = BaseInfoHook
+        clz = type(self)
         if Monitor.is_abort_requested():
             self.set_error(99)
             # Kill YoutubeDL
@@ -987,33 +1091,45 @@ class BaseInfoHook:
 
 
 class TrailerInfoProgressHook(BaseInfoHook):
-    _logger = module_logger.getChild('TrailerInfoProgressHook')
+    _logger = None
 
     def __init__(self, downloader: VideoDownloader):
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
+
         super().__init__(downloader)
 
     def status_hook(self, status: Dict[str, str]) -> None:
-        clz = TrailerInfoProgressHook
+        clz = type(self)
         super().status_hook(status)
 
 
 class TFHIndexProgressHook(BaseInfoHook):
-    _logger = module_logger.getChild('TFHIndexProgressHook')
+    _logger = None
 
     def __init__(self, downloader: VideoDownloader):
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
+
         super().__init__(downloader)
 
     def status_hook(self, status: Dict[str, str]) -> None:
-        clz = TFHIndexProgressHook
+        clz = type(self)
         super().status_hook(status)
 
 
 class VideoDownloadProgressHook(BaseInfoHook):
-    _logger = module_logger.getChild('VideoDownloadProgressHook')
+    _logger = None
 
     def __init__(self, downloader: VideoDownloader):
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
+
         super().__init__(downloader)
 
     def status_hook(self, status: Dict[str, str]) -> None:
-        clz = VideoDownloadProgressHook
+        clz = type(self)
         super().status_hook(status)
