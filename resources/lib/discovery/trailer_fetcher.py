@@ -278,8 +278,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                 tmdb_id = int(tmdb_id)
 
             rejection_reasons, populated_trailer = self.get_tmdb_trailer(trailer[Movie.TITLE],
-                                                              tmdb_id,
-                                                              Movie.TMDB_SOURCE)
+                                                                         tmdb_id,
+                                                                         Movie.TMDB_SOURCE)
             self.throw_exception_on_forced_to_stop()
 
             if Movie.REJECTED_TOO_MANY_TMDB_REQUESTS in rejection_reasons:
@@ -351,7 +351,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 msg=' Movie not found at tmdb')
                             trailer[Movie.TMDB_ID_NOT_FOUND] = True
                         else:
-                            changed = MovieEntryUtils.set_tmdb_id(trailer, tmdb_id)
+                            changed = MovieEntryUtils.set_tmdb_id(
+                                trailer, tmdb_id)
 
                             # We found an id from TMDB, update Kodi database
                             # so that we don't have to go through this again
@@ -597,7 +598,6 @@ class TrailerFetcher(TrailerFetcherInterface):
                                           'source:', movie[Movie.SOURCE])
         return trailer_ok
 
-    # noinspection SyntaxError
     def get_tmdb_trailer(self,
                          movie_title: str,
                          tmdb_id: Union[int, str],
@@ -861,13 +861,13 @@ class TrailerFetcher(TrailerFetcherInterface):
             # fanart = image_base_url + 'w380' + \
             #     str(tmdb_result['backdrop_path'])
             fanart = image_base_url + 'original' + \
-                     str(tmdb_result['backdrop_path'])
+                str(tmdb_result['backdrop_path'])
             dict_info[Movie.FANART] = fanart
 
             # thumbnail = image_base_url + 'w342' + \
             #     str(tmdb_result['poster_path'])
             thumbnail = image_base_url + 'original' + \
-                        str(tmdb_result['poster_path'])
+                str(tmdb_result['poster_path'])
             dict_info[Movie.THUMBNAIL] = thumbnail
 
             title = tmdb_result[Movie.TITLE]
@@ -1102,7 +1102,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         keep_trailer = False
 
                 else:
-                    tmdb_detail_info[Movie.PLOT] = tmdb_detail_info.get(Movie.PLOT, '')
+                    tmdb_detail_info[Movie.PLOT] = tmdb_detail_info.get(
+                        Movie.PLOT, '')
                     self.clone_fields(tmdb_detail_info, movie, Movie.PLOT)
 
             if source == Movie.TFH_SOURCE:
@@ -1185,7 +1186,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             movie[Movie.DETAIL_DIRECTORS] = ', '.join(
                 movie.get(Movie.DIRECTOR, []))
 
-            movie[Movie.VOICED_DETAIL_DIRECTORS] = movie.get(Movie.DIRECTOR, [])
+            movie[Movie.VOICED_DETAIL_DIRECTORS] = movie.get(
+                Movie.DIRECTOR, [])
             if len(movie[Movie.VOICED_DETAIL_DIRECTORS]) > Movie.MAX_VOICED_DIRECTORS:
                 movie[Movie.VOICED_DETAIL_DIRECTORS] = \
                     movie[Movie.VOICED_DETAIL_DIRECTORS][:Movie.MAX_VOICED_DIRECTORS - 1]
@@ -1495,6 +1497,16 @@ class TrailerFetcher(TrailerFetcherInterface):
                             clz._logger.debug(
                                 'Can not download trailer for cache at this time')
                         return rc
+                    if error_code == VideoDownloader.UNAVAILABLE:
+                        # Account terminated, or other permanent unavailability
+                        tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+                        TrailerUnavailableCache.add_missing_tmdb_trailer(
+                                                     tmdb_id=tmdb_id,
+                                                     library_id=None,
+                                                     title=movie[Movie.TITLE],
+                                                     year=movie[Movie.YEAR],
+                                                     source=movie[Movie.SOURCE]
+                                                     )
 
                     if downloaded_movie is not None:
                         download_path = downloaded_movie[Movie.TRAILER]
@@ -1518,11 +1530,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                     """
 
                     if download_path is None:
+                        msg = 'Download FAILED'
+                        if rc == VideoDownloader.UNAVAILABLE:
+                            msg = 'Download permanently unavailable'
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                             clz._logger.debug('Video Download failed',
                                               f'{movie[Movie.TITLE]}')
                         self._missing_trailers_playlist.record_played_trailer(
-                            movie, use_movie_path=False, msg='Download FAILED')
+                            movie, use_movie_path=False, msg=msg)
                         if rc == 0:
                             rc = 1
                     else:
