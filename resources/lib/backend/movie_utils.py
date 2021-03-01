@@ -9,9 +9,9 @@ Created on Feb 11, 2019
 import os
 
 from common.imports import *
-from common.constants import (Constants, Movie)
+from common.constants import Movie
 from common.playlist import Playlist
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from backend.json_utils import JsonUtils
 
 from common.settings import Settings
@@ -19,13 +19,12 @@ from common.settings import Settings
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class LibraryMovieStats(object):
+class LibraryMovieStats:
     """
 
     """
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -38,8 +37,7 @@ class LibraryMovieStats(object):
        Determine which genres are represented in the movie library
     '''
 
-    def get_genres_in_library(self):
-        # type: () -> List[str]
+    def get_genres_in_library(self) -> List[str]:
         """
 
         :return:
@@ -62,8 +60,7 @@ class LibraryMovieStats(object):
         my_genres.sort()
         return my_genres
 
-    def collect_data(self, movie):
-        # type: (dict) -> None
+    def collect_data(self, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -73,8 +70,7 @@ class LibraryMovieStats(object):
         self.collect_genres(movie)
         self.collect_tags(movie)
 
-    def report_data(self):
-        # type: () -> None
+    def report_data(self) -> None:
         """
 
         :return:
@@ -92,8 +88,7 @@ class LibraryMovieStats(object):
 
         Settings.disable_movie_stats()
 
-    def collect_actors(self, movie):
-        # type: (dict)-> None
+    def collect_actors(self, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -115,8 +110,7 @@ class LibraryMovieStats(object):
             if actor_count == Settings.get_report_max_top_actors():
                 break
 
-    def report_actor_frequency(self, msg=''):
-        # type: (str) -> None
+    def report_actor_frequency(self, msg: str = '') -> None:
         """
 
         :param msg:
@@ -144,8 +138,7 @@ class LibraryMovieStats(object):
 
         playlist.close()
 
-    def collect_tags(self, movie):
-        # type: (dict) -> None
+    def collect_tags(self, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -163,8 +156,7 @@ class LibraryMovieStats(object):
                 self._tag_map[tag] = []
             self._tag_map[tag].append(movie_id)
 
-    def report_genre_map(self, msg=''):
-        # type: (str) -> None
+    def report_genre_map(self, msg: str = '') -> None:
         """
 
         :param msg:
@@ -196,8 +188,7 @@ class LibraryMovieStats(object):
 
         playlist.close()
 
-    def collect_genres(self, movie):
-        #  type: (MovieType) -> None
+    def collect_genres(self, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -216,8 +207,7 @@ class LibraryMovieStats(object):
             self._genre_map[genre].append(movie_id)
 
     @staticmethod
-    def report_genres(genres):
-        # type: (List[str]) -> None
+    def report_genres(genres: List[str]) -> None:
         """
 
         :param genres:
@@ -239,8 +229,7 @@ class LibraryMovieStats(object):
         playlist.close()
 
     @staticmethod
-    def discover_tags():
-        # type: () -> List[str]
+    def discover_tags() -> List[str]:
         """
 
         :return:
@@ -259,8 +248,7 @@ class LibraryMovieStats(object):
         return tags
 
     @staticmethod
-    def report_tags(tags):
-        # type: (List[str]) -> None
+    def report_tags(tags: List[str]) -> None:
         """
 
         :param tags:
@@ -281,8 +269,7 @@ class LibraryMovieStats(object):
 
         playlist.close()
 
-    def report_tag_map(self, msg=''):
-        # type: (str) -> None
+    def report_tag_map(self, msg: str = '') -> None:
         """
 
         :param msg:

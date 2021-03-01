@@ -59,7 +59,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         """
             Starts the discovery thread
 
-        :return: # type: None
+        :return:
         """
         clz = DiscoverTFHMovies
 
@@ -93,7 +93,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             wrapper is able to restart discovery and to handle a few
             details after discovery is complete.
 
-        :return: # type: None
+        :return:
         """
         clz = DiscoverTFHMovies
 
@@ -129,7 +129,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             Examines the settings that impact the discovery and then
             calls discover_movies which initiates the real work
 
-        :return: #type: None
+        :return:
         """
         clz = DiscoverTFHMovies
 
@@ -144,7 +144,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
     def discover_movies(self) -> None:
         """
-        :return: # type: None (Lower code uses add_to_discovered_trailers).
+        :return: (Lower code uses add_to_discovered_trailers).
         """
 
         """

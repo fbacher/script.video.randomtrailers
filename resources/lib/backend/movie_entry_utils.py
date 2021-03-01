@@ -9,24 +9,24 @@ import sys
 import simplejson as json
 
 from common.imports import *
-from common.constants import Constants, Movie, RemoteTrailerPreference
+from common.constants import Movie
 from common.exceptions import AbortException
 from common.monitor import Monitor
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from common.settings import Settings
 from backend.json_utils_basic import JsonUtilsBasic
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class MovieEntryUtils (object):
+class MovieEntryUtils:
     """
 
     """
     _logger = None
 
     @classmethod
-    def _class_init(cls):
+    def _class_init(cls) -> None:
         cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
@@ -138,11 +138,12 @@ class MovieEntryUtils (object):
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             cls._logger.debug('title:', movie_title, 'tmdb_id:', tmdb_id)
 
-        data = {}
-        # data['append_to_response'] = 'credits,releases'
-        data['language'] = Settings.get_lang_iso_639_1()
-        data['api_key'] = Settings.get_tmdb_api_key()
-        data['append_to_response'] = 'alternative_titles'
+        data = {
+            # 'append_to_response': 'credits,releases'
+            'language': Settings.get_lang_iso_639_1(),
+            'api_key': Settings.get_tmdb_api_key(),
+            'append_to_response': 'alternative_titles'}
+
         url = 'http://api.themoviedb.org/3/movie/' + str(tmdb_id)
 
         tmdb_result = None

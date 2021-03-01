@@ -21,8 +21,7 @@ from discovery.discover_tfh_movies import DiscoverTFHMovies
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-def load_trailers():
-    # type: () ->None
+def load_trailers() -> None:
     """
         Start up the configured trailer discovery threads.
 
@@ -56,8 +55,7 @@ def load_trailers():
     Monitor.set_startup_complete()
 
 
-def get_genres_in_library():
-    # type: () -> List[str]
+def get_genres_in_library() -> List[str]:
     """
 
     :return:

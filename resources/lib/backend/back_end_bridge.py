@@ -16,6 +16,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
+from discovery.playable_trailer_service import PlayableTrailerService
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -24,8 +25,6 @@ class BackendBridgeStatus(PluginBridgeStatus):
     """
 
     """
-
-# noinspection Annotator,PyInitNewSignature
 
 
 class BackendBridge(PluginBridge):
@@ -43,12 +42,14 @@ class BackendBridge(PluginBridge):
     _busy_getting_trailer = False
     _status = BackendBridgeStatus.IDLE
 
-    def __init__(self, playable_trailer_service) -> None:
+    def __init__(self,
+                 playable_trailer_service: PlayableTrailerService) -> None:
         super().__init__()
         type(self).class_init(playable_trailer_service)
 
     @classmethod
-    def class_init(cls, playable_trailer_service):
+    def class_init(cls,
+                   playable_trailer_service: PlayableTrailerService) -> None:
         """
          Simple initialization
 
@@ -77,8 +78,7 @@ class BackendBridge(PluginBridge):
     ###########################################################
 
     @classmethod
-    def get_trailer(cls, ignored):
-        # type: (Any) -> None
+    def get_trailer(cls, _) -> None:
         """
             Back-end receives request for next trailer from the front-end and
             waits for response.
@@ -86,19 +86,17 @@ class BackendBridge(PluginBridge):
         try:
             thread = threading.Thread(
                 target=cls.get_trailer_worker,
-                args=(ignored,),
                 name='BackendBridge.get_trailer')
 
             thread.start()
             GarbageCollector.add_thread(thread)
         except AbortException:
-            pass #  Don't pass up to AddonSignals
+            pass  # Don't pass up to AddonSignals
         except Exception:
             cls._logger.exception('')
 
     @classmethod
-    def get_trailer_worker(cls, ignored):
-        # type: (Any) -> None
+    def get_trailer_worker(cls) -> None:
         """
             Back-end receives request for next trailer from the front-end and
             waits for response.
@@ -129,8 +127,7 @@ class BackendBridge(PluginBridge):
         cls._busy_getting_trailer = False
 
     @classmethod
-    def send_trailer(cls, status, trailer):
-        # type: (str, Union[dict, None]) -> None
+    def send_trailer(cls, status: str, trailer: MovieType) -> None:
         """
             Send trailer to front-end
         """
@@ -146,8 +143,7 @@ class BackendBridge(PluginBridge):
             cls._logger.exception('')
 
     @classmethod
-    def on_settings_changed(cls, ignored):
-        # type: (Any) -> None
+    def on_settings_changed(cls, _: Any) -> None:
         """
             Back-end receiving notification from front-end that the settings have
             changed.
@@ -165,8 +161,7 @@ class BackendBridge(PluginBridge):
             cls._logger.exception('')
 
     @classmethod
-    def register_listeners(cls):
-        # type: () -> None
+    def register_listeners(cls) -> None:
         """
             Register listeners (callbacks) with service. Note that
             communication is asynchronous

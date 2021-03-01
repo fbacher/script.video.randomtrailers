@@ -11,7 +11,6 @@ import random
 import sys
 
 from common.imports import *
-from common.constants import (Constants)
 from common.exceptions import AbortException
 from common.logger import LazyLogger
 
@@ -19,7 +18,7 @@ from common.logger import LazyLogger
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class Utils(object):
+class Utils:
     """
 
     """
@@ -27,8 +26,7 @@ class Utils(object):
     RandomGenerator.seed()
     _instance = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -45,8 +43,7 @@ class Utils(object):
             Utils._instance = Utils()
         return Utils._instance
 
-    def create_path_if_needed(self, path):
-        # type: (str) -> None
+    def create_path_if_needed(self, path: str) -> None:
         """
 
         :param path:

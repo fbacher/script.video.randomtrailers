@@ -6,7 +6,6 @@ Created on Feb 10, 2019
 """
 
 import os
-import re
 import sys
 import threading
 from contextlib import closing
@@ -14,9 +13,9 @@ import xmltodict
 import xbmcvfs
 
 from common.exceptions import AbortException
-from common.constants import (Constants, GenreConstants, GenreEnum)
+from common.constants import (Constants, GenreEnum)
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
@@ -70,16 +69,14 @@ class _KodiToExternalDBMapping:
         else:
             self._external_id = external_id
 
-    def get_kodi_id(self):
-        # type: () -> str
+    def get_kodi_id(self) -> str:
         """
         Gets the Kodi database representation of this Tag or Genre
         :return: str  Kodi database ID
         """
         return self._kodi_id
 
-    def get_external_id(self):
-        # type: () -> str
+    def get_external_id(self) -> str:
         """
         Gets the external database representation of this Tag or Genre
 
@@ -95,8 +92,8 @@ class _TagEntry(_KodiToExternalDBMapping):
         of a keyword/tag.
     """
 
-    def __init__(self, kodi_id, external_id=None):
-        # type:  (str, Optional[str]) -> None
+    def __init__(self, kodi_id: str,
+                 external_id: str = None) -> None:
         """
             Constructor Mapping a Kodi Genre  to an external
             database Tag.
@@ -116,8 +113,8 @@ class _GenreEntry(_KodiToExternalDBMapping):
         of a genre
     """
 
-    def __init__(self, kodi_id, external_id=None):
-        # type: (str, str) -> None
+    def __init__(self, kodi_id: str,
+                 external_id: str = None) -> None:
         """
             Constructor Mapping a Kodi Genre to an external
             database Tag.
@@ -183,8 +180,7 @@ class _BaseGenreEntry:
         """
         return self._genre_entries
 
-    def get_genre_ids_for_external_search(self):
-        # type: () -> List[str]
+    def get_genre_ids_for_external_search(self) -> List[str]:
         """
             Gets the list of external database genre ids for searching
 
@@ -197,8 +193,7 @@ class _BaseGenreEntry:
             external_ids.append(genre.get_external_id())
         return external_ids
 
-    def get_tags(self):
-        # type: () -> List[_TagEntry]
+    def get_tags(self) -> List[_TagEntry]:
         """
             Gets the list of Tag_Entries that this Kodi genre is mapped to
 
@@ -215,11 +210,11 @@ class Genres:
     _lock = threading.RLock()
     _initialized = False
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @classmethod
-    def add_genre(cls, source: str, genre: _BaseGenreEntry):
+    def add_genre(cls, source: str, genre: _BaseGenreEntry) -> None:
         map_for_source = cls._source_map.get(source, None)
         if map_for_source is None:
             map_for_source = dict()
@@ -228,7 +223,8 @@ class Genres:
         map_for_source[genre.get_genre_id()] = genre
 
     @classmethod
-    def get_genres(cls, genre_id: str, sources: List[str]) -> List[_BaseGenreEntry]:
+    def get_genres(cls, genre_id: str,
+                   sources: List[str]) -> List[_BaseGenreEntry]:
         result: List[_BaseGenreEntry] = []
         for source in sources:
             result.extend(cls._source_map[source][genre_id])
@@ -264,7 +260,8 @@ class Genres:
         return list(set(genre_ids))
 
     @classmethod
-    def get_genre_and_source_by_id(cls, genre_id) -> List[Tuple[str, _BaseGenreEntry]]:
+    def get_genre_and_source_by_id(cls,
+                                   genre_id: str) -> List[Tuple[str, _BaseGenreEntry]]:
         genre_and_source = []
         for source in cls._source_map.keys():
             genre = cls._source_map[source].get(genre_id, None)
@@ -283,7 +280,7 @@ class LoadGenreDefinitions:
 
     _logger = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         cls = type(self)
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
@@ -312,7 +309,8 @@ class LoadGenreDefinitions:
         pass
 
     @classmethod
-    def _create_genres(cls, pathname, rules: dict):
+    def _create_genres(cls,
+                       pathname: str, rules: dict) -> None:
         if rules is None:
             cls._logger.error('{} contains invalid XML.'.format(pathname))
             return
@@ -415,7 +413,8 @@ class _RandomTrailersGenre:
     _lock = threading.RLock()
     _initialized = False
 
-    def __init__(self, genre_source_list: List[Tuple[str, _BaseGenreEntry]]):
+    def __init__(self,
+                 genre_source_list: List[Tuple[str, _BaseGenreEntry]]) -> None:
         """
         """
         cls = type(self)
@@ -446,7 +445,7 @@ class _RandomTrailersGenre:
         cls._instances[self._genre_id] = self
 
     @classmethod
-    def create_instances(cls):
+    def create_instances(cls) -> None:
         LoadGenreDefinitions()
         for genre_id in Genres.get_genre_ids():
             genre_source_list = Genres.get_genre_and_source_by_id(genre_id)
@@ -465,8 +464,7 @@ class _RandomTrailersGenre:
                     # To prevent lockup/repeated failures
                     cls._instances: Dict[str, _RandomTrailersGenre] = {}
 
-        allowed_genres: List[_RandomTrailersGenre]
-        allowed_genres = list(cls._instances.values())
+        allowed_genres: List[_RandomTrailersGenre] = list(cls._instances.values())
         return allowed_genres
 
     def get_id(self) -> str:
@@ -490,8 +488,7 @@ class _RandomTrailersGenre:
         """
         return Messages.get_msg(self._translatable_label_id)
 
-    def get_tmdb_genre(self):
-        # type: () -> _BaseGenreEntry
+    def get_tmdb_genre(self) -> _BaseGenreEntry:
         """
             Gets the TMDB specific query and database ids corresponding to this
             RandomTrailers genre.
@@ -501,8 +498,7 @@ class _RandomTrailersGenre:
 
         return self._tmdb_genre
 
-    def get_itunes_genre(self):
-        # type: () -> _BaseGenreEntry
+    def get_itunes_genre(self) -> _BaseGenreEntry:
         """
             Get the iTunes specific query and database ids corresponding to
             this RandomTrailers genre.
@@ -510,8 +506,7 @@ class _RandomTrailersGenre:
         """
         return self._itunes_genre
 
-    def get_imdb_genre(self):
-        # type: () -> _BaseGenreEntry
+    def get_imdb_genre(self) -> _BaseGenreEntry:
         """
             Get the IMDB specific query and database ids corresponding to
             this RandomTrailers genre.
@@ -519,7 +514,7 @@ class _RandomTrailersGenre:
         """
         return self._imdb_genre
 
-    def get_filter_value(self):
+    def get_filter_value(self) -> int:
         """
             True if this genre was selected by the user
 
@@ -527,8 +522,7 @@ class _RandomTrailersGenre:
         """
         return self._filter_value
 
-    def ui_select(self, selection):
-        # type: (int) -> None
+    def ui_select(self, selection: int) -> None:
         """
             Provides a means to select or deselect a genre
         :param selection:
@@ -536,18 +530,17 @@ class _RandomTrailersGenre:
         """
         self._filter_value = selection
 
-    def reset_ui_selection(self):
-        # type: () -> None
+    def reset_ui_selection(self) -> None:
         """
             Resets a genre's selection to the default value
         :return:
         """
         self._filter_value = GenreEnum.IGNORE
 
-    def append_to_query(self, query, new_query_segment):
-        # type: (str, str) -> str
+    def append_to_query(self, query: str,
+                        new_query_segment: str) -> str:
         """
-            Returns the comma seperated concatination of the given query
+            Returns the comma separated concatenation of the given query
              and sub-query
         :param query:
         :param new_query_segment:
@@ -559,71 +552,69 @@ class _RandomTrailersGenre:
 
         return query + separator + new_query_segment
 
-    def get_genres(self, destination):
-        # type: (str) -> List[_GenreEntry]
+    def get_genres(self, destination_id: int) -> List[_GenreEntry]:
         """
             Get all of the genres that apply to the given database. Note that
             when the database is the local Kodi database, then all genres for all
             databases are returned. This is because the values from all of the
             databases are imported into the local database.
 
-            :param destination Database to get Genres for
+            :param destination_id Database to get Genres for
             :return: list of the applicable genres
         """
         genres = []
 
-        if (destination == GenreUtils.TMDB_DATABASE
-                or destination == GenreUtils.LOCAL_DATABASE):
+        if (destination_id == GenreUtils.TMDB_DATABASE
+                or destination_id == GenreUtils.LOCAL_DATABASE):
             if self.get_tmdb_genre() is not None:
                 genres.extend(self.get_tmdb_genre().get_genres())
-        elif (destination == GenreUtils.ITUNES_DATABASE
-              or destination == GenreUtils.LOCAL_DATABASE):
+        elif (destination_id == GenreUtils.ITUNES_DATABASE
+              or destination_id == GenreUtils.LOCAL_DATABASE):
             if self.get_itunes_genre() is not None:
                 genres.extend(self.get_itunes_genre().get_genres())
-        elif (destination == GenreUtils.IMDB_DATABASE
-              or destination == GenreUtils.LOCAL_DATABASE):
+        elif (destination_id == GenreUtils.IMDB_DATABASE
+              or destination_id == GenreUtils.LOCAL_DATABASE):
             if self.get_imdb_genre() is not None:
                 genres.extend(self.get_imdb_genre().get_genres())
-        # if (destination == GenreUtils.ROTTEN_TOMATOES_DATABASE
-        #                    or destination == GenreUtils.LOCAL_DATABASE):
+        # if (destination_id == GenreUtils.ROTTEN_TOMATOES_DATABASE
+        #                    or destination_id == GenreUtils.LOCAL_DATABASE):
         #    if self.getTomatoesGenre() is not None:
         #        genres.extend(self.getTomatoesGenre().get_genres())
 
         return genres
 
-    def get_tags(self, destination):
-        # type: (str) -> List[_TagEntry]
+    def get_tags(self, destination_id: int) -> List[_TagEntry]:
         """
             Get all of the tags that apply to the given database. Note that
             when the database is the local Kodi database, then all tags for all
             databases are returned. This is because the values from all of the
             databases are imported into the local database.
 
-        :param destination: Database to get the Tags for
+        :param destination_id: Database to get the Tags for
         :return: list of the applicable tags
         """
         tags = []
 
-        if (destination == GenreUtils.TMDB_DATABASE
-                or destination == GenreUtils.LOCAL_DATABASE):
+        if (destination_id == GenreUtils.TMDB_DATABASE
+                or destination_id == GenreUtils.LOCAL_DATABASE):
             if self.get_tmdb_genre() is not None:
                 tags.extend(self.get_tmdb_genre().get_tags())
-        if (destination == GenreUtils.ITUNES_DATABASE
-                or destination == GenreUtils.LOCAL_DATABASE):
+        if (destination_id == GenreUtils.ITUNES_DATABASE
+                or destination_id == GenreUtils.LOCAL_DATABASE):
             if self.get_itunes_genre() is not None:
                 tags.extend(self.get_itunes_genre().get_tags())
-        if (destination == GenreUtils.IMDB_DATABASE
-                or destination == GenreUtils.LOCAL_DATABASE):
+        if (destination_id == GenreUtils.IMDB_DATABASE
+                or destination_id == GenreUtils.LOCAL_DATABASE):
             if self.get_imdb_genre() is not None:
                 tags.extend(self.get_imdb_genre().get_tags())
-        # if (destination == GenreUtils.ROTTEN_TOMATOES_DATABASE
-        #                   or destination == GenreUtils.LOCAL_DATABASE):
+        # if (destination_id == GenreUtils.ROTTEN_TOMATOES_DATABASE
+        #                   or destination_id == GenreUtils.LOCAL_DATABASE):
         #    tags.extend(self.getTomatoesGenre().get_tags())
 
         return tags
 
 
-class GenreUtils(object):
+class GenreUtils:
     """
         Provides methods for discovering user selected genres,
         creation of filters and other items.
@@ -651,8 +642,7 @@ class GenreUtils(object):
     _settings_stale = True
 
     @classmethod
-    def init_class(cls):
-        # type: () -> None
+    def init_class(cls) -> None:
         """
 
         """
@@ -661,8 +651,7 @@ class GenreUtils(object):
             Monitor.register_settings_changed_listener(cls.on_settings_changed)
 
     @classmethod
-    def on_settings_changed(cls):
-        # type:() -> None
+    def on_settings_changed(cls) -> None:
         """
             Notification from Monitor that settings have changed
 
@@ -674,13 +663,12 @@ class GenreUtils(object):
         cls._settings_stale = True
 
     @classmethod
-    def get_all_genres(cls):
-        # type: () -> List[_RandomTrailersGenre]
+    def get_all_genres(cls) -> List[_RandomTrailersGenre]:
         """
             Gets all of the Genres supported by Random Trailers
         :return:
         """
-        # Ensures initialization (does not re-initialze)
+        # Ensures initialization (does not re-initialize)
 
         LoadGenreDefinitions()
 
@@ -691,8 +679,7 @@ class GenreUtils(object):
         return genres
 
     @classmethod
-    def get_genres(cls, genre_state):
-        # type: (int) -> List[_RandomTrailersGenre]
+    def get_genres(cls, genre_state: int) -> List[_RandomTrailersGenre]:
         """
             Gets all of the genres selected via settings
 
@@ -734,8 +721,9 @@ class GenreUtils(object):
         return cls.get_genres(GenreEnum.EXCLUDE)
 
     @classmethod
-    def get_domain_genres(cls, generic_genres, genre_domain):
-        # type: (List[_RandomTrailersGenre], str) -> List[_GenreEntry]
+    def get_domain_genres(cls,
+                          generic_genres: List[_RandomTrailersGenre],
+                          genre_domain_id: int) -> List[_GenreEntry]:
         """
             Return a JSON type query segment appropriate for the
             particular destination (LOCAL_DATABASE, TMDB_DATABASE,
@@ -745,12 +733,13 @@ class GenreUtils(object):
         """
         genres = []
         for genre in generic_genres:
-            genres.extend(genre.get_genres(genre_domain))
+            genres.extend(genre.get_genres(genre_domain_id))
         return genres
 
     @classmethod
-    def get_domain_tags(cls, generic_genres, genre_domain):
-        # type: (List[_RandomTrailersGenre], str) -> List[_TagEntry]
+    def get_domain_tags(cls,
+                        generic_genres: List[_RandomTrailersGenre],
+                        genre_domain_id: int) -> List[_TagEntry]:
         """
             Return a JSON type query segment appropriate for the
             particular destination (LOCAL_DATABASE, TMDB_DATABASE,
@@ -760,12 +749,11 @@ class GenreUtils(object):
         """
         tags = []
         for genre in generic_genres:
-            tags.extend(genre.get_tags(genre_domain))
+            tags.extend(genre.get_tags(genre_domain_id))
         return tags
 
     @classmethod
-    def _mark_selected_genres(cls):
-        # type: () -> None
+    def _mark_selected_genres(cls) -> None:
         """
             Marks genre selection based on Settings
         :return:
@@ -779,14 +767,15 @@ class GenreUtils(object):
         return
 
     @classmethod
-    def get_external_genre_ids(cls, genre_domain, exclude=False):
-        # type: (str, bool) -> List[str]
+    def get_external_genre_ids(cls,
+                               genre_domain_id: int,
+                               exclude: bool = False) -> List[str]:
         """
             Gets all of the "external" id values in the namespace of
             the given domain (database). An external id is typically the
             value used as a database key, perhaps an integer.
 
-        :param genre_domain:
+        :param genre_domain_id:
         :param exclude: If True, then return unselected Genres
         :return: List of genre ids
         """
@@ -799,7 +788,7 @@ class GenreUtils(object):
                 filtered_genres = cls.get_include_genres()
 
             domain_selected_genres = cls.get_domain_genres(
-                filtered_genres, genre_domain)
+                filtered_genres, genre_domain_id)
             for genre in domain_selected_genres:
                 genre_ids.add(genre.get_external_id())
 
@@ -810,7 +799,7 @@ class GenreUtils(object):
             #                             .format(genre.get_kodi_id(),
             #                                    genre.get_external_id()))
             #
-            #    domain_str = GenreUtils.domain_str[genre_domain]
+            #    domain_str = GenreUtils.domain_str[genre_domain_id]
             #    cls._logger.debug_extra_verbose('external {} exclude: {} {}'
             #                                    .format(domain_str, exclude,
             #                                            ': '.join(genre_strings)))
@@ -823,14 +812,15 @@ class GenreUtils(object):
         return list(genre_ids)
 
     @classmethod
-    def get_internal_kodi_genre_ids(cls, genre_domain, exclude=False):
-        # type: (str, bool) -> List[str]
+    def get_internal_kodi_genre_ids(cls,
+                                    genre_domain_id: int,
+                                    exclude: bool = False) -> List[str]:
         """
             Gets all of the kodi database id values in the namespace of
             the given domain (database). An external id is typically the
             value used as a database key, perhaps an integer.
 
-        :param genre_domain:
+        :param genre_domain_id:
         :param exclude: If True, then return unselected Genres
         :return: List of genre ids
         """
@@ -843,7 +833,7 @@ class GenreUtils(object):
                 filtered_genres = cls.get_include_genres()
 
             domain_selected_genres = cls.get_domain_genres(
-                filtered_genres, genre_domain)
+                filtered_genres, genre_domain_id)
             for genre in domain_selected_genres:
                 genre_ids.add(genre.get_kodi_id())
 
@@ -854,7 +844,7 @@ class GenreUtils(object):
                                            .format(genre.get_kodi_id(),
                                                    genre.get_external_id()))
 
-                domain_str = GenreUtils.domain_str[genre_domain]
+                domain_str = GenreUtils.domain_str[genre_domain_id]
                 cls._logger.debug_extra_verbose('internal {} exclude: {} {}'
                                                 .format(domain_str, exclude,
                                                         ': '.join(keyword_strings)))
@@ -866,9 +856,10 @@ class GenreUtils(object):
         return list(genre_ids)
 
     @classmethod
-    def get_external_genre_ids_as_query(cls, genre_domain, exclude=False,
-                                        or_operator=True):
-        # type: (str, bool, bool) -> str
+    def get_external_genre_ids_as_query(cls,
+                                        genre_domain_id: int,
+                                        exclude: bool = False,
+                                        or_operator: bool = True) -> str:
         """
             Returns a query string of selected genreids.
 
@@ -879,7 +870,7 @@ class GenreUtils(object):
 
             Note: only supports TMDB at this time
 
-        :param genre_domain:
+        :param genre_domain_id:
         :param exclude: If True, then return excluded genres
         :param or_operator:
         :return:
@@ -888,7 +879,7 @@ class GenreUtils(object):
         query_string = ''
         try:
             selected_genre_ids = cls.get_external_genre_ids(
-                genre_domain, exclude=exclude)
+                genre_domain_id, exclude=exclude)
 
             if or_operator:
                 separator = '|'  # OR operations
@@ -898,7 +889,7 @@ class GenreUtils(object):
             query_string = separator.join(selected_genre_ids)
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                domain_str = GenreUtils.domain_str[genre_domain]
+                domain_str = GenreUtils.domain_str[genre_domain_id]
                 cls._logger.debug_extra_verbose('query {} genre ids: {}'
                                                 .format(domain_str, query_string))
 
@@ -911,14 +902,15 @@ class GenreUtils(object):
         return query_string
 
     @classmethod
-    def get_external_keyword_ids(cls, genre_domain, exclude=False):
-        # type: (str, bool) -> List[str]
+    def get_external_keyword_ids(cls,
+                                 genre_domain_id: int,
+                                 exclude: bool = False) -> List[str]:
         """
             Gets all of the "external" id values in the namespace of
             the given domain (database). An external id is typically the
             value used as a database key, perhaps an integer.
 
-        :param genre_domain:
+        :param genre_domain_id:
         :param exclude: If True, then return unselected keywords/tags
         :return: List[str] List of Keyword/Tag ids
         """
@@ -931,7 +923,7 @@ class GenreUtils(object):
                 selected_genres = cls.get_include_genres()
 
             domain_selected_tags = cls.get_domain_tags(
-                selected_genres, genre_domain)
+                selected_genres, genre_domain_id)
 
             filtered_tags = domain_selected_tags
 
@@ -945,7 +937,7 @@ class GenreUtils(object):
                                            .format(genre.get_kodi_id(),
                                                    genre.get_external_id()))
 
-                domain_str = GenreUtils.domain_str[genre_domain]
+                domain_str = GenreUtils.domain_str[genre_domain_id]
                 cls._logger.debug_extra_verbose('external {} exclude: {} {}'
                                                 .format(domain_str, exclude,
                                                         ': '.join(keyword_strings)))
@@ -957,14 +949,15 @@ class GenreUtils(object):
         return list(keyword_ids)
 
     @classmethod
-    def get_internal_kodi_keyword_ids(cls, genre_domain, exclude=False):
-        # type: (str, bool) -> List[str]
+    def get_internal_kodi_keyword_ids(cls,
+                                      genre_domain_id: int,
+                                      exclude: bool = False) -> List[str]:
         """
             Gets all of the kodi database id values in the namespace of
             the given domain (database). An external id is typically the
             value used as a database key, perhaps an integer.
 
-        :param genre_domain:
+        :param genre_domain_id:
         :param exclude: If True, then return unselected keywords/tags
         :return: List[str] List of Keyword/Tag ids
         """
@@ -977,7 +970,7 @@ class GenreUtils(object):
                 selected_genres = cls.get_include_genres()
 
             domain_selected_tags = cls.get_domain_tags(
-                selected_genres, genre_domain)
+                selected_genres, genre_domain_id)
 
             filtered_tags = domain_selected_tags
 
@@ -989,7 +982,7 @@ class GenreUtils(object):
                 for genre in filtered_tags:
                     keyword_strings.append(genre.get_kodi_id())
 
-                domain_str = GenreUtils.domain_str[genre_domain]
+                domain_str = GenreUtils.domain_str[genre_domain_id]
                 cls._logger.debug_extra_verbose('internal {} exclude: {} {}'
                                                 .format(domain_str, exclude,
                                                         ': '.join(keyword_strings)))
@@ -1001,11 +994,12 @@ class GenreUtils(object):
         return list(keyword_ids)
 
     @classmethod
-    def get_external_keywords_as_query(cls, genre_domain, exclude=False,
-                                       or_operator=True):
-        # type: (str, bool, bool) -> str
+    def get_external_keywords_as_query(cls,
+                                       genre_domain_id: int,
+                                       exclude: bool = False,
+                                       or_operator: bool = True) -> str:
         """
-            Returns a query string of selected genreids.
+            Returns a query string of selected genre ids.
 
             In the case of TMDB, the genre and keyword/tag values
             are separated by commas when a movie must contain all
@@ -1014,7 +1008,7 @@ class GenreUtils(object):
 
             Note: only supports TMDB at this time
 
-        :param genre_domain:
+        :param genre_domain_id:
         :param exclude: If True, then return unselected keywords/Tags
         :param or_operator:
         :return:
@@ -1023,7 +1017,7 @@ class GenreUtils(object):
         query = ''
         try:
             selected_keyword_ids = cls.get_external_keyword_ids(
-                genre_domain, exclude=exclude)
+                genre_domain_id, exclude=exclude)
 
             if or_operator:
                 separator = '|'  # OR operations
@@ -1032,7 +1026,7 @@ class GenreUtils(object):
             query = separator.join(selected_keyword_ids)
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                domain_str = GenreUtils.domain_str[genre_domain]
+                domain_str = GenreUtils.domain_str[genre_domain_id]
                 cls._logger.debug_extra_verbose('query {} keyword ids: {}'
                                                 .format(domain_str, query))
         except AbortException:
@@ -1044,8 +1038,9 @@ class GenreUtils(object):
         return query
 
     @classmethod
-    def include_movie(cls, genres: Optional[List[str]] = None,
-                      tags: Optional[List[str]] = None) -> bool:
+    def include_movie(cls,
+                      genres: List[str] = None,
+                      tags: List[str] = None) -> bool:
         if not Settings.get_filter_genres():
             return True
 
@@ -1056,13 +1051,13 @@ class GenreUtils(object):
             tags = []
 
         allowed_genres = GenreUtils.get_external_genre_ids(
-            GenreUtils.TMDB_DATABASE_STR, exclude=False)
+            GenreUtils.TMDB_DATABASE, exclude=False)
         allowed_tags = GenreUtils.get_external_keyword_ids(
-            GenreUtils.TMDB_DATABASE_STR, exclude=False)
+            GenreUtils.TMDB_DATABASE, exclude=False)
         excluded_genres = GenreUtils.get_external_genre_ids(
-            GenreUtils.TMDB_DATABASE_STR, exclude=True)
+            GenreUtils.TMDB_DATABASE, exclude=True)
         excluded_tags = GenreUtils.get_external_keyword_ids(
-            GenreUtils.TMDB_DATABASE_STR, exclude=True)
+            GenreUtils.TMDB_DATABASE, exclude=True)
 
         genre_found = False
         genre_excluded = False
@@ -1098,5 +1093,6 @@ class GenreUtils(object):
             genre_fails = True
 
         return not genre_fails
+
 
 GenreUtils.init_class()

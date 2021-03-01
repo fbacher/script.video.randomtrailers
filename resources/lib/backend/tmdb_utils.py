@@ -38,7 +38,7 @@ class TMDBMatcher:
                      tmdb_year: str,
                      tmdb_language: str,
                      tmdb_id: str,
-                     runtime_seconds: int):
+                     runtime_seconds: int) -> None:
             clz = type(self)
             if clz._logger is None:
                 clz._logger = module_logger.getChild(clz.__name__)
@@ -134,7 +134,8 @@ class TMDBMatcher:
         def get_movie(self) -> MovieType:
             return self._movie
 
-    def __init__(self, title: str, year: Union[str, None], runtime_seconds: int):
+    def __init__(self, title: str, year: Union[str, None],
+                 runtime_seconds: int) -> None:
         clz = type(self)
         if clz._logger is None:
             clz._logger = module_logger.getChild(clz.__name__)
@@ -224,12 +225,12 @@ class TMDBMatcher:
             clz._logger.exception(e)
 
     def _add(self,
-             tmdb_movie: [Dict[str, Any]],
+             tmdb_movie: MovieType,
              tmdb_title: str,
              tmdb_year: str,
              tmdb_language: str,
              tmdb_id: str,
-             runtime_seconds: int = 0):
+             runtime_seconds: int = 0) -> None:
         clz = type(self)
 
         candidate = clz.CandidateMovie(tmdb_movie, tmdb_title, tmdb_year,
@@ -269,35 +270,32 @@ class TMDBUtils:
     _logger = None
 
     def __init__(self,
-                 kodi_id,  # type: int
-                 tmdb_id,  # type int
-                 kodi_file  # type str
-                 ):
+                 kodi_id: int,
+                 tmdb_id: int,
+                 kodi_file: str
+                 ) -> None:
 
         self._kodi_id = kodi_id
         self._tmdb_id = tmdb_id
         self._kodi_file = kodi_file
 
     @classmethod
-    def class_init(cls):
+    def class_init(cls) -> None:
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
 
-    def get_kodi_id(self):
-        # type: () -> int
+    def get_kodi_id(self) -> int:
 
         return self._kodi_id
 
-    def get_kodi_file(self):
-        # type() -> str
+    def get_kodi_file(self) -> str:
         """
 
         :return:
         """
         return self._kodi_file
 
-    def get_tmdb_id(self):
-        # type: () -> int
+    def get_tmdb_id(self) -> int:
         """
 
         :return:

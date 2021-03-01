@@ -17,8 +17,8 @@ import threading
 
 import youtube_dl
 
-from common.constants import Constants, Movie, MovieType, TFH
-from common.logger import (LazyLogger, Trace)
+from common.constants import Constants, Movie, MovieType
+from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.exceptions import AbortException
 from common.rating import WorldCertifications
@@ -445,7 +445,6 @@ class VideoDownloader:
         return 0, trailer_info
 
     def get_tfh_index(self, url: str, trailer_handler,
-                      existing_ids: Set[str] = None,
                       block: bool = False) -> int:
         """
         Fetches all of the urls in the Trailers From Hell playlist. Note that
@@ -459,8 +458,6 @@ class VideoDownloader:
         :param url: points to playlist
         :param trailer_handler: Call back to DiscoverTFHMovies to process each
                 returned entry as it occurs.
-        :param existing_ids: Set of ids that have already been discovered
-                            and do not need to be rediscovered
         :param block: If true, then wait until no longer TOO_MANY_REQUESTS
         :return:
         """
@@ -608,7 +605,7 @@ class BaseYDLogger:
     logger = None
 
     def __init__(self, downloader: VideoDownloader, url: str,
-                 parse_json_as_youtube: bool = True):
+                 parse_json_as_youtube: bool = True) -> None:
         clz = type(self)
         clz.logger = module_logger.getChild(clz.__name__)
         self.debug_lines: List[str] = []
@@ -862,7 +859,7 @@ class TfhIndexLogger(BaseYDLogger):
     logger = None
 
     def __init__(self, downloader: VideoDownloader,
-                 trailer_handler, url: str):
+                 trailer_handler, url: str) -> None:
         super().__init__(downloader, url, parse_json_as_youtube=True)
         clz = type(self)
         clz.logger = module_logger.getChild(clz.__name__)
@@ -982,7 +979,7 @@ class VideoLogger(BaseYDLogger):
     logger = None
 
     def __init__(self, downloader: VideoDownloader, url: str,
-                 parse_json_as_youtube: bool):
+                 parse_json_as_youtube: bool) -> None:
         super().__init__(downloader, url,
                          parse_json_as_youtube=parse_json_as_youtube)
         clz = type(self)
@@ -1010,7 +1007,7 @@ class TfhInfoLogger(BaseYDLogger):
     unrated_id = None
 
     def __init__(self, downloader: VideoDownloader, url: str,
-                 parse_json_as_youtube: bool = False):
+                 parse_json_as_youtube: bool = False) -> None:
         super().__init__(downloader, url, parse_json_as_youtube=parse_json_as_youtube)
         clz = type(self)
         if clz.logger is None:
@@ -1041,7 +1038,7 @@ class TfhInfoLogger(BaseYDLogger):
 class BaseInfoHook:
     _logger = None
 
-    def __init__(self, downloader: VideoDownloader):
+    def __init__(self, downloader: VideoDownloader) -> None:
         clz = type(self)
         if clz._logger is None:
             clz._logger = module_logger.getChild(clz.__name__)
@@ -1093,7 +1090,7 @@ class BaseInfoHook:
 class TrailerInfoProgressHook(BaseInfoHook):
     _logger = None
 
-    def __init__(self, downloader: VideoDownloader):
+    def __init__(self, downloader: VideoDownloader) -> None:
         clz = type(self)
         if clz._logger is None:
             clz._logger = module_logger.getChild(clz.__name__)
@@ -1108,7 +1105,7 @@ class TrailerInfoProgressHook(BaseInfoHook):
 class TFHIndexProgressHook(BaseInfoHook):
     _logger = None
 
-    def __init__(self, downloader: VideoDownloader):
+    def __init__(self, downloader: VideoDownloader) -> None:
         clz = type(self)
         if clz._logger is None:
             clz._logger = module_logger.getChild(clz.__name__)
@@ -1123,7 +1120,7 @@ class TFHIndexProgressHook(BaseInfoHook):
 class VideoDownloadProgressHook(BaseInfoHook):
     _logger = None
 
-    def __init__(self, downloader: VideoDownloader):
+    def __init__(self, downloader: VideoDownloader) -> None:
         clz = type(self)
         if clz._logger is None:
             clz._logger = module_logger.getChild(clz.__name__)

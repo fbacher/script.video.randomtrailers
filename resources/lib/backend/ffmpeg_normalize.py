@@ -18,7 +18,6 @@ from common.constants import Constants, Movie
 from common.imports import *
 from common.exceptions import AbortException
 from common.logger import (LazyLogger, Trace, log_entry_exit)
-from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
 

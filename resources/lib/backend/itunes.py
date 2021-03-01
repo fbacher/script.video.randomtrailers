@@ -6,16 +6,13 @@ Created on Mar 4, 2019
 @author: fbacher
 '''
 
-import os
-from common.imports import *
-from common.constants import (Constants)
 from common.settings import Settings
 from common.logger import (LazyLogger, Trace)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class ITunes(object):
+class ITunes:
     '''
     On first blush, iTunes appears to use 2-letter country codes (ISO-3166-1 alpha-2
     as well as ISO -639 language names). It is more likely that they use standardized
@@ -27,14 +24,13 @@ class ITunes(object):
 
     _logger = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         cls = type(self)
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
-    def get_excluded_types(cls):
-        # type: () -> {str}
+    def get_excluded_types(cls) -> {str}:
         '''
 
         :return:

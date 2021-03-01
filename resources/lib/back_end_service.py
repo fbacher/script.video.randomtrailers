@@ -14,12 +14,10 @@ import xbmc
 import xbmcaddon
 
 
-import stat
 import threading
 from queue import Queue, Empty
 from common.imports import *
 from backend.back_end_bridge import BackendBridge
-from common.constants import Constants
 from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.settings import Settings
@@ -81,7 +79,7 @@ RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class MainThreadLoop(object):
+class MainThreadLoop:
     """
         Kodi's Monitor class has some quirks in it that strongly favors creating
         it from the main thread as well as calling xbmc.sleep/xbmc.wait_for_abort.
@@ -96,8 +94,7 @@ class MainThreadLoop(object):
     profiler = None
     _logger = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -123,8 +120,7 @@ class MainThreadLoop(object):
 
         return MainThreadLoop._singleton
 
-    def event_processing_loop(self):
-        # type: () -> None
+    def event_processing_loop(self) -> None:
         """
 
         :return:
@@ -167,11 +163,11 @@ class MainThreadLoop(object):
         except Exception as e:
             type(self)._logger.exception('')
 
-    def start_back_end_bridge(self):
+    def start_back_end_bridge(self) -> None:
         BackendBridge(PlayableTrailerService())
 
-    def run_on_main_thread(self, callable_class):
-        # type: (Callable[[None], None]) -> None
+    def run_on_main_thread(self,
+                           callable_class: Callable[[None], None] = None) -> None:
         """
 
         :param callable_class:
@@ -179,8 +175,8 @@ class MainThreadLoop(object):
         """
         self._callableTasks.put(callable_class)
 
-    def run_task(self, callable_class):
-        # type: (Optional[Callable[[None], None]]) -> None
+    def run_task(self,
+                 callable_class: Callable[[None], None] = None) -> None:
         """
 
         :param callable_class:
@@ -196,8 +192,7 @@ class MainThreadLoop(object):
             type(self)._logger.exception('')
 
 
-def profiler_thread():
-    # type: () -> None
+def profiler_thread() -> None:
 
     finished = False
     try:
@@ -220,8 +215,7 @@ def profiler_thread():
         module_logger.exception('')
 
 
-def startup_non_main_thread():
-    # type: () -> None
+def startup_non_main_thread() -> None:
     """
 
     :return:
@@ -248,8 +242,7 @@ def startup_non_main_thread():
     Monitor.register_settings_changed_listener(load_trailers)
 
 
-def bootstrap_random_trailers():
-    # type: () -> None
+def bootstrap_random_trailers() -> None:
     """
     First function called at startup.
 
@@ -290,13 +283,13 @@ def bootstrap_random_trailers():
         sys.exit(0)
 
 
-def post_install():
+def post_install() -> None:
     #
     # Ensure execute permission
     pass
 
 
-def bootstrap_unit_test():
+def bootstrap_unit_test() -> None:
     from test.backend_test_suite import (BackendTestSuite)
     module_logger.enter()
     suite = BackendTestSuite()

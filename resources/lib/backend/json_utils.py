@@ -9,6 +9,7 @@ Created on Feb 10, 2019
 import datetime
 import random
 
+from common.imports import *
 from backend.json_utils_basic import (JsonUtilsBasic)
 from diagnostics.statistics import Statistics
 from cache.cache import (Cache)
@@ -67,8 +68,7 @@ class JsonUtils(JsonUtilsBasic):
     _logger = None
     _instance = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -76,8 +76,7 @@ class JsonUtils(JsonUtilsBasic):
         JsonUtils._logger = module_logger.getChild(type(self).__name__)
 
     @staticmethod
-    def get_instance():
-        # type: () -> JsonUtils
+    def get_instance():  # type:  () -> JsonUtils
         """
             Returns the singleton instance of JsonUtils
 
@@ -88,17 +87,16 @@ class JsonUtils(JsonUtilsBasic):
         return JsonUtils._instance
 
     @staticmethod
-    def get_cached_json(url,  # type; str
-                        movie_id=None,  # type: Union[str, int, None]
-                        error_msg=None,  # type: Union[str, int, None]
-                        source=None,  # type: Union[str, None]
-                        dump_results=False,  # type: bool
-                        dump_msg='',  # type: str
-                        headers=None,  # type: Union[dict, None]
-                        params=None,  # type: Union[dict, None]
-                        timeout=3.0  # type: int
-                        ):
-        # type: (...) -> (int, str)
+    def get_cached_json(url: str,
+                        movie_id: Union[str, int] = None,
+                        error_msg: Union[str, int] = None,
+                        source: str = None,
+                        dump_results: bool = False,
+                        dump_msg: str = '',
+                        headers: Dict[str, Any] = None,
+                        params: Dict[str, Any] = None,
+                        timeout: float = 3.0
+                        ) -> (int, str):
         """
             Attempt to get cached JSON movie information before using the JSON calls
             to get it remotely.

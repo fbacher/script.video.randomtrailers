@@ -17,7 +17,6 @@ from requests.exceptions import (
     ConnectTimeout, ReadTimeout
 )
 
-import os
 import threading
 import calendar
 
@@ -30,8 +29,6 @@ from common.logger import (LazyLogger, Trace)
 from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
-from common.settings import Settings
-from common.utils import Utils
 from backend import backend_constants
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -84,8 +81,7 @@ class JsonUtilsBasic(object):
     _logger = None
     _instance = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -96,8 +92,7 @@ class JsonUtilsBasic(object):
     # a list with the timestamp and running request count:
 
     @classmethod
-    def get_delay_time(cls, destination):
-        # type: (int) -> int
+    def get_delay_time(cls, destination: int) -> int:
         """
             Calculates if and how much delay is required by the site
             to prevent rejection of the request.
@@ -347,8 +342,9 @@ class JsonUtilsBasic(object):
 
         """
 
-        def __init__(self, time_stamp, request_count):
-            # type: (datetime.datetime, int) ->None
+        def __init__(self,
+                     time_stamp: datetime.datetime,
+                     request_count: int) -> None:
             """
 
             :param time_stamp:
@@ -357,8 +353,7 @@ class JsonUtilsBasic(object):
             self._time_stamp = time_stamp
             self._request_count = request_count
 
-        def get_time_stamp(self):
-            # type: () -> datetime.datetime
+        def get_time_stamp(self) -> datetime.datetime:
             """
                 Gets the timestamp of this request entry to the associated
                 site.
@@ -367,8 +362,7 @@ class JsonUtilsBasic(object):
             """
             return self._time_stamp
 
-        def get_request_count(self):
-            # type: () -> int
+        def get_request_count(self) -> int:
             """
                 Gets the running count of requests to the associated site
                 and request history.
@@ -380,8 +374,10 @@ class JsonUtilsBasic(object):
             return self._request_count
 
     @classmethod
-    def record_request_timestamp(cls, destination, response_time_stamp, failed=False):
-        # type: (int, datetime.datetime, bool) -> None
+    def record_request_timestamp(cls,
+                                 destination: int,
+                                 response_time_stamp: datetime.datetime,
+                                 failed: bool = False) -> None:
         """
             Records the fact that a request to the given site occurred at a
             specific time. Done for traffic management.
@@ -408,9 +404,9 @@ class JsonUtilsBasic(object):
         else:
             last_request_count += 1
 
-        newEntry = JsonUtilsBasic.RequestTimestamp(
+        new_entry = JsonUtilsBasic.RequestTimestamp(
             response_time_stamp, last_request_count)
-        request_window.append(newEntry)
+        request_window.append(new_entry)
 
         if cls._logger.isEnabledFor(LazyLogger.DISABLED):
             cls._logger.debug_verbose('last_request_count:', last_request_count,
@@ -422,8 +418,9 @@ class JsonUtilsBasic(object):
                                            msg='Exiting record_request_timestamp')
 
     @classmethod
-    def dump_delay_info(cls, destination, msg=''):
-        # type: (int, str) ->None
+    def dump_delay_info(cls,
+                        destination: int,
+                        msg: str = '') -> None:
         """
             Dumps debug information about recent requests to the given
             site.
@@ -458,15 +455,17 @@ class JsonUtilsBasic(object):
         except Exception as e:
             cls._logger.exception('')
 
-    class DestinationData(object):
+    class DestinationData:
         """
 
         """
 
         _destination_data = []
 
-        def __init__(self, name, max_requests, window_time_period):
-            # type: (str, int, datetime.timedelta) ->None
+        def __init__(self,
+                     name: str,
+                     max_requests: int,
+                     window_time_period: datetime.timedelta) -> None:
             """
 
             """
@@ -506,8 +505,7 @@ class JsonUtilsBasic(object):
             self._request_window = []
             self._lock = threading.RLock()
 
-        def get_lock(self):
-            # type: () -> threading.RLock
+        def get_lock(self) -> threading.RLock:
             """
             Gets a handle to a lock for the download site (TMDB, iTunes).
 
@@ -538,32 +536,33 @@ class JsonUtilsBasic(object):
                 destination]
 
         @staticmethod
-        def initialize():
-            # type: () -> None
+        def initialize() -> None:
             """
                 staticmethod to create instances for each type of
                 destination (TMDB & ITUNES)
 
             :return:
             """
-            tmdb_data = JsonUtilsBasic.DestinationData(JsonUtilsBasic.TMDB_NAME,
-                                                       JsonUtilsBasic.TMDB_WINDOW_MAX_REQUESTS,
-                                                       JsonUtilsBasic.TMDB_WINDOW_TIME_PERIOD)
+            tmdb_data = JsonUtilsBasic.DestinationData(
+                                        JsonUtilsBasic.TMDB_NAME,
+                                        JsonUtilsBasic.TMDB_WINDOW_MAX_REQUESTS,
+                                        JsonUtilsBasic.TMDB_WINDOW_TIME_PERIOD)
             JsonUtilsBasic.DestinationDataContainer.data_for_destination.append(
                 tmdb_data)
 
-            itunes_data = JsonUtilsBasic.DestinationData(JsonUtilsBasic.ITUNES_NAME,
-                                                         JsonUtilsBasic.ITUNES_WINDOW_MAX_REQUESTS,
-                                                         JsonUtilsBasic.ITUNES_WINDOW_TIME_PERIOD)
+            itunes_data = JsonUtilsBasic.DestinationData(
+                                        JsonUtilsBasic.ITUNES_NAME,
+                                        JsonUtilsBasic.ITUNES_WINDOW_MAX_REQUESTS,
+                                        JsonUtilsBasic.ITUNES_WINDOW_TIME_PERIOD)
             JsonUtilsBasic.DestinationDataContainer.data_for_destination.append(
                 itunes_data)
 
             # TODO: supply correct info
 
             rotten_tomatoes_data = JsonUtilsBasic.DestinationData(
-                JsonUtilsBasic.ROTTEN_TOMATOES_NAME,
-                JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_MAX_REQUESTS,
-                JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_TIME_PERIOD)
+                                    JsonUtilsBasic.ROTTEN_TOMATOES_NAME,
+                                    JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_MAX_REQUESTS,
+                                    JsonUtilsBasic.ROTTEN_TOMATOES_WINDOW_TIME_PERIOD)
             JsonUtilsBasic.DestinationDataContainer.data_for_destination.append(
                 rotten_tomatoes_data)
 
@@ -593,7 +592,6 @@ class JsonUtilsBasic(object):
                  params: Union[Dict[str, Any], None] = None,
                  timeout: float = 3.0
                  ) -> (int, str):
-        # type: (...) -> (int, str)
         """
             Queries external site for movie/trailer information.
 
@@ -756,7 +754,8 @@ class JsonUtilsBasic(object):
 
             destination_data.number_of_additional_requests_allowed_by_server = -1
             destination_data.actual_max_requests_per_time_period = 0
-            destination_data.actual_oldest_request_in_window_expiration_time: datetime.datetime = None
+            destination_data.actual_oldest_request_in_window_expiration_time: \
+                Union[datetime.datetime, None] = None
             destination_data.server_blocking_request_until = None
 
             tmp = returned_header.get('X-RateLimit-Remaining')
@@ -889,8 +888,9 @@ class JsonUtilsBasic(object):
         return status_code, json_text
 
     @classmethod
-    def get_kodi_json(cls, query, dump_results=False):
-        # type: (str, bool) -> dict
+    def get_kodi_json(cls,
+                      query: str,
+                      dump_results: bool = False) -> Dict[str, Any]:
         """
             Queries Kodi database and returns JSON result
 
