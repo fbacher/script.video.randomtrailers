@@ -1151,17 +1151,27 @@ class CacheIndex:
                 if not os.path.exists(parent_dir):
                     DiskUtils.create_path_if_needed(parent_dir)
 
+                # Don't save unneeded fields. Takes up disk and RAM
+
+                temp_entries = {}
+                for tmdb_id, entry in cls.get_unprocessed_movies().items():
+                    temp_entry = {}
+                    for key in Movie.TMDB_PAGE_DATA_FIELDS:
+                        temp_entry[key] = entry[key]
+                    temp_entries[tmdb_id] = temp_entry
+
+                json_text = json.dumps(temp_entries,
+                                       encoding='utf-8',
+                                       ensure_ascii=False,
+                                       default=CacheIndex.handler,
+                                       indent=3, sort_keys=True)
+
                 with io.open(path, mode='wt', newline=None,
                              encoding='utf-8', ) as cache_file:
 
                     # TODO: Need ability to interrupt when ABORT. Object_handler
                     # not a valid arg to dumps
 
-                    json_text = json.dumps(cls.get_unprocessed_movies(),
-                                           encoding='utf-8',
-                                           ensure_ascii=False,
-                                           default=CacheIndex.handler,
-                                           indent=3, sort_keys=True)
                     cache_file.write(json_text)
                     cache_file.flush()
                     cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
@@ -1169,6 +1179,8 @@ class CacheIndex:
 
                     Monitor.throw_exception_if_abort_requested()
 
+                del json_text
+                del temp_entries
             except AbortException:
                 reraise(*sys.exc_info())
             except IOError as e:
