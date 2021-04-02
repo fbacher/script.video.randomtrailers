@@ -569,12 +569,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                 (DiskUtils.is_url(movie[Movie.TRAILER]) or
                  movie[Movie.SOURCE] != Movie.LIBRARY_SOURCE)):
 
-            if VideoDownloader().check_too_many_requests(movie[Movie.TITLE],
-                                                         movie[Movie.SOURCE]) == 429:
+            if (VideoDownloader().check_too_many_requests(movie[Movie.TITLE],
+                                                         movie[Movie.SOURCE])
+                    == Constants.HTTP_TOO_MANY_REQUESTS):
                 return trailer_ok
 
             rc = self.cache_remote_trailer(movie)
-            if rc != 0 and rc != 429:
+            if rc != 0 and rc != Constants.HTTP_TOO_MANY_REQUESTS:
                 trailer_ok = False
 
         elif not Settings.is_use_trailer_cache():
@@ -896,9 +897,10 @@ class TrailerFetcher(TrailerFetcherInterface):
             tmdb_cast_members = tmdb_result['credits']['cast']
             cast = []
             for cast_member in tmdb_cast_members:
-                fake_cast_entry = {}
-                fake_cast_entry['name'] = cast_member['name']
-                fake_cast_entry['character'] = cast_member['character']
+                fake_cast_entry = {
+                    'name': cast_member['name'],
+                    'character': cast_member['character']
+                }
                 cast.append(fake_cast_entry)
 
             dict_info[Movie.CAST] = cast
@@ -949,7 +951,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             if not include_movie:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose(
-                        f'Rejected due to GenreUtils or Keyword: {movie_title}')
+                        f'Rejected due to Genre or Keyword: {movie_title}')
                 add_movie = False
                 rejection_reasons.append(Movie.REJECTED_FILTER_GENRE)
 
@@ -1489,8 +1491,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                         video_downloader.get_video(
                             trailer_path, trailer_folder, movie_id,
                             movie[Movie.TITLE], movie[Movie.SOURCE], block=False)
-                    if error_code == 429:
-                        rc = 429
+                    if error_code == Constants.HTTP_TOO_MANY_REQUESTS:
+                        rc = Constants.HTTP_TOO_MANY_REQUESTS
                         if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                             clz._logger.debug_extra_verbose(
                                 'Too Many Requests')

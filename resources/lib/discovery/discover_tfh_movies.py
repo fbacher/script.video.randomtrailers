@@ -365,7 +365,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             while not finished:
                 rc = video_downloader.get_tfh_index(
                     url, self.trailer_handler, block=True)
-                if rc != 429:  # Last entry read failed
+                if rc != Constants.HTTP_TOO_MANY_REQUESTS:  # Last entry read failed
                     TFHCache.save_cache(flush=True, complete=True)
                     finished = True
 

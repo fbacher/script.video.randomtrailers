@@ -156,7 +156,7 @@ class VideoDownloader:
                 cls._logger.debug_extra_verbose(
                     f'Blocking download of {url} due to TOO MANY REQUESTS (429)'
                     f' since: {expiration_time}')
-                return 429
+                return Constants.HTTP_TOO_MANY_REQUESTS
         return 0
 
     @classmethod
@@ -331,7 +331,7 @@ class VideoDownloader:
             clz.release_lock(source)
             # LOCK RELEASED
 
-            if self._error != 429:
+            if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
             else:
                 VideoDownloader._retry_attempts += 1
@@ -427,7 +427,7 @@ class VideoDownloader:
             trailer_info = None
         finally:
             clz.release_lock(movie_source)  # LOCK RELEASED
-            if self._error != 429:
+            if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
             else:
                 VideoDownloader._retry_attempts += 1
@@ -545,7 +545,7 @@ class VideoDownloader:
         finally:
             clz.release_lock(Movie.TFH_SOURCE)
 
-            if self._error != 429:
+            if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
             else:
                 VideoDownloader._retry_attempts += 1
@@ -623,9 +623,12 @@ class BaseYDLogger:
         clz = BaseYDLogger
         if self._downloader._error == 0 or force:
             self._downloader._error = rc
-            if rc == 429 and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if (rc == Constants.HTTP_TOO_MANY_REQUESTS
+                and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
                 type(self).logger.debug_extra_verbose(
                     f'Abandoning download of {self.url}. Too Many Requests')
+        if rc == Constants.HTTP_UNAUTHORIZED:
+            clz.logger.info(f'Not authorized to download {self.url}.')
 
     def debug(self, line: str) -> None:
         """
@@ -800,8 +803,8 @@ class BaseYDLogger:
             Monitor.throw_exception_if_abort_requested()
 
         clz = BaseYDLogger
-        if 'Error 429' in line:
-            self.set_error(429, force=True)
+        if 'Error Constants.HTTP_TOO_MANY_REQUESTS' in line:
+            self.set_error(Constants.HTTP_TOO_MANY_REQUESTS, force=True)
             type(self).logger.info(
                 'Abandoning download. Too Many Requests')
         # str: ERROR: (ExtractorError(...), 'wySw1lhMt1s: YouTube said: Unable
