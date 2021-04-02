@@ -141,9 +141,15 @@ class BaseDiscoverMovies(threading.Thread):
         # clz.logger.enter()
         self._movie_data.add_to_discovered_trailers(movies)
 
-    def get_number_of_movies(self):
-        # type: () -> int
+    def get_number_of_movies(self) -> int:
         """
+        Gets the number of movie entries in the discovery queue for the the
+        current movie type (from self: library, library_url_trailers, tmdb, tfh,
+        etc.). Note that not every movie entry will have a trailer. In
+        particular, TMDb trailer discovery happens in two steps: First, a general
+        query for movies matching a filter is made. Next, TMDb is queried for
+        each movie found in first step to get detail information, including
+        trailer information.
 
         :return:
         """
@@ -151,8 +157,23 @@ class BaseDiscoverMovies(threading.Thread):
 
         return self.get_movie_data().get_number_of_movies()
 
-    def get_movie_data(self):
-        # type:() -> AbstractMovieData
+    def get_number_of_known_trailers(self) -> int:
+        """
+        Gets the number of movie entries in the discovery queue for the the
+        current movie type (from self: library, library_url_trailers, tmdb, tfh,
+        etc.). Note that not every movie entry will have a trailer. In
+        particular, TMDb trailer discovery happens in two steps: First, a general
+        query for movies matching a filter is made. Next, TMDb is queried for
+        each movie found in first step to get detail information, including
+        trailer information.
+
+        :return:
+        """
+        clz = BaseDiscoverMovies
+
+        return self.get_movie_data().get_number_of_trailers()
+
+    def get_movie_data(self) -> AbstractMovieData:
         """
 
         :return:

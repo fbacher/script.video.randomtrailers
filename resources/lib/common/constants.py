@@ -58,6 +58,8 @@ class Constants:
     InitialGarbageCollectionTime = 10 * 60  # Ten minutes in seconds
     # Run daily garbage collection at 04:13 in the morning.
     DailyGarbageCollectionTime = datetime.time(hour=4, minute=13)
+    HTTP_TOO_MANY_REQUESTS = 429
+    HTTP_UNAUTHORIZED = 401
     TRACEBACK = 'LEAK Traceback StackTrace StackDump'
     TRAILER_CACHE_FLUSH_SECONDS = 300  # Five minutes with changes
     TRAILER_CACHE_FLUSH_UPDATES = 10  # Flush cache after n updates
@@ -408,7 +410,17 @@ List.Sort
     TMDB_TYPE = 'TMDB_type'
     TMDB_PAGE = 'TMDB_page'  # For statistics, remember download page
     TMDB_TOTAL_PAGES = 'TMDB_TOTAL_PAGES'  # For statistics
+
+    # TMDB_PAGE_DATA indicates that movie information is incomplete,
+    # only what is provided by initial TMDB discovery API call.
+
+    TMDB_PAGE_DATA = 'rts.page_data'
     TMDB_TAGS = 'rts.tags'
+    TMDB_GENRE_IDS = 'rts.genre_ids'
+    TMDB_VOTE_AVERAGE = 'rts.tmdb_vote_average'
+    TMDB_IS_VIDEO = 'rts.tmdb_video'
+    TMDB_POPULARITY = 'rts.tmdb_popularity'
+
 
     # DISCOVERY_STATE element contains an ordered list of
     # states.The numeric prefix makes the values comparable like an
@@ -485,6 +497,56 @@ List.Sort
         DETAIL_WRITERS: ['default_' + DETAIL_WRITERS],
         DETAIL_STUDIOS: ['default_' + DETAIL_STUDIOS],
     }
+
+    TMDB_PAGE_DATA_FIELDS = [
+        TRAILER,
+        TMDB_PAGE_DATA,
+        SOURCE,
+        TITLE,
+        YEAR,
+        TMDB_POPULARITY,
+        VOTES,
+        TMDB_IS_VIDEO,
+        ADULT,
+        TMDB_VOTE_AVERAGE,
+        TMDB_GENRE_IDS,
+        ORIGINAL_LANGUAGE,
+        TMDB_PAGE,
+        TMDB_TOTAL_PAGES]
+
+    TMDB_ENTRY_FIELDS = [
+        ADULT,
+        #  "alternative_titles",
+        "backdrop_path",
+        #  "belongs_to_collection",
+        #  "budget",
+        "credits",
+        "genres",
+        #  "homepage",
+        "id",
+        "imdb_id",
+        "keywords",
+        "original_language",
+        "original_title",
+        "overview",
+        "popularity",
+        "poster_path",
+        "production_companies",
+        #  "production_countries",
+        "release_date",
+        "releases",
+        #  "revenue",
+        "runtime",
+        "spoken_languages",
+        #  "status",
+        "tagline",
+        TITLE,
+        "video",
+        "videos",
+        "vote_average",
+        "vote_count",
+        CACHED
+    ]
 
 
 class iTunes:

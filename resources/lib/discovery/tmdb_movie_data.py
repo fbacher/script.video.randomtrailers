@@ -38,20 +38,7 @@ class TMDBMovieData(AbstractMovieData):
 
         super().add_to_discovered_trailers(movies)
 
-    def get_number_of_movies_with_trailers(self):
-        # type: () -> int
-        """
-
-        :return:
-        """
-        movies_with_trailers = 0
-        for movie in self._discovered_trailers.get_trailers():
-            if movie[Movie.DISCOVERY_STATE] >= Movie.DISCOVERY_COMPLETE:
-                movies_with_trailers += 1
-
-        return movies_with_trailers
-
-    def remove_discovered_movie(self, movie):
+    def remove_discovered_movie(self, movie: MovieType) -> None:
         with self._discovered_trailers_lock:
             super().remove_discovered_movie(movie)
             tmdb_id = MovieEntryUtils.get_tmdb_id(movie)

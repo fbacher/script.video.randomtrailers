@@ -171,7 +171,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                    Movie.ORIGINAL_LANGUAGE:
                                        cached_movie[Movie.ORIGINAL_LANGUAGE]}
                     MovieEntryUtils.set_tmdb_id(movie_entry, tmdb_id)
-                    if self.filter_movie(movie_entry):
+                    if self.pre_filter_movie(movie_entry):
                         movies.append(movie_entry)
 
             # Don't add found trailers to unprocessed_movies
@@ -215,10 +215,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 discovery_state = movie.get(Movie.DISCOVERY_STATE,
                                             Movie.NOT_FULLY_DISCOVERED)
                 if (discovery_state < Movie.DISCOVERY_COMPLETE
-                        and self.filter_movie(movie)):
+                        and self.pre_filter_movie(movie)):
                     discovery_needed_movies.append(movie)
                 if (discovery_state >= Movie.DISCOVERY_COMPLETE
-                        and self.filter_movie(movie)):
+                        and self.pre_filter_movie(movie)):
                     discovery_complete_movies.append(movie)
                     tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
                     ItunesCacheIndex.remove_unprocessed_movies(tmdb_id)

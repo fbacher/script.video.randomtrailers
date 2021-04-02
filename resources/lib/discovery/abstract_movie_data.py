@@ -12,7 +12,7 @@ import threading
 import sys
 import datetime
 
-from common.constants import Constants, Movie
+from common.constants import Movie
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, DuplicateException
 from common.imports import *
@@ -260,8 +260,8 @@ class MovieList:
 
         PlayStatistics.add(movie)
 
-    def get_trailers(self) -> List[MovieType]:
-        return list(self._ordered_dict.values())
+    def get_movies(self) -> ValuesView[MovieType]:
+        return self._ordered_dict.values()
 
     def remove(self, movie: MovieType) -> None:
         """
@@ -562,7 +562,7 @@ class AbstractMovieData:
 
             self._discovered_trailers.shuffle()
             if mark_unplayed:
-                for trailer in self._discovered_trailers.get_trailers():
+                for trailer in self._discovered_trailers.get_movies():
                     trailer[Movie.TRAILER_PLAYED] = False
 
             self._last_shuffled_index = self._discovered_trailers.len() - 1
@@ -574,7 +574,7 @@ class AbstractMovieData:
 
             Monitor.throw_exception_if_abort_requested()
             # self.logger.debug('reloading _discovered_trailers_queue')
-            for trailer in self._discovered_trailers.get_trailers():
+            for trailer in self._discovered_trailers.get_movies():
                 if not trailer[Movie.TRAILER_PLAYED]:
                     # if self.logger.isEnabledFor(LazyLogger.DEBUG):
                     #   self.logger.debug('adding', trailer[Movie.TITLE],
@@ -603,8 +603,26 @@ class AbstractMovieData:
         """
         return int(self._number_of_added_movies)
 
+    def get_number_of_trailers(self) -> int:
+        """
+        Gets the number of known trailers so far. Note that this value can
+        change up or down depending upon further discovery.
+
+        :return:
+        """
+        number_of_trailers = 0
+        with self._discovered_trailers_lock:
+            for movie in self._discovered_trailers.get_movies():
+                trailer = movie.get(Movie.TRAILER)
+                if trailer is not None and trailer != '':
+                    number_of_trailers += 1
+
+        return number_of_trailers
+
     def get_projected_number_of_trailers(self) -> int:
         """
+        Project the number of trailers that will be discovered based upon
+        what has been discovered so far.
 
         :return:
         """
@@ -618,8 +636,8 @@ class AbstractMovieData:
             #                                self._number_of_added_movies,
             #                                'movies without trailers:',
             #                                self._removed_trailers)
-        number_of_trailers = self.get_number_of_movies()
-        projected_number_of_trailers = success_ratio * number_of_trailers
+        number_of_movies = self.get_number_of_movies()
+        projected_number_of_trailers = success_ratio * number_of_movies
         # if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
         #     self.logger.debug_extra_verbose('removed:', self._removed_trailers,
         #                                      'projected_number_of_trailers:',
@@ -972,7 +990,7 @@ class AbstractMovieData:
                     # self.logger.debug('Have discovered_trailers_lock')
 
                     starvation_list = []
-                    for movie in self._discovered_trailers.get_trailers():
+                    for movie in self._discovered_trailers.get_movies():
                         if (movie[Movie.DISCOVERY_STATE] >=
                                 Movie.DISCOVERY_READY_TO_DISPLAY):
                             starvation_list.append(movie)

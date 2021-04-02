@@ -330,8 +330,17 @@ class DiskUtils(object):
         return False
 
     @classmethod
-    def disk_usage(cls, path):
-        # type: (str) -> Optional[Dict[str, int]]
+    def remove_cache_file(cls, path: str) -> None:
+        #  file_data = UsageData.get_file_data().get(path)
+        #  if file_data is not None:
+        #     UsageData.remove_file(file_data)
+        try:
+            os.remove(path)
+        except Exception as e:
+            cls._logger.exception('')
+
+    @classmethod
+    def disk_usage(cls, path: str) -> Optional[Dict[str, int]]:
         """
             Gets disk usage of the filesystem that the given
             path belongs to.

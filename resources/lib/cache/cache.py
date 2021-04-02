@@ -207,10 +207,24 @@ class Cache(object):
         return trailer
 
     @classmethod
+    def delete_cache_json(cls,
+                          movie_id: Union[str, int],
+                          source: str) -> None:
+        if source is None or source not in Movie.LIB_TMDB_ITUNES_SOURCES:
+            cls._logger.debug('Invalid source:', source)
+        movie_id = str(movie_id)
+        path = Cache.get_json_cache_file_path_for_movie_id(
+            movie_id, source)
+        try:
+            os.remove(path)
+        except Exception as e:
+            cls._logger.exception(f'Trying to delete cache file: {path}')
+
+    @classmethod
     def write_tmdb_cache_json(cls,
                               movie_id: Union[str, int],
                               source: str,
-                              trailer: MovieType
+                              movie: MovieType
                               ) -> None:
         """
             Write the given movie information into the cache as JSON
@@ -233,14 +247,19 @@ class Cache(object):
                 cls._logger.error(messages.get_msg(
                     Messages.CAN_NOT_WRITE_FILE) % path)
                 return None
+            temp_movie = {}
+            for key in Movie.TMDB_ENTRY_FIELDS:
+                temp_movie[key] = movie.get(key)
+
             Monitor.throw_exception_if_abort_requested()
             with io.open(path, mode='wt', newline=None,
                          encoding='utf-8', ) as cacheFile:
-                json_text = json.dumps(trailer,
+                json_text = json.dumps(temp_movie,
                                        ensure_ascii=False,
                                        indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
+                del temp_movie
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
