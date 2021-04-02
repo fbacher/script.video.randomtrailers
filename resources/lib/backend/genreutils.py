@@ -1048,7 +1048,13 @@ class GenreUtils:
             genres = []
 
         if tags is None:
+            ignore_tags = True
             tags = []
+        else:
+            # When tags is None, they haven't been discovered yet for this
+            # movie. Assume that any allowed_tag will be found.
+
+            ignore_tags = False
 
         allowed_genres = GenreUtils.get_external_genre_ids(
             GenreUtils.TMDB_DATABASE, exclude=False)
@@ -1077,22 +1083,29 @@ class GenreUtils:
             elif tag_id in excluded_tags:
                 tag_excluded = True
 
-        genre_fails = False
+        genre_passes = True
         if genre_found or tag_found:  # Include movie
             pass
         elif genre_excluded or tag_excluded:
-            genre_fails = True
+            genre_passes = False
+
+        # When ignore_tags is set, then tag information has not yet been
+        # discovered, so don't fail due to tags.
+
+        elif len(allowed_genres) == 0 and ignore_tags:
+            pass
 
         # If user specified any Included genres or tags. Then
         # Ignored items will have no impact on selection, but
         # when none are specified, then the movie is selected,
         # unless Excluded.
+
         elif len(allowed_genres) == 0 and len(allowed_tags) == 0:
             pass
         else:
-            genre_fails = True
+            genre_passes = False
 
-        return not genre_fails
+        return genre_passes
 
 
 GenreUtils.init_class()
