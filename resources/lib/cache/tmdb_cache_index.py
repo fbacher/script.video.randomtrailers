@@ -19,18 +19,16 @@ import threading
 
 import xbmcvfs
 
-from common.development_tools import (Any, List,
-                                      Dict, Union,
-                                      MovieType)
-from common.constants import (Constants)
+from common.development_tools import *
+from common.constants import Constants, Movie
 from common.exceptions import AbortException
-from common.logger import (LazyLogger)
+from common.logger import LazyLogger
 from common.messages import Messages
 from common.monitor import Monitor
-from backend.movie_entry_utils import (MovieEntryUtils)
+from backend.movie_entry_utils import MovieEntryUtils
 from common.settings import Settings
 from common.disk_utils import DiskUtils
-from diagnostics.statistics import (Statistics)
+from diagnostics.statistics import Statistics
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -42,12 +40,12 @@ class CachedPage:
     _logger = None
 
     def __init__(self,
-                 year,  # type: Union[int, None]
-                 page_number,  # type: int
+                 year: Union[int, None],
+                 page_number: int,
                  # processed means that the trailers for this page have been
                  # placed in unprocessed list.
-                 processed=False,  # type: bool
-                 total_pages_for_year=None  # type: Union[int, None]
+                 processed: bool = False,
+                 total_pages_for_year: int = None
                  ) -> None:
         """
 
@@ -75,8 +73,7 @@ class CachedPage:
         """
         return self._year
 
-    def get_total_pages_for_year(self):
-        # type: () -> int
+    def get_total_pages_for_year(self) -> int:
         """
 
         :return:
@@ -86,8 +83,7 @@ class CachedPage:
     def is_processed(self) -> bool:
         return self.processed
 
-    def get_cache_key(self):
-        # type: () -> str
+    def get_cache_key(self) -> str:
         """
 
         :return:
@@ -138,8 +134,7 @@ class CacheParameters:
         self._cache_state = dict_value['cache_state']
 
     @classmethod
-    def to_json(cls):
-        # () -> str
+    def to_json(cls) -> str:
         """
 
         :return:
@@ -178,12 +173,12 @@ class CacheParameters:
 
     def __ne__(self,
                other_value  # type: CacheParameters
-               ):
+               ) -> bool:
         return not self.__eq__(other_value)
 
     def __eq__(self,
                other_value  # type: CacheParameters
-               ):
+               ) -> bool:
         finished = False
         is_equal = True
         while not finished:
@@ -264,8 +259,7 @@ class CacheParameters:
         return is_equal
 
     @classmethod
-    def save_cache(cls):
-        # type: () -> None
+    def save_cache(cls) -> None:
         """
 
         :return:
@@ -297,8 +291,7 @@ class CacheParameters:
     @classmethod
     def load_cache(cls,
                    current_parameters  # type: CacheParameters
-                   ):
-        # type: (...) -> bool
+                   ) -> bool:
         """
 
         :param current_parameters:
@@ -319,8 +312,7 @@ class CacheParameters:
     @classmethod
     def set_cached_value(cls,
                          new_parameters  # type: CacheParameters
-                         ):
-        # type: (...) -> None
+                         ) -> None:
         """
 
         :param new_parameters:
@@ -723,13 +715,12 @@ class CachedPagesData:
         self.load_search_pages()
         return datetime.datetime.now() - self._time_of_last_save
 
-    def to_json(self):
-        #  type: () -> dict
+    def to_json(self) -> Dict[str, Any]:
         """
 
         :return:
         """
-        json_dict = dict()
+        json_dict: Dict[str, Any] = dict()
         try:
             if self._cached_page_by_key is not None:
                 json_dict['timestamp'] = datetime.datetime.now()
@@ -797,8 +788,7 @@ class CachedPagesData:
 
         return cached_pages_data
 
-    def save_search_pages(self, flush=False):
-        # type: (bool) -> None
+    def save_search_pages(self, flush: bool = False) -> None:
         """
 
         :return:
@@ -971,8 +961,7 @@ class CacheIndex:
                 cls.load_found_trailer_ids_cache()
 
     @classmethod
-    def is_tmdb_cache_empty(cls):
-        # type: () -> bool
+    def is_tmdb_cache_empty(cls) -> bool:
         """
 
         :return:
@@ -983,11 +972,10 @@ class CacheIndex:
 
     @classmethod
     def add_search_pages(cls,
-                         tmdb_search_query,  # type: str
-                         search_pages,  # type: List[CachedPage]
-                         flush=False  # type: bool
-                         ):
-        # type: (...) -> None
+                         tmdb_search_query: str,
+                         search_pages: List[CachedPage],
+                         flush: bool = False
+                         ) -> None:
         """
 
         :return:
@@ -998,9 +986,8 @@ class CacheIndex:
 
     @classmethod
     def get_search_pages(cls,
-                         tmdb_search_query  # type: str
-                         ):
-        # type: (...) -> List[CachedPage]
+                         tmdb_search_query: str
+                         ) -> List[CachedPage]:
         """
         :param tmdb_search_query:
         :return:
@@ -1010,8 +997,7 @@ class CacheIndex:
         return list(cached_pages_data.get_undiscovered_search_pages())
 
     @classmethod
-    def get_number_of_discovered_search_pages(cls):
-        #  type: () -> int
+    def get_number_of_discovered_search_pages(cls) -> int:
         """
 
         :return:
@@ -1034,8 +1020,8 @@ class CacheIndex:
 
     @classmethod
     def add_unprocessed_movies(cls,
-                               movies,  # type: List[MovieType]
-                               ):
+                               movies: List[MovieType]
+                               ) -> None:
         """
 
         :param movies:
@@ -1191,8 +1177,7 @@ class CacheIndex:
                 cls.logger().exception('')
 
     @classmethod
-    def load_unprocessed_movie_cache(cls):
-        # type: () -> None
+    def load_unprocessed_movie_cache(cls) -> None:
         """
 
         :return:
@@ -1287,8 +1272,7 @@ class CacheIndex:
         return dct
 
     @staticmethod
-    def handler(obj):
-        # type: (Any) -> Any
+    def handler(obj: Any) -> Any:
         """
 
         :param obj:
@@ -1302,8 +1286,7 @@ class CacheIndex:
                 type(obj), repr(obj)))
 
     @staticmethod
-    def datetime_parser(dct):
-        # type: (Dict) -> Dict
+    def datetime_parser(dct: Dict) -> Dict:
         """
 
         :param dct:

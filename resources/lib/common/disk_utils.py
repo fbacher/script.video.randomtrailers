@@ -22,7 +22,7 @@ from common.settings import Settings
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class UsageData(object):
+class UsageData:
     """
 
     """
@@ -150,23 +150,21 @@ class UsageData(object):
         self._aggregate_deleted_size += deleted_size
         self._deleted_files += 1
 
-    def get_disk_deleted_from_cache(self):
-        # type: () -> int
+    def get_disk_deleted_from_cache(self) -> int:
         """
 
         :return:
         """
         return int(self._aggregate_deleted_size)
 
-    def remove_file(self, file_data):
-        # type: (FileData) -> None
+    def remove_file(self, file_data: 'FileData') -> None:
         """
 
         :param file_data:
         :return:
         """
         if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            self._logger.debug_extra_verbose('will delete- path:', file_data.get_path(),
+            self._logger.debug_extra_verbose('will delete path:', file_data.get_path(),
                                              'creation:', file_data.get_creation_date())
         os.remove(file_data.get_path())
         self._aggregate_deleted_size += file_data.get_size()
@@ -176,16 +174,14 @@ class UsageData(object):
         del self._file_data[file_data.get_path()]
         del file_data
 
-    def get_number_of_deleted_files(self):
-        # type () -> int
+    def get_number_of_deleted_files(self) -> int:
         """
 
         :return:
         """
         return self._deleted_files
 
-    def add_file_data(self, file_data):
-        # type: (FileData) -> None
+    def add_file_data(self, file_data: 'FileData') -> None:
         """
 
         :param file_data:
@@ -193,16 +189,14 @@ class UsageData(object):
         """
         self._file_data[file_data.get_path()] = file_data
 
-    def get_file_data(self):
-        # type: () -> Dict[str, FileData]
+    def get_file_data(self) -> Dict[str, 'FileData']:
         """
 
         :return: Dict of file data indexed by file path
         """
         return self._file_data
 
-    def get_file_data_by_file_size(self):
-        # type: () -> List[FileData]
+    def get_file_data_by_file_size(self) -> List['FileData']:
         """
 
         Gets List of cache file in decreasing order of file size.
@@ -218,8 +212,7 @@ class UsageData(object):
                                 reverse=False)
         return file_data_list
 
-    def get_file_data_by_creation_date(self):
-        # type: () -> List[FileData]
+    def get_file_data_by_creation_date(self) -> List['FileData']:
         """
 
         Gets List of cache files in decreasing order of creation data
@@ -236,13 +229,13 @@ class UsageData(object):
         return file_data_list
 
 
-class FileData(object):
+class FileData:
     """
 
     """
 
-    def __init__(self, path, creation_date, size):
-        # type: (str, datetime.datetime, int) -> None
+    def __init__(self, path: str, creation_date: datetime.datetime,
+                 size: int) -> None:
         """
 
         :param path:
@@ -253,24 +246,21 @@ class FileData(object):
         self._creation_date = creation_date
         self._size = size
 
-    def get_path(self):
-        # type: () -> str
+    def get_path(self) -> str:
         """
 
         :return:
         """
         return self._path
 
-    def get_creation_date(self):
-        # type: () -> datetime.datetime
+    def get_creation_date(self) -> datetime.datetime:
         """
 
         :return:
         """
         return self._creation_date
 
-    def get_size(self):
-        # type: () -> int
+    def get_size(self) -> int:
         """
 
         :return:
@@ -278,10 +268,7 @@ class FileData(object):
         return self._size
 
 
-# noinspection PyClassHasNoInit
-
-
-class DiskUtils(object):
+class DiskUtils:
     """
             Provides disk utilities
     """
@@ -292,8 +279,7 @@ class DiskUtils(object):
     _logger = module_logger.getChild('DiskUtils')
 
     @classmethod
-    def class_init(cls):
-        # type: () -> None
+    def class_init(cls) -> None:
         """
         :return:
         """
@@ -301,8 +287,7 @@ class DiskUtils(object):
             cls._logger = module_logger.getChild(cls.__class__.__name__)
 
     @classmethod
-    def create_path_if_needed(cls, path):
-        # type: (str) -> None
+    def create_path_if_needed(cls, path: str) -> None:
         """
             Creates as many directories as necessary to make path a valid path
 
@@ -316,8 +301,7 @@ class DiskUtils(object):
             cls._logger.exception('')
 
     @staticmethod
-    def is_url(path):
-        # type: (str) -> bool
+    def is_url(path: str) -> bool:
         """
             Determines whether the path is a URL. Currently a simple test.
 
@@ -562,8 +546,7 @@ class DiskUtils(object):
         return usage_data_map
 
     @staticmethod
-    def sizeof_fmt(num, suffix='B'):
-        # type: (Union[int, float], str) -> str
+    def sizeof_fmt(num: Union[int, float], suffix: str = 'B') -> str:
         """
             Convert a disk size to a human friendly format
 

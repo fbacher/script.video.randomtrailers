@@ -303,7 +303,6 @@ List.Sort
     TITLE = 'title'
     ORIGINAL_TITLE = 'originaltitle'
     TRAILER = 'trailer'
-    YEAR_KEY = 'year'
     LAST_PLAYED = 'lastplayed'
     MPAA = 'mpaa'
     FANART = 'fanart'

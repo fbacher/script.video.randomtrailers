@@ -14,7 +14,6 @@ import locale
 import re
 import threading
 
-import xbmc
 import xbmcvfs
 
 from common.constants import Constants, Movie
@@ -24,7 +23,6 @@ from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
-from backend import backend_constants
 from common.disk_utils import DiskUtils, UsageData, FileData
 
 RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
@@ -32,7 +30,7 @@ RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class CacheData(object):
+class CacheData:
     """
         Provides generic access to cache-specific (trailer, json)
         data (Settings, stats).
@@ -130,8 +128,7 @@ class CacheData(object):
         """
         self._usage_data = usage_data
 
-    def report_status(self):
-        # type: () -> None
+    def report_status(self) -> None:
         """
             Produces a simple report about the cache using the Settings
             and UsageData.
@@ -221,8 +218,7 @@ class CacheData(object):
         except Exception as e:
             local_class._logger.exception('')
 
-    def collect_garbage(self):
-        # type: () -> None
+    def collect_garbage(self) -> None:
         """
         Runs garbage collection on all of the caches according to the
         settings.
@@ -330,7 +326,7 @@ class CacheData(object):
             local_class._logger.exception('')
 
 
-class CacheManager(object):
+class CacheManager:
     """
         Provides Management access to the cache, primarily garbage collection.
     """
@@ -338,8 +334,7 @@ class CacheManager(object):
     _instance = None
     _logger = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
         :return: None
         """
@@ -361,14 +356,13 @@ class CacheManager(object):
             CacheManager._instance = CacheManager()
         return CacheManager._instance
 
-    def get_stats_for_caches(self):
-        # type: () -> Dict[str, UsageData]
+    def get_stats_for_caches(self) -> Dict[str, UsageData]:
         """
             Get disk usage information for the caches.
             Returns a map of UsageData for each cache. Primarily used
             by garbage collection and reporting.
 
-        :return: # type:Dict[str, UsageData]
+        :return:
         """
         local_class = CacheManager
         TRAILER_PATTERN = re.compile(r'^.*-trailer\..*$')
@@ -401,8 +395,7 @@ class CacheManager(object):
 
         return usage_data_map
 
-    def start_cache_garbage_collection_thread(self):
-        # type () -> None
+    def start_cache_garbage_collection_thread(self) -> None:
         """
             Start thread to periodically purge off files when cache space
             limits are exceeded.
@@ -416,8 +409,7 @@ class CacheManager(object):
                 target=self.drive_garbage_collection_wrapper, name='cacheMonitor')
             self._cache_monitor_thread.start()
 
-    def drive_garbage_collection_wrapper(self):
-        # type: () -> None
+    def drive_garbage_collection_wrapper(self) -> None:
         """
             This method focuses on deleting files when disk space limits
             are exceeded.
@@ -433,8 +425,7 @@ class CacheManager(object):
         except Exception as e:
             local_class._logger.exception('')
 
-    def drive_garbage_collection(self):
-        # type: () -> None
+    def drive_garbage_collection(self) -> None:
         """
                 This method focuses on deleting files when disk space limits
                 are exceeded.

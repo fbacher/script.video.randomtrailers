@@ -83,11 +83,11 @@ class TrailerUnavailableCache(object):
 
     @classmethod
     def add_missing_library_trailer(cls,
-                                    tmdb_id=None,  # type: int
-                                    library_id=None,  # type: Optional[int]
-                                    title=None,  # type: str
-                                    year=None,  # type: int
-                                    source=None  # type str
+                                    tmdb_id: int = None,
+                                    library_id: int = None,
+                                    title: str = None,
+                                    year: int = None,
+                                    source: str = None
                                     ):
         # type (...) -> None
         """
@@ -272,6 +272,7 @@ class TrailerUnavailableCache(object):
                     parent_dir, file_name = os.path.split(temp_path)
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
+
                     with io.open(temp_path, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         json_text = \

@@ -1277,20 +1277,18 @@ class Settings(object):
         return country
 
     @staticmethod
-    def get_locale():
-        # type: () -> str
+    def get_locale() -> str:
         """
 
         :return:
         """
-        #locale.setlocale(locale.LC_ALL, 'en_US')
+        # locale.setlocale(locale.LC_ALL, 'en_US')
         language_code, encoding = locale.getdefaultlocale()
 
         return language_code
 
     @staticmethod
-    def get_max_tmdb_trailers():
-        # type: () -> int
+    def get_max_tmdb_trailers() -> int:
         """
 
         :return:
@@ -1298,8 +1296,7 @@ class Settings(object):
         return Settings.get_setting_int(Settings.TMDB_MAX_NUMBER_OF_TRAILERS)
 
     @staticmethod
-    def is_report_actor_stats():
-        # type: () -> bool
+    def is_report_actor_stats() -> bool:
         """
 
         :return:
@@ -1463,8 +1460,7 @@ class Settings(object):
         return rating_limit
 
     @staticmethod
-    def get_tmdb_trailer_preference():
-        # type: () -> str
+    def get_tmdb_trailer_preference() -> str:
         """
 
         :return:
@@ -1726,8 +1722,7 @@ class Settings(object):
         return volume
 
     @staticmethod
-    def get_tmdb_include_old_movie_trailers():
-        # type: () -> bool
+    def get_tmdb_include_old_movie_trailers() -> bool:
         """
 
         :return:
@@ -1735,16 +1730,14 @@ class Settings(object):
         return Settings.get_setting_bool(Settings.TMDB_INCLUDE_OLD_MOVIE_TRAILERS)
 
     @staticmethod
-    def get_tmdb_max_download_movies():
-        # type: () -> int
+    def get_tmdb_max_download_movies() -> int:
         """
         :return:
         """
         return Settings.get_setting_int(Settings.TMDB_MAX_DOWNLOAD_MOVIES)
 
     @staticmethod
-    def is_trace_enabled():
-        # type: () -> bool
+    def is_trace_enabled() -> bool:
         """
 
         :return:
@@ -1752,8 +1745,7 @@ class Settings(object):
         return Settings.get_setting_bool(Settings.ENABLE_TRACE)
 
     @staticmethod
-    def is_trace_stats_enabled():
-        # type: () -> bool
+    def is_trace_stats_enabled() -> bool:
         """
 
         :return:
@@ -1761,8 +1753,7 @@ class Settings(object):
         return Settings.get_setting_bool(Settings.ENABLE_TRACE_STATS)
 
     @staticmethod
-    def is_use_tmdb_cache():
-        # type: () -> bool
+    def is_use_tmdb_cache() -> bool:
         """
 
         :return:
@@ -1838,8 +1829,7 @@ class Settings(object):
         return path
 
     @staticmethod
-    def is_limit_cached_trailers():
-        # type: () -> bool
+    def is_limit_cached_trailers() -> bool:
         """
 
         :return:
@@ -1847,8 +1837,7 @@ class Settings(object):
         return Settings.get_setting_bool(Settings.LIMIT_CACHED_TRAILERS)
 
     @staticmethod
-    def is_limit_number_of_cached_trailers():
-        # type: () -> bool
+    def is_limit_number_of_cached_trailers() -> bool:
         """
 
         :return:
@@ -1860,8 +1849,7 @@ class Settings(object):
         return value
 
     @staticmethod
-    def get_max_number_of_cached_trailers():
-        # type: () -> int
+    def get_max_number_of_cached_trailers() -> int:
         """
 
         :return:
@@ -1873,8 +1861,7 @@ class Settings(object):
         return value
 
     @staticmethod
-    def is_limit_size_of_cached_trailers():
-        # type: () -> bool
+    def is_limit_size_of_cached_trailers() -> bool:
         """
 
         :return:
