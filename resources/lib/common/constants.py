@@ -410,10 +410,6 @@ List.Sort
     TMDB_PAGE = 'TMDB_page'  # For statistics, remember download page
     TMDB_TOTAL_PAGES = 'TMDB_TOTAL_PAGES'  # For statistics
 
-    # TMDB_PAGE_DATA indicates that movie information is incomplete,
-    # only what is provided by initial TMDB discovery API call.
-
-    TMDB_PAGE_DATA = 'rts.page_data'
     TMDB_TAGS = 'rts.tags'
     TMDB_GENRE_IDS = 'rts.genre_ids'
     TMDB_VOTE_AVERAGE = 'rts.tmdb_vote_average'
@@ -499,7 +495,6 @@ List.Sort
 
     TMDB_PAGE_DATA_FIELDS = [
         TRAILER,
-        TMDB_PAGE_DATA,
         SOURCE,
         TITLE,
         YEAR,
