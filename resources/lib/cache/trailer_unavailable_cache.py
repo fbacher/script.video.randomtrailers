@@ -30,11 +30,12 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection PyRedundantParentheses
-class TrailerUnavailableCache(object):
+class TrailerUnavailableCache:
     """
 
     """
     _logger = module_logger.getChild('TrailerUnavailableCache')
+    _loaded = False
     _all_missing_tmdb_trailers = dict()
     _all_missing_library_trailers = dict()
     lock = threading.RLock()
@@ -42,9 +43,6 @@ class TrailerUnavailableCache(object):
     library_unsaved_changes = 0
     tmdb_last_save = datetime.datetime.now()
     tmdb_unsaved_changes = 0
-
-    def __init__(self):
-        self.values = dict()
 
     @classmethod
     def add_missing_tmdb_trailer(cls,
@@ -75,6 +73,7 @@ class TrailerUnavailableCache(object):
 
         cls.abort_on_shutdown()
         with cls.lock:
+            cls.load_cache_if_needed()
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 cls._all_missing_tmdb_trailers[tmdb_id] = values
                 cls.tmdb_cache_changed()
@@ -113,6 +112,7 @@ class TrailerUnavailableCache(object):
 
         cls.abort_on_shutdown()
         with cls.lock:
+            cls.load_cache_if_needed()
             if tmdb_id not in TrailerUnavailableCache._all_missing_library_trailers:
                 cls._all_missing_library_trailers[tmdb_id] = values
                 cls.library_cache_changed()
@@ -129,6 +129,7 @@ class TrailerUnavailableCache(object):
         """
         cls.abort_on_shutdown()
         with cls.lock:
+            cls.load_cache_if_needed()
             if library_id not in cls._all_missing_library_trailers:
                 entry = None
             else:
@@ -175,6 +176,7 @@ class TrailerUnavailableCache(object):
         """
         cls.abort_on_shutdown()
         with cls.lock:
+            cls.load_cache_if_needed()
             if tmdb_id not in cls._all_missing_tmdb_trailers:
                 return None
             entry = cls._all_missing_tmdb_trailers[tmdb_id]
@@ -244,6 +246,7 @@ class TrailerUnavailableCache(object):
         """
         cls.abort_on_shutdown(ignore_shutdown=ignore_shutdown)
         with cls.lock:
+            cls.load_cache_if_needed()
             if cls.tmdb_unsaved_changes == 0 and cls.library_unsaved_changes == 0:
                 return
             if cls.tmdb_unsaved_changes > 0:
@@ -411,8 +414,7 @@ class TrailerUnavailableCache(object):
             return dct
 
     @classmethod
-    def load_cache(cls):
-        # type: () -> None
+    def load_cache_if_needed(cls, force_load: bool = False) -> None:
         """
 
         :return:
@@ -422,6 +424,8 @@ class TrailerUnavailableCache(object):
         path = xbmcvfs.validatePath(path)
         cls.abort_on_shutdown()
         with cls.lock:
+            if force_load and cls._loaded:
+                return
             try:
                 parent_dir, file_name = os.path.split(path)
                 DiskUtils.create_path_if_needed(parent_dir)
@@ -469,7 +473,4 @@ class TrailerUnavailableCache(object):
             except Exception as e:
                 cls._logger.exception('')
 
-        pass
-
-
-TrailerUnavailableCache.load_cache()
+        cls._loaded = True
