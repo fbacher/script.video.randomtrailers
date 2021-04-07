@@ -16,13 +16,12 @@ import threading
 import traceback
 from io import StringIO
 
-import six
 import xbmc
 
 from common.exceptions import AbortException
 from common.constants import Constants
 from common.critical_settings import CriticalSettings
-from common.imports import *
+from common.imports import Any, Callable, Dict, List, reraise, Set, Type, Union
 
 TOP_PACKAGE_PATH = Constants.PYTHON_ROOT_PATH
 
@@ -114,7 +113,7 @@ class Logger(logging.Logger):
             super().__init__(name, level=level)
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             Logger.log_exception()
 
@@ -322,7 +321,7 @@ class Logger(logging.Logger):
                          extra=extra)
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             Logger.log_exception()
         finally:
@@ -636,7 +635,7 @@ class Logger(logging.Logger):
             s = sio.getvalue()
             sio.close()
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception as e:
             msg = 'Logger.log_exception raised exception during processing'
             xbmc.log(msg, xbmc.LOGERROR)
@@ -820,7 +819,7 @@ class LazyLogger(Logger):
             self.addFilter(Trace())
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             LazyLogger.log_exception()
 
@@ -851,7 +850,7 @@ class LazyLogger(Logger):
             super()._log(*args, **kwargs)
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             LazyLogger.log_exception()
 
@@ -888,7 +887,7 @@ class LazyLogger(Logger):
             super()._log(*args, **kwargs)
 
         except AbortException:
-            six.reraise(*sys.exc_info())
+            reraise(*sys.exc_info())
         except Exception:
             LazyLogger.log_exception()
 
