@@ -5,6 +5,7 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
+from io import StringIO
 import simplejson as json
 import sys
 import threading
@@ -13,9 +14,10 @@ import traceback
 import xbmc
 from common.constants import Constants, Movie
 from common.imports import *
-from common.logger import (LazyLogger)
+from common.logger import LazyLogger
 from common.rating import WorldCertifications
 from common.settings import Settings
+from common.monitor import Monitor
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -97,21 +99,20 @@ class Debug:
         :return:
         """
         addon_prefix = f'{Constants.ADDON_ID}/'
-        string_buffer = '\n*** STACKTRACE - START ***\n'
+        xbmc.log('dump_all_threads', xbmc.LOGDEBUG)
+        sio = StringIO()
+        sio.write('\n*** STACKTRACE - START ***\n\n')
         code = []
-        for threadId, stack in sys._current_frames().items():
-            code.append(f'\n# ThreadID: {threadId}')
-            for filename, lineno, name, line in traceback.extract_stack(stack):
-                filename: str
-                filename = filename.replace(Constants.ADDON_PATH, addon_prefix)
-                code.append(f'File: {filename}, line {lineno!s} in {name}')
-                if line:
-                    code.append("  %s" % (line.strip()))
+        #  Monitor.dump_wait_counts()
+        #  for threadId, stack in sys._current_frames().items():
+        for th in threading.enumerate():
+            sio.write(f'\n# ThreadID: {th.name}\n\n')
+            stack = sys._current_frames().get(th.ident, None)
+            if stack is not None:
+                traceback.print_stack(stack, file=sio)
 
-        for line in code:
-            string_buffer = string_buffer + '\n' + line
-        string_buffer = string_buffer + '\n*** STACKTRACE - END ***\n'
-
+        string_buffer: str = sio.getvalue() + '\n*** STACKTRACE - END ***\n'
+        sio.close()
         msg = Debug._currentAddonName + ' : dump_all_threads'
         xbmc.log(msg, xbmc.LOGDEBUG)
         xbmc.log(string_buffer, xbmc.LOGDEBUG)
@@ -156,7 +157,7 @@ class Debug:
         for key in trailer:
             if key in keys_of_primary_interest and (trailer.get(key) is not None
                                                     and trailer.get(
-                        key) != new_trailer.get(key)):
+                    key) != new_trailer.get(key)):
 
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
@@ -206,11 +207,12 @@ class Debug:
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
                 is_failed = True
-                movie.setdefault(property_name, basic_properties[property_name])
+                movie.setdefault(
+                    property_name, basic_properties[property_name])
 
         if len(failing_properties) > 0:
             msg = f'{movie.get(Movie.TITLE, "title missing")} ' \
-                    f'{",".join(failing_properties)}'
+                f'{",".join(failing_properties)}'
             if stack_trace:
                 LazyLogger.dump_stack('Missing basic property: ' + msg)
             else:
@@ -255,7 +257,8 @@ class Debug:
         for property_name in details_properties.keys():
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
-                movie.setdefault(property_name, details_properties[property_name])
+                movie.setdefault(
+                    property_name, details_properties[property_name])
                 is_ok = False
 
         if len(failing_properties) > 0:
