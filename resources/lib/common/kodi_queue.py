@@ -18,7 +18,7 @@ from common.logger import (Trace, LazyLogger)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class KodiQueue(object):
+class KodiQueue:
     from queue import Full as _Full
     from queue import Empty as _Empty
 

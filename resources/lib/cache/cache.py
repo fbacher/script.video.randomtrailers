@@ -32,7 +32,7 @@ from backend.json_utils_basic import (JsonUtilsBasic)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class Cache(object):
+class Cache:
     """
     Caching of requests to external sites is done to reduce
     aggregate traffic to these sites for local and remote

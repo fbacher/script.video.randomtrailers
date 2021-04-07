@@ -32,7 +32,7 @@ class MovieStatus(FrontendBridgeStatus):
     NEXT_MOVIE = 'NEXT_MOVIE'
 
 
-class MovieManager(object):
+class MovieManager:
 
     OPEN_CURTAIN = True
     CLOSE_CURTAIN = False

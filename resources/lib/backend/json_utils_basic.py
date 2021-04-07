@@ -34,7 +34,7 @@ from backend import backend_constants
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class JsonUtilsBasic(object):
+class JsonUtilsBasic:
     RandomGenerator = random.Random()
     RandomGenerator.seed()
 

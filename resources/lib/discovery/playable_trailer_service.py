@@ -32,7 +32,7 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection Annotator,PyArgumentList
-class PlayableTrailerService(object):
+class PlayableTrailerService:
     """
         Abstract class with common code for all Trailer Managers
 

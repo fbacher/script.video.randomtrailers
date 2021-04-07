@@ -5,13 +5,13 @@ from common.imports import *
 from common.monitor import Monitor
 
 
-class PlayerState(object):
+class PlayerState:
     STATE_STOPPED = 'stopped'
     STATE_PLAYING = 'playing'
     STATE_PAUSED = 'paused'
 
 
-class DummyPlayer(object):
+class DummyPlayer:
 
     def __init__(self):
         return

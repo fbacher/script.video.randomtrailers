@@ -26,7 +26,7 @@ from common.settings import (Settings)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class Playlist(object):
+class Playlist:
     """
 
     Basic Playlist format:

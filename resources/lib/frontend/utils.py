@@ -16,7 +16,7 @@ from common.logger import (LazyLogger)
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class ReasonEvent(object):
+class ReasonEvent:
     '''
         Provides a threading.Event with an attached reason
     '''

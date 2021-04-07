@@ -22,7 +22,7 @@ from frontend.history_empty import HistoryEmpty
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class HistoryList(object):
+class HistoryList:
     """
 
     """

@@ -21,7 +21,7 @@ from common.monitor import Monitor
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class PluginBridgeStatus(object):
+class PluginBridgeStatus:
     """
 
     """
@@ -32,7 +32,7 @@ class PluginBridgeStatus(object):
     DELETED = 'Deleted'  # When cached trailer (or even non-cached) is deleted
 
 
-class PluginBridge(object):
+class PluginBridge:
     """
         PluginBridge provides support for the random trailers plugins to
         communicate with one another. Communication is accomplished using

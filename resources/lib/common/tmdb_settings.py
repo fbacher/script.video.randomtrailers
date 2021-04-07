@@ -13,7 +13,7 @@ from common.settings import Settings
 
 
 # noinspection PyClassHasNoInit
-class TmdbSettings(object):
+1:
     """
 
     """

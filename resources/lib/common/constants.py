@@ -579,7 +579,7 @@ class TFH:
 
 """
 # noinspection PyClassHasNoInit,PyClassHasNoInit,PyClassHasNoInit
-class TMDB(object):
+class TMDB:
     # Applies to trailer type
     #"Coming Soon|Just Added|Popular|Exclusive|All"
     COMING_SOON = 0

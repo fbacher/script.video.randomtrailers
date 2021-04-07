@@ -34,8 +34,8 @@ def exit_randomtrailers():
     if PythonDebugger.is_enabled():
         PythonDebugger.disable()
     sys.exit(0)
-    
-class MainThreadLoop(object):
+
+class MainThreadLoop:
     """
         Kodi's Monitor class has some quirks in it that strongly favor creating
         it from the main thread as well as callng xbmc.sleep/xbmc.wait_for_abort.
@@ -67,7 +67,7 @@ class MainThreadLoop(object):
         cls._start_ui = None
         cls._callableTasks = queue.Queue(maxsize=0)
 
-    
+
     # Calls that need to be performed on the main thread
 
     @classmethod
@@ -226,5 +226,5 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
         bootstrap_random_trailers(is_screensaver)
     elif is_unit_test:
         bootstrap_unit_test()
-        
+
     exit_randomtrailers()

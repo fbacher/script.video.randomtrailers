@@ -9,7 +9,7 @@ from common.imports import *
 import xbmc
 
 
-class Action(object):
+class Action:
     # Values came from xbmcgui
 
     def __init__(self):

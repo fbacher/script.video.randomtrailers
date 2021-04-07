@@ -22,7 +22,7 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 # noinspection PyClassHasNoInit
-class Utils(object):
+class Utils:
     """
 
     """
