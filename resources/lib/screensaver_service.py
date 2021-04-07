@@ -4,9 +4,13 @@ Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
 """
-# dummy screensaver will set screen to black and go fullscreen if windowed
 
-import os
+from common.python_debugger import PythonDebugger
+from back_end_service import exit_randomtrailers
+REMOTE_DEBUG: bool = True
+if REMOTE_DEBUG:
+    PythonDebugger.enable('randomtrailers.screensaver')
+
 import sys
 
 import xbmc
@@ -16,67 +20,22 @@ from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.logger import (LazyLogger, Trace)
 
-REMOTE_DEBUG: bool = False
 
-pydevd_addon_path = None
-
-try:
-    if REMOTE_DEBUG:
-        pydevd_addon_path = xbmcaddon.Addon(
-            'script.module.pydevd').getAddonInfo('path')
-except Exception:
-    xbmc.log('Debugger disabled, script.module.pydevd NOT installed',
-             xbmc.LOGDEBUG)
-    REMOTE_DEBUG = False
-
-if REMOTE_DEBUG:
-    try:
-        import pydevd
-
-        # Note, besides having script.module.pydevd installed, pydevd
-        # must also be on path of IDE runtime. Should be same versions!
-        try:
-            xbmc.log('back_end_service trying to attach to debugger',
-                     xbmc.LOGDEBUG)
-            addons_path = os.path.join(pydevd_addon_path, 'lib')
-            sys.path.append(addons_path)
-            # xbmc.log('sys.path appended to', xbmc.LOGDEBUG)
-            # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
-            # console
-            try:
-                pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True, suspend=False,
-                                wait_for_ready_to_run=True)
-            except Exception as e:
-                xbmc.log(
-                    ' Looks like remote debugger was not started prior to plugin start',
-                    xbmc.LOGDEBUG)
-        except BaseException:
-            xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
-    except ImportError:
-        REMOTE_DEBUG = False
-        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
-        xbmc.log(msg, xbmc.LOGDEBUG)
-        sys.stderr.write(msg)
-        pydevd = 1
-    except BaseException:
-        xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
-
-RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 addon = xbmcaddon.Addon()
 do_fullscreen = addon.getSetting('do_fullscreen')
 
+def exit_randomtrailers():
+    if PythonDebugger.is_enabled():
+        PythonDebugger.disable()
+    sys.exit(0)
+
 try:
     if __name__ == '__main__':
         if xbmc.Player().isPlaying():
-            if REMOTE_DEBUG:
-                try:
-                    pydevd.stoptrace()
-                except Exception:
-                    pass
-            sys.exit(0)
+            exit_randomtrailers()
+            
         _monitor = Monitor
         Trace.enable_all()
 
@@ -106,9 +65,4 @@ except AbortException:
 except Exception as e:
     module_logger.exception('')
 finally:
-    if REMOTE_DEBUG:
-        try:
-            pydevd.stoptrace()
-        except Exception as e:
-            pass
-exit(0)
+    exit_randomtrailers()

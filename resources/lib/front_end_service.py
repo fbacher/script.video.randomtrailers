@@ -6,13 +6,16 @@ Created on Feb 12, 2019
 @author: Frank Feuerbacher
 '''
 
-import threading
+from common.python_debugger import PythonDebugger
+REMOTE_DEBUG: bool = True
+if REMOTE_DEBUG:
+    PythonDebugger.enable('randomtrailers.frontend')
+
 import queue
-import os
 import sys
+import threading
 
 import xbmc
-import xbmcaddon
 
 from common.monitor import Monitor
 from common.constants import Constants
@@ -24,50 +27,14 @@ from common.logger import (LazyLogger, Trace)
 
 from frontend import random_trailers_ui
 
-REMOTE_DEBUG: bool = False
-
-pydevd_addon_path = None
-try:
-    if REMOTE_DEBUG:
-        pydevd_addon_path = xbmcaddon.Addon(
-            'script.module.pydevd').getAddonInfo('path')
-except Exception:
-    xbmc.log('Debugger disabled, script.module.pydevd NOT installed',
-             xbmc.LOGDEBUG)
-    REMOTE_DEBUG = False
-
-if REMOTE_DEBUG:
-    try:
-        import pydevd
-        # Note, besides having script.module.pydevd installed, pydevd
-        # must also be on path of IDE runtime. Should be same versions!
-        try:
-            xbmc.log('front-end trying to attach to debugger', xbmc.LOGDEBUG)
-            addons_path = os.path.join(Constants.ADDON_PATH, '..',
-                                       'script.module.pydevd', 'lib')
-
-            sys.path.append(addons_path)
-            # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
-            # console
-            try:
-                pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True, suspend=False)
-            except Exception as e:
-                xbmc.log(
-                    ' Looks like remote debugger was not started prior to plugin start',
-                    xbmc.LOGDEBUG)
-        except BaseException:
-            xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
-    except ImportError:
-        REMOTE_DEBUG = False
-        pydevd = 1
-
-RECEIVER = None
-xbmc.log('__file__:' + __file__ + 'module:' + __name__, xbmc.LOGDEBUG)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
-
+def exit_randomtrailers():
+    if PythonDebugger.is_enabled():
+        PythonDebugger.disable()
+    sys.exit(0)
+    
 class MainThreadLoop(object):
     """
         Kodi's Monitor class has some quirks in it that strongly favor creating
@@ -100,6 +67,7 @@ class MainThreadLoop(object):
         cls._start_ui = None
         cls._callableTasks = queue.Queue(maxsize=0)
 
+    
     # Calls that need to be performed on the main thread
 
     @classmethod
@@ -159,11 +127,8 @@ class MainThreadLoop(object):
             Monitor.throw_exception_if_abort_requested(timeout=timeout)
 
         except AbortException:
-            if REMOTE_DEBUG:
-                try:
-                    pydevd.stoptrace()
-                except Exception:
-                    pass
+            if PythonDebugger.is_enabled():
+                PythonDebugger.disable()
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception(e)
@@ -174,12 +139,8 @@ class MainThreadLoop(object):
             cls._start_ui = random_trailers_ui.StartUI(cls._is_screensaver)
             cls._start_ui.start()
         except AbortException:
-            if REMOTE_DEBUG:
-                try:
-                    pydevd.stoptrace()
-                except Exception:
-                    pass
-                    pass  # Thread to die
+            if PythonDebugger.is_enabled():
+                PythonDebugger.disable()
         except Exception:
             cls._logger.exception('')
 
@@ -241,12 +202,7 @@ def bootstrap_random_trailers(screensaver: bool) -> None:
     except Exception:
         module_logger.exception('')
     finally:
-        if REMOTE_DEBUG:
-            try:
-                pydevd.stoptrace()
-            except Exception:
-                pass
-        sys.exit(0)
+        exit_randomtrailers()
 
 
 def bootstrap_unit_test():
@@ -255,12 +211,7 @@ def bootstrap_unit_test():
 
 if __name__ == '__main__':  # TODO: need quick exit if backend is not running
     if xbmc.Player().isPlaying():
-        if REMOTE_DEBUG:
-            try:
-                pydevd.stoptrace()
-            except Exception:
-                pass
-        sys.exit(0)
+        exit_randomtrailers()
     run_random_trailers = True
     argc = len(sys.argv) - 1
     is_screensaver = False
@@ -275,10 +226,5 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
         bootstrap_random_trailers(is_screensaver)
     elif is_unit_test:
         bootstrap_unit_test()
-
-    if REMOTE_DEBUG:
-        try:
-            pydevd.stoptrace()
-        except Exception:
-            pass
-    sys.exit(0)
+        
+    exit_randomtrailers()

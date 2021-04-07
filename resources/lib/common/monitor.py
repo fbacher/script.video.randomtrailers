@@ -20,18 +20,18 @@ from common.constants import Constants
 from common.critical_settings import CriticalSettings
 from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger, Trace)
+from common.minimal_monitor import MinimalMonitor
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class Monitor(xbmc.Monitor):
+class Monitor(MinimalMonitor):
     """
         Provides a number of customizations to xbmc.monitor
     """
     startup_complete_event: threading.Event = None
     _monitor_changes_in_settings_thread: threading.Thread = None
     _logger = None
-    _xbmc_monitor: xbmc.Monitor = None
     _screen_saver_listeners: List[Callable[[None], None]] = None
     _screen_saver_listener_lock: threading.RLock = None
     _settings_changed_listeners: List[Callable[[None], None]] = None
@@ -39,7 +39,8 @@ class Monitor(xbmc.Monitor):
     _abort_listeners: List[Callable[[None], None]] = None
     _abort_listener_lock: threading.RLock = None
     _abort_listeners_informed: bool = False
-    _abort_received: threading.Event = None
+    _wait_return_count_map: Dict[str, int] = {}  # thread_id, returns from wait
+    _wait_call_count_map: Dict[str, int] = {}  # thread_id, calls to wait
 
     def __init__(self):
         super().__init__()
@@ -99,7 +100,7 @@ class Monitor(xbmc.Monitor):
         # close enough for this
 
         iterations = 600
-        while not cls.real_waitForAbort(timeout=0.1):
+        while not cls.wait_for_abort(timeout=0.1):
             iterations -= 1
             if iterations < 0:
                 iterations = 600
@@ -341,49 +342,7 @@ class Monitor(xbmc.Monitor):
         #    type(self)._logger.debug('sender:', sender, 'method:', method)
         pass
 
-    @classmethod
-    def real_waitForAbort(cls, timeout: float = -1.0) -> bool:
-        """
-        Wait for Abort
-
-        Block until abort is requested, or until timeout occurs. If an abort
-        requested have already been made, return immediately.
-
-        This method is the only one which calls xbmc.Monitor.waitForAbort. It is
-        only called from the Main thread in a main module for the plugin. This is
-        done because their is some weirdness about calling Monitor.waitForAbort
-        from a non-main thread.
-
-        :param timeout: [opt] float - timeout in seconds.
-                        if -1 or None: wait forever
-                        if 0: check without wait & return
-                        if > 0: wait at max wait seconds
-
-        :return: True when abort has been requested,
-            False if a timeout is given and the operation times out.
-
-        New function added.
-        """
-        abort = False
-        if timeout is None or timeout < 0.0:  # Wait forever
-            while not abort:
-                abort = cls._xbmc_monitor.waitForAbort(timeout=0.10)
-        else:
-            timeout_arg = float(timeout)
-            if timeout_arg == 0.0:
-                timeout_arg = 0.001  # Otherwise waits forever
-
-            abort = cls._xbmc_monitor.waitForAbort(timeout=timeout_arg)
-        if abort and not cls._abort_received.is_set():
-            cls._abort_received.set()
-            if cls._logger.isEnabledFor(Logger.DEBUG):
-                cls._logger.debug('SYSTEM ABORT received',
-                                  trace=Trace.TRACE_MONITOR)
-            cls._inform_abort_listeners()
-
-        return abort
-
-    def waitForAbort(self, timeout: float = -1.0) -> bool:
+    def waitForAbort(self, timeout: float = None) -> bool:
         # Provides signature of super class (xbmc.Monitor)
         #
         # Only real_waitForAbort() calls xbmc.Monitor.waitForAbort, which is
@@ -393,11 +352,17 @@ class Monitor(xbmc.Monitor):
         # WaitForAbort and wait_for_abort depend upon _abort_received
 
         clz = type(self)
+        if timeout is not None and timeout < 0.0:
+            timeout = None
+
+        clz.track_wait_call_counts()
         abort = clz._abort_received.wait(timeout=timeout)
+        clz.track_wait_return_counts()
+
         return abort
 
     @classmethod
-    def wait_for_abort(cls, timeout: float = -1.0) -> bool:
+    def wait_for_abort(cls, timeout: float = None) -> bool:
         """
         Wait for Abort
 
@@ -410,7 +375,12 @@ class Monitor(xbmc.Monitor):
 
         New function added.
         """
+        if timeout is not None and timeout < 0.0:
+            timeout = None
+
+        cls.track_wait_call_counts()
         abort = cls._abort_received.wait(timeout=timeout)
+        cls.track_wait_return_counts()
 
         return abort
 
@@ -488,9 +458,61 @@ class Monitor(xbmc.Monitor):
         :param timeout:
         :return:
         """
+        cls.track_wait_call_counts()
         if cls._abort_received.wait(timeout=timeout):
             raise AbortException()
+        cls.track_wait_return_counts()
 
+    @classmethod
+    def track_wait_call_counts(cls, thread_name: str = None) -> None:
+        if thread_name is None:
+            thread_name = threading.current_thread().getName()
+        # xbmc.log('track_wait_call_counts thread: ' + thread_name, xbmc.LOGDEBUG)
+
+        if thread_name is None:
+            thread_name = threading.current_thread().getName()
+
+        count = cls._wait_call_count_map.get(thread_name, None)
+        if count is None:
+            count = 1
+        else:
+            count += 1
+
+        cls._wait_call_count_map[thread_name] = count
+        cls.dump_wait_counts()
+
+    @classmethod
+    def track_wait_return_counts(cls, thread_name: str = None) -> None:
+        if thread_name is None:
+            thread_name = threading.current_thread().getName()
+        # xbmc.log('track_wait_return_counts thread: ' + thread_name, xbmc.LOGDEBUG)
+
+        if thread_name is None:
+            thread_name = threading.current_thread().getName()
+
+        count = cls._wait_return_count_map.get(thread_name, None)
+        if count is None:
+            count = 1
+        else:
+            count += 1
+
+        cls._wait_return_count_map[thread_name] = count
+        cls.dump_wait_counts()
+
+    @classmethod
+    def dump_wait_counts(cls) -> None:
+        return;
+    
+        xbmc.log('Wait Call Map', xbmc.LOGDEBUG)
+        for k, v in cls._wait_call_count_map.items():
+            xbmc.log(str(k) + ': ' + str(v), xbmc.LOGDEBUG)
+
+        xbmc.log('Wait Return Map', xbmc.LOGDEBUG)
+        for k, v in cls._wait_return_count_map.items():
+            xbmc.log(str(k) + ': ' + str(v), xbmc.LOGDEBUG)
+
+        from common.debug_utils import Debug
+        Debug.dump_all_threads()
 
 # Initialize class:
 #

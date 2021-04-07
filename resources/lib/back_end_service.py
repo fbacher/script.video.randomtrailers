@@ -6,78 +6,27 @@ Created on Feb 12, 2019
 @author: Frank Feuerbacher
 """
 
-import os
-import io
-import sys
-
-import xbmc
-import xbmcaddon
-
-
-import threading
-from queue import Queue, Empty
-from common.imports import *
-from backend.back_end_bridge import BackendBridge
-from common.exceptions import AbortException
-from common.monitor import Monitor
-from common.settings import Settings
-from backend.api import load_trailers
-from common.logger import (LazyLogger)
-
-from discovery.playable_trailer_service import PlayableTrailerService
-from cache.cache_manager import CacheManager
-
-
-REMOTE_DEBUG: bool = False
-
-pydevd_addon_path = None
-try:
-    if REMOTE_DEBUG:
-        pydevd_addon_path = xbmcaddon.Addon(
-            'script.module.pydevd').getAddonInfo('path')
-except Exception:
-    xbmc.log('Debugger disabled, script.module.pydevd NOT installed',
-             xbmc.LOGDEBUG)
-    REMOTE_DEBUG = False
-
+from common.python_debugger import PythonDebugger
+REMOTE_DEBUG: bool = True
 if REMOTE_DEBUG:
-    try:
-        import pydevd
+    PythonDebugger.enable('randomtrailers.backend')
 
-        # Note, besides having script.module.pydevd installed, pydevd
-        # must also be on path of IDE runtime. Should be same versions!
-        try:
-            xbmc.log('back_end_service trying to attach to debugger',
-                     xbmc.LOGDEBUG)
-            addons_path = os.path.join(pydevd_addon_path, 'lib')
-            sys.path.append(addons_path)
-            # xbmc.log('sys.path appended to', xbmc.LOGDEBUG)
-            # stdoutToServer and stderrToServer redirect stdout and stderr to eclipse
-            # console
-            try:
-                pydevd.settrace('localhost', stdoutToServer=True,
-                                stderrToServer=True, suspend=False,
-                                wait_for_ready_to_run=True)
-            except Exception as e:
-                xbmc.log(
-                    ' Looks like remote debugger was not started prior to plugin start',
-                    xbmc.LOGDEBUG)
-                REMOTE_DEBUG = False
-        except BaseException:
-            xbmc.log('Waiting on Debug connection', xbmc.LOGDEBUG)
-            REMOTE_DEBUG = False
-    except ImportError:
-        REMOTE_DEBUG = False
-        msg = 'Error:  You must add org.python.pydev.debug.pysrc to your PYTHONPATH.'
-        xbmc.log(msg, xbmc.LOGDEBUG)
-        pydevd = 1
-    except BaseException:
-        xbmc.log('Waiting on Debug connection', xbmc.LOGERROR)
-        REMOTE_DEBUG = False
+from common.logger import LazyLogger
 
-RECEIVER = None
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
+import sys
+import threading
+import xbmc
+from common.exceptions import AbortException
+from common.minimal_monitor import MinimalMonitor
+from common.imports import reraise, Callable
+
+
+def exit_randomtrailers():
+    if PythonDebugger.is_enabled():
+        PythonDebugger.disable()
+    sys.exit(0)
 
 class MainThreadLoop:
     """
@@ -90,37 +39,11 @@ class MainThreadLoop:
         should not be blocked for too long.
     """
 
-    _singleton = None
     profiler = None
-    _logger = None
+    # _callableTasks = Queue(maxsize=0)
 
-    def __init__(self) -> None:
-        """
-
-        """
-
-        type(self)._logger = module_logger.getChild(
-            self.__class__.__name__)
-
-        # Calls that need to be performed on the main thread
-
-        self._callableTasks = Queue(maxsize=0)
-        MainThreadLoop._singleton = self
-
-    @staticmethod
-    def get_instance():
-        # type: () -> MainThreadLoop
-        """
-
-        :return:
-        """
-
-        if MainThreadLoop._singleton is None:
-            MainThreadLoop()
-
-        return MainThreadLoop._singleton
-
-    def event_processing_loop(self) -> None:
+    @classmethod
+    def event_processing_loop(cls) -> None:
         """
 
         :return:
@@ -129,7 +52,10 @@ class MainThreadLoop:
             # Cheat and start the back_end_bridge here, although this method
             # should just be a loop.
 
-            self.start_back_end_bridge()
+            xbmc.log('In event_processing_loop', xbmc.LOGDEBUG)
+
+            debugger_initialized = False
+            bridge_initialized = False
 
             # For the first 10 seconds use a short timeout so that initialization
             # stuff is handled quickly. Then revert to 1 second checks
@@ -145,101 +71,73 @@ class MainThreadLoop:
             # If this is not done, then Kodi will get constipated
             # sending/receiving events to plugins.
 
-            while not Monitor.real_waitForAbort(timeout=timeout):
+            xbmc.log('Imported Monitor and AbortException', xbmc.LOGDEBUG)
+
+
+            while not MinimalMonitor.real_waitForAbort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 0.10
-
+                        
+                """
                 try:
-                    task = self._callableTasks.get(block=False)
-                    self.run_task(task)
-                except Empty as e:
-                    pass
+                     task = self._callableTasks.get(block=False)
+                     self.run_task(task)
+                 except Empty as e:
+                     pass
+                """
 
-            Monitor.throw_exception_if_abort_requested(timeout=timeout)
+                if not bridge_initialized:
+                    bridge_initialized = True
+                    cls.start_back_end_bridge()
+                    
+            MinimalMonitor.throw_exception_if_abort_requested(timeout=timeout)
+ 
 
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            type(self)._logger.exception('')
+            pass
+            # type(self)._logger.exception('')
 
-    def start_back_end_bridge(self) -> None:
+    @classmethod
+    def start_back_end_bridge(cls) -> None:
+        from backend.back_end_bridge import BackendBridge
+        from discovery.playable_trailer_service import PlayableTrailerService
         BackendBridge(PlayableTrailerService())
 
-    def run_on_main_thread(self,
+    '''
+    @classmethod
+    def run_on_main_thread(cls,
                            callable_class: Callable[[None], None] = None) -> None:
         """
 
         :param callable_class:
         :return:
         """
-        self._callableTasks.put(callable_class)
+        cls._callableTasks.put(callable_class)
+    '''
 
-    def run_task(self,
+    @classmethod
+    def run_task(cls,
                  callable_class: Callable[[None], None] = None) -> None:
         """
 
         :param callable_class:
         :return:
         """
-        if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-            type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
+        # if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
+        #    type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
         try:
             callable_class()
+
+
         except AbortException:
-            reraise(*sys.exc_info())
+            pass
+            # reraise(*sys.exc_info())
         except Exception:
-            type(self)._logger.exception('')
-
-
-def profiler_thread() -> None:
-
-    finished = False
-    try:
-        num = 0
-        while not finished:
-            num += 1
-            MainThreadLoop.profiler.enable()
-            f = io.open('/tmp/profile_' + str(num), mode='wb')
-            import pstats
-            stats = pstats.Stats(
-                MainThreadLoop.profiler, stream=f)
-
-            Monitor.throw_exception_if_abort_requested(timeout=5 * 60)
-            MainThreadLoop.profiler.create_stats()
-            stats.print_stats()
-            f.close()
-    except AbortException:
-        reraise(*sys.exc_info())
-    except Exception:
-        module_logger.exception('')
-
-
-def startup_non_main_thread() -> None:
-    """
-
-    :return:
-    """
-    if module_logger.isEnabledFor(LazyLogger.DEBUG):
-        module_logger.debug('%s', 'Enter', lazy_logger=False)
-
-    Settings.save_settings()
-    Monitor.register_settings_changed_listener(
-        Settings.on_settings_changed)
-    Monitor.register_settings_changed_listener(
-        LazyLogger.on_settings_changed)
-    try:
-        Settings.get_locale()
-    except AbortException:
-        reraise(*sys.exc_info())
-    except Exception:
-        pass
-    load_trailers()
-
-    # Start the periodic garbage collector
-
-    CacheManager.get_instance().start_cache_garbage_collection_thread()
-    Monitor.register_settings_changed_listener(load_trailers)
+            pass
+            # type(self)._logger.exception('')
 
 
 def bootstrap_random_trailers() -> None:
@@ -251,47 +149,33 @@ def bootstrap_random_trailers() -> None:
     :return:
     """
 
+    xbmc.log('Starting non-main thread', xbmc.LOGDEBUG)
     try:
-        if MainThreadLoop.profiler is not None:
-            MainThreadLoop.profiler.enable()
-            thread = threading.Thread(
-                target=profiler_thread,
-                name='back_end_service.profiler_thread')
-            thread.start()
-
-        main_loop = MainThreadLoop.get_instance()
         try:
+            import backend_service_worker
             thread = threading.Thread(
-                target=startup_non_main_thread,
-                name='back_end_service.startup_main_thread')
+                target=backend_service_worker.startup_non_main_thread,
+                name='back_end_service.startup_non_main_thread')
             thread.start()
         except Exception:
-            module_logger.exception('')
+            pass
+            # module_logger# .exception('')
 
-        main_loop.event_processing_loop()
+        xbmc.log('Starting event processing loop', xbmc.LOGDEBUG)
 
+        MainThreadLoop.event_processing_loop()
     except AbortException as e:
         pass
     except Exception as e:
-        module_logger.exception('')
+        pass
+        # module_logger.exception('')
     finally:
-        if REMOTE_DEBUG:
-            try:
-                pydevd.stoptrace()
-            except Exception:
-                pass
-        sys.exit(0)
-
-
-def post_install() -> None:
-    #
-    # Ensure execute permission
-    pass
+        exit_randomtrailers()
 
 
 def bootstrap_unit_test() -> None:
     from test.backend_test_suite import (BackendTestSuite)
-    module_logger.enter()
+    # module_logger.enter()
     suite = BackendTestSuite()
     suite.run_suite()
 
@@ -306,22 +190,22 @@ if __name__ == '__main__':
                 is_unit_test = True
                 run_random_trailers = False
         if run_random_trailers:
-            post_install()
+            xbmc.log('main thread 4', xbmc.LOGDEBUG)
+
+            # This will NOT return until exiting plugin
+
+            bootstrap_random_trailers()
+
+            xbmc.log('main thread 5', xbmc.LOGDEBUG)
+
             profile = False
             if profile:
                 import cProfile
                 MainThreadLoop.profiler = cProfile.Profile()
                 MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
-            else:
-                bootstrap_random_trailers()
         elif is_unit_test:
             bootstrap_unit_test()
     except AbortException:
         pass  # Die, Die, Die
     finally:
-        if REMOTE_DEBUG:
-            try:
-                pydevd.stoptrace()
-            except Exception:
-                pass
-        sys.exit(0)
+        exit

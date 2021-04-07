@@ -32,6 +32,10 @@ def load_trailers() -> None:
     """
 
     module_logger.enter()
+    Monitor.register_settings_changed_listener(
+        Settings.on_settings_changed)
+    Monitor.register_settings_changed_listener(
+        LazyLogger.on_settings_changed)
 
     if Settings.get_include_library_trailers():
         lib_instance = DiscoverLibraryMovies()
@@ -53,6 +57,7 @@ def load_trailers() -> None:
 
     Monitor.throw_exception_if_abort_requested(timeout=1.0)
     Monitor.set_startup_complete()
+    Monitor.register_settings_changed_listener(load_trailers)
 
 
 def get_genres_in_library() -> List[str]:
