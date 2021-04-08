@@ -19,7 +19,6 @@ import threading
 
 import xbmcvfs
 
-from common.development_tools import *
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.logger import LazyLogger

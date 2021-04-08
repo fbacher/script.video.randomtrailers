@@ -8,17 +8,13 @@ Created on Mar 4, 2019
 
 from common.imports import *
 
-#  from common.rating import Rating
 from common.settings import Settings
 
 
-# noinspection PyClassHasNoInit
-1:
+class TmdbSettings:
     """
 
     """
-    _instance = None
-
     #_rating_limit_string_for_setting = {'0': Rating.RATING_NC_17,
     #                                '1': Rating.RATING_G,
     #                                '2': Rating.RATING_PG,
@@ -32,21 +28,8 @@ from common.settings import Settings
                                        '3': 'now_playing',
                                        '4': 'all'}
 
-    _genre_setting_method_for_genre = {}
-
-    @staticmethod
-    def get_instance():
-        # type: () -> TmdbSettings
-        """
-
-        :return:
-        """
-        if TmdbSettings._instance is None:
-            TmdbSettings._instance = TmdbSettings()
-        return TmdbSettings._instance
-
-    def get_rating_limit_string_from_setting(self):
-        # type: () ->  str
+    @classmethod
+    def get_rating_limit_string_from_setting(cls) -> str:
         """
 
         :return:
@@ -55,8 +38,8 @@ from common.settings import Settings
         # return TmdbSettings._rating_limit_string_for_setting[rating_limit]
         return 'R'
 
-    def get_trailer_type(self):
-        # type: () -> str
+    @classmethod
+    def get_trailer_type(cls) -> str:
         """
 
         :return:

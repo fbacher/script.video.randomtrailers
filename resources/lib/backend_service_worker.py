@@ -31,8 +31,9 @@ def startup_non_main_thread() -> None:
 
     post_install()
 
+    xbmc.log('In startup_non_main_thread', xbmc.LOGDEBUG)
     if module_logger.isEnabledFor(LazyLogger.DEBUG):
-        module_logger.debug('%s', 'Enter', lazy_logger=False)
+        module_logger.debug('In startup_non_main_thread')
 
     Settings.save_settings()
     Monitor.register_settings_changed_listener(
@@ -44,7 +45,7 @@ def startup_non_main_thread() -> None:
     except AbortException:
         reraise(*sys.exc_info())
     except Exception:
-        pass
+        module_logger.exception(e, lazy_logger=True)
     load_trailers()
 
     # Start the periodic garbage collector

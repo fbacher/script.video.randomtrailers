@@ -10,12 +10,10 @@ import threading
 from queue import (Queue)
 
 from common.imports import *
-from common.constants import Constants
-from common.exceptions import AbortException
 from common.monitor import Monitor
-from common.logger import (Trace, LazyLogger)
+from common.logger import LazyLogger
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class KodiQueue:
@@ -24,7 +22,7 @@ class KodiQueue:
 
     Full = _Full
     Empty = _Empty
-    _logger = None
+    _logger: LazyLogger = None
 
     def __init__(self, maxsize: int = 0) -> None:
         """
@@ -32,7 +30,9 @@ class KodiQueue:
         :return:
         """
         self._lock = threading.RLock()
-        type(self)._logger = module_logger.getChild(type(self).__name__)
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
 
         self._wrapped_queue = Queue(maxsize=maxsize)
 
@@ -71,7 +71,7 @@ class KodiQueue:
 
     def get(self,
             block: bool = True,
-            timeout: Optional[float] = None) ->  Union[MovieType, None]:
+            timeout: Optional[float] = None) -> Union[MovieType, None]:
         """
 
         :param block:

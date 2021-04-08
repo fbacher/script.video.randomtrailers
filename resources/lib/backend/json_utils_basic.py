@@ -23,7 +23,6 @@ import calendar
 import xbmc
 from common.imports import *
 
-from common.development_tools import (Any, List, Dict, Union)
 from common.constants import Constants, Movie
 from common.logger import (LazyLogger, Trace)
 from common.exceptions import AbortException
@@ -81,12 +80,13 @@ class JsonUtilsBasic:
     _logger = None
     _instance = None
 
-    def __init__(self) -> None:
+    @classmethod
+    def class_init(cls) -> None:
         """
 
         """
-        if type(self)._logger is None:
-            type(self)._logger = module_logger.getChild(type(self).__name__)
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     # Each entry in the above _request_window* lists is
     # a list with the timestamp and running request count:
@@ -525,7 +525,7 @@ class JsonUtilsBasic:
         """
 
         """
-        data_for_destination = []  # type: List[JsonUtilsBasic.DestinationData]
+        data_for_destination: List['JsonUtilsBasic.DestinationData'] = []
 
         @classmethod
         def get_data_for_destination(cls, destination):
@@ -840,20 +840,21 @@ class JsonUtilsBasic:
                     JsonUtilsBasic.dump_delay_info(request_index)
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug_extra_verbose('JSON request source:',
-                                                destination_string, 'total requests:',
-                                                requests_to_url,
-                                                'serverBlockingRequestUntil:',
-                                                destination_data.server_blocking_request_until,
-                                                'numberOfAdditionalRequetsAllowedByServer:',
-                                                destination_data.number_of_additional_requests_allowed_by_server,
-                                                'hardCodedRequestsPerTimePeriod:',
-                                                destination_data.hard_coded_requests_per_time_period,
-                                                'actualMaxRequestsPerTimePeriod:',
-                                                destination_data.actual_max_requests_per_time_period,
-                                                'actualOldestRequestInWindowExpirationTime:',
-                                                destination_data.actual_oldest_request_in_window_expiration_time,
-                                                trace=[Trace.STATS, Trace.TRACE_JSON])
+                cls._logger.debug_extra_verbose(
+                    'JSON request source:',
+                    destination_string, 'total requests:',
+                    requests_to_url,
+                    'serverBlockingRequestUntil:',
+                    destination_data.server_blocking_request_until,
+                    'numberOfAdditionalRequetsAllowedByServer:',
+                    destination_data.number_of_additional_requests_allowed_by_server,
+                    'hardCodedRequestsPerTimePeriod:',
+                    destination_data.hard_coded_requests_per_time_period,
+                    'actualMaxRequestsPerTimePeriod:',
+                    destination_data.actual_max_requests_per_time_period,
+                    'actualOldestRequestInWindowExpirationTime:',
+                    destination_data.actual_oldest_request_in_window_expiration_time,
+                    trace=[Trace.STATS, Trace.TRACE_JSON])
             JsonUtilsBasic.record_request_timestamp(
                 request_index, response_time_stamp, failed=request_failed)
             if request_failed:
@@ -921,4 +922,4 @@ class JsonUtilsBasic:
 
 
 # Force initialization of config_logger
-JsonUtilsBasic()
+JsonUtilsBasic.class_init()

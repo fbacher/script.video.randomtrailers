@@ -6,8 +6,7 @@ Created on Feb 12, 2019
 """
 
 from common.python_debugger import PythonDebugger
-from back_end_service import exit_randomtrailers
-REMOTE_DEBUG: bool = True
+REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.screensaver')
 
@@ -26,16 +25,18 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 addon = xbmcaddon.Addon()
 do_fullscreen = addon.getSetting('do_fullscreen')
 
+
 def exit_randomtrailers():
     if PythonDebugger.is_enabled():
         PythonDebugger.disable()
     sys.exit(0)
 
+
 try:
     if __name__ == '__main__':
         if xbmc.Player().isPlaying():
             exit_randomtrailers()
-            
+
         _monitor = Monitor
         Trace.enable_all()
 
@@ -44,21 +45,21 @@ try:
         # If this is not done, then Kodi will get constipated
         # sending/receiving events to plugins.
 
-        _monitor.wait_for_abort(timeout=0.01)
+        _monitor.throw_exception_if_abort_requested(timeout=0.01)
         _monitor.set_startup_complete()
 
         message_received = False
         if not message_received:
             if module_logger.isEnabledFor(LazyLogger.DEBUG):
-                module_logger.debug('About to start randomtrailers screensaver')
+                module_logger.debug('About to start randomtrailers as screensaver')
 
             cmd = '{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \
                 "params": {"addonid": "script.video.randomtrailers",\
                 "params": "screensaver" }, "id": 1}'
             json_text = xbmc.executeJSONRPC(cmd)
-            _monitor.wait_for_abort(timeout=0.01)
+            _monitor.throw_exception_if_abort_requested(timeout=0.01)
 
-        _monitor.wait_for_abort(timeout=0.01)
+        _monitor.throw_exception_if_abort_requested(timeout=0.01)
 
 except AbortException:
     pass

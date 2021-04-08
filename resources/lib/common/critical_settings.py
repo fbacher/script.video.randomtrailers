@@ -7,6 +7,7 @@ Created on Feb 10, 2019
 
 import xbmc
 from kodi65.kodiaddon import Addon
+from common.imports import *
 
 
 class CriticalSettings:
@@ -16,7 +17,7 @@ class CriticalSettings:
 
     """
 
-    DEBUG_INCLUDE_THREAD_INFO = 'debug_include_thread_info'
+    DEBUG_INCLUDE_THREAD_INFO: Final[str] = 'debug_include_thread_info'
     addon = None
     try:
         addon = Addon('script.video.randomtrailers')

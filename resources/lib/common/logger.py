@@ -21,7 +21,8 @@ import xbmc
 from common.exceptions import AbortException
 from common.constants import Constants
 from common.critical_settings import CriticalSettings
-from common.imports import Any, Callable, Dict, List, reraise, Set, Type, Union
+from common.imports import Any, Callable, Dict, Final, ForwardRef, List,\
+    reraise, Set, Type, Union
 
 TOP_PACKAGE_PATH = Constants.PYTHON_ROOT_PATH
 
@@ -89,13 +90,12 @@ class Logger(logging.Logger):
     """
     _addon_name = None
     _logger = None
-    _trace_groups = {}
     _log_handler_added = False
     _root_logger = None
     _addon_logger = None
 
     @classmethod
-    def _init_class(cls):
+    def _init_class(cls) -> None:
         cls.init_log_levelnames()
 
     def __init__(self,
@@ -139,8 +139,7 @@ class Logger(logging.Logger):
         return Logger._addon_name
 
     @staticmethod
-    def get_root_logger():
-        # type: () -> Logger
+    def get_root_logger() -> ForwardRef('Logger'):
         """
 
         :return:
@@ -161,8 +160,7 @@ class Logger(logging.Logger):
 
     @staticmethod
     def get_addon_module_logger(file_path: str = None,
-                                addon_name: str = None):
-        #  type () -> Logger
+                                addon_name: str = None) -> ForwardRef('Logger'):
         """
 
         :return:
@@ -618,7 +616,6 @@ class Logger(logging.Logger):
         :param msg: str optional msg
         :return: None
         """
-        # noinspection PyRedundantParentheses
         try:
             if not isinstance(exc_info, tuple):
                 frame = current_frame(ignore_frames=1)
@@ -697,7 +694,7 @@ def log_exit(func: Callable) -> None:
         :param kwargs:
         :return:
         """
-        class_name = func.__class__.__name__
+        class_name: str = type(func).__class__.__name__
         method_name = func.__name__
         local_logger = LazyLogger.get_root_logger().getChild(class_name)
         func(*args, **kwargs)
@@ -721,7 +718,7 @@ def log_entry(func: Callable) -> None:
         :param kwargs:
         :return:
         """
-        class_name = func.__class__.__name__
+        class_name = type(func).__class__.__name__
         method_name = func.__name__
 
         # TODO: Does not include addon name & path
@@ -741,15 +738,14 @@ def log_entry_exit(func: Callable) -> None:
     """
 
     @wraps(func)
-    def func_wrapper(*args, **kwargs):
-        # type: (*Any, **Any) -> func_wrapper
+    def func_wrapper(*args: Any, **kwargs: Any) -> Callable[Any]:
         """
 
         :param args:
         :param kwargs:
         :return:
         """
-        class_name = func.__class__.__name__
+        class_name = type(func).__class__.__name__
         method_name = func.__name__
 
         # TODO: Does not include addon name & path
@@ -786,17 +782,15 @@ class LazyLogger(Logger):
         messages for searching the logs.
 
     """
-    _addon_name = None
-    _logger = None
-    _trace_groups = {}
-    _log_handler_added = False
+    _addon_name: str = None
+    _logger: logging.Logger = None
+    _log_handler_added: bool = False
 
     def __init__(self,
-                 name='',  # type: str
-                 class_name='',  # type: Optional[str]
-                 level=logging.NOTSET  # type : Optional[int]
-                 ):
-        # type: (...) -> None
+                 name: str = '',
+                 class_name: str = '',
+                 level: int = logging.NOTSET) -> None:
+
         """
             Creates a config_logger for (typically) a class.
 
@@ -804,7 +798,6 @@ class LazyLogger(Logger):
         :param level: Messages at this level and below get logged
 
         """
-        # noinspection PyRedundantParentheses
         try:
             if name == '':
                 name = class_name
@@ -813,7 +806,6 @@ class LazyLogger(Logger):
             if LazyLogger._addon_name is None:
                 LazyLogger._addon_name = Constants.CURRENT_ADDON_SHORT_NAME
 
-            # self.addHandler(MyHandler())
             self.setLevel(level)
             Trace.enable_all()
             self.addFilter(Trace())
@@ -872,7 +864,6 @@ class LazyLogger(Logger):
         :param kwargs: str  Meant for Trace usage:
         :return:
         """
-        # noinspection PyRedundantParentheses
         try:
             kwargs.setdefault('log_level', Logger.DEBUG)
             log_level = kwargs['log_level']
@@ -1095,36 +1086,36 @@ class Trace(logging.Filter):
     """
 
     """
-    TRACE = 'TRACE'
-    STATS = 'STATS'
-    TRACE_UI = 'UI'
-    STATS_UI = 'STATS_UI'
-    TRACE_DISCOVERY = 'DISCOVERY'
-    TRACE_FETCH = 'FETCH'
-    TRACE_TRAILER_CACHE = 'TRAILER_CACHE'
-    TRACE_TMDB_CACHE = 'TMDB_CACHE'
-    TRACE_GENRE = 'GENRE'
-    TRACE_CERTIFICATION = 'CERTIFICATION'
-    TRACE_CACHE_GARBAGE_COLLECTION = 'CACHE_GC'
-    TRACE_TFH = 'TFH'
-    STATS_DISCOVERY = 'STATS_DISCOVERY'
-    STATS_CACHE = 'STATS_CACHE'
-    TRACE_MONITOR = 'MONITOR'
-    TRACE_JSON = 'JSON'
-    TRACE_SCREENSAVER = 'SCREENSAVER'
-    TRACE_UI_CONTROLLER = 'UI_CONTROLLER'
-    TRACE_CACHE_MISSING = 'CACHE_MISSING'
-    TRACE_CACHE_UNPROCESSED = 'CACHE_UNPROCESSED'
-    TRACE_CACHE_PAGE_DATA = 'CACHE_PAGE_DATA'
-    TRACE_TRANSLATION = 'TRANSLATION'
-    TRACE_SHUTDOWN = 'SHUTDOWN'
-    TRACE_PLAY_STATS = 'PLAY_STATISTICS'
-    TRACE_NETWORK = 'TRACE_NETWORK'
+    TRACE: Final[str] = 'TRACE'
+    STATS: Final[str] = 'STATS'
+    TRACE_UI: Final[str] = 'UI'
+    STATS_UI: Final[str] = 'STATS_UI'
+    TRACE_DISCOVERY: Final[str] = 'DISCOVERY'
+    TRACE_FETCH: Final[str] = 'FETCH'
+    TRACE_TRAILER_CACHE: Final[str] = 'TRAILER_CACHE'
+    TRACE_TMDB_CACHE: Final[str] = 'TMDB_CACHE'
+    TRACE_GENRE: Final[str] = 'GENRE'
+    TRACE_CERTIFICATION: Final[str] = 'CERTIFICATION'
+    TRACE_CACHE_GARBAGE_COLLECTION: Final[str] = 'CACHE_GC'
+    TRACE_TFH: Final[str] = 'TFH'
+    STATS_DISCOVERY: Final[str] = 'STATS_DISCOVERY'
+    STATS_CACHE: Final[str] = 'STATS_CACHE'
+    TRACE_MONITOR: Final[str] = 'MONITOR'
+    TRACE_JSON: Final[str] = 'JSON'
+    TRACE_SCREENSAVER: Final[str] = 'SCREENSAVER'
+    TRACE_UI_CONTROLLER: Final[str] = 'UI_CONTROLLER'
+    TRACE_CACHE_MISSING: Final[str] = 'CACHE_MISSING'
+    TRACE_CACHE_UNPROCESSED: Final[str] = 'CACHE_UNPROCESSED'
+    TRACE_CACHE_PAGE_DATA: Final[str] = 'CACHE_PAGE_DATA'
+    TRACE_TRANSLATION: Final[str] = 'TRANSLATION'
+    TRACE_SHUTDOWN: Final[str] = 'SHUTDOWN'
+    TRACE_PLAY_STATS: Final[str] = 'PLAY_STATISTICS'
+    TRACE_NETWORK: Final[str] = 'TRACE_NETWORK'
 
-    TRACE_ENABLED = True
-    TRACE_DISABLED = False
+    TRACE_ENABLED: Final[bool] = True
+    TRACE_DISABLED: Final[bool] = False
 
-    _trace_map:Dict[str, bool] = {
+    _trace_map: Final[Dict[str, bool]] = {
         TRACE: TRACE_DISABLED,
         STATS: TRACE_DISABLED,
         TRACE_UI: TRACE_DISABLED,
@@ -1305,7 +1296,6 @@ class MyFormatter(logging.Formatter):
 
         :param fmt:
         :param datefmt:
-        :param style:
         """
         super().__init__(fmt=fmt, datefmt=datefmt)
 
@@ -1409,12 +1399,16 @@ class MyFormatter(logging.Formatter):
             sio.close()
             return s
 
-    def print_exception(self, etype: Type, value: Any, tb: Any,
+    def print_exception(self,
+                        etype: Type,
+                        value: Any,
+                        tb: Any,
                         thread_name: str = '',
                         limit: int = None,
                         log_file: StringIO = None) -> None:
         """
-
+        :param etype:
+        :param value:
         :param tb:
         :param thread_name:
         :param limit:

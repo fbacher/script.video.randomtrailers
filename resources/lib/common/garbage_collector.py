@@ -12,10 +12,9 @@ from common.monitor import Monitor
 from common.imports import *
 from common.logger import LazyLogger
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection PyClassHasNoInit
 class GarbageCollector:
     """
 
@@ -23,7 +22,7 @@ class GarbageCollector:
     _lock = threading.RLock()
     _threads_to_join: List[threading.Thread] = []
 
-    def __init__(self):
+    def __init__(self) -> None:
         raise NotImplemented()
 
     @classmethod
@@ -40,7 +39,7 @@ class GarbageCollector:
         garbage_collector.start()
 
     @classmethod
-    def join_dead_threads(cls):
+    def join_dead_threads(cls) -> None:
         finished = False
         while not finished:
             with cls._lock:

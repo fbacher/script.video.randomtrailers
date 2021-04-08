@@ -28,10 +28,9 @@ from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.library_movie_data import (LibraryMovieData, LibraryNoTrailerMovieData,
                                           LibraryURLMovieData)
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator
 class DiscoverLibraryMovies(BaseDiscoverMovies):
     """
         Retrieve all movie entries from library. If specified, then limit to movies
@@ -46,7 +45,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
     def __init__(self,
                  group=None,  # type: None
-                 # type: Callable[Union[None, Any], Union[Any, None]]
+                 # type: Callable[[Union[None, Any]], Union[Any, None]]
                  target=None,
                  thread_name=None,  # type: str
                  args=(),  # type: Optional[Any]
@@ -80,8 +79,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         self._libraryNoTrailerInfoManager = None
         self._some_movies_discovered_event = threading.Event()
 
-    def discover_basic_information(self):
-        # type: () -> None
+    def discover_basic_information(self) -> None:
         """
 
         :return:
@@ -103,8 +101,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz.logger.debug_verbose(': started')
 
-    def on_settings_changed(self):
-        # type: () -> None
+    def on_settings_changed(self) -> None:
         """
             Rediscover trailers if the changed settings impacts this manager.
         """
@@ -119,8 +116,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
 
         :return:
@@ -270,8 +266,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
         return query
 
-    def run_worker(self):
-        # type: () -> None
+    def run_worker(self) -> None:
         """
            Initial Discovery of all movies in Kodi.
 
@@ -495,8 +490,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             movie_data.report_data()
             del movie_data
 
-# noinspection Annotator,PyArgumentList
-
 
 class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
     """
@@ -506,8 +499,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         TrailerFetcher and BaseTrailerManager does the work
     """
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -520,8 +512,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                          args=(), kwargs=None)
         self._movie_data = LibraryURLMovieData()
 
-    def on_settings_changed(self):
-        # type: () -> None
+    def on_settings_changed(self) -> None:
         """
             Settings changes is handled by DiscoveryLibraryTrailerMovies
 
@@ -553,8 +544,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.warning('dummy method')
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
 
         :return:
@@ -578,7 +568,6 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                 clz.logger.exception('')
 
 
-# noinspection Annotator
 class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
     """
         This manager does not do any discovery, it receives local movies
@@ -587,8 +576,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         TrailerFetcher and BaseTrailerManager does the work
     """
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -603,8 +591,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                          args=(), kwargs=None)
         self._movie_data = LibraryNoTrailerMovieData()
 
-    def on_settings_changed(self):
-        # type: () -> None
+    def on_settings_changed(self) -> None:
         """
             Settings changes is handled by DiscoveryLibraryTrailerMovies
 
@@ -624,8 +611,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-    def discover_basic_information(self):
-        # type: () -> None
+    def discover_basic_information(self) -> None:
         """
 
         :return:
@@ -634,8 +620,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.warning('dummy method')
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
 
         :return:
@@ -658,8 +643,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             except Exception as e:
                 clz.logger.exception('')
 
-    def get_days_since_last_played(self, last_played_field, movie_name):
-        # type: (str, str) -> int
+    def get_days_since_last_played(self, last_played_field: str, movie_name:str) -> int:
         """
             Get the number of days since this movie (not the trailer)
             was last played. For invalid or missing values, -1 will be

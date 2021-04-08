@@ -10,11 +10,11 @@ import simplejson as json
 import re
 import sys
 
-from cache.itunes_cache_index import ItunesCacheIndex
+# from cache.itunes_cache_index import ItunesCacheIndex
 from common.constants import Constants, Movie, iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
-from common.rating import WorldCertifications, Certification
+from common.rating import Certifications, WorldCertifications, Certification
 from common.exceptions import AbortException
 from common.imports import *
 from common.messages import Messages
@@ -33,56 +33,52 @@ from backend.video_downloader import VideoDownloader
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.itunes_movie_data import ItunesMovieData
 
-STRIP_TZ_PATTERN = re.compile(' .[0-9]{4}$')
-DOWNLOADABLE_TYPES = ('trailer', 'clip', 'featurette', 'teaser')
-EPOCH_TIME = datetime.datetime(1970, 1, 1, 0, 1)
+STRIP_TZ_PATTERN: Final[Pattern] = re.compile(' .[0-9]{4}$')
+DOWNLOADABLE_TYPES: Final[Tuple[str]] = ('trailer', 'clip', 'featurette', 'teaser')
+EPOCH_TIME: Final[datetime.datetime] = datetime.datetime(1970, 1, 1, 0, 1)
 
-# noinspection Annotator,Annotator,PyArgumentList
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class DiscoverItunesMovies(BaseDiscoverMovies):
     """
 
     """
-    logger: LazyLogger = None
+    logger: ClassVar[LazyLogger] = None
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
         clz = DiscoverItunesMovies
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
-        thread_name = 'Disc iTunes'
+        thread_name: Final[str] = 'Discovery iTunes'
         kwargs = {}
         kwargs[Movie.SOURCE] = Movie.ITUNES_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
-                         args=(), kwargs=None)
+                         args=(), kwargs=kwargs)
         self._movie_data = ItunesMovieData()
-        self._selected_genres = ''
-        self._excluded_genres = ''
+        self._selected_genres: str = ''
+        self._excluded_genres: str = ''
 
         # Early checking of for duplicates before we query external databases
-        self._duplicate_check = set()
+        self._duplicate_check: Set = set()
 
-    def discover_basic_information(self):
-        # type: () -> None
+    def discover_basic_information(self) -> None:
         """
 
         :return:
         """
-        clz = DiscoverItunesMovies
+        clz = type(self)
         self.start()
 
-    def on_settings_changed(self):
-        # type: () -> None
+    def on_settings_changed(self) -> None:
         """
             Rediscover trailers if the changed settings impacts this manager.
         """
-        clz = DiscoverItunesMovies
+        clz = type(self)
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz.logger.enter()
 
@@ -96,8 +92,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             clz.logger.exception('')
 
     def is_duplicate(self, key):
-        clz = DiscoverItunesMovies
-        result = False
+        clz = type(self)
+        result: bool = False
         if key in self._duplicate_check:
             result = True
         else:
@@ -105,16 +101,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         return result
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
 
         :return:
         """
-        clz = DiscoverItunesMovies
-        start_time = datetime.datetime.now()
+        clz = type(self)
+        start_time: datetime.datetime = datetime.datetime.now()
         try:
-            finished = False
+            finished: bool = False
             while not finished:
                 try:
                     self.run_worker()
@@ -134,10 +129,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             clz.logger.exception('')
 
         self.finished_discovery()
-        duration = datetime.datetime.now() - start_time
+        duration: datetime.timedelta = datetime.datetime.now() - start_time
         if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(Trace.STATS):
-            clz.logger.debug('Time to discover:', duration.seconds,
-                             'seconds', trace=Trace.STATS)
+            clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
+                             trace=Trace.STATS)
 
     '''
     def send_cached_movies_to_discovery(self) -> None:
@@ -237,17 +232,16 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             clz.logger.exception('')
     '''
 
-    def run_worker(self):
-        # type: () -> None
+    def run_worker(self) -> None:
         """
 
         :return:
         """
-        clz = DiscoverItunesMovies
+        clz = type(self)
         Monitor.throw_exception_if_abort_requested()
 
-        self._selected_genres = ''
-        self._excluded_genres = ''
+        self._selected_genres: str = ''
+        self._excluded_genres: str = ''
         if Settings.get_filter_genres():
             self._selected_genres = GenreUtils.get_external_genre_ids(
                 GenreUtils.ITUNES_DATABASE, exclude=False)
@@ -267,9 +261,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         json_url = backend_constants.APPLE_URL_PREFIX + json_url
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz.logger.debug_extra_verbose('iTunes json_url', json_url)
-        attempts = 0
+        attempts: int = 0
         parsed_content = None
-        timeout = 1 * 60  # one minute
+        timeout: int = 1 * 60  # one minute
         while attempts < 60 and parsed_content is None:
             status_code, parsed_content = JsonUtilsBasic.get_json(json_url)
             attempts += 1
@@ -333,9 +327,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #   clz.logger.debug('Itunes parsed_content type:',
         #                type(parsed_content).__name__)
 
-        country_id = Settings.get_country_iso_3166_1().lower()
-        certifications = WorldCertifications.get_certifications(country_id)
-        unrated_id = certifications.get_unrated_certification().get_preferred_id()
+        country_id: str = Settings.get_country_iso_3166_1().lower()
+        certifications: Certifications = WorldCertifications.get_certifications(country_id)
+        unrated_id: str = certifications.get_unrated_certification().get_preferred_id()
         for itunes_movie in parsed_content:
             try:
                 Monitor.throw_exception_if_abort_requested()
@@ -353,7 +347,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                 # TODO: DELETE ME!
 
-                release_date_string = itunes_movie.get('releasedate', '')
+                release_date_string: str = itunes_movie.get('releasedate', '')
                 # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 # clz.logger.debug('release_date_string: ',
                 #            release_date_string)
@@ -362,14 +356,12 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         '', release_date_string)
 
                     # "Thu, 14 Feb 2019 00:00:00 -0800",
-                    release_date = Utils.strptime(
+                    release_date: datetime = Utils.strptime(
                         release_date_string, '%a, %d %b %Y %H:%M:%S')
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose('title:', title,
-                                                       'release_date_string:',
-                                                       release_date_string,
-                                                       'release_date:',
-                                                       release_date.strftime('%d-%m-%Y'))
+                        clz.logger.debug_extra_verbose(
+                            f'title: {title} release_date_string: {release_date_string} '
+                            f'release_date: {release_date.strftime("%d-%m-%Y")}')
                     #
                 else:
                     release_date = datetime.date.today()
@@ -383,7 +375,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         # set
                         release_date = datetime.date.today()
 
-                studio = itunes_movie.get('studio', '')
+                studio: str = itunes_movie.get('studio', '')
                 if isinstance(studio, str):
                     studio = [studio]
 
@@ -393,10 +385,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                 # clz.logger.debug('poster:', poster)
 
-                thumb = poster.replace(
-                    'poster.jpg', 'poster-xlarge.jpg')
                 fanart = poster.replace('poster.jpg', 'background.jpg')
 
+                # thumb = poster.replace('poster.jpg', 'poster-xlarge.jpg')
                 # clz.logger.debug('thumb:', thumb, ' fanart:', fanart)
 
                 # poster_2x = itunes_movie.get('poster_2x', '')
@@ -409,7 +400,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 # We expect the attribute to be named 'mpaa', not 'rating'
 
                 itunes_movie[Movie.MPAA] = itunes_movie['rating']
-                certification = certifications.get_certification(
+                certification: Certification = certifications.get_certification(
                     itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
                 #  rating = Certifications.get_certification(
                 #      itunes_movie.get(Movie.MPAA), itunes_movie.get('adult'))
@@ -418,22 +409,21 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                    certification.get_label())
                 itunes_movie[Movie.MPAA] = certification.get_preferred_id()
 
-                genres = itunes_movie.get('genre', '')
+                genres: str = itunes_movie.get('genre', '')
                 if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                     clz.logger.debug_extra_verbose('genres: ', genres)
 
-                directors = itunes_movie.get('directors', [])
+                directors: Union[str, List[str]] = itunes_movie.get('directors', [])
                 if isinstance(directors, str):
                     directors = [directors]
 
-                actors = itunes_movie.get('actors', [])
+                actors: Union[str, List[str]] = itunes_movie.get('actors', [])
                 if isinstance(actors, str):
                     actors = [actors]
                 cast = []
                 for actor in actors:
-                    fake_cast_entry = {}
-                    fake_cast_entry['name'] = actor
-                    fake_cast_entry['character'] = ''
+                    fake_cast_entry = {'name': actor,
+                                       'character': ''}
                     cast.append(fake_cast_entry)
 
                 """
@@ -451,8 +441,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                            "url":"/trailers/fox/alita-battle-angel/",
                            "type":"Trailer","exclusive":false,"hd":true}]
                 """
-                exclude_types_set = ITunes.get_excluded_types()
-                itunes_trailers_list = itunes_movie.get('trailers', [])
+                exclude_types_set: Set[str] = ITunes.get_excluded_types()
+                itunes_trailers_list: List[Dict[str, Any]] = \
+                    itunes_movie.get('trailers', [])
 
                 # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 #   clz.logger.debug('itunes_trailers_list: ',
@@ -461,7 +452,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     try:
                         Monitor.throw_exception_if_abort_requested()
 
-                        keep_promotion = True
+                        keep_promotion: bool = True
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 'itunes_trailer: ', itunes_trailer)
@@ -469,8 +460,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         # post_date = itunes_trailer.get('postdate', '')
                         # clz.logger.debug('post_date: ', post_date)
 
-                        url = itunes_trailer.get('url', '')
-                        adult = itunes_trailer.get('adult', False)
+                        url: str = itunes_trailer.get('url', '')
+                        adult: bool = itunes_trailer.get('adult', False)
                         if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                             clz.logger.debug_extra_verbose('url: ', url)
 
@@ -566,21 +557,21 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         return
 
     def get_movie_info(self,
-                       feature_url,  # type: str
-                       title='',  # type: str
-                       trailer_type='',  # type: str
-                       rating='',  # type: str
-                       adult=False,  # type: bool
-                       release_date=None,  # type: datetime.datetime
-                       genres=None,  # type: List[str]
-                       directors=None,  # type: List[str]
-                       cast=None,  # type: List[Dict]
-                       studio='',  # type: str
-                       fanart=''  # type: str
+                       feature_url: str,
+                       title: str = '',
+                       trailer_type: str = '',
+                       rating: str = '',
+                       adult: bool = False,
+                       release_date: datetime.datetime = None,
+                       genres: List[str] = None,
+                       directors: List[str] = None,
+                       cast: List[Dict] = None,
+                       studio: str = '',
+                       fanart: str = ''
                        ) -> Tuple[int, Optional[MovieType]]:
         """
         """
-        clz = DiscoverItunesMovies
+        clz = type(self)
         if genres is None:
             genres = []
         if directors is None:
@@ -589,9 +580,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             cast = []
 
         movie = None
-        trailer_url = ''
-        trailer_type = ''
-        thumb = ''
+        trailer_url: str = ''
+        trailer_type: str = ''
+        thumb: str = ''
 
         try:
             Monitor.throw_exception_if_abort_requested()
@@ -651,8 +642,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     media_type = media_type.split(' ')[0]
 
                     # title = downloadable_trailer.get('title', '')
-                    language = downloadable_trailer.get('language', '')
-                    thumbnail = downloadable_trailer['thumbnail']
+                    language: str = downloadable_trailer.get('language', '')
+                    thumbnail: str = downloadable_trailer['thumbnail']
                     upload_date = downloadable_trailer['upload_date']
 
                     if media_type not in DOWNLOADABLE_TYPES:
@@ -767,9 +758,9 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             if len(best_promotions) > 0:
                 chosen_promotion = best_promotions[0]
-                trailer_url = chosen_promotion['url']
-                trailer_type = chosen_promotion['type']
-                thumb = chosen_promotion['thumbnail']
+                trailer_url: str = chosen_promotion['url']
+                trailer_type: str = chosen_promotion['type']
+                thumb: str = chosen_promotion['thumbnail']
 
             '''             
            "_filename": "Featurette - The Making of Peterloo-peterloo-featurettethemakingofpeterloo.mov", 
@@ -1172,8 +1163,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # https://movietrailers.apple.com/movies/wb/shazam/shazam-teaser-1
             # -usca_i320.m4v
 
-            itunes_id = title + '_' + str(release_date.year)
-            movie = {Movie.TITLE: title,
+            itunes_id: str = title + '_' + str(release_date.year)
+            movie: MovieType = {Movie.TITLE: title,
                      Movie.TRAILER: trailer_url,
                      Movie.FILE: '',
                      # It looks like TrailerType is simply "trailer-" +

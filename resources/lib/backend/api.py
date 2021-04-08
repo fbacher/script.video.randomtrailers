@@ -66,3 +66,4 @@ def get_genres_in_library() -> List[str]:
     :return:
     """
     return LibraryMovieStats.get_genres_in_library()
+

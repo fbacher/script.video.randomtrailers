@@ -19,17 +19,18 @@ from common.constants import (Constants, DebugLevel,
                               RemoteTrailerPreference, GenreEnum)
 from common.logger import (LazyLogger, Trace)
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection PyClassHasNoInit
 class Settings:
     """
 
     """
     _addon_singleton = None
-    _logger = module_logger.getChild('Settings')
-    _previous_settings = {}
+    _logger: LazyLogger = module_logger.getChild('Settings')
+    _previous_settings: Dict[str, Any] = {}
+    DEFAULT_ROTTEN_TOMATOES_API_KEY: str = 'ynyq3vsaps7u8rb9nk98rcr'
+    DEFAULT_TMDB_API_KEY = '35f17ee61909355c4b5d5c4f2c967f6c'
 
     ADJUST_VOLUME = 'do_volume'
     TMDB_ALLOW_FOREIGN_LANGUAGES = 'tmdb_allow_foreign_languages'
@@ -159,7 +160,7 @@ class Settings:
     YOUTUBE_DL_COOKIE_PATH = 'youtube_dl_cookie_path'
     YOUTUBE_DL_CACHE_PATH = 'youtube_dl_cache_path'
 
-    ALL_SETTINGS = [
+    ALL_SETTINGS: List[str] = [
         ADJUST_VOLUME,
         TMDB_ALLOW_FOREIGN_LANGUAGES,
         TMDB_VOTE_FILTER,
@@ -282,7 +283,7 @@ class Settings:
         YOUTUBE_DL_CACHE_PATH,
     ]
 
-    TRAILER_LOADING_SETTINGS = [
+    TRAILER_LOADING_SETTINGS: List[str] = [
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -340,7 +341,7 @@ class Settings:
         TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
         TMDB_MAX_DOWNLOAD_MOVIES]
 
-    COMMON_TRAILER_LOADING_SETTINGS = [
+    COMMON_TRAILER_LOADING_SETTINGS: List[str] = [
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -378,7 +379,7 @@ class Settings:
         MINIMUM_DAYS_SINCE_WATCHED,
         RATING_LIMIT]
 
-    ITUNES_SPECIFIC_SETTINGS = [
+    ITUNES_SPECIFIC_SETTINGS: List[str] = [
         # ITUNES_QUALITY,
         INCLUDE_CLIPS,
         INCLUDE_FEATURETTES,
@@ -386,14 +387,14 @@ class Settings:
         INCLUDE_ITUNES_TRAILERS,
         ITUNES_TRAILER_TYPE]
 
-    LIBRARY_SPECIFIC_SETTINGS = [
+    LIBRARY_SPECIFIC_SETTINGS: List[str] = [
         LIBRARY_HIDE_WATCHED_MOVIES,
         INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO,
         INCLUDE_LIBRARY_TRAILERS,
         INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS,
         INCLUDE_TRAILER_FOLDERS]
 
-    TMDB_SPECIFIC_SETTINGS = [
+    TMDB_SPECIFIC_SETTINGS: List[str] = [
         TMDB_ALLOW_FOREIGN_LANGUAGES,
         TMDB_SORT_ORDER,
         TMDB_TRAILER_TYPE,
@@ -411,13 +412,12 @@ class Settings:
         TMDB_MAX_DOWNLOAD_MOVIES
     ]
 
-    TFH_SPECIFIC_SETTINGS = [
+    TFH_SPECIFIC_SETTINGS: List[str] = [
         INCLUDE_TFH_TRAILERS,
         MAX_TFH_TRAILERS]
 
     @staticmethod
-    def get_addon():
-        # type: () -> Addon
+    def get_addon() -> Addon:
         """
 
         :return:
@@ -436,8 +436,7 @@ class Settings:
         return Settings._addon_singleton
 
     @staticmethod
-    def on_settings_changed():
-        # type: () -> None
+    def on_settings_changed() -> None:
         """
 
         :return:
@@ -446,8 +445,7 @@ class Settings:
         Settings.reload_settings()
 
     @staticmethod
-    def reload_settings():
-        # type: () -> None
+    def reload_settings() -> None:
         """
 
         :return:
@@ -457,8 +455,7 @@ class Settings:
         Settings.get_changed_settings(Settings.ALL_SETTINGS)
 
     @staticmethod
-    def save_settings():
-        # type: () -> None
+    def save_settings() -> None:
         """
 
         :return:
@@ -472,8 +469,7 @@ class Settings:
             pass
 
     @staticmethod
-    def get_saved_settings():
-        # type: () -> Dict[str, str]
+    def get_saved_settings() -> Dict[str, str]:
         """
 
         :return:
@@ -481,8 +477,7 @@ class Settings:
         return Settings._previous_settings
 
     @staticmethod
-    def get_changed_settings(settings_to_check):
-        # type: (List[str]) -> List[str]
+    def get_changed_settings(settings_to_check: List[str]) -> List[str]:
         """
 
         :param settings_to_check:
@@ -512,8 +507,7 @@ class Settings:
         return changed_settings
 
     @staticmethod
-    def is_common_trailer_loading_settings_changed():
-        # type: () -> bool
+    def is_common_trailer_loading_settings_changed() -> bool:
         """
 
         :return:
@@ -530,8 +524,7 @@ class Settings:
         return result
 
     @staticmethod
-    def is_library_loading_settings_changed():
-        # type: () -> bool
+    def is_library_loading_settings_changed() -> bool:
         """
 
         :return:
@@ -546,8 +539,7 @@ class Settings:
         return result
 
     @staticmethod
-    def is_itunes_loading_settings_changed():
-        # type: () -> bool
+    def is_itunes_loading_settings_changed() -> bool:
         """
 
         :return:
@@ -564,8 +556,7 @@ class Settings:
         return result
 
     @staticmethod
-    def is_tmdb_loading_settings_changed():
-        # type: () -> bool
+    def is_tmdb_loading_settings_changed() -> bool:
         """
 
         :return:
@@ -581,8 +572,7 @@ class Settings:
         return result
 
     @staticmethod
-    def is_tfh_loading_settings_changed():
-        # type: () -> bool
+    def is_tfh_loading_settings_changed() -> bool:
         """
 
         :return:
@@ -598,8 +588,7 @@ class Settings:
         return result
 
     @staticmethod
-    def get_max_number_of_tfh_trailers():
-        #  type: () -> int
+    def get_max_number_of_tfh_trailers() -> int:
         """
 
         :return:
@@ -608,8 +597,7 @@ class Settings:
         return Settings.get_setting_int(Settings.MAX_TFH_TRAILERS)
 
     @staticmethod
-    def get_adjust_volume():
-        # type: () -> bool
+    def get_adjust_volume() -> bool:
         """
 
         :return:
@@ -617,8 +605,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.VOLUME)
 
     @staticmethod
-    def is_allow_foreign_languages():
-        # type: () -> bool
+    def is_allow_foreign_languages() -> bool:
         """
 
         :return:
@@ -628,8 +615,7 @@ class Settings:
         return allow_foreign_languages
 
     @staticmethod
-    def get_tmdb_avg_vote_preference():
-        # type: () -> (int, int)
+    def get_tmdb_avg_vote_preference() -> (int, int):
         """
 
         :return:
@@ -643,8 +629,7 @@ class Settings:
         return vote_comparison, vote_value
 
     @staticmethod
-    def get_close_curtain_path():
-        # type: () -> str
+    def get_close_curtain_path() -> str:
         """
 
         :return:
@@ -653,8 +638,7 @@ class Settings:
             Settings.get_media_path(), 'CurtainClosingSequence.flv'))
 
     @staticmethod
-    def get_playlist_name(playlist_number):
-        # type: (int) -> str
+    def get_playlist_name(playlist_number: int) -> str:
         """
 
         :return:
@@ -665,14 +649,13 @@ class Settings:
         return playlist_name
 
     @staticmethod
-    def is_debug():
+    def is_debug() -> bool:
 
         do_debug = Settings.get_setting_bool(Settings.DO_DEBUG)
         return do_debug
 
     @staticmethod
-    def get_do_not_rated_setting():
-        # type: () -> bool
+    def get_do_not_rated_setting() -> bool:
         """
 
         :return:
@@ -681,8 +664,7 @@ class Settings:
         return do_nr
 
     @staticmethod
-    def get_filter_genres():
-        # type: () -> bool
+    def get_filter_genres() -> bool:
         """
 
         :return:
@@ -691,8 +673,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.FILTER_GENRES)
 
     @staticmethod
-    def get_genre(genre_name):
-        # type: (str) -> int
+    def get_genre(genre_name: str) -> int:
         """
 
         :param genre_name:
@@ -709,8 +690,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_genre_action():
-        # type: () -> int
+    def get_genre_action() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -721,8 +701,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_ACTION)
 
     @staticmethod
-    def get_genre_adventure():
-        # type: () -> int
+    def get_genre_adventure() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -733,8 +712,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_ADVENTURE)
 
     @staticmethod
-    def get_genre_animation():
-        # type: () -> bool
+    def get_genre_animation() -> bool:
         """
 
         :return:
@@ -742,8 +720,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_ANIMATION)
 
     @staticmethod
-    def get_genre_biography():
-        # type: () -> int
+    def get_genre_biography() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -754,8 +731,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_BIOGRAPY)
 
     @staticmethod
-    def get_genre_comedy():
-        # type: () -> int
+    def get_genre_comedy() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -766,8 +742,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_COMEDY)
 
     @staticmethod
-    def get_genre_crime():
-        # type: () -> int
+    def get_genre_crime() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -778,8 +753,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_CRIME)
 
     @staticmethod
-    def get_genre_dark_comedy():
-        # type: () -> int
+    def get_genre_dark_comedy() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -790,8 +764,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_DARK_COMEDY)
 
     @staticmethod
-    def get_genre_documentary():
-        # type: () -> int
+    def get_genre_documentary() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -802,8 +775,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_DOCUMENTARY)
 
     @staticmethod
-    def get_genre_drama():
-        # type: () -> int
+    def get_genre_drama() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -814,8 +786,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_DRAMA)
 
     @staticmethod
-    def get_genre_epic():
-        # type: () -> int
+    def get_genre_epic() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -826,8 +797,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_EPIC)
 
     @staticmethod
-    def get_genre_family():
-        # type: () -> int
+    def get_genre_family() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -838,8 +808,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_FAMILY)
 
     @staticmethod
-    def get_genre_fantasy():
-        # type: () -> int
+    def get_genre_fantasy() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -850,8 +819,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_FANTASY)
 
     @staticmethod
-    def get_genre_film_noir():
-        # type: () -> bool
+    def get_genre_film_noir() -> bool:
         """
 
         :return:
@@ -860,8 +828,7 @@ class Settings:
 
     # A number of non-English trailers are marked foreign
     @staticmethod
-    def get_genre_foreign():
-        # type: () -> int
+    def get_genre_foreign() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -872,8 +839,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_FOREIGN)
 
     @staticmethod
-    def get_genre_history():
-        # type: () -> int
+    def get_genre_history() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -893,8 +859,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_HORROR)
 
     @staticmethod
-    def get_genre_melodrama():
-        # type: () -> bool
+    def get_genre_melodrama() -> bool:
         """
 
         :return:
@@ -902,8 +867,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MELODRAMA)
 
     @staticmethod
-    def get_genre_music():
-        # type: () -> bool
+    def get_genre_music() -> bool:
         """
 
         :return:
@@ -911,8 +875,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MUSIC)
 
     @staticmethod
-    def get_genre_musical():
-        # type: () -> int
+    def get_genre_musical() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -923,8 +886,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MUSICAL)
 
     @staticmethod
-    def get_genre_mystery():
-        # type: () -> int
+    def get_genre_mystery() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -935,8 +897,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MYSTERY)
 
     @staticmethod
-    def get_genre_pre_code():
-        # type: () -> bool
+    def get_genre_pre_code() -> bool:
         """
 
         :return:
@@ -944,8 +905,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_PRE_CODE)
 
     @staticmethod
-    def get_genre_romance():
-        # type: () -> int
+    def get_genre_romance() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -956,8 +916,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_ROMANCE)
 
     @staticmethod
-    def get_genre_satire():
-        # type: () -> int
+    def get_genre_satire() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -968,8 +927,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_SATIRE)
 
     @staticmethod
-    def get_genre_sci_fi():
-        # type: () -> int
+    def get_genre_sci_fi() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -980,8 +938,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_SCI_FI)
 
     @staticmethod
-    def get_genre_screw_ball():
-        # type: () -> bool
+    def get_genre_screw_ball() -> int:
         """
 
         :return:
@@ -989,8 +946,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_SCREW_BALL)
 
     @staticmethod
-    def get_genre_swash_buckler():
-        # type: () -> int
+    def get_genre_swash_buckler() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -1001,8 +957,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_SWASH_BUCKLER)
 
     @staticmethod
-    def get_genre_thriller():
-        # type: () -> int
+    def get_genre_thriller() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -1013,8 +968,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_THRILLER)
 
     @staticmethod
-    def get_genre_tv_movie():
-        # type: () -> int
+    def get_genre_tv_movie() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -1025,8 +979,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_TV_MOVIE)
 
     @staticmethod
-    def get_genre_war():
-        # type: () -> int
+    def get_genre_war() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -1037,8 +990,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_WAR)
 
     @staticmethod
-    def get_genre_war_documentary():
-        # type: () -> int
+    def get_genre_war_documentary() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -1049,8 +1001,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_WAR_DOCUMENTARY)
 
     @staticmethod
-    def get_genre_western():
-        # type: () -> int
+    def get_genre_western() -> int:
         """
             Returns an "enum' indicating whether to:
                 0 - Ignore this genre in filtering movies
@@ -1061,8 +1012,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_WESTERN)
 
     @staticmethod
-    def is_group_trailers():
-        # type: () -> bool
+    def is_group_trailers() -> bool:
         """
 
         :return:
@@ -1074,8 +1024,7 @@ class Settings:
     '''
 
     @staticmethod
-    def get_group_delay():
-        # type: () -> int
+    def get_group_delay() -> int:
         """
 
         :return:
@@ -1083,8 +1032,7 @@ class Settings:
         return Settings.get_setting_int(Settings.GROUP_DELAY) * 60
 
     @staticmethod
-    def get_trailers_per_group():
-        # type: () -> int
+    def get_trailers_per_group() -> int:
         """
 
         :return:
@@ -1092,8 +1040,7 @@ class Settings:
         return Settings.get_setting_int(Settings.TRAILERS_PER_GROUP)
 
     @staticmethod
-    def get_hide_watched_movies():
-        # type: () -> bool
+    def get_hide_watched_movies() -> bool:
         """
 
         :return:
@@ -1101,8 +1048,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.LIBRARY_HIDE_WATCHED_MOVIES)
 
     @staticmethod
-    def get_include_clips():
-        # type: () -> bool
+    def get_include_clips() -> bool:
         """
 
         :return:
@@ -1110,8 +1056,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_CLIPS)
 
     @staticmethod
-    def get_include_featurettes():
-        # type: () -> bool
+    def get_include_featurettes() -> bool:
         """
 
         :return:
@@ -1119,8 +1064,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_FEATURETTES)
 
     @staticmethod
-    def get_include_teasers():
-        # type: () -> bool
+    def get_include_teasers() -> bool:
         """
 
         :return:
@@ -1128,8 +1072,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_TEASERS)
 
     @staticmethod
-    def get_include_itunes_trailers():
-        # type: () -> bool
+    def get_include_itunes_trailers() -> bool:
         """
 
         :return:
@@ -1137,8 +1080,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_ITUNES_TRAILERS)
 
     @staticmethod
-    def get_include_itunes_trailer_type():
-        # type: () -> int
+    def get_include_itunes_trailer_type() -> int:
         """
 
         :return:
@@ -1150,8 +1092,7 @@ class Settings:
         return trailer_type
 
     @staticmethod
-    def get_include_library_no_trailer_info():
-        # type: () -> bool
+    def get_include_library_no_trailer_info() -> bool:
         """
 
         :return:
@@ -1160,8 +1101,7 @@ class Settings:
             Settings.INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO)
 
     @staticmethod
-    def get_include_library_trailers():
-        # type: () -> bool
+    def get_include_library_trailers() -> bool:
         """
 
         :return:
@@ -1169,8 +1109,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_LIBRARY_TRAILERS)
 
     @staticmethod
-    def get_include_not_yet_rated_trailers():
-        # type: () -> bool
+    def get_include_not_yet_rated_trailers() -> bool:
         """
 
         :return:
@@ -1178,8 +1117,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_NOT_YET_RATED)
 
     @staticmethod
-    def get_include_library_remote_trailers():
-        # type: () -> bool
+    def get_include_library_remote_trailers() -> bool:
         """
 
         :return:
@@ -1188,8 +1126,7 @@ class Settings:
             Settings.INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS)
 
     @staticmethod
-    def get_include_tmdb_trailers():
-        # type: () -> bool
+    def get_include_tmdb_trailers() -> bool:
         """
 
         :return:
@@ -1197,8 +1134,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_TMDB_TRAILERS)
 
     @staticmethod
-    def get_include_trailer_folders():
-        # type: () -> bool
+    def get_include_trailer_folders() -> bool:
         """
 
         :return:
@@ -1206,8 +1142,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_TRAILER_FOLDERS)
 
     @staticmethod
-    def is_include_tfh_trailers():
-        # type: () -> bool
+    def is_include_tfh_trailers() -> bool:
         """
 
         :return:
@@ -1223,8 +1158,7 @@ class Settings:
         return Settings.get_setting_int(Settings.LICENSE_DISPLAY_SECONDS)
 
     @staticmethod
-    def is_set_fullscreen_when_screensaver():
-        # type: () -> bool
+    def is_set_fullscreen_when_screensaver() -> bool:
         """
 
         :return:
@@ -1258,8 +1192,7 @@ class Settings:
         return iso_639_2_name
 
     @staticmethod
-    def get_country_iso_3166_1():
-        # type: () -> str
+    def get_country_iso_3166_1() -> str:
         """
         Country code
 
@@ -1304,8 +1237,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.REPORT_ACTOR_STATS)
 
     @staticmethod
-    def get_report_max_top_actors():
-        # type: () -> int
+    def get_report_max_top_actors() -> int:
         """
 
         :return:
@@ -1313,8 +1245,7 @@ class Settings:
         return Settings.get_setting_int(Settings.REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS)
 
     @staticmethod
-    def is_enable_movie_stats():
-        # type() -> bool
+    def is_enable_movie_stats() -> bool:
         """
 
         :return:
@@ -1322,8 +1253,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.ENABLE_MOVIE_STATS)
 
     @staticmethod
-    def disable_movie_stats():
-        # type() -> None
+    def disable_movie_stats() -> None:
         """
         Used to disable generating reports on next run of Kodi. User must
         set each time they want new reports.
@@ -1333,8 +1263,7 @@ class Settings:
         Settings.set_setting_bool(Settings.ENABLE_MOVIE_STATS, False)
 
     @staticmethod
-    def is_report_genre_stats():
-        # type() -> bool
+    def is_report_genre_stats() -> bool:
         """
 
         :return:
@@ -1342,8 +1271,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.REPORT_GENRE_STATS)
 
     @staticmethod
-    def is_report_tag_stats():
-        # type() -> bool
+    def is_report_tag_stats() -> bool:
         """
 
         :return:
@@ -1351,8 +1279,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.REPORT_TAG_STATS)
 
     @staticmethod
-    def get_max_trailer_length():
-        # type: () -> int
+    def get_max_trailer_length() -> int:
         """
 
         :return:
@@ -1360,8 +1287,7 @@ class Settings:
         return Settings.get_setting_int(Settings.MAXIMUM_TRAILER_LENGTH)
 
     @staticmethod
-    def get_media_path():
-        # type: () -> str
+    def get_media_path() -> str:
         """
 
         :return:
@@ -1370,8 +1296,7 @@ class Settings:
             Settings.get_resources_path(), 'media'))
 
     @staticmethod
-    def get_minimum_days_since_watched():
-        # type: () -> str
+    def get_minimum_days_since_watched() -> str:
         """
 
         :return:
@@ -1379,8 +1304,7 @@ class Settings:
         return Settings.get_addon().setting(Settings.MINIMUM_DAYS_SINCE_WATCHED)
 
     @staticmethod
-    def is_normalize_volume_of_downloaded_trailers():
-        # type: () -> bool
+    def is_normalize_volume_of_downloaded_trailers() -> bool:
         """
 
         :return:
@@ -1390,8 +1314,7 @@ class Settings:
         return normalize
 
     @staticmethod
-    def is_normalize_volume_of_local_trailers():
-        # type: () -> bool
+    def is_normalize_volume_of_local_trailers() -> bool:
         """
 
         :return:
@@ -1406,8 +1329,7 @@ class Settings:
         return path
 
     @staticmethod
-    def get_number_of_trailers_to_play():
-        # type: () -> int
+    def get_number_of_trailers_to_play() -> int:
         """
 
         :return:
@@ -1415,8 +1337,7 @@ class Settings:
         return Settings.get_setting_int(Settings.NUMBER_OF_TRAILERS_TO_PLAY)
 
     @staticmethod
-    def get_open_curtain_path():
-        # type: () -> str
+    def get_open_curtain_path() -> str:
         """
 
         :return:
@@ -1425,8 +1346,7 @@ class Settings:
             Settings.get_media_path(), 'CurtainOpeningSequence.flv'))
 
     @staticmethod
-    def prompt_for_settings():
-        # type: () -> bool
+    def prompt_for_settings() -> bool:
         """
 
         :return:
@@ -1446,8 +1366,7 @@ class Settings:
     '''
 
     @staticmethod
-    def get_rating_limit_setting():
-        # type: () -> int
+    def get_rating_limit_setting() -> int:
         """
 
         :return:
@@ -1480,8 +1399,7 @@ class Settings:
             return 'vote_count.asc'
 
     @staticmethod
-    def get_resources_path():
-        # type: () -> str
+    def get_resources_path() -> str:
         """
 
         :return:
@@ -1490,18 +1408,15 @@ class Settings:
             os.path.join(Constants.ADDON_PATH, 'resources'))
 
     @staticmethod
-    def get_rotten_tomatoes_api_key():
-        # type: () -> str
+    def get_rotten_tomatoes_api_key() -> str:
         """
 
         :return:
         """
-        ROTTEN_TOMATOES_API_KEY = 'ynyq3vsaps7u8rb9nk98rcr'
-        return ROTTEN_TOMATOES_API_KEY
+        return Settings.DEFAULT_ROTTEN_TOMATOES_API_KEY
 
     @staticmethod
-    def is_tmdb_select_by_year_range():
-        # type: () -> bool
+    def is_tmdb_select_by_year_range() -> bool:
         """
 
         :return:
@@ -1543,8 +1458,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_setting_bool(setting):
-        # type: (str) -> bool
+    def get_setting_bool(setting: str) -> bool:
         """
 
         :return:
@@ -1558,8 +1472,7 @@ class Settings:
         return bool(value)
 
     @staticmethod
-    def set_setting_bool(setting, value):
-        # type: (str, bool) -> None
+    def set_setting_bool(setting: str, value: bool) -> None:
         """
         :setting:
         :value:
@@ -1573,8 +1486,7 @@ class Settings:
         return
 
     @staticmethod
-    def get_setting_float(setting):
-        # type: (str) -> float
+    def get_setting_float(setting: str) -> float:
         """
 
         :return:
@@ -1610,8 +1522,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_show_curtains():
-        # type: () -> bool
+    def get_show_curtains() -> bool:
         """
 
         :return:
@@ -1619,8 +1530,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.SHOW_CURTAINS)
 
     @staticmethod
-    def get_show_movie_title():
-        # type: () -> bool
+    def get_show_movie_title() -> bool:
         """
 
         :return:
@@ -1633,8 +1543,7 @@ class Settings:
     #       it is likely not to be universally used by the different services.
     #
     @staticmethod
-    def getSpokenLanguage():
-        # type: () -> str
+    def getSpokenLanguage() -> str:
         """
 
         :return:
@@ -1655,25 +1564,22 @@ class Settings:
         return Settings.get_setting_int(Settings.TIME_TO_DISPLAY_DETAIL_INFO)
 
     @staticmethod
-    def get_tmdb_api_key():
-        # type: () -> str
+    def get_tmdb_api_key() -> str:
         """
 
         :return:
         """
-        TMDB_API_KEY = '35f17ee61909355c4b5d5c4f2c967f6c'
         try:
             tmdb_api_key = Settings.get_addon().setting(Settings.TMDB_API_KEY)
         except Exception as e:
             tmdb_api_key = None
 
         if tmdb_api_key is None or tmdb_api_key == '':
-            tmdb_api_key = TMDB_API_KEY
+            tmdb_api_key = Settings.DEFAULT_TMDB_API_KEY
         return tmdb_api_key
 
     @staticmethod
-    def get_tmdb_trailer_type():
-        # type: () -> str
+    def get_tmdb_trailer_type() -> str:
         """
 
         :return:
@@ -1686,8 +1592,7 @@ class Settings:
         return trailer_type
 
     @staticmethod
-    def get_trailers_paths():
-        # type: () -> str
+    def get_trailers_paths() -> str:
         """
 
         :return:
@@ -1700,8 +1605,7 @@ class Settings:
         return trailer_path
 
     @staticmethod
-    def get_update_tmdb_id():
-        # type: () -> bool
+    def get_update_tmdb_id() -> bool:
         """
 
         :return:
@@ -1709,8 +1613,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.UPDATE_TMDB_ID)
 
     @staticmethod
-    def get_volume():
-        # type: () -> int
+    def get_volume() -> int:
         """
 
         :return:
@@ -1761,8 +1664,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.ENABLE_REMOTE_DATA_CACHE)
 
     @staticmethod
-    def is_use_trailer_cache():
-        # type: () -> bool
+    def is_use_trailer_cache() -> bool:
         """
 
         :return:
@@ -1770,8 +1672,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.ENABLE_TRAILER_CACHE)
 
     @staticmethod
-    def get_expire_remote_db_cache_entry_days():
-        # type: () -> int
+    def get_expire_remote_db_cache_entry_days() -> int:
         """
 
         :return:
@@ -1780,8 +1681,7 @@ class Settings:
         return Settings.get_setting_int(Settings.CACHE_EXPIRATION_DAYS)
 
     @staticmethod
-    def get_expire_remote_db_trailer_check_days():
-        # type: () -> int
+    def get_expire_remote_db_trailer_check_days() -> int:
         """
 
         :return:
@@ -1789,8 +1689,7 @@ class Settings:
         return Settings.get_setting_int(Settings.CACHE_TRAILER_CHECK_DAYS)
 
     @staticmethod
-    def get_expire_trailer_cache_days():
-        # type: () -> int
+    def get_expire_trailer_cache_days() -> int:
         """
 
         :return:
@@ -1798,8 +1697,7 @@ class Settings:
         return Settings.get_setting_int(Settings.EXPIRE_TRAILER_CACHE_DAYS)
 
     @staticmethod
-    def get_downloaded_trailer_cache_path():
-        # type: () -> str
+    def get_downloaded_trailer_cache_path() -> str:
         """
 
         :return:
@@ -1813,8 +1711,7 @@ class Settings:
         return path
 
     @staticmethod
-    def get_remote_db_cache_path():
-        # type: () -> str
+    def get_remote_db_cache_path() -> str:
         """
 
         :return:
@@ -1874,8 +1771,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_max_size_of_cached_trailers_mb():
-        # type: () -> int
+    def get_max_size_of_cached_trailers_mb() -> int:
         """
 
         :return:
@@ -1887,8 +1783,7 @@ class Settings:
         return value
 
     @staticmethod
-    def is_limit_percent_of_cached_trailers():
-        # type: () -> bool
+    def is_limit_percent_of_cached_trailers() -> bool:
         """
 
         :return:
@@ -1896,8 +1791,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.LIMIT_PERCENT_OF_CACHED_TRAILERS)
 
     @staticmethod
-    def get_max_percent_of_cached_trailers():
-        # type: () -> Optional[float]
+    def get_max_percent_of_cached_trailers() -> float:
         """
 
         :return:
@@ -1909,8 +1803,7 @@ class Settings:
         return value
 
     @staticmethod
-    def is_limit_cached_json():
-        # type: () -> bool
+    def is_limit_cached_json() -> bool:
         """
 
         :return:
@@ -1918,8 +1811,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.LIMIT_CACHED_JSON)
 
     @staticmethod
-    def is_limit_number_of_cached_json():
-        # type: () -> bool
+    def is_limit_number_of_cached_json() -> bool:
         """
 
         :return:
@@ -1931,8 +1823,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_max_number_of_cached_json():
-        # type: () -> int
+    def get_max_number_of_cached_json() -> int:
         """
 
         :return:
@@ -1944,8 +1835,7 @@ class Settings:
         return value
 
     @staticmethod
-    def is_limit_size_of_cached_json():
-        # type: () -> bool
+    def is_limit_size_of_cached_json() -> bool:
         """
 
         :return:
@@ -1957,8 +1847,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_max_size_of_cached_json_mb():
-        # type: () -> int
+    def get_max_size_of_cached_json_mb() -> int:
         """
 
         :return:
@@ -1970,8 +1859,7 @@ class Settings:
         return value
 
     @staticmethod
-    def is_limit_percent_of_cached_json():
-        # type: () -> bool
+    def is_limit_percent_of_cached_json() -> bool:
         """
 
         :return:
@@ -1983,8 +1871,7 @@ class Settings:
         return value
 
     @staticmethod
-    def get_max_percent_of_cached_json():
-        # type: () -> Optional[float]
+    def get_max_percent_of_cached_json() -> float:
         """
 
         :return:

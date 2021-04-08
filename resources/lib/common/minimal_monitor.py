@@ -10,17 +10,31 @@ Created on Feb 19, 2019
 import threading
 
 import xbmc
-from common.imports import *
 from common.exceptions import AbortException
 
 
 class MinimalMonitor(xbmc.Monitor):
     """
-        Provides a number of customizations to xbmc.monitor
+        Provides a wrapper around waitForAbort to avoid several problems:
+           1) There are issues with calling xbmc.monitor.waitForAbort on
+              multiple threads. Best luck seems to be always running it on
+              main thread.
+           2) _abort_received Event is set once waitForAbort indicates abort
+              has occured. Other threads, via Monitor.py utilize this.
+
+        During startup, we try to reduce dependencies. So here we use xbmc.log
+        instead of LazyLogger.
+
+
+        See Monitor.py for higher level methods
     """
     _initialized: bool = False
     _xbmc_monitor: xbmc.Monitor = None
     _abort_received: threading.Event = None
+
+    """
+    xbmc wants to be called.
+    """
 
     def __init__(self):
         super().__init__()
@@ -99,12 +113,16 @@ class MinimalMonitor(xbmc.Monitor):
             Otherwise, wait a maximum of the specified time in seconds.
         :param timeout:
         :return:
+
+        Note: Included in minimal_monitor so that startup code can
+              call without dragging in LazyLogger.
         """
         #  cls.track_wait_call_counts()
         if cls._abort_received.wait(timeout=timeout):
             raise AbortException()
         #  cls.track_wait_return_counts()
-        
+
+
 # Initialize class:
 #
 MinimalMonitor.class_init()

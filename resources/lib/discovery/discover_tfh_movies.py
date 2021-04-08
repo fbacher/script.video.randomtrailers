@@ -250,8 +250,6 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         del cached_trailers
         DiskUtils.RandomGenerator.shuffle(trailer_list)
 
-        trailer_list = []
-
         # Limit trailers added by settings, but don't throw away what
         # we have discovered.
 

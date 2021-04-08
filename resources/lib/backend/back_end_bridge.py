@@ -18,7 +18,7 @@ from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 from discovery.playable_trailer_service import PlayableTrailerService
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class BackendBridgeStatus(PluginBridgeStatus):
@@ -33,14 +33,13 @@ class BackendBridge(PluginBridge):
         communicate with other random trailers plugins. Communication is
         accomplished using the AddonSignals service.
     """
-    _instance = None
     _logger: LazyLogger = None
-    _next_trailer = None
-    _trailer_iterator = None
-    _trailer = None
+    _next_trailer: MovieType = None
+    _trailer_iterator: Iterable = None
+    _trailer: MovieType = None
     _on_settings_changed_callback = None
-    _busy_getting_trailer = False
-    _status = BackendBridgeStatus.IDLE
+    _busy_getting_trailer: bool = False
+    _status: str = BackendBridgeStatus.IDLE
 
     def __init__(self,
                  playable_trailer_service: PlayableTrailerService) -> None:
@@ -61,9 +60,9 @@ class BackendBridge(PluginBridge):
             if playable_trailer_service is None:
                 cls._logger.error('Need to define playable_trailer_service to be',
                                   'PlayableTrailerService()')
-            # trailerIterator = BaseTrailerManager.get_instance()
             cls._trailer_iterator = iter(playable_trailer_service)
-            cls._on_settings_changed_callback = Monitor.onSettingsChanged
+            cls._on_settings_changed_callback: Callable[[None], None] =\
+                Monitor.onSettingsChanged
 
         except AbortException:
             reraise(*sys.exc_info())

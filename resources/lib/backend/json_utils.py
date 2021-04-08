@@ -13,7 +13,6 @@ from common.imports import *
 from backend.json_utils_basic import (JsonUtilsBasic)
 from diagnostics.statistics import Statistics
 from cache.cache import (Cache)
-from common.development_tools import (Union)
 from common.constants import Movie
 from common.logger import (LazyLogger)
 from common.messages import Messages
@@ -23,10 +22,7 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class JsonUtils(JsonUtilsBasic):
-    RandomGenerator = random.Random()
-    RandomGenerator.seed()
 
-    _exit_requested = False
     """
         Tunes and TMDB each have rate limiting:
             TMDB is limited over a period of 10 seconds
@@ -68,12 +64,13 @@ class JsonUtils(JsonUtilsBasic):
     _logger = None
     _instance = None
 
-    def __init__(self) -> None:
+    @classmethod
+    def class_init(cls) -> None:
         """
 
         """
-        super().__init__()
-        JsonUtils._logger = module_logger.getChild(type(self).__name__)
+        super().class_init()
+        cls._logger = module_logger.getChild(cls.__name__)
 
     @staticmethod
     def get_instance():  # type:  () -> JsonUtils
@@ -155,4 +152,4 @@ class JsonUtils(JsonUtilsBasic):
 
 
 # Force initialization of config_logger
-JsonUtils.get_instance()
+JsonUtils.class_init()

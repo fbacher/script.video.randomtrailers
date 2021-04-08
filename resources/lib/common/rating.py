@@ -21,7 +21,7 @@ from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class LoadCertificationDefinitions:
@@ -31,9 +31,9 @@ class LoadCertificationDefinitions:
     for multiple countries can be in the same file).
     """
 
-    _logger = None
+    _logger: ClassVar[LazyLogger] = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         cls = type(self)
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
@@ -47,7 +47,7 @@ class LoadCertificationDefinitions:
                     if (file.endswith('.xml') and
                             os.path.isfile(xml_file)):
                         with closing(xbmcvfs.File(xml_file)) as content_file:
-                            rules = xmltodict.parse(
+                            rules: Dict[str, Any]  = xmltodict.parse(
                                 bytes(content_file.readBytes()))
                             self._create_certifications(xml_file, rules)
 
@@ -62,7 +62,8 @@ class LoadCertificationDefinitions:
 
         pass
 
-    def _create_certifications(self, pathname, rules: dict):
+    def _create_certifications(self, pathname: str,
+                               rules: Dict[str, Any]) -> None:
         cls = type(self)
         if rules is None:
             cls._logger.error('{} contains invalid XML.'.format(pathname))
@@ -211,14 +212,14 @@ class Certification:
     Further, there were some unofficial self-ratings (X, XXX).
 
     """
-    UNRATED_RANK = 0
-    NOT_YET_RATED_RANK = 1
-    _logger = None
+    UNRATED_RANK: Final[int] = 0
+    NOT_YET_RATED_RANK: Final[int] = 1
+    _logger: ClassVar[LazyLogger] = None
 
     def __init__(self, rank: int, label: str, label_id: int, age: int,
                  patterns: List[Pattern],
                  adult: bool = False,
-                 preferred_id: str = None, image_id: str = None):
+                 preferred_id: str = None, image_id: str = None) -> None:
         self._rank: int = rank
         self._label: str = label
         self._label_id: int = label_id
@@ -227,12 +228,13 @@ class Certification:
         self._adult: bool = adult
         self._preferred_id: str = preferred_id
         self._image_id: str = image_id
-        self._certifications = None
+        self._certifications: Certifications = None
 
-    def add_certifications(self, certifications):
-        self._certifications = certifications
+    def add_certifications(self,
+                           certifications: ForwardRef('Certifications')) -> None:
+        self._certifications: Certifications = certifications
 
-    def get_patterns(self):
+    def get_patterns(self) -> List[Pattern]:
         return self._patterns
 
     def get_age(self) -> int:
@@ -251,7 +253,7 @@ class Certification:
     def is_adult(self) -> bool:
         return self._adult
 
-    def get_certifications(self):
+    def get_certifications(self) -> ForwardRef('Certifications'):
         return self._certifications
 
     def get_label(self) -> str:
@@ -269,17 +271,17 @@ class Certification:
 
 class Certifications:
 
-    _logger = None
+    _logger: LazyLogger = None
 
     def __init__(self, country_id: str, country_label: str,
-                 certification_label: str, certification_label_id: int):
+                 certification_label: str, certification_label_id: int) -> None:
         cls = type(self)
         if cls._logger is None:
-            cls._logger = module_logger.getChild(cls.__name__)
+            cls._logger: LazyLogger = module_logger.getChild(cls.__name__)
 
-        self._country_id = country_id
-        self._country_label = country_label
-        self._label = certification_label
+        self._country_id: str = country_id
+        self._country_label: str = country_label
+        self._label: str = certification_label
         self._label_id: int = certification_label_id
         self._certifications: List[Certification] = []
 
@@ -289,7 +291,8 @@ class Certifications:
         # inefficient, but these are small lists
         self._certifications.sort(key=lambda cert: cert.get_rank())
 
-    def get_certification(self, kodi_rating='', adult_rating=False):
+    def get_certification(self, kodi_rating: str = '',
+                          adult_rating: bool = False) -> Certification:
 
         # Certifications are ordered by increasing restriction or age
 
@@ -319,27 +322,27 @@ class Certifications:
 
         return certification
 
-    def get_certification_by_rank(self, rank: int):
+    def get_certification_by_rank(self, rank: int) -> Certification:
         for certification in self._certifications:
             if certification.get_rank() == rank:
                 return certification
 
-    def get_unrated_certification(self):
+    def get_unrated_certification(self) -> Certification:
         return self._certifications[1]  # Default / Not Rated
 
-    def get_adult_certification(self):
+    def get_adult_certification(self) -> Certification:
         return self._certifications[-1]
 
     def get_label_id(self) -> int:
         return self._label_id
 
-    def is_valid(self, kodi_rating=''):
+    def is_valid(self, kodi_rating='') -> bool:
 
         # Certifications are ordered by increasing restriction or age
 
         cls = type(self)
 
-        found_rating = False
+        found_rating: bool = False
         for cert in self._certifications:
             for pattern in cert.get_patterns():
                 if pattern.match(kodi_rating):
@@ -348,11 +351,11 @@ class Certifications:
 
         return found_rating
 
-    def get_country_id(self):
+    def get_country_id(self) -> str:
         return self._country_id
 
     @classmethod
-    def get_image_for_rating(cls, certification) -> str:
+    def get_image_for_rating(cls, certification: Certification) -> str:
         # ex: ratings/us/g.png
         image = 'ratings/{}/{}.png'\
             .format(certification._certifications.get_country_id(),
@@ -395,9 +398,9 @@ class Certifications:
 
 
 class WorldCertifications:
-    _certifications_by_country = {}
-    _initialized = False
-    _lock = threading.RLock()
+    _certifications_by_country: Dict[str, Certifications] = {}
+    _initialized: bool = False
+    _lock: threading.RLock = threading.RLock()
 
     def __init__(self):
         pass
@@ -411,7 +414,7 @@ class WorldCertifications:
 
     @classmethod
     def add_certifications(cls, country_id: str,
-                           certifications: Certifications):
+                           certifications: Certifications) -> None:
 
         cls._certifications_by_country[country_id] = certifications
 

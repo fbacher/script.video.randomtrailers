@@ -28,10 +28,13 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 class Monitor(MinimalMonitor):
     """
         Provides a number of customizations to xbmc.monitor
+
+        MinimalMonitor exists simply to not drag in logging dependencies
+        at startup.
     """
     startup_complete_event: threading.Event = None
     _monitor_changes_in_settings_thread: threading.Thread = None
-    _logger = None
+    _logger: LazyLogger = None
     _screen_saver_listeners: List[Callable[[None], None]] = None
     _screen_saver_listener_lock: threading.RLock = None
     _settings_changed_listeners: List[Callable[[None], None]] = None
@@ -42,6 +45,9 @@ class Monitor(MinimalMonitor):
     _wait_return_count_map: Dict[str, int] = {}  # thread_id, returns from wait
     _wait_call_count_map: Dict[str, int] = {}  # thread_id, calls to wait
 
+    """
+      Can't get rid of __init__
+    """
     def __init__(self):
         super().__init__()
 
@@ -51,18 +57,16 @@ class Monitor(MinimalMonitor):
 
         """
         if cls._logger is None:
-            cls._logger = module_logger.getChild(cls.__class__.__name__)
+            cls._logger: LazyLogger = module_logger.getChild(cls.__class__.__name__)
             # Weird problems with recursion if we make requests to the super
 
-            cls._xbmc_monitor = xbmc.Monitor()
             cls._screen_saver_listeners = []
             cls._screen_saver_listener_lock = threading.RLock()
-            cls._settings_changed_listeners = []
+            cls._settings_changed_listeners: List[Callable[[None], None]] = []
             cls._settings_changed_listener_lock = threading.RLock()
             cls._abort_listeners = []
             cls._abort_listener_lock = threading.RLock()
             cls._abort_listeners_informed = False
-            cls._abort_received = threading.Event()
 
             #
             # These events are prioritized:
@@ -99,7 +103,7 @@ class Monitor(MinimalMonitor):
         # and act when 600 calls has been made. Not exactly 60 seconds, but
         # close enough for this
 
-        iterations = 600
+        iterations: int = 600
         while not cls.wait_for_abort(timeout=0.1):
             iterations -= 1
             if iterations < 0:
@@ -110,7 +114,7 @@ class Monitor(MinimalMonitor):
                         file_stat.st_mtime)
                 except Exception as e:
                     cls._logger.debug("Failed to read settings.xml")
-                    mod_time = start_time
+                    mod_time: datetime.datetime = start_time
 
                 # Wait at least a minute after settings changed, just in case there
                 # are multiple changes.
@@ -229,7 +233,6 @@ class Monitor(MinimalMonitor):
                 target=listener, name='Monitor._inform_abort_listeners')
             thread.start()
 
-        # cls._inform_settings_changed_listeners()
         cls.startup_complete_event.set()
 
         with cls._settings_changed_listener_lock:
@@ -502,7 +505,7 @@ class Monitor(MinimalMonitor):
     @classmethod
     def dump_wait_counts(cls) -> None:
         return;
-    
+
         xbmc.log('Wait Call Map', xbmc.LOGDEBUG)
         for k, v in cls._wait_call_count_map.items():
             xbmc.log(str(k) + ': ' + str(v), xbmc.LOGDEBUG)
@@ -513,6 +516,7 @@ class Monitor(MinimalMonitor):
 
         from common.debug_utils import Debug
         Debug.dump_all_threads()
+
 
 # Initialize class:
 #

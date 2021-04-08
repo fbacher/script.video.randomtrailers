@@ -11,6 +11,7 @@ import locale
 import os
 import re
 
+import xbmcaddon
 import xbmcvfs
 from kodi65 import addon
 from kodi65.kodiaddon import Addon
@@ -22,64 +23,63 @@ class Constants:
     """
         Constants common to all Random Trailers plugins
     """
-    INCLUDE_MODULE_PATH_IN_LOGGER = True
-    TOO_MANY_TMDB_REQUESTS = 25
-    addonName = 'script.video.randomtrailers'
-    CURRENT_ADDON_NAME = None
-    CURRENT_ADDON_SHORT_NAME = None
-    ADDON_UTIL = None
-    ADDON = None
-    BACKEND_ADDON = None
-    BACKEND_ADDON_UTIL = None
-    FRONTEND_ADDON = None
-    FRONTEND_ADDON_UTIL = None
-    ADDON_PATH = None
-    PYTHON_ROOT_PATH = None
-    MEDIA_PATH = None
-    SCRIPT_PATH = None
-    YOUTUBE_DL_ADDON_LIB_PATH = None
-    TRAILER_INFO_DISPLAY_SECONDS = 60
-    TRAILER_INFO_DISPLAY_MILLISECONDS = 6000
-    SECONDS_BEFORE_RESHUFFLE = 1 * 60
-    PLAY_LIST_LOOKBACK_WINDOW_SIZE = 10
-    MAX_PLAY_TIME_WARNING_TIME = 5  # seconds
+    INCLUDE_MODULE_PATH_IN_LOGGER: Final[bool] = True
+    TOO_MANY_TMDB_REQUESTS: Final[int] = 25
+    addonName: Final[str] = 'script.video.randomtrailers'
+    CURRENT_ADDON_NAME: str = None
+    CURRENT_ADDON_SHORT_NAME: str = None
+    ADDON_UTIL: Addon = None
+    ADDON: xbmcaddon.Addon = None
+    BACKEND_ADDON: Addon = None
+    BACKEND_ADDON_UTIL: Addon = None
+    FRONTEND_ADDON: Addon = None
+    FRONTEND_ADDON_UTIL: Addon = None
+    ADDON_PATH: str = None
+    PYTHON_ROOT_PATH: str = None
+    MEDIA_PATH: str = None
+    SCRIPT_PATH: str = None
+    YOUTUBE_DL_ADDON_LIB_PATH: str = None
+    TRAILER_INFO_DISPLAY_SECONDS: Final[int] = 60
+    TRAILER_INFO_DISPLAY_MILLISECONDS: Final[int] = 6000
+    SECONDS_BEFORE_RESHUFFLE: Final[int] = 1 * 60
+    PLAY_LIST_LOOKBACK_WINDOW_SIZE: Final[int] = 10
+    MAX_PLAY_TIME_WARNING_TIME: Final[int] = 5  # seconds
     # BACKEND_SERVICE = 'randomTrailers.backend'
-    FRONTEND_SERVICE = 'randomTrailers'
-    BACKEND_SERVICE = FRONTEND_SERVICE
-    SCREENSAVER_SERVICE = 'randomTrailers.screensaver.service'
-    ADDON_ID = 'script.video.randomtrailers'
-    FRONTEND_ID = ADDON_ID
+    FRONTEND_SERVICE: Final[str] = 'randomTrailers'
+    BACKEND_SERVICE: Final[str] = FRONTEND_SERVICE
+    SCREENSAVER_SERVICE: Final[str] = 'randomTrailers.screensaver.service'
+    ADDON_ID: Final[str] = 'script.video.randomtrailers'
+    FRONTEND_ID: Final[str] = ADDON_ID
     # BACKEND_ID = 'service.randomtrailers.backend'
-    BACKEND_ID = FRONTEND_ID
-    BLACK_VIDEO = ''
+    BACKEND_ID: Final[str] = FRONTEND_ID
+    BLACK_VIDEO: str = ''
 
-    FRONTEND_DATA_PATH = None
-    COUCH_POTATO_ID = 'plugin.video.couchpotato'
-    InitialGarbageCollectionTime = 10 * 60  # Ten minutes in seconds
+    FRONTEND_DATA_PATH: str = None
+    COUCH_POTATO_ID: Final[str] = 'plugin.video.couchpotato'
+    InitialGarbageCollectionTime: Final[int] = 10 * 60  # Ten minutes in seconds
     # Run daily garbage collection at 04:13 in the morning.
-    DailyGarbageCollectionTime = datetime.time(hour=4, minute=13)
-    HTTP_TOO_MANY_REQUESTS = 429
-    HTTP_UNAUTHORIZED = 401
-    TRACEBACK = 'LEAK Traceback StackTrace StackDump'
-    TRAILER_CACHE_FLUSH_SECONDS = 300  # Five minutes with changes
-    TRAILER_CACHE_FLUSH_UPDATES = 10  # Flush cache after n updates
+    DailyGarbageCollectionTime: datetime.time = datetime.time(hour=4, minute=13)
+    HTTP_TOO_MANY_REQUESTS: Final[int] = 429
+    HTTP_UNAUTHORIZED: Final[int] = 401
+    TRACEBACK: Final[str] = 'LEAK Traceback StackTrace StackDump'
+    TRAILER_CACHE_FLUSH_SECONDS: Final[int] = 300  # Five minutes with changes
+    TRAILER_CACHE_FLUSH_UPDATES: Final[int] = 10  # Flush cache after n updates
 
-    PLAY_STATISTICS_REPORT_PATH = None
+    PLAY_STATISTICS_REPORT_PATH: str = None
 
     # Altered to one month ago in static_init
-    CACHE_FILE_EXPIRED_TIME = datetime.MAXYEAR
-    PLAYLIST_PATH = ''
-    LOCALE = ''
+    CACHE_FILE_EXPIRED_TIME: int = datetime.MAXYEAR
+    PLAYLIST_PATH: str = ''
+    LOCALE: str = ''
 
-    plugin_short_names = {
+    plugin_short_names: Final[Dict[str, str]] = {
         'service.randomtrailers.backend': 'randomtrailers.backend',
         'script.video.randomtrailers.screensaver': 'randomtrailers.screensaver',
         'script.video.randomtrailers': 'randomtrailers'
     }
 
     @staticmethod
-    def static_init():
-        # type: () -> None
+    def static_init() -> None:
         """
             Assign calculated values
 
@@ -100,7 +100,8 @@ class Constants:
 
         Constants.YOUTUBE_DL_ADDON_UTIL = Addon('script.module.youtube.dl')
         Constants.YOUTUBE_DL_ADDON = Constants.YOUTUBE_DL_ADDON_UTIL.addon
-        Constants.YOUTUBE_DL_ADDON_PATH = xbmcvfs.translatePath(Constants.YOUTUBE_DL_ADDON_UTIL.PATH)
+        Constants.YOUTUBE_DL_ADDON_PATH = \
+            xbmcvfs.translatePath(Constants.YOUTUBE_DL_ADDON_UTIL.PATH)
         Constants.YOUTUBE_DL_ADDON_LIB_PATH = os.path.join(
             Constants.YOUTUBE_DL_ADDON_PATH, 'lib')
 
@@ -125,33 +126,34 @@ class Constants:
             f'special://profile/addon_data/{Constants.FRONTEND_ID}')
         Constants.PLAYLIST_PATH = os.path.join(Constants.USER_DATA_PATH,
                                                'playlists/video')
-        Constants.PLAY_STATISTICS_REPORT_PATH = os.path.join(Constants.FRONTEND_DATA_PATH,
-                                                             'debug', 'play_stats.txt')
+        Constants.PLAY_STATISTICS_REPORT_PATH = \
+            os.path.join(Constants.FRONTEND_DATA_PATH,
+                        'debug', 'play_stats.txt')
         Constants.LOCALE = locale.getdefaultlocale()
-        Constants.BLACK_VIDEO = os.path.join(Constants.MEDIA_PATH, 'solid-black.mkv')
+        Constants.BLACK_VIDEO = \
+            os.path.join(Constants.MEDIA_PATH, 'solid-black.mkv')
+
 
 Constants.static_init()
 
 
-# noinspection PyClassHasNoInit
 class RemoteTrailerPreference:
     """
         A few constants useful for trailers from remote sources (iTunes or
         TMDB). They likely should be moved to those classes.
     """
-    NEWEST = 0
-    OLDEST = 1
-    HIGHEST_RATED = 2
-    LOWEST_RATED = 3
-    MOST_VOTES = 4
-    LEAST_VOTES = 5
+    NEWEST: Final[int] = 0
+    OLDEST: Final[int] = 1
+    HIGHEST_RATED: Final[int] = 2
+    LOWEST_RATED: Final[int] = 3
+    MOST_VOTES: Final[int] = 4
+    LEAST_VOTES: Final[int] = 5
 
-    AVERAGE_VOTE_DONT_CARE = 0
-    AVERAGE_VOTE_GREATER_OR_EQUAL = 1
-    AVERAGE_VOTE_LESS_OR_EQUAL = 2
+    AVERAGE_VOTE_DONT_CARE: Final[int] = 0
+    AVERAGE_VOTE_GREATER_OR_EQUAL: Final[int] = 1
+    AVERAGE_VOTE_LESS_OR_EQUAL: Final[int] = 2
 
 
-# noinspection PyClassHasNoInit
 class Movie:
     """
         Defines constant values for Kodi trailer dict fields. Including some
@@ -300,39 +302,39 @@ List.Sort
     [ string method = "none" ]
     [ string order = "ascending" ]
     """
-    TITLE = 'title'
-    ORIGINAL_TITLE = 'originaltitle'
-    TRAILER = 'trailer'
-    LAST_PLAYED = 'lastplayed'
-    MPAA = 'mpaa'
-    FANART = 'fanart'
-    THUMBNAIL = 'thumbnail'
-    FILE = 'file'
-    YEAR = 'year'
-    WRITER = 'writer'
-    DIRECTOR = 'director'
-    CAST = 'cast'
-    PLOT = 'plot'
-    GENRE = 'genre'
-    STUDIO = 'studio'
-    MOVIEID = 'movieid'
-    LABEL = 'label'
-    RUNTIME = 'runtime'
-    TAG = 'tag'
-    UNIQUE_ID = 'uniqueid'
+    TITLE: Final[str] = 'title'
+    ORIGINAL_TITLE: Final[str] = 'originaltitle'
+    TRAILER: Final[str] = 'trailer'
+    LAST_PLAYED: Final[str] = 'lastplayed'
+    MPAA: Final[str] = 'mpaa'
+    FANART: Final[str] = 'fanart'
+    THUMBNAIL: Final[str] = 'thumbnail'
+    FILE: Final[str] = 'file'
+    YEAR: Final[str] = 'year'
+    WRITER: Final[str] = 'writer'
+    DIRECTOR: Final[str] = 'director'
+    CAST: Final[str] = 'cast'
+    PLOT: Final[str] = 'plot'
+    GENRE: Final[str] = 'genre'
+    STUDIO: Final[str] = 'studio'
+    MOVIEID: Final[str] = 'movieid'
+    LABEL: Final[str] = 'label'
+    RUNTIME: Final[str] = 'runtime'
+    TAG: Final[str] = 'tag'
+    UNIQUE_ID: Final[str] = 'uniqueid'
 
     # Some values for UNIQUE_ID field:
-    UNIQUE_ID_TMDB = 'tmdb'
-    UNIQUE_ID_UNKNOWN = 'unknown'
-    UNIQUE_ID_IMDB = 'imdb'
+    UNIQUE_ID_TMDB: Final[str] = 'tmdb'
+    UNIQUE_ID_UNKNOWN: Final[str] = 'unknown'
+    UNIQUE_ID_IMDB: Final[str] = 'imdb'
 
-    RELEASE_DATE = 'releasedate'
-    POSTER = 'poster'
-    POSTER_2X = 'poster_2x'
-    LOCATION = 'location'
-    RATING = 'rating'
-    ACTORS = 'actors'
-    VOTES = 'votes'
+    RELEASE_DATE: Final[str] = 'releasedate'
+    POSTER: Final[str] = 'poster'
+    POSTER_2X: Final[str] = 'poster_2x'
+    LOCATION: Final[str] = 'location'
+    RATING: Final[str] = 'rating'
+    ACTORS: Final[str] = 'actors'
+    VOTES: Final[str] = 'votes'
 
     # Properties invented by this plugin:
 
@@ -340,99 +342,99 @@ List.Sort
     # From TMDb
 
     # Probably don't need this field in kodi movie dict
-    ADULT = 'adult'
+    ADULT: Final[str] = 'adult'
 
-    TRAILER_TYPE = 'trailerType'
+    TRAILER_TYPE: Final[str] = 'trailerType'
     # TODO rename to trailerSource
-    SOURCE = 'source'
-    CACHED_TRAILER = 'cached_trailer'
-    NORMALIZED_TRAILER = 'normalized_trailer'
-    ORIGINAL_LANGUAGE = 'original_language'
-    LANGUAGE_INFORMATION_FOUND = 'language_information_found'
-    LANGUAGE_MATCHES = 'language_matches'
+    SOURCE: Final[str] = 'source'
+    CACHED_TRAILER: Final[str] = 'cached_trailer'
+    NORMALIZED_TRAILER: Final[str] = 'normalized_trailer'
+    ORIGINAL_LANGUAGE: Final[str] = 'original_language'
+    LANGUAGE_INFORMATION_FOUND: Final[str] = 'language_information_found'
+    LANGUAGE_MATCHES: Final[str] = 'language_matches'
 
-    VIDEO_TYPE_TRAILER = 'Trailer'
-    VIDEO_TYPE_FEATURETTE = 'Featurette'
-    VIDEO_TYPE_CLIP = 'Clip'
+    VIDEO_TYPE_TRAILER: Final[str] = 'Trailer'
+    VIDEO_TYPE_FEATURETTE: Final[str] = 'Featurette'
+    VIDEO_TYPE_CLIP: Final[str] = 'Clip'
 
-    ITUNES_ID = 'rts.appleId'
-    YOUTUBE_ID = 'rts.youtubeId'
-    TFH_ID = 'rts.tfhId'
-    TFH_TITLE = 'rts.tfh_title'
-    YOUTUBE_PLAYLIST_INDEX = 'rts.youtube_index'
-    YOUTUBE_TRAILERS_IN_PLAYLIST = 'rts.youtube.trailers_in_index'
+    ITUNES_ID: Final[str] = 'rts.appleId'
+    YOUTUBE_ID: Final[str] = 'rts.youtubeId'
+    TFH_ID: Final[str] = 'rts.tfhId'
+    TFH_TITLE: Final[str] = 'rts.tfh_title'
+    YOUTUBE_PLAYLIST_INDEX: Final[str] = 'rts.youtube_index'
+    YOUTUBE_TRAILERS_IN_PLAYLIST: Final[str] = 'rts.youtube.trailers_in_index'
 
     # Processed values for InfoDialog
-    DETAIL_ACTORS = 'rts.actors'
-    MAX_DISPLAYED_ACTORS = 6
-    DETAIL_DIRECTORS = 'rts.directors'
-    DETAIL_GENRES = 'rts.genres'
-    DETAIL_CERTIFICATION = 'rts.certification'
-    DETAIL_CERTIFICATION_IMAGE = 'rts.certificationImage'
-    DETAIL_RUNTIME = 'rts.runtime'
-    DETAIL_STUDIOS = 'rts.studios'
-    DETAIL_TITLE = 'rts.title'
-    DETAIL_WRITERS = 'rts.writers'
+    DETAIL_ACTORS: Final[str] = 'rts.actors'
+    MAX_DISPLAYED_ACTORS: Final[int] = 6
+    DETAIL_DIRECTORS: Final[str] = 'rts.directors'
+    DETAIL_GENRES: Final[str] = 'rts.genres'
+    DETAIL_CERTIFICATION: Final[str] = 'rts.certification'
+    DETAIL_CERTIFICATION_IMAGE: Final[str] = 'rts.certificationImage'
+    DETAIL_RUNTIME: Final[str] = 'rts.runtime'
+    DETAIL_STUDIOS: Final[str] = 'rts.studios'
+    DETAIL_TITLE: Final[str] = 'rts.title'
+    DETAIL_WRITERS: Final[str] = 'rts.writers'
 
     # For use with speech synthesis
-    MAX_VOICED_ACTORS = 3
-    VOICED_DETAIL_ACTORS = 'rts.voiced.actors'
-    MAX_VOICED_DIRECTORS = 2
-    VOICED_DETAIL_DIRECTORS = 'rts.voiced.directors'
-    MAX_VOICED_WRITERS = 2
-    VOICED_DETAIL_WRITERS = 'rts.voiced.writers'
-    MAX_VOICED_STUDIOS = 2
-    VOICED_DETAIL_STUDIOS = 'rts.voiced.studios'
+    MAX_VOICED_ACTORS: Final[int] = 3
+    VOICED_DETAIL_ACTORS: Final[str] = 'rts.voiced.actors'
+    MAX_VOICED_DIRECTORS: Final[int] = 2
+    VOICED_DETAIL_DIRECTORS: Final[str] = 'rts.voiced.directors'
+    MAX_VOICED_WRITERS: Final[int] = 2
+    VOICED_DETAIL_WRITERS: Final[str] = 'rts.voiced.writers'
+    MAX_VOICED_STUDIOS: Final[int] = 2
+    VOICED_DETAIL_STUDIOS: Final[str] = 'rts.voiced.studios'
 
     # Reference to corresponding movie dict entry
-    DETAIL_ENTRY = 'rts.movie.entry'
+    DETAIL_ENTRY: Final[str] = 'rts.movie.entry'
 
     # Source Values. Used to identify source database of movies. Also used to
     # identify discovery modules.
 
-    FOLDER_SOURCE = 'folder'
-    LIBRARY_SOURCE = 'library'
-    ITUNES_SOURCE = 'iTunes'
-    TMDB_SOURCE = 'TMDb'
-    TFH_SOURCE = 'TFH'
+    FOLDER_SOURCE: Final[str] = 'folder'
+    LIBRARY_SOURCE: Final[str] = 'library'
+    ITUNES_SOURCE: Final[str] = 'iTunes'
+    TMDB_SOURCE: Final[str] = 'TMDb'
+    TFH_SOURCE: Final[str] = 'TFH'
 
-    LIB_TMDB_ITUNES_SOURCES = (
+    LIB_TMDB_ITUNES_SOURCES: Tuple[str] = (
         LIBRARY_SOURCE, TMDB_SOURCE, ITUNES_SOURCE, TFH_SOURCE)
 
     # In addition to above source values, these are used to identify
     # discovery modules
 
-    LIBRARY_NO_TRAILER = 'library_no_trailer'
-    LIBRARY_URL_TRAILER = 'library_url_trailer'
+    LIBRARY_NO_TRAILER: Final[str] = 'library_no_trailer'
+    LIBRARY_URL_TRAILER: Final[str] = 'library_url_trailer'
 
     # Trailer Type values:
-    TMDB_TYPE = 'TMDB_type'
-    TMDB_PAGE = 'TMDB_page'  # For statistics, remember download page
-    TMDB_TOTAL_PAGES = 'TMDB_TOTAL_PAGES'  # For statistics
+    TMDB_TYPE: Final[str] = 'TMDB_type'
+    TMDB_PAGE: Final[str] = 'TMDB_page'  # For statistics, remember download page
+    TMDB_TOTAL_PAGES: Final[str] = 'TMDB_TOTAL_PAGES'  # For statistics
 
-    TMDB_TAGS = 'rts.tags'
-    TMDB_GENRE_IDS = 'rts.genre_ids'
-    TMDB_VOTE_AVERAGE = 'rts.tmdb_vote_average'
-    TMDB_IS_VIDEO = 'rts.tmdb_video'
-    TMDB_POPULARITY = 'rts.tmdb_popularity'
+    TMDB_TAGS: Final[str] = 'rts.tags'
+    TMDB_GENRE_IDS: Final[str] = 'rts.genre_ids'
+    TMDB_VOTE_AVERAGE: Final[str] = 'rts.tmdb_vote_average'
+    TMDB_IS_VIDEO: Final[str] = 'rts.tmdb_video'
+    TMDB_POPULARITY: Final[str] = 'rts.tmdb_popularity'
 
 
     # DISCOVERY_STATE element contains an ordered list of
     # states.The numeric prefix makes the values comparable like an
     # (poor man's) enum.
 
-    DISCOVERY_STATE = 'trailerDiscoveryState'
-    NOT_INITIALIZED = '00_not_initialized'
-    NOT_FULLY_DISCOVERED = '01_notFullyDiscovered'
-    TRAILER_DISCOVERY_IN_PROGRESS = '02_discoveryInProgress'
-    DISCOVERY_COMPLETE = '03_discoveryComplete'
-    DISCOVERY_READY_TO_DISPLAY = '04_discoveryReadyToDisplay'
+    DISCOVERY_STATE: Final[str] = 'trailerDiscoveryState'
+    NOT_INITIALIZED: Final[str] = '00_not_initialized'
+    NOT_FULLY_DISCOVERED: Final[str] = '01_notFullyDiscovered'
+    TRAILER_DISCOVERY_IN_PROGRESS: Final[str] = '02_discoveryInProgress'
+    DISCOVERY_COMPLETE: Final[str] = '03_discoveryComplete'
+    DISCOVERY_READY_TO_DISPLAY: Final[str] = '04_discoveryReadyToDisplay'
 
     # IN_FETCH_QUEUE is a boolean
-    IN_FETCH_QUEUE = 'in_fetch_queue'
+    IN_FETCH_QUEUE: Final[str] = 'in_fetch_queue'
 
     # TRAILER_PLAYED is a boolean field
-    TRAILER_PLAYED = 'trailerPlayed'
+    TRAILER_PLAYED: Final[str] = 'trailerPlayed'
 
     # TMDB_ID_NOT_FOUND is a boolean that is always True,
     # If present, then the TMDB id could not be found. Used to suppress
@@ -440,26 +442,26 @@ List.Sort
     # TMDB_ID value < 1, but at the time the refactoring would be too
     # disruptive.
 
-    TMDB_ID_NOT_FOUND = 'rts.tmdb_id_not_found'
+    TMDB_ID_NOT_FOUND: Final[str] = 'rts.tmdb_id_not_found'
 
     # Indicates whether this entry is from the TMDb cache
 
-    CACHED = 'cached'
+    CACHED: Final[str] = 'cached'
 
     # Reasons a TMDB movie was rejected
 
-    REJECTED = 'rts.rejected'  # Value is a List of the following reasons:
-    REJECTED_NO_TRAILER = 1
-    REJECTED_FILTER_GENRE = 2
-    REJECTED_FAIL = 3  # Request to TMDB failed
-    REJECTED_FILTER_DATE = 4
-    REJECTED_LANGUAGE = 5
-    REJECTED_CERTIFICATION = 6
-    REJECTED_ADULT = 7
-    REJECTED_VOTE = 8
-    REJECTED_TOO_MANY_TMDB_REQUESTS = 9
+    REJECTED: Final[str] = 'rts.rejected'  # Value is a List of the following reasons:
+    REJECTED_NO_TRAILER: Final[int] = 1
+    REJECTED_FILTER_GENRE: Final[int] = 2
+    REJECTED_FAIL: Final[int] = 3  # Request to TMDB failed
+    REJECTED_FILTER_DATE: Final[int] = 4
+    REJECTED_LANGUAGE: Final[int] = 5
+    REJECTED_CERTIFICATION: Final[int] = 6
+    REJECTED_ADULT: Final[int] = 7
+    REJECTED_VOTE: Final[int] = 8
+    REJECTED_TOO_MANY_TMDB_REQUESTS: Final[int] = 9
 
-    DEFAULT_MOVIE = {
+    DEFAULT_MOVIE: Dict[str, Any] = {
         DISCOVERY_STATE: NOT_INITIALIZED,
         TITLE: 'default_' + TITLE,
         ORIGINAL_TITLE: 'default_' + ORIGINAL_TITLE,
@@ -493,7 +495,7 @@ List.Sort
         DETAIL_STUDIOS: ['default_' + DETAIL_STUDIOS],
     }
 
-    TMDB_PAGE_DATA_FIELDS = [
+    TMDB_PAGE_DATA_FIELDS: Final[List[str]] = [
         TRAILER,
         SOURCE,
         TITLE,
@@ -508,7 +510,7 @@ List.Sort
         TMDB_PAGE,
         TMDB_TOTAL_PAGES]
 
-    TMDB_ENTRY_FIELDS = [
+    TMDB_ENTRY_FIELDS: Final[List[str]] = [
         ADULT,
         #  "alternative_titles",
         "backdrop_path",
@@ -548,33 +550,34 @@ class iTunes:
         Defines constants that apply to iTunes
     """
     #"Coming Soon|Just Added|Popular|Exclusive|All"
-    COMING_SOON = 0
-    JUST_ADDED = 1
-    POPULAR = 2
-    EXCLUSIVE = 3
-    ALL = 4
+    COMING_SOON: Final[int] = 0
+    JUST_ADDED: Final[int] = 1
+    POPULAR: Final[int] = 2
+    EXCLUSIVE: Final[int] = 3
+    ALL: Final[int] = 4
 
-    COMING_SOON_URL = '/trailers/home/feeds/studios.json'
-    JUST_ADDED_URL = '/trailers/home/feeds/just_added.json'
-    POPULAR_URL = '/trailers/home/feeds/most_pop.json'
-    EXCLUSIVE_URL = '/trailers/home/feeds/exclusive.json'
-    ALL_URL = '/trailers/home/feeds/studios.json'
+    COMING_SOON_URL: Final[str] = '/trailers/home/feeds/studios.json'
+    JUST_ADDED_URL: Final[str] = '/trailers/home/feeds/just_added.json'
+    POPULAR_URL: Final[str] = '/trailers/home/feeds/most_pop.json'
+    EXCLUSIVE_URL: Final[str] = '/trailers/home/feeds/exclusive.json'
+    ALL_URL: Final[str] = '/trailers/home/feeds/studios.json'
 
-    _trailerForTypeMap = {COMING_SOON: COMING_SOON_URL,
-                          JUST_ADDED: JUST_ADDED_URL,
-                          POPULAR: POPULAR_URL,
-                          EXCLUSIVE: EXCLUSIVE_URL,
-                          ALL: ALL_URL}
+    _trailerForTypeMap: Final[Dict[str, str]] =\
+        {COMING_SOON: COMING_SOON_URL,
+         JUST_ADDED: JUST_ADDED_URL,
+         POPULAR: POPULAR_URL,
+         EXCLUSIVE: EXCLUSIVE_URL,
+         ALL: ALL_URL}
 
     @staticmethod
-    def get_url_for_trailer_type(trailerType):
-        # type: (int) -> str
-        url = iTunes._trailerForTypeMap.get(trailerType, None)
+    def get_url_for_trailer_type(trailer_type: Final[str]) -> str:
+        url: str = iTunes._trailerForTypeMap.get(trailer_type, None)
         return url
 
 
 class TFH:
-    TITLE_RE = re.compile(r'(([A-Z0-9.!?_$#-]) ?[A-Zc0-9.!?_#&@:$\'" -]*$)')
+    TITLE_RE: Final[Pattern] = \
+        re.compile(r'(([A-Z0-9.!?_$#-]) ?[A-Zc0-9.!?_#&@:$\'" -]*$)')
 
 
 """
@@ -611,67 +614,65 @@ class TMDB:
 class GenreEnum:
     # Possible values returned by settings.xml
 
-    IGNORE = 0  # This Genre will be ignored in filtering
-    INCLUDE = 1  # Genre filter will include this genre in an OR fashion
-    EXCLUDE = 2  # Genre filter will exclude this genre in an OR fashion
-
-# noinspection PyClassHasNoInit
+    IGNORE: Final[int] = 0  # This Genre will be ignored in filtering
+    INCLUDE: Final[int] = 1  # Genre filter will include this genre in an OR fashion
+    EXCLUDE: Final[int] = 2  # Genre filter will exclude this genre in an OR fashion
 
 
 class GenreConstants:
     # Ids used in settings.xml
-    ACTION = 'g_action'
-    ALEGORY = 'g_alegory'  # NOT USED
-    ANTHOLOGY = 'ganthology'  # not used
-    ADVENTURE = 'g_adventure'
-    ANIMATION = 'g_animation'
-    BIOGRAPHY = 'g_biography'
-    CHILDRENS = 'g_childrens'  # not used
-    COMEDY = 'g_comedy'
-    CRIME = 'g_crime'
-    DARK_COMEDY = 'g_black_comedy'
-    DOCUMENTARY = 'g_docu'
-    DRAMA = 'g_drama'
-    EPIC = 'g_epic'
-    EXPERIMENTAL = 'g_experimental'  # not used
-    FAMILY = 'g_family'
-    FANTASY = 'g_fantasy'
-    FILM_NOIR = 'g_film_noir'
-    FOREIGN = 'g_foreign'  # not used
-    GAME_SHOW = 'g_game_show'  # not used
-    HISTORY = 'g_history'
-    HORROR = 'g_horror'
-    MELODRAMA = 'g_melodrama'
-    MUSIC = 'g_music'
-    MUSICAL = 'g_musical'
-    MUSICAL_COMEDY = 'g_musical_comedy'
-    MYSTERY = 'g_mystery'
-    PERFORMANCE = 'g_performance'  # not used
-    PRE_CODE = 'g_pre_code'
-    ROMANCE = 'g_romance'
-    ROMANTIC_COMEDY = 'g_romantic_comedy'
-    SATIRE = 'g_satire'
-    SCI_FI = 'g_scifi'
-    SCREWBALL_COMEDY = 'g_screwball'
-    SWASHBUCKLER = 'g_swashbuckler'
-    THRILLER = 'g_thriller'
-    TV_MOVIE = 'g_tv_movie'
-    VARIETY = 'g_variety'  # Not used
-    WAR = 'g_war'
-    WAR_DOCUMENTARY = 'g_war_documentary'
-    WESTERN = 'g_western'
+    ACTION: Final[str] = 'g_action'
+    ALEGORY: Final[str] = 'g_alegory'  # NOT USED
+    ANTHOLOGY: Final[str] = 'ganthology'  # not used
+    ADVENTURE: Final[str] = 'g_adventure'
+    ANIMATION: Final[str] = 'g_animation'
+    BIOGRAPHY: Final[str] = 'g_biography'
+    CHILDRENS: Final[str] = 'g_childrens'  # not used
+    COMEDY: Final[str] = 'g_comedy'
+    CRIME: Final[str] = 'g_crime'
+    DARK_COMEDY: Final[str] = 'g_black_comedy'
+    DOCUMENTARY: Final[str] = 'g_docu'
+    DRAMA: Final[str] = 'g_drama'
+    EPIC: Final[str] = 'g_epic'
+    EXPERIMENTAL: Final[str] = 'g_experimental'  # not used
+    FAMILY: Final[str] = 'g_family'
+    FANTASY: Final[str] = 'g_fantasy'
+    FILM_NOIR: Final[str] = 'g_film_noir'
+    FOREIGN: Final[str] = 'g_foreign'  # not used
+    GAME_SHOW: Final[str] = 'g_game_show'  # not used
+    HISTORY: Final[str] = 'g_history'
+    HORROR: Final[str] = 'g_horror'
+    MELODRAMA: Final[str] = 'g_melodrama'
+    MUSIC: Final[str] = 'g_music'
+    MUSICAL: Final[str] = 'g_musical'
+    MUSICAL_COMEDY: Final[str] = 'g_musical_comedy'
+    MYSTERY: Final[str] = 'g_mystery'
+    PERFORMANCE: Final[str] = 'g_performance'  # not used
+    PRE_CODE: Final[str] = 'g_pre_code'
+    ROMANCE: Final[str] = 'g_romance'
+    ROMANTIC_COMEDY: Final[str] = 'g_romantic_comedy'
+    SATIRE: Final[str] = 'g_satire'
+    SCI_FI: Final[str] = 'g_scifi'
+    SCREWBALL_COMEDY: Final[str] = 'g_screwball'
+    SWASHBUCKLER: Final[str] = 'g_swashbuckler'
+    THRILLER: Final[str] = 'g_thriller'
+    TV_MOVIE: Final[str] = 'g_tv_movie'
+    VARIETY: Final[str] = 'g_variety'  # Not used
+    WAR: Final[str] = 'g_war'
+    WAR_DOCUMENTARY: Final[str] = 'g_war_documentary'
+    WESTERN: Final[str] = 'g_western'
 
 
 class DebugLevel:
     """
 
     """
-    FATAL = '00_Fatal'
-    SEVERE = '01_Severe'
-    ERROR = '02_Error'
-    WARNING = '03_Warning'
-    NOTICE = '04_Notice'
-    INFO = '05_Info'
-    DEBUG_EXTRA_VERBOSE = '06_Debug_Extra_Verbose'
-    DEBUG_VERBOSE = '07_Debug_Verbose'
-    DEBUG = '08_Debug'
+    FATAL: Final[str] = '00_Fatal'
+    SEVERE: Final[str] = '01_Severe'
+    ERROR: Final[str] = '02_Error'
+    WARNING: Final[str] = '03_Warning'
+    NOTICE: Final[str] = '04_Notice'
+    INFO: Final[str] = '05_Info'
+    DEBUG_EXTRA_VERBOSE: Final[str] = '06_Debug_Extra_Verbose'
+    DEBUG_VERBOSE: Final[str] = '07_Debug_Verbose'
+    DEBUG: Final[str] = '08_Debug'

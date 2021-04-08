@@ -13,7 +13,7 @@ from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
 from common.logger import (Trace, LazyLogger)
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class PlayStatistics:
@@ -21,15 +21,13 @@ class PlayStatistics:
 
     """
     logger: LazyLogger = None
-    _total_removed = 0
-    _play_count = dict()
+    _total_removed: int = 0
+    _play_count: Dict[str, int] = dict()
     _key_to_movie: Dict[str, MovieType] = {}
-    _lock = threading.RLock()
+    _lock: threading.RLock = threading.RLock()
     _number_of_added_movies = 0
     report: io.TextIOBase = None
     _first_call: bool = True
-
-    # _movie_source = None
 
     @classmethod
     def init_class(cls) -> None:
@@ -43,8 +41,7 @@ class PlayStatistics:
             clz.logger = module_logger.getChild(clz.__name__)
 
     @classmethod
-    def clear(cls):
-        # type: () -> None
+    def clear(cls) -> None:
         """
 
         :return:
@@ -55,8 +52,7 @@ class PlayStatistics:
             cls._number_of_added_movies = 0
 
     @classmethod
-    def add(cls, movie):
-        # type: (MovieType) -> None
+    def add(cls, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -73,8 +69,7 @@ class PlayStatistics:
             cls._number_of_added_movies += 1
 
     @classmethod
-    def get_play_count(cls, movie):
-        # type: (MovieType) -> int
+    def get_play_count(cls, movie: MovieType) -> int:
         """
 
         :param movie:
@@ -194,7 +189,7 @@ class PlayStatistics:
         except Exception as e:
             clz.logger.exception('')
 
-    MAX_LINE_LENGTH = 80
+    MAX_LINE_LENGTH: Final[int] = 80
 
     @classmethod
     def wrap_text(cls, movies_with_same_count: List[str],

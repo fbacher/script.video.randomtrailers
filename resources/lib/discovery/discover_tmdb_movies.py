@@ -30,28 +30,27 @@ from common.rating import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.tmdb_movie_data import TMDBMovieData
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator
 class DiscoverTmdbMovies(BaseDiscoverMovies):
     """
         TMDB, like iTunes, provides trailers. Query TMDB for trailers
         and manufacture trailer entries for them.
     """
 
-    MOVIES_PER_PAGE = 20
+    MOVIES_PER_PAGE: Final[int] = 20
 
-    _singleton_instance = None
-    logger: LazyLogger = None
+    _singleton_instance: ForwardRef('DiscoverTmdbMovies') = None
+    logger: ClassVar[LazyLogger] = None
 
     def __init__(self) -> None:
         """
 
         """
-        local_class = DiscoverTmdbMovies
-        local_class.logger = module_logger.getChild(local_class.__name__)
-        thread_name = 'Disc TMDB'
+        local_class: 'DiscoverTmdbMovies' = DiscoverTmdbMovies
+        local_class.logger: LazyLogger = module_logger.getChild(local_class.__name__)
+        thread_name = 'Discover TMDB'
         kwargs = {Movie.SOURCE: Movie.TMDB_SOURCE}
 
         super().__init__(group=None, target=None, thread_name=thread_name,
@@ -160,7 +159,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         try:
             Monitor.throw_exception_if_abort_requested()
-            tmdb_trailer_type = TmdbSettings.get_instance().get_trailer_type()
+            tmdb_trailer_type = TmdbSettings.get_trailer_type()
 
             #
             # TMDB accepts iso-639-1 but adding an iso-3166- suffix
@@ -204,8 +203,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             self._remote_trailer_preference = Settings.get_tmdb_trailer_preference()
             self._vote_comparison, self._vote_value = Settings.get_tmdb_avg_vote_preference()
-            self._rating_limit_string = TmdbSettings.get_instance(
-                                        ).get_rating_limit_string_from_setting()
+            self._rating_limit_string = \
+                TmdbSettings.get_rating_limit_string_from_setting()
 
             # Trailers may be sparse for old movies. Could implement a max# of trailers,
             # but that is done much later in the pipeline
@@ -1631,8 +1630,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             self._total_pages = total_pages
             self._viewed_page = viewed_page
 
-        def get_total_pages(self):
-            # type: () -> Union[int, None]
+        def get_total_pages(self) -> Union[int, None]:
             """
 
             :return:
@@ -1778,8 +1776,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             return movies
 
-    def get_delay(self):
-        # type: () -> int
+    def get_delay(self) -> int:
         """
         Gets the delay (in seconds) to wait before querying the database.
         Delay is based upon how many read and how many unprocessed.
@@ -1815,8 +1812,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 trace=Trace.TRACE_DISCOVERY)
         return int(delay)
 
-    def cache_results(self, query_data, movies):
-        # type: (List, List[MovieType]) -> None
+    def cache_results(self, query_data: List, movies: List[MovieType]) -> None:
         """
 
         :param query_data:

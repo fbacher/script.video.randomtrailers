@@ -26,8 +26,9 @@ class MovieEntryUtils:
     _logger = None
 
     @classmethod
-    def _class_init(cls) -> None:
-        cls._logger = module_logger.getChild(cls.__name__)
+    def class_init(cls) -> None:
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def get_tmdb_id(cls, movie: MovieType) -> Union[int, None]:
@@ -120,8 +121,6 @@ class MovieEntryUtils:
         if tmdb_id is not None:
             tmdb_id_int = int(tmdb_id)
         return tmdb_id_int
-
-        # noinspection SyntaxError
 
     @classmethod
     def get_alternate_titles(cls,
@@ -333,4 +332,4 @@ class MovieEntryUtils:
 
 
 # Initialize logger
-MovieEntryUtils._class_init()
+MovieEntryUtils.class_init()

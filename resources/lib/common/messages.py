@@ -10,7 +10,7 @@ from common.imports import *
 from common.constants import Movie, Constants
 from common.logger import LazyLogger
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class Messages:
@@ -19,91 +19,91 @@ class Messages:
     messages.
     """
 
-    TRAILER_EXCEEDS_MAX_PLAY_TIME = 'This trailer exceeds the maximum play time.' \
+    TRAILER_EXCEEDS_MAX_PLAY_TIME: Final[str] = 'This trailer exceeds the maximum play time.' \
                                     ' Terminating'
-    TMDB_LABEL = 'TMDb'  # Offical name
-    ITUNES_LABEL = 'iTunes'  # VERIFY
-    MISSING_TITLE = 'Missing movie title'
-    MISSING_DETAIL = 'Unavailable'
-    CAN_NOT_READ_FILE = 'Can not read file: %s'
-    CAN_NOT_WRITE_FILE = 'Can not write file: %s'
-    NO_TRAILERS_TO_PLAY = 'There are no trailers to play'
-    HEADING_INFO = 'Info'
-    NO_MOVIE_TO_PLAY = 'There is no movie associated with this trailer to play'
-    HEADER_IDLE = 'Idle'
-    PLAYER_IDLE = 'Waiting to play next group of trailers'
-    UNLIMITED = 'unlimited'
-    NO_MORE_MOVIE_HISTORY = 'No previous movie to play'
-    PLAYING_PREVIOUS_MOVIE = 'Playing: %s'
-    GENRE_LABEL = 'Genre: '
-    MINUTES_DETAIL = '{} [B]Minutes[/B] - '
-    RUNTIME_GENRE = '{} [B]Genre:[/B]'
-    TITLE_LABEL = 'Title'
-    DIRECTOR_LABEL = 'Director'
-    WRITER_LABEL = 'Writer'
-    STARS_LABEL = 'Stars'
-    PLOT_LABEL = 'Plot'
-    LICENSE_LABEL = 'Random Trailers is powered by:'
-    TFH_LICENSE = 'TFH_LICENSE'
-    TMDB_LICENSE = 'TMDB_LICENSE'
+    TMDB_LABEL: Final[str] = 'TMDb'  # Offical name
+    ITUNES_LABEL: Final[str] = 'iTunes'  # VERIFY
+    MISSING_TITLE: Final[str] = 'Missing movie title'
+    MISSING_DETAIL: Final[str] = 'Unavailable'
+    CAN_NOT_READ_FILE: Final[str] = 'Can not read file: %s'
+    CAN_NOT_WRITE_FILE: Final[str] = 'Can not write file: %s'
+    NO_TRAILERS_TO_PLAY: Final[str] = 'There are no trailers to play'
+    HEADING_INFO: Final[str] = 'Info'
+    NO_MOVIE_TO_PLAY: Final[str] = 'There is no movie associated with this trailer to play'
+    HEADER_IDLE: Final[str] = 'Idle'
+    PLAYER_IDLE: Final[str] = 'Waiting to play next group of trailers'
+    UNLIMITED: Final[str] = 'unlimited'
+    NO_MORE_MOVIE_HISTORY: Final[str] = 'No previous movie to play'
+    PLAYING_PREVIOUS_MOVIE: Final[str] = 'Playing: %s'
+    GENRE_LABEL: Final[str] = 'Genre: '
+    MINUTES_DETAIL: Final[str] = '{} [B]Minutes[/B] - '
+    RUNTIME_GENRE: Final[str] = '{} [B]Genre:[/B]'
+    TITLE_LABEL: Final[str] = 'Title'
+    DIRECTOR_LABEL: Final[str] = 'Director'
+    WRITER_LABEL: Final[str] = 'Writer'
+    STARS_LABEL: Final[str] = 'Stars'
+    PLOT_LABEL: Final[str] = 'Plot'
+    LICENSE_LABEL: Final[str] = 'Random Trailers is powered by:'
+    TFH_LICENSE: Final[str] = 'TFH_LICENSE'
+    TMDB_LICENSE: Final[str] = 'TMDB_LICENSE'
 
-    GENRE_ACTION = 'Action'
-    GENRE_ALEGORY = 'Allegory'
-    GENRE_ANTHOLOGY = 'Anthology'
-    GENRE_ADVENTURE = 'Adventure'
-    GENRE_ANIMATION = 'Animation'
-    GENRE_BIOGRAPHY = 'Biography'
-    GENRE_BLACK_COMEDY = 'Black Comedy'
-    GENRE_CHILDRENS = 'Children\'s'
-    GENRE_COMEDY = 'Comedy'
-    GENRE_COMEDY_DRAMA = 'Comedy Drama'
-    GENRE_CRIME = 'Crime'
-    GENRE_DOCUMENTARY = 'Documentary'
-    GENRE_DRAMA = 'Drama'
-    GENRE_EPIC = 'Epic'
-    GENRE_EXPERIMENTAL = 'Experimental'
-    GENRE_FAMILY = 'Family'
-    GENRE_FANTASY = 'Fantasy'
-    GENRE_FILM_NOIR = 'Film Noir'
-    GENRE_GAME_SHOW = 'Game Show'
-    GENRE_HISTORY = 'History'
-    GENRE_HORROR = 'Horror'
-    GENRE_MELODRAMA = 'Melodrama'
-    GENRE_MUSIC = 'Music'
-    GENRE_MUSICAL = 'Musical'
-    GENRE_MUSICAL_COMEDY = 'Musical Comedy'
-    GENRE_MYSTERY = 'Mystery'
-    GENRE_PERFORMANCE = 'Performance'
-    GENRE_PRE_CODE = 'Pre-Code'
-    GENRE_ROMANCE = 'Romance'
-    GENRE_ROMANCE_COMEDY = 'Romance Comedy'
-    GENRE_SATIRE = 'Satire'
-    GENRE_SCIENCE_FICTION = 'Science Fiction'
-    GENRE_SCREWBALL_COMEDY = 'Screwball Comedy'
-    GENRE_SWASHBUCKLER = 'Schwashbuckler'
-    GENRE_THRILLER = 'Thriller'
-    GENRE_TV_MOVIE = 'TV Movie'
-    GENRE_VARIETY = 'Variety'
-    GENRE_WAR = 'War'
-    GENRE_WAR_DOCUMENTARY = 'War Documentary'
-    GENRE_WESTERN = 'Western'
-    MOVIE_ADDED_TO_PLAYLIST = 'Movie added to playlist: {}'
-    MOVIE_ALREADY_ON_PLAYLIST = 'Movie already in playlist: {}'
-    SETTING_INCLUDE_THREAD_INFORMATION = "Include thread information"
-    RATING = 'Rating {}'
-    RATING_G = 'G'
-    RATING_PG = 'PG'
-    RATING_PG_13 = 'PG-13'
-    RATING_R = 'R'
-    RATING_NC_17 = 'NC-17'
-    RATING_NR = 'Unrated'
+    GENRE_ACTION: Final[str] = 'Action'
+    GENRE_ALEGORY: Final[str] = 'Allegory'
+    GENRE_ANTHOLOGY: Final[str] = 'Anthology'
+    GENRE_ADVENTURE: Final[str] = 'Adventure'
+    GENRE_ANIMATION: Final[str] = 'Animation'
+    GENRE_BIOGRAPHY: Final[str] = 'Biography'
+    GENRE_BLACK_COMEDY: Final[str] = 'Black Comedy'
+    GENRE_CHILDRENS: Final[str] = 'Children\'s'
+    GENRE_COMEDY: Final[str] = 'Comedy'
+    GENRE_COMEDY_DRAMA: Final[str] = 'Comedy Drama'
+    GENRE_CRIME: Final[str] = 'Crime'
+    GENRE_DOCUMENTARY: Final[str] = 'Documentary'
+    GENRE_DRAMA: Final[str] = 'Drama'
+    GENRE_EPIC: Final[str] = 'Epic'
+    GENRE_EXPERIMENTAL: Final[str] = 'Experimental'
+    GENRE_FAMILY: Final[str] = 'Family'
+    GENRE_FANTASY: Final[str] = 'Fantasy'
+    GENRE_FILM_NOIR: Final[str] = 'Film Noir'
+    GENRE_GAME_SHOW: Final[str] = 'Game Show'
+    GENRE_HISTORY: Final[str] = 'History'
+    GENRE_HORROR: Final[str] = 'Horror'
+    GENRE_MELODRAMA: Final[str] = 'Melodrama'
+    GENRE_MUSIC: Final[str] = 'Music'
+    GENRE_MUSICAL: Final[str] = 'Musical'
+    GENRE_MUSICAL_COMEDY: Final[str] = 'Musical Comedy'
+    GENRE_MYSTERY: Final[str] = 'Mystery'
+    GENRE_PERFORMANCE: Final[str] = 'Performance'
+    GENRE_PRE_CODE: Final[str] = 'Pre-Code'
+    GENRE_ROMANCE: Final[str] = 'Romance'
+    GENRE_ROMANCE_COMEDY: Final[str] = 'Romance Comedy'
+    GENRE_SATIRE: Final[str] = 'Satire'
+    GENRE_SCIENCE_FICTION: Final[str] = 'Science Fiction'
+    GENRE_SCREWBALL_COMEDY: Final[str] = 'Screwball Comedy'
+    GENRE_SWASHBUCKLER: Final[str] = 'Schwashbuckler'
+    GENRE_THRILLER: Final[str] = 'Thriller'
+    GENRE_TV_MOVIE: Final[str] = 'TV Movie'
+    GENRE_VARIETY: Final[str] = 'Variety'
+    GENRE_WAR: Final[str] = 'War'
+    GENRE_WAR_DOCUMENTARY: Final[str] = 'War Documentary'
+    GENRE_WESTERN: Final[str] = 'Western'
+    MOVIE_ADDED_TO_PLAYLIST: Final[str] = 'Movie added to playlist: {}'
+    MOVIE_ALREADY_ON_PLAYLIST: Final[str] = 'Movie already in playlist: {}'
+    SETTING_INCLUDE_THREAD_INFORMATION: Final[str] = "Include thread information"
+    RATING: Final[str] = 'Rating {}'
+    RATING_G: Final[str] = 'G'
+    RATING_PG: Final[str] = 'PG'
+    RATING_PG_13: Final[str] = 'PG-13'
+    RATING_R: Final[str] = 'R'
+    RATING_NC_17: Final[str] = 'NC-17'
+    RATING_NR: Final[str] = 'Unrated'
 
     # VOICED messages are spoken via TTS engine when available
 
-    VOICED_CERTIFICATION = 'MPAA rating {}'
-    VOICED_STARS = '{} out of five stars'
+    VOICED_CERTIFICATION: Final[str] = 'MPAA rating {}'
+    VOICED_STARS: Final[str] = '{} out of five stars'
 
-    _msg_id_for_name = {
+    _msg_id_for_name: Final[Dict[str, int]] = {
         TRAILER_EXCEEDS_MAX_PLAY_TIME: 32180,
         TMDB_LABEL: 32181,
         ITUNES_LABEL: 32182,
@@ -185,25 +185,16 @@ class Messages:
     }
 
     _instance = None
-    _debug_dump = False
-    _logger = None
+    _debug_dump: bool = False
+    _logger: LazyLogger = None
 
-    def __init__(self) -> None:
+    @classmethod
+    def class_init(cls) -> None:
         """
 
         """
-        type(self)._logger = module_logger.getChild(type(self).__name__)
-
-    @staticmethod
-    def get_instance():
-        #  type: () -> Messages
-        """
-
-        :return:
-        """
-        if Messages._instance is None:
-            Messages._instance = Messages()
-        return Messages._instance
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def get_msg(cls, msg_key: str) -> str:
@@ -224,6 +215,8 @@ class Messages:
         :param args
         :return:
         """
+        cls.class_init()  # Ensure initialized
+
         if Messages._debug_dump:
             for msg_number in range(32000, 32300):
                 unformatted_msg = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
@@ -275,6 +268,7 @@ class Messages:
         :param movie:
         :return:
         """
+
         trailer_type = movie.get(Movie.TRAILER_TYPE, '')
 
         year = str(movie.get(Movie.YEAR, ''))
@@ -291,6 +285,3 @@ class Messages:
                         sources + ' ' + trailer_type)
         return title_string
 
-
-# Initialize logger
-message_instance = Messages.get_instance()

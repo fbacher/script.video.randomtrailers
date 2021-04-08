@@ -19,10 +19,9 @@ from common.rating import WorldCertifications
 from common.settings import Settings
 from common.monitor import Monitor
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection PyClassHasNoInit
 class Debug:
     """
         Define several methods useful for debugging

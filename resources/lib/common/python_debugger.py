@@ -15,14 +15,14 @@ import xbmcaddon
 
 
 class PythonDebugger:
-    REMOTE_DEBUG = True
-    START_IN_SEPARATE_THREAD = True
-    SUSPEND = True
-    WAIT_FOR_READY_TO_RUN = SUSPEND
+    REMOTE_DEBUG: bool = True
+    START_IN_SEPARATE_THREAD: bool = True
+    SUSPEND: bool = False
+    WAIT_FOR_READY_TO_RUN: bool = SUSPEND
     pydevd_addon_path: str = None
     plugin_name: str = ''
     remote_debug: bool = False
-    
+
     @classmethod
     def enable(cls, plugin_name: str) -> bool:
         try:
@@ -40,7 +40,7 @@ class PythonDebugger:
                 if cls.START_IN_SEPARATE_THREAD:
                     thread = threading.Thread(
                         target=cls._enable,
-                        name= cls.plugin_name + 'pydevd startup thread')
+                        name=cls.plugin_name + 'pydevd startup thread')
                     thread.start()
                 else:
                     cls._enable()
@@ -188,4 +188,5 @@ class PythonDebugger:
                     xbmc.LOGDEBUG)
                 cls.remote_debug = False
 
-        xbmc.log(f"PythonDebugger {cls.plugin_name}: " + str(cls.remote_debug), xbmc.LOGDEBUG)
+        xbmc.log(f"PythonDebugger {cls.plugin_name}: " +
+                 str(cls.remote_debug), xbmc.LOGDEBUG)

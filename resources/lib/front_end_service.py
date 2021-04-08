@@ -7,7 +7,7 @@ Created on Feb 12, 2019
 '''
 
 from common.python_debugger import PythonDebugger
-REMOTE_DEBUG: bool = True
+REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.frontend')
 

@@ -18,10 +18,9 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.settings import Settings
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection PyClassHasNoInit
 class Utils:
     """
 
@@ -33,8 +32,7 @@ class Utils:
     _logger = module_logger.getChild('Utils')
 
     @staticmethod
-    def create_path_if_needed(path):
-        # type: (str) -> None
+    def create_path_if_needed(path: str) -> None:
         """
 
         :param path:
@@ -48,8 +46,7 @@ class Utils:
             Utils._logger.exception('')
 
     @staticmethod
-    def is_url(path):
-        # tpe: (str) -> bool
+    def is_url(path: str) -> bool:
         """
 
         :param path:
@@ -68,8 +65,7 @@ class Utils:
         return False
 
     @staticmethod
-    def is_couch_potato_installed():
-        # type: () -> bool
+    def is_couch_potato_installed() -> bool:
         """
 
         :return:

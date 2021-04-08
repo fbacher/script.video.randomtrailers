@@ -19,7 +19,7 @@ from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.settings import Settings
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class UsageData:
@@ -33,20 +33,19 @@ class UsageData:
         :param cache_name
         :param pattern
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
-        self._cache_name = cache_name
+        self._logger: LazyLogger = module_logger.getChild(self.__class__.__name__)
+        self._cache_name: str = cache_name
         self._pattern: Pattern[str] = pattern
-        self._aggregate_cache_file_size = 0
-        self._aggregate_deleted_size = 0
-        self._deleted_files = 0
-        self._total_size = None
-        self._free_size = None
-        self._used_space = None
-        self._block_size = None
+        self._aggregate_cache_file_size: int = 0
+        self._aggregate_deleted_size: int = 0
+        self._deleted_files: int = 0
+        self._total_size: int = None
+        self._free_size: int = None
+        self._used_space: int = None
+        self._block_size: int = None
         self._file_data: Dict[str, FileData] = {}
 
-    def set_total_size(self, total_size):
-        # type: (int) -> None
+    def set_total_size(self, total_size: int) -> None:
         """
 
         :param total_size:
@@ -54,16 +53,14 @@ class UsageData:
         """
         self._total_size = total_size
 
-    def get_total_size(self):
-        # type () -> int
+    def get_total_size(self) -> int:
         """
             Gets the total disk space on device
         :return:
         """
         return self._total_size
 
-    def set_free_size(self, free_size):
-        # type: (int) -> None
+    def set_free_size(self, free_size: int) -> None:
         """
 
         :param free_size:
@@ -71,8 +68,7 @@ class UsageData:
         """
         self._free_size = free_size
 
-    def get_free_size(self):
-        # type () -> int
+    def get_free_size(self) -> int:
         """
             Gets the free space on device
 
@@ -80,8 +76,7 @@ class UsageData:
         """
         return self._free_size
 
-    def set_used_space(self, used_space):
-        # type: (int) -> None
+    def set_used_space(self, used_space: int) -> None:
         """
 
         :param used_space:
@@ -89,16 +84,14 @@ class UsageData:
         """
         self._used_space = used_space
 
-    def get_used_space(self):
-        # type: () -> int
+    def get_used_space(self) -> int:
         """
             Gets the used space on device
         :return:
         """
         return self._used_space
 
-    def set_block_size(self, block_size):
-        # type: (int) -> None
+    def set_block_size(self, block_size: int) -> None:
         """
 
         :param block_size:
@@ -106,8 +99,7 @@ class UsageData:
         """
         self._block_size = block_size
 
-    def get_block_size(self):
-        # type: () -> int
+    def get_block_size(self) -> int:
         """
             Gets the block size of device
 
@@ -115,16 +107,14 @@ class UsageData:
         """
         return self._block_size
 
-    def get_number_of_files(self):
-        # type: () -> int
+    def get_number_of_files(self) -> int:
         """
             Gets the number of Files within the original search path
         :return:
         """
         return int(len(self._file_data))
 
-    def add_to_disk_used_by_cache(self, additional_size):
-        # type: (int) -> None
+    def add_to_disk_used_by_cache(self, additional_size: int) -> None:
         """
 
         :param additional_size:
@@ -132,16 +122,14 @@ class UsageData:
         """
         self._aggregate_cache_file_size += additional_size
 
-    def get_disk_used_by_cache(self):
-        # type: () -> int
+    def get_disk_used_by_cache(self) -> int:
         """
 
         :return:
         """
         return int(self._aggregate_cache_file_size)
 
-    def add_to_disk_deleted(self, deleted_size):
-        # type: (int) -> None
+    def add_to_disk_deleted(self, deleted_size: int) -> None:
         """
 
         :param deleted_size:

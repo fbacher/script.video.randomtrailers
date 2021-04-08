@@ -40,9 +40,9 @@ from common.settings import Settings
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
-TMDB_SOURCE = 'tmdb'
-IMDB_SOURCE = 'imdb'
-ITUNES_SOURCE = 'itunes'
+TMDB_SOURCE: Final[str] = 'tmdb'
+IMDB_SOURCE: Final[str] = 'imdb'
+ITUNES_SOURCE: Final[str] = 'itunes'
 
 
 class _KodiToExternalDBMapping:
@@ -85,7 +85,6 @@ class _KodiToExternalDBMapping:
         return self._external_id
 
 
-# noinspection Annotator
 class _TagEntry(_KodiToExternalDBMapping):
     """
         Contains the Kodi and external (IMDB, TMDB, etc.) representations
@@ -106,7 +105,6 @@ class _TagEntry(_KodiToExternalDBMapping):
         super().__init__(kodi_id, external_id)
 
 
-# noinspection Annotator,PyInitNewSignature
 class _GenreEntry(_KodiToExternalDBMapping):
     """
         Contains the Kodi and external (IMDB, TMDB, etc.) representations

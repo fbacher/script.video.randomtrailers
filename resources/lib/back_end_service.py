@@ -7,7 +7,7 @@ Created on Feb 12, 2019
 """
 
 from common.python_debugger import PythonDebugger
-REMOTE_DEBUG: bool = True
+REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.backend')
 
@@ -27,6 +27,7 @@ def exit_randomtrailers():
     if PythonDebugger.is_enabled():
         PythonDebugger.disable()
     sys.exit(0)
+
 
 class MainThreadLoop:
     """
@@ -53,8 +54,7 @@ class MainThreadLoop:
             # should just be a loop.
 
             xbmc.log('In event_processing_loop', xbmc.LOGDEBUG)
-
-            debugger_initialized = False
+            worker_thread_initialized = False
             bridge_initialized = False
 
             # For the first 10 seconds use a short timeout so that initialization
@@ -71,14 +71,11 @@ class MainThreadLoop:
             # If this is not done, then Kodi will get constipated
             # sending/receiving events to plugins.
 
-            xbmc.log('Imported Monitor and AbortException', xbmc.LOGDEBUG)
-
-
             while not MinimalMonitor.real_waitForAbort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
                     timeout = 0.10
-                        
+
                 """
                 try:
                      task = self._callableTasks.get(block=False)
@@ -87,17 +84,21 @@ class MainThreadLoop:
                      pass
                 """
 
+                if not worker_thread_initialized:
+                    worker_thread_initialized = True
+                    cls.start_backend_worker_thread()
+
                 if not bridge_initialized:
                     bridge_initialized = True
                     cls.start_back_end_bridge()
-                    
+
             MinimalMonitor.throw_exception_if_abort_requested(timeout=timeout)
- 
 
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            pass
+            xbmc.log('xbmc.log Exception: ' + str(e), xbmc.LOGERROR)
+            module_logger.exception(e, lazy_logger=True)
             # type(self)._logger.exception('')
 
     @classmethod
@@ -105,6 +106,18 @@ class MainThreadLoop:
         from backend.back_end_bridge import BackendBridge
         from discovery.playable_trailer_service import PlayableTrailerService
         BackendBridge(PlayableTrailerService())
+
+    @classmethod
+    def start_backend_worker_thread(cls) -> None:
+        try:
+            import backend_service_worker
+            thread = threading.Thread(
+                target=backend_service_worker.startup_non_main_thread,
+                name='back_end_service.startup_non_main_thread')
+            thread.start()
+        except Exception as e:
+            xbmc.log('Exception: ' + str(e), xbmc.LOGERROR)
+            # module_logger# .exception('')
 
     '''
     @classmethod
@@ -118,6 +131,7 @@ class MainThreadLoop:
         cls._callableTasks.put(callable_class)
     '''
 
+    '''
     @classmethod
     def run_task(cls,
                  callable_class: Callable[[None], None] = None) -> None:
@@ -131,13 +145,13 @@ class MainThreadLoop:
         try:
             callable_class()
 
-
         except AbortException:
             pass
             # reraise(*sys.exc_info())
-        except Exception:
-            pass
+        except Exception as e:
+            module_logger.exception(e, lazy_logger=True)
             # type(self)._logger.exception('')
+    '''
 
 
 def bootstrap_random_trailers() -> None:
@@ -151,23 +165,13 @@ def bootstrap_random_trailers() -> None:
 
     xbmc.log('Starting non-main thread', xbmc.LOGDEBUG)
     try:
-        try:
-            import backend_service_worker
-            thread = threading.Thread(
-                target=backend_service_worker.startup_non_main_thread,
-                name='back_end_service.startup_non_main_thread')
-            thread.start()
-        except Exception:
-            pass
-            # module_logger# .exception('')
-
         xbmc.log('Starting event processing loop', xbmc.LOGDEBUG)
 
         MainThreadLoop.event_processing_loop()
     except AbortException as e:
         pass
     except Exception as e:
-        pass
+        xbmc.log('Exception: ' + str(e), xbmc.LOGERROR)
         # module_logger.exception('')
     finally:
         exit_randomtrailers()

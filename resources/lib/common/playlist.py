@@ -41,25 +41,25 @@ class Playlist:
     /movies/XBMC/Movies/30s/Lord Byron of Broadway (1930)_1587.mkv
 
     """
-    VIEWED_PLAYLIST_FILE = 'Viewed.playlist'
-    MISSING_TRAILERS_PLAYLIST = 'missingTrailers.playlist'
-    PLAYLIST_PREFIX = 'RandomTrailer_'
-    PLAYLIST_SUFFIX = '.m3u'
-    SMART_PLAYLIST_SUFFIX = '.xsp'
-    PLAYLIST_HEADER = '#EXTCPlayListM3U::M3U'
-    PLAYLIST_ENTRY_PREFIX = '#EXTINF:0,'
+    VIEWED_PLAYLIST_FILE: Final[str] = 'Viewed.playlist'
+    MISSING_TRAILERS_PLAYLIST: Final[str] = 'missingTrailers.playlist'
+    PLAYLIST_PREFIX: Final[str] = 'RandomTrailer_'
+    PLAYLIST_SUFFIX: Final[str] = '.m3u'
+    SMART_PLAYLIST_SUFFIX: Final[str] = '.xsp'
+    PLAYLIST_HEADER: Final[str] = '#EXTCPlayListM3U::M3U'
+    PLAYLIST_ENTRY_PREFIX: Final[str] = '#EXTINF:0,'
 
-    SMART_PLAYLIST_HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
-    SMART_PLAYLIST_MOVIE_HEADER = '<smartplaylist type="movies">'
-    SMART_PLAYLIST_NAME = '<name>{}</name>'
-    SMART_PLAYLIST_MATCH = '<match>all</match>'
-    SMART_PLALIST_RULE_HEADER = '<rule field="filename" operator="is">'
-    SMART_PLAYLIST_RULE_ENTRY = '<value>{}</value>'
-    SMART_PLAYLIST_RULE_TAIL = '</rule>'
-    SMART_PLAYLIST_TAIL = '<order direction="ascending">random</order>/' \
+    SMART_PLAYLIST_HEADER: Final[str] = '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>'
+    SMART_PLAYLIST_MOVIE_HEADER: Final[str] = '<smartplaylist type="movies">'
+    SMART_PLAYLIST_NAME: Final[str] = '<name>{}</name>'
+    SMART_PLAYLIST_MATCH: Final[str] = '<match>all</match>'
+    SMART_PLALIST_RULE_HEADER: Final[str] = '<rule field="filename" operator="is">'
+    SMART_PLAYLIST_RULE_ENTRY: Final[str] = '<value>{}</value>'
+    SMART_PLAYLIST_RULE_TAIL: Final[str] = '</rule>'
+    SMART_PLAYLIST_TAIL: Final[str] = '<order direction="ascending">random</order>/' \
                           '</smartplaylist>'
 
-    smart_playlist_skeleton = {
+    smart_playlist_skeleton: Final[Dict] = {
         'smartplaylist': {'@type': 'movies',
                           'name': ['{0}'],
                           'match': ['one'],
@@ -68,21 +68,24 @@ class Playlist:
                           }
     }
 
-    _playlist_lock = threading.RLock()
-    _playlists = {}
+    _playlist_lock: threading.RLock = threading.RLock()
+    _playlists: Dict[str, 'Playlist'] = {}
+    _logger: LazyLogger = None
 
-    def __init__(self, *args, **kwargs):
-        # type: (*str, **Any) -> None
+    def __init__(self, *args: str, **kwargs: Any) -> None:
         """
 
         :param args:
         :param kwargs:
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
+
         self._file = None
 
         if len(args) == 0:
-            self._logger.error(
+            clz._logger.error(
                 'Playlist constructor requires an argument')
             return
 
@@ -116,17 +119,18 @@ class Playlist:
                         if os.path.exists(self.path):
                             os.replace(self.path, save_path)
                     except Exception as e:
-                        self._logger.exception('')
+                        clz._logger.exception('')
                 except Exception as e:
-                    self._logger.exception('')
+                    clz._logger.exception('')
 
             try:
                 self._file = io.open(self.path, mode=self.mode, buffering=1, newline=None,
                                      encoding='utf-8')
             except Exception as e:
-                self._logger.exception('')
+                clz._logger.exception('')
 
-    def load_smart_playlist(self):
+    def load_smart_playlist(self) -> None:
+        clz = type(self)
         playlist_dict = None
         try:
             if os.path.exists(self.path):
@@ -135,11 +139,12 @@ class Playlist:
                     buffer = playlist_file.read()
                     playlist_dict = xmltodict.parse(buffer)
         except Exception as e:
-            self._logger.exception('')
+            clz._logger.exception('')
 
         return playlist_dict
 
-    def add_to_smart_playlist(self, trailer):
+    def add_to_smart_playlist(self, trailer) -> bool:
+        clz = type(self)
         movie_filename = trailer.get(Movie.FILE, None)
         if movie_filename is not None:
             movie_filename = os.path.basename(movie_filename)
@@ -175,21 +180,24 @@ class Playlist:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 
         except Exception as e:
-            self._logger.exception('')
+            clz._logger.exception('')
         return True
 
-    def write_playlist(self, playlist_dict):
+    def write_playlist(self, playlist_dict: Dict[str, 'Playlist']) -> None:
+        clz = type(self)
         try:
             with io.open(self.path, mode=self.mode, buffering=1, newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 
         except Exception as e:
-            self._logger.exception('')
+            clz._logger.exception('')
 
     @staticmethod
-    def get_playlist(playlist_name, append=True, rotate=False, playlist_format=False):
-        # type: (str, bool, bool, bool) -> Playlist
+    def get_playlist(playlist_name: str,
+                     append: bool = True,
+                     rotate: bool = False,
+                     playlist_format: bool = False) -> 'Playlist':
         """
 
         :param playlist_name:
@@ -207,8 +215,7 @@ class Playlist:
             playlist = Playlist._playlists.get(playlist_name)
         return playlist
 
-    def add_timestamp(self):
-        # type: () -> None
+    def add_timestamp(self) -> None:
         """
 
         :return:
@@ -216,8 +223,10 @@ class Playlist:
         now = datetime.datetime.now().strftime('%m/%d/%y %H:%M:%S')
         self.writeLine('random trailers started: {!s}'.format(now))
 
-    def record_played_trailer(self, trailer, use_movie_path=False, msg=''):
-        # type: (Dict[str, Any], bool, str) -> None
+    def record_played_trailer(self,
+                              trailer: MovieType,
+                              use_movie_path: bool = False,
+                              msg: str = '') -> None:
         """
 
         :param trailer:
@@ -268,8 +277,7 @@ class Playlist:
                 path + ' ' + msg + '\n'
         self._file.writelines(line)
 
-    def writeLine(self, line):
-        # type: (str) -> None
+    def writeLine(self, line: str) -> None:
         """
 
         :param line:
@@ -277,8 +285,7 @@ class Playlist:
         """
         self._file.writelines(line + '\n')
 
-    def close(self):
-        # type: () -> None
+    def close(self) -> None:
         """
 
         :return:
@@ -293,8 +300,7 @@ class Playlist:
             pass
 
     @staticmethod
-    def shutdown():
-        # type: () -> None
+    def shutdown() -> None:
         """
 
         :return:
@@ -306,5 +312,6 @@ class Playlist:
         finally:
             with Playlist._playlist_lock:
                 Playlist._playlists = {}
+
 
 Monitor.register_abort_listener(Playlist.shutdown)
