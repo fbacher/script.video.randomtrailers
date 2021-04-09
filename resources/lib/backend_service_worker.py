@@ -14,7 +14,7 @@ from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.settings import Settings
 from backend.api import load_trailers
-from common.logger import (LazyLogger)
+from common.logger import (LazyLogger, Trace)
 from cache.cache_manager import CacheManager
 
 xbmc.log('main thread after PythonDebugger.enable 2', xbmc.LOGDEBUG)
@@ -32,6 +32,13 @@ def startup_non_main_thread() -> None:
     post_install()
 
     xbmc.log('In startup_non_main_thread', xbmc.LOGDEBUG)
+    Trace.enable_all()
+    try:
+		pass
+        # Trace.enable(Trace.TRACE_NETWORK)
+    except Exception as e:
+        module_logger.exception(e)
+
     if module_logger.isEnabledFor(LazyLogger.DEBUG):
         module_logger.debug('In startup_non_main_thread')
 

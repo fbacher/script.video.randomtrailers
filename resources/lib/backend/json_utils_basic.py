@@ -56,10 +56,12 @@ class JsonUtilsBasic:
         making requests
     """
 
+    # In 2019 TMDb turned off rate limiting. Bumped limits up a bit
+
     TMDB_NAME = 'tmdb'
     TMDB_REQUEST_INDEX = 0
-    TMDB_WINDOW_TIME_PERIOD = datetime.timedelta(seconds=20)
-    TMDB_WINDOW_MAX_REQUESTS = 40
+    TMDB_WINDOW_TIME_PERIOD = datetime.timedelta(seconds=100)
+    TMDB_WINDOW_MAX_REQUESTS = 120
 
     ITUNES_NAME = 'iTunes'
     ITUNES_REQUEST_INDEX = 1
@@ -228,14 +230,16 @@ class JsonUtilsBasic:
         # see if server specifies the number in a time period
 
         max_requests_in_time_period = destination_data.hard_coded_requests_per_time_period
-        if destination_data.actual_max_requests_per_time_period >= 0:
+        if destination_data.actual_max_requests_per_time_period > 0:
+            max_requests_in_time_period = \
+                destination_data.actual_max_requests_per_time_period
             if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                     and Trace.is_enabled(Trace.TRACE_NETWORK)):
                 cls._logger.debug_extra_verbose(
-                    'Setting max_requests_in_time_period to value from server',
+                    'Setting max_requests_in_time_period to value from server:',
+                    max_requests_in_time_period,
                     trace=[Trace.TRACE_JSON, Trace.TRACE_NETWORK])
-            max_requests_in_time_period = \
-                destination_data.actual_max_requests_per_time_period
+
 
         number_of_requests_that_can_still_be_made = max_requests_in_time_period - \
                                                     calculated_number_of_requests_pending
@@ -260,6 +264,8 @@ class JsonUtilsBasic:
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose('delay:', delay,
                                                 '#requests:', len(request_window),
+                                                'requests_that_can_still_be_made:',
+                                                number_of_requests_that_can_still_be_made,
                                                 trace=Trace.TRACE_JSON)
         elif len(request_window) > 0:
             already_waited = newest_response_time_stamp - oldest_entry.get_time_stamp()
@@ -479,7 +485,7 @@ class JsonUtilsBasic:
             # Number of requests that can be made over a period of time
             # For TMDB, most APIs return this value in the header:
             # header.get('X-RateLimit-Limit')  # Was 40
-            self.actual_max_requests_per_time_period = 0
+            self.actual_max_requests_per_time_period = -1
 
             # When X-RateLimt-Limit is not available,
             # then hard_coded_requests_per_time_period
@@ -661,7 +667,7 @@ class JsonUtilsBasic:
                     trace=Trace.TRACE_JSON)
             if time_delay > 0:
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    cls._logger.debug('Waiting for JSON request to',
+                    cls._logger.debug_verbose('Waiting for JSON request to',
                                       destination_string, 'for', time_delay,
                                       'seconds',
                                       trace=[Trace.STATS, Trace.TRACE_JSON])
@@ -753,7 +759,7 @@ class JsonUtilsBasic:
             # TODO- delete or control by setting or config_logger
 
             destination_data.number_of_additional_requests_allowed_by_server = -1
-            destination_data.actual_max_requests_per_time_period = 0
+            destination_data.actual_max_requests_per_time_period = -1
             destination_data.actual_oldest_request_in_window_expiration_time: \
                 Union[datetime.datetime, None] = None
             destination_data.server_blocking_request_until = None
@@ -814,11 +820,12 @@ class JsonUtilsBasic:
                                                             time_stamp,
                                                             'difference from client:',
                                                             delta.total_seconds())
+                # In 2019 TMDb turned off rate limiting.
 
-                if request_index == JsonUtilsBasic.TMDB_REQUEST_INDEX:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(
-                            'TMDB response header missing X-RateLimit info.', msg)
+                # if request_index == JsonUtilsBasic.TMDB_REQUEST_INDEX:
+                #    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                #        cls._logger.debug_extra_verbose(
+                #            'TMDB response header missing X-RateLimit info.', msg)
 
             # Debug.myLog('get_json json_text: ' + json_text.__class__.__name__ +
             #            ' ' + json.dumps(json_text), xbmc.LOGDEBUG)
