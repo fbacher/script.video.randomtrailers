@@ -13,6 +13,7 @@ import xbmcvfs
 
 from cache.tfh_cache import (TFHCache)
 from common.constants import Constants, Movie, TFH
+from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
 from common.imports import *
@@ -268,13 +269,28 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         #          Reviewer's TITLE
         #          TITLE
         #          Reviewer In Conversation With Person
-        #          Reviewer covers TITLE
+        #          Reviewer covers TITLEGenre
         #          Reviewer introduces TITLE for the Cinenasty series
         #
         # Occasionally, CAPS_TITLE has some lower case chars (grr)
         #               ex: BIG JIM McLEAN
 
         for tfh_trailer in trailer_list:
+
+            # TODO: Remove patch to clean up cache
+
+            dirty: bool = Debug.validate_detailed_movie_properties(tfh_trailer,
+                                                                   stack_trace=False,
+                                                                   force_check=True)
+            if (tfh_trailer[Movie.TITLE] == tfh_trailer[Movie.TFH_TITLE]
+                    or dirty):
+                tfh_trailer[Movie.TITLE] = self.fix_title(tfh_trailer)
+                tfh_trailer[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
+                if dirty:
+                    for property in (Movie.FANART, Movie.WRITER, Movie.CAST,
+                                       Movie.GENRE, Movie.STUDIO, Movie.UNIQUE_ID):
+                        if property in tfh_trailer:
+                            del tfh_trailer[property]
 
             # Mostly to protect against cached entries produced by bugs which
             # are now fixed, reset certain fields to force rediscovery.
