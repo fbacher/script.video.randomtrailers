@@ -183,8 +183,7 @@ class BaseDiscoverMovies(threading.Thread):
         clz = type(self)
         finished: bool = False
         while not finished:
-            Monitor.wait_for_abort(timeout=1.0)
-            self.throw_exception_on_forced_to_stop()
+            self.throw_exception_on_forced_to_stop(0.5)
 
     def throw_exception_on_forced_to_stop(self, delay: float = 0.0) -> None:
         """
