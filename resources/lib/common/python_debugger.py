@@ -22,6 +22,7 @@ class PythonDebugger:
     pydevd_addon_path: str = None
     plugin_name: str = ''
     remote_debug: bool = False
+    thread: threading.Thread = None
 
     @classmethod
     def enable(cls, plugin_name: str) -> bool:
@@ -30,18 +31,19 @@ class PythonDebugger:
                 cls.pydevd_addon_path = xbmcaddon.Addon(
                     'script.module.pydevd').getAddonInfo('path')
                 cls.remote_debug = True
-        except Exception:
-            xbmc.log(cls.plugin_name + ' Debugger disabled, script.module.pydevd NOT installed',
+        except Exception as e:
+            xbmc.log(cls.plugin_name +
+                     ' Debugger disabled, script.module.pydevd NOT installed',
                      xbmc.LOGDEBUG)
             cls.remote_debug = False
 
         if cls.remote_debug:
             try:
                 if cls.START_IN_SEPARATE_THREAD:
-                    thread = threading.Thread(
+                    cls.thread = threading.Thread(
                         target=cls._enable,
                         name=cls.plugin_name + 'pydevd startup thread')
-                    thread.start()
+                    cls.thread.start()
                 else:
                     cls._enable()
 
@@ -61,6 +63,7 @@ class PythonDebugger:
             try:
                 import pydevd
                 pydevd.stoptrace()
+                cls.thread.join(timeout=0.1)
             except Exception:
                 pass
 
