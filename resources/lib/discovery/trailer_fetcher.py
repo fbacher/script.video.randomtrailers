@@ -25,18 +25,16 @@ from common.disk_utils import DiskUtils
 from common.playlist import Playlist
 from common.exceptions import AbortException
 from common.imports import *
-from common.rating import WorldCertifications
+from common.rating import Certifications, WorldCertifications
 from common.settings import Settings
 from common.logger import (Trace, LazyLogger)
 from common.messages import Messages
-from backend.ffmpeg_normalize import RunCommand
 from backend import ffmpeg_normalize
 from backend.tmdb_utils import (TMDBUtils)
 from backend.movie_entry_utils import (MovieEntryUtils)
 
 from discovery.abstract_movie_data import AbstractMovieData
-from backend.json_utils import JsonUtils
-from backend.json_utils_basic import (JsonUtilsBasic)
+from backend.json_utils_basic import JsonUtilsBasic
 from cache.cache import (Cache)
 from cache.tmdb_cache_index import (CacheIndex)
 from cache.trailer_cache import (TrailerCache)
@@ -49,10 +47,9 @@ from discovery.trailer_fetcher_interface import TrailerFetcherInterface
 from discovery.playable_trailers_container import PlayableTrailersContainer
 from discovery.restart_discovery_exception import RestartDiscoveryException
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator
 class TrailerFetcher(TrailerFetcherInterface):
     """
     The Discover* classes do the initial discovery to get the basic information
@@ -67,8 +64,8 @@ class TrailerFetcher(TrailerFetcherInterface):
     someday someone should get rid of the extra 'manager'.
     """
 
-    NUMBER_OF_FETCHERS = 1
-    _trailer_fetchers = []
+    NUMBER_OF_FETCHERS: Final[int] = 1
+    _trailer_fetchers: List['TrailerFetcher'] = []
     _logger: LazyLogger = None
 
     def __init__(self, movie_data: AbstractMovieData,
@@ -78,19 +75,19 @@ class TrailerFetcher(TrailerFetcherInterface):
                  :param movie_data
                  :param thread_name:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         clz._logger = module_logger.getChild(clz.__name__)
         clz._logger.enter()
         super().__init__(thread_name=thread_name)
-        self._movie_data = movie_data  # type: AbstractMovieData
-        self._playable_trailers = PlayableTrailersContainer(
+        self._movie_data: AbstractMovieData = movie_data
+        self._playable_trailers: PlayableTrailersContainer = PlayableTrailersContainer(
             movie_data.get_movie_source())
         self._playable_trailers.set_movie_data(movie_data)
-        self._missing_trailers_playlist = Playlist.get_playlist(
+        self._missing_trailers_playlist: Playlist = Playlist.get_playlist(
             Playlist.MISSING_TRAILERS_PLAYLIST, append=False, rotate=True)
-        self._start_fetch_time = None
-        self._stop_fetch_time = None
-        self._stop_add_ready_to_play_time = None
+        self._start_fetch_time: datetime.datetime = None
+        self._stop_fetch_time: datetime.datetime = None
+        self._stop_add_ready_to_play_time: datetime.datetime = None
 
     def start_fetchers(self) -> None:
         """
@@ -101,12 +98,12 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         Monitor.register_abort_listener(self.shutdown_thread)
-        i = 0
+        i: int = 0
         while i < self.NUMBER_OF_FETCHERS:
             i += 1
-            trailer_fetcher = TrailerFetcher(
+            trailer_fetcher: TrailerFetcher = TrailerFetcher(
                 self._movie_data,
                 thread_name='Fetcher_' +
                 self._movie_data.get_movie_source() + ':' + str(i))
@@ -133,7 +130,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param stop_thread
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz._logger.enter()
         self._playable_trailers.prepare_for_restart_discovery(stop_thread)
@@ -147,7 +144,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
 
         try:
             self.run_worker()
@@ -162,7 +159,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param self:
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
 
         while not self._movie_data.have_trailers_been_discovered():
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
@@ -202,11 +199,11 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param trailer:
         :return:
         """
-        clz = TrailerFetcher
-        finished = False
+        clz = type(self)
+        finished: bool = False
         while not finished:
             try:
-                discovery_state = trailer[Movie.DISCOVERY_STATE]
+                discovery_state: str = trailer[Movie.DISCOVERY_STATE]
                 if discovery_state >= Movie.DISCOVERY_COMPLETE:
                     self.throw_exception_on_forced_to_stop()
 
@@ -229,7 +226,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         self._playable_trailers.add_to_ready_to_play_queue(
                             trailer)
 
-                    trailer_path = trailer[Movie.TRAILER]
+                    trailer_path: str = trailer[Movie.TRAILER]
                     if DiskUtils.is_url(trailer_path) \
                             and trailer[Movie.SOURCE] == Movie.TMDB_SOURCE:
                         tmdb_id = MovieEntryUtils.get_tmdb_id(trailer)
@@ -251,14 +248,14 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param trailer:
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz._logger.enter('title:', trailer[Movie.TITLE],
                               'source:', trailer[Movie.SOURCE],
                               'discovery_state:', trailer[Movie.DISCOVERY_STATE],
                               'trailer:', trailer[Movie.TRAILER])
         self._start_fetch_time = datetime.datetime.now()
-        keep_new_trailer = True
+        keep_new_trailer: bool = True
 
         self.throw_exception_on_forced_to_stop()
         if trailer[Movie.TRAILER] == Movie.TMDB_SOURCE:
@@ -273,10 +270,12 @@ class TrailerFetcher(TrailerFetcherInterface):
             # set to Movie.TMDB_SOURCE
             #
             # Debug.dump_json(text='Original trailer:', data=trailer)
-            tmdb_id: Union[int, None] = MovieEntryUtils.get_tmdb_id(trailer)
+            tmdb_id: int = MovieEntryUtils.get_tmdb_id(trailer)
             if tmdb_id is not None:
                 tmdb_id = int(tmdb_id)
 
+            rejection_reasons: List[int]
+            populated_trailer: MovieType
             rejection_reasons, populated_trailer = self.get_tmdb_trailer(trailer[Movie.TITLE],
                                                                          tmdb_id,
                                                                          Movie.TMDB_SOURCE)
@@ -320,20 +319,19 @@ class TrailerFetcher(TrailerFetcherInterface):
                 keep_new_trailer = False
 
         else:
-            source = trailer[Movie.SOURCE]
+            source: str = trailer[Movie.SOURCE]
             if source == Movie.LIBRARY_SOURCE:
 
                 if (trailer[Movie.TRAILER] == '' and
                         TrailerUnavailableCache.is_library_id_missing_trailer(trailer[Movie.MOVIEID])):
                     # Try to find trailer from TMDB
-                    tmdb_id: Optional[int] = MovieEntryUtils.get_tmdb_id(
-                        trailer)
+                    tmdb_id: Union[str, int, None] = MovieEntryUtils.get_tmdb_id(trailer)
                     if tmdb_id is not None:
-                        tmdb_id = int(tmdb_id)
+                        tmdb_id: int = int(tmdb_id)
 
                     # Ok, tmdb_id not in Kodi database, query TMDB
 
-                    if ((tmdb_id is None or tmdb_id == '')
+                    if (tmdb_id is None
                             and not trailer.get(Movie.TMDB_ID_NOT_FOUND, False)):
                         tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                             trailer[Movie.TITLE], trailer['year'],
@@ -351,7 +349,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 msg=' Movie not found at tmdb')
                             trailer[Movie.TMDB_ID_NOT_FOUND] = True
                         else:
-                            changed = MovieEntryUtils.set_tmdb_id(
+                            changed: bool = MovieEntryUtils.set_tmdb_id(
                                 trailer, tmdb_id)
 
                             # We found an id from TMDB, update Kodi database
@@ -420,7 +418,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                         year = None
                     else:
                         year = trailer[Movie.YEAR]
-                    tmdb_id: Optional[int] = TMDBUtils.get_tmdb_id_from_title_year(
+                    tmdb_id: Union[int, str, None] = TMDBUtils.get_tmdb_id_from_title_year(
                         trailer[Movie.TITLE], year,
                         runtime_seconds=trailer.get(Movie.RUNTIME, 0))
                 else:
@@ -448,7 +446,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
         # If no trailer possible then remove it from further consideration
 
-        movie_id = None
+        movie_id: str = None
         if keep_new_trailer:
             if Movie.YEAR not in trailer:
                 pass
@@ -561,9 +559,9 @@ class TrailerFetcher(TrailerFetcherInterface):
             raise RestartDiscoveryException()
 
     def cache_and_normalize_trailer(self, movie: MovieType) -> bool:
-        clz = TrailerFetcher
-        rc = 0
-        trailer_ok = True
+        clz = type(self)
+        rc: int = 0
+        trailer_ok: bool = True
 
         if (Settings.is_use_trailer_cache() and
                 (DiskUtils.is_url(movie[Movie.TRAILER]) or
@@ -604,7 +602,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                          tmdb_id: Union[int, str],
                          source: str,
                          ignore_failures: bool = False,
-                         library_id: Union[None, str] = None
+                         library_id: str = None
                          ) -> (List[int], MovieType):
         """
             Called in two situations:
@@ -623,8 +621,8 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param library_id:
         :return:
         """
-        clz = TrailerFetcher
-        rejection_reasons = []
+        clz = type(self)
+        rejection_reasons: List[int] = []
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz._logger.debug_verbose('title:', movie_title, 'tmdb_id:', tmdb_id,
                                       'library_id:', library_id, 'ignore_failures:',
@@ -639,64 +637,65 @@ class TrailerFetcher(TrailerFetcherInterface):
                         'No trailer found for movie:', movie_title)
                 return rejection_reasons, None
 
-        trailer_type = ''
-        you_tube_base_url = YOUTUBE_URL_PREFIX
-        image_base_url = 'http://image.tmdb.org/t/p/'
-        country_id = Settings.get_country_iso_3166_1().lower()
-        certifications = WorldCertifications.get_certifications(country_id)
-        adult_certification = certifications.get_adult_certification()
-        include_adult = certifications.filter(adult_certification)
+        trailer_type: bool = ''
+        you_tube_base_url: str = YOUTUBE_URL_PREFIX
+        image_base_url: str = 'http://image.tmdb.org/t/p/'
+        country_id: str = Settings.get_country_iso_3166_1().lower()
+        certifications: Certifications = \
+            WorldCertifications.get_certifications(country_id)
+        adult_certification: bool = certifications.get_adult_certification()
+        include_adult: bool = certifications.filter(adult_certification)
         vote_comparison, vote_value = Settings.get_tmdb_avg_vote_preference()
 
         # Since we may leave early, populate with dummy data
 
-        unrated_id = certifications.get_unrated_certification().get_preferred_id()
+        unrated_id: str = certifications.get_unrated_certification().get_preferred_id()
 
         messages = Messages
         missing_detail = messages.get_msg(Messages.MISSING_DETAIL)
-        dict_info = {}
-        dict_info[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
-        dict_info[Movie.TITLE] = messages.get_msg(Messages.MISSING_TITLE)
-        dict_info[Movie.ORIGINAL_TITLE] = ''
-        dict_info[Movie.YEAR] = 0
-        dict_info[Movie.STUDIO] = [missing_detail]
-        dict_info[Movie.MPAA] = unrated_id
-        dict_info[Movie.THUMBNAIL] = ''
-        dict_info[Movie.TRAILER] = ''
-        dict_info[Movie.FANART] = ''
-        dict_info[Movie.FILE] = ''
-        dict_info[Movie.DIRECTOR] = [missing_detail]
-        dict_info[Movie.WRITER] = [missing_detail]
-        dict_info[Movie.PLOT] = missing_detail
-        dict_info[Movie.CAST] = []
-        dict_info[Movie.RUNTIME] = 0
-        dict_info[Movie.GENRE] = [missing_detail]
-        dict_info[Movie.TMDB_TAGS] = [missing_detail]
-        dict_info[Movie.RATING] = 0.0
-        dict_info[Movie.VOTES] = 0
-        dict_info[Movie.ADULT] = False
-        dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
-        dict_info[Movie.TRAILER_TYPE] = Movie.VIDEO_TYPE_TRAILER
+        dict_info: Dict[MovieType] = {
+            Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
+            Movie.TITLE: messages.get_msg(Messages.MISSING_TITLE),
+            Movie.ORIGINAL_TITLE: '',
+            Movie.YEAR: 0,
+            Movie.STUDIO: [missing_detail],
+            Movie.MPAA: unrated_id,
+            Movie.THUMBNAIL: '',
+            Movie.TRAILER: '',
+            Movie.FANART: '',
+            Movie.FILE: '',
+            Movie.DIRECTOR: [missing_detail],
+            Movie.WRITER: [missing_detail],
+            Movie.PLOT: [missing_detail],
+            Movie.CAST: [],
+            Movie.RUNTIME: 0,
+            Movie.GENRE: [missing_detail],
+            Movie.TMDB_TAGS: [missing_detail],
+            Movie.RATING: 0.0,
+            Movie.VOTES: 0,
+            Movie.ADULT: False,
+            Movie.SOURCE: Movie.TMDB_SOURCE,
+            Movie.TRAILER_TYPE: Movie.VIDEO_TYPE_TRAILER}
 
         # Query The Movie DB for Credits, Trailers and Releases for the
         # Specified Movie ID. Many other details are returned as well
 
-        data = {
+        data: Dict[str, str] = {
             'append_to_response': 'credits,releases,keywords,videos,alternative_titles',
             'language': Settings.get_lang_iso_639_1(),
             'api_key': Settings.get_tmdb_api_key()
         }
-        url = 'http://api.themoviedb.org/3/movie/' + str(tmdb_id)
+        url: str = 'http://api.themoviedb.org/3/movie/' + str(tmdb_id)
 
-        tmdb_result = None
-        year = 0
-        dump_msg = 'tmdb_id: ' + str(tmdb_id)
+        tmdb_result: Dict[str, Any] = None
+        dump_msg: str = 'tmdb_id: ' + str(tmdb_id)
         try:
             if library_id is not None:
                 cache_id = library_id
             else:
                 cache_id = tmdb_id
 
+            status_code: int
             status_code, tmdb_result = Cache.get_cached_json(
                 url, movie_id=cache_id, error_msg=movie_title, source=source,
                 params=data, dump_results=False, dump_msg=dump_msg)
@@ -784,7 +783,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             # Prefer trailer over other types
 
-            trailer_key = None
+            trailer_key: str = None
             if best_size_map['Trailer'] is not None:
                 trailer_key = best_size_map['Trailer']['key']
                 trailer_type = 'Trailer'
@@ -797,7 +796,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 trailer_type = 'Clip'
 
             dict_info[Movie.TRAILER_TYPE] = trailer_type
-            changed = MovieEntryUtils.set_tmdb_id(dict_info, tmdb_id)
+            changed: bool = MovieEntryUtils.set_tmdb_id(dict_info, tmdb_id)
 
             # Do NOT update TFH_cache or local DB since this is dict_info is
             # NOT in the DB or TFH cache. External user will decide.
@@ -851,7 +850,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             if tmdb_countries is None:
                 pass
             tmdb_countries = tmdb_result['releases']['countries']
-            mpaa = ''
+            mpaa: str = ''
             for c in tmdb_countries:
                 if c['iso_3166_1'] == Settings.get_country_iso_3166_1():
                     mpaa = c['certification']
@@ -861,14 +860,12 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             # fanart = image_base_url + 'w380' + \
             #     str(tmdb_result['backdrop_path'])
-            fanart = image_base_url + 'original' + \
-                str(tmdb_result['backdrop_path'])
+            fanart: str = f'{image_base_url}original{str(tmdb_result["backdrop_path"])}'
             dict_info[Movie.FANART] = fanart
 
             # thumbnail = image_base_url + 'w342' + \
             #     str(tmdb_result['poster_path'])
-            thumbnail = image_base_url + 'original' + \
-                str(tmdb_result['poster_path'])
+            thumbnail: str = f'{image_base_url}original{str(tmdb_result["poster_path"])}'
             dict_info[Movie.THUMBNAIL] = thumbnail
 
             title = tmdb_result[Movie.TITLE]
@@ -887,12 +884,11 @@ class TrailerFetcher(TrailerFetcherInterface):
             dict_info[Movie.RUNTIME] = runtime
 
             studios = tmdb_result['production_companies']
-            studio = []
+            studio: List[str] = []
             for s in studios:
                 studio.append(s['name'])
 
-            if studio is not None:
-                dict_info[Movie.STUDIO] = studio
+            dict_info[Movie.STUDIO] = studio
 
             tmdb_cast_members = tmdb_result['credits']['cast']
             cast = []
@@ -1048,7 +1044,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param movie:
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         keep_trailer = True
         try:
             source = movie[Movie.SOURCE]
@@ -1263,7 +1259,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param set_default:
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         try:
             for arg in argv:
                 value = trailer.get(arg, None)
@@ -1290,7 +1286,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :return:
         """
         # Itunes does not supply writer info, get from TMDB query
-        clz = TrailerFetcher
+        clz = type(self)
 
         if source == Movie.ITUNES_SOURCE:
             writers_temp = tmdb_info.get(Movie.WRITER, [])
@@ -1321,7 +1317,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param source:
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
         movie_actors = ''
         actors = movie.get(Movie.CAST, [])
         if len(actors) > Movie.MAX_DISPLAYED_ACTORS:
@@ -1352,8 +1348,8 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param source:
         :return:
         """
-        clz = TrailerFetcher
-        plot = ''
+        clz = type(self)
+        plot: str = ''
         if Movie.PLOT not in trailer or trailer[Movie.PLOT] == '':
             trailer[Movie.PLOT] = info.get(Movie.PLOT, '')
 
@@ -1376,8 +1372,8 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param source:
         :return:
         """
-        clz = TrailerFetcher
-        runtime = ''
+        clz = type(self)
+        runtime: str = ''
         if Movie.RUNTIME not in trailer or trailer[Movie.RUNTIME] == 0:
             if info is not None:
                 trailer[Movie.RUNTIME] = info.get(Movie.RUNTIME, 0)
@@ -1397,14 +1393,14 @@ class TrailerFetcher(TrailerFetcherInterface):
         :param movie:
         :return:
         """
-        clz = TrailerFetcher
+        clz = type(self)
 
         # TODO: Verify Cached items cleared
 
-        download_path = None
-        movie_id = None
-        cached_path = None
-        rc = 0
+        download_path: str = None
+        movie_id: str = None
+        cached_path: str = None
+        rc: int = 0
 
         try:
             start = datetime.datetime.now()
@@ -1604,10 +1600,10 @@ class TrailerFetcher(TrailerFetcherInterface):
             :param movie: Movie trailer to consider normalizing
             :return: True if trailer was normalized by this call
         """
-        clz = TrailerFetcher
-        normalized_path = None
-        normalized_used = False
-        start = datetime.datetime.now()
+        clz = type(self)
+        normalized_path: str = None
+        normalized_used: bool = False
+        start: datetime.datetime = datetime.datetime.now()
         try:
             # TODO: Add ability to normalize remote trailers
             # (occurs when caching is disabled).
@@ -1619,8 +1615,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             # least not due to low-quality recordings by amateurs. However,
             # maybe you want to smooth them out a bit.
 
-            valid_sources = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
-                             Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
+            valid_sources: List[str] = [Movie.LIBRARY_SOURCE, Movie.TMDB_SOURCE,
+                                        Movie.ITUNES_SOURCE, Movie.TFH_SOURCE]
 
             if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                 clz._logger.debug_extra_verbose(f'{movie[Movie.TITLE]} '
@@ -1659,7 +1655,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     not os.path.exists(movie.get(Movie.NORMALIZED_TRAILER))):
                 movie[Movie.NORMALIZED_TRAILER] = None
 
-            normalize = False
+            normalize: bool = False
 
             # Assume trailer is local
             trailer_path = movie[Movie.TRAILER]  # Might be a URL
@@ -1699,11 +1695,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                 # trailer_path is either a cached_path or a library path.
 
                 # Discover from cache
+                parent_dir: str
+                trailer_file_name: str
+
                 parent_dir, trailer_file_name = os.path.split(trailer_path)
                 normalized_trailer_path = Cache.get_trailer_cache_file_path_for_movie_id(
                     movie, trailer_file_name, True)
 
-                cached_normalized_trailers = glob.glob(normalized_trailer_path)
+                cached_normalized_trailers: List[str] = glob.glob(normalized_trailer_path)
                 if len(cached_normalized_trailers) > 0:
                     normalized_trailer_path = cached_normalized_trailers[0]
 
@@ -1778,7 +1777,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                                     elapsed_time.seconds)
         return normalized_used
 
-
+'''
 def get_tmdb_id_from_title_year(title: str, year: Union[int, str]) -> int:
     """
 
@@ -1809,7 +1808,7 @@ def get_tmdb_id_from_title_year(title: str, year: Union[int, str]) -> int:
 
 def _get_tmdb_id_from_title_year(title: str, year: Union[int, str]) -> int:
     """
-    TODO: This is nearly a duplicate in another class!!!
+    TODO: This is nearly a duplicate of another class!!!
 
         When we don't have a trailer for a movie, we can
         see if TMDB has one.
@@ -1921,7 +1920,7 @@ def _get_tmdb_id_from_title_year(title: str, year: Union[int, str]) -> int:
     if tmdb_id is not None:
         tmdb_id = int(tmdb_id)
     return tmdb_id
-
+'''
 
 def is_language_present(tmdb_json: MovieType, title: str) -> (bool, bool, bool):
     """

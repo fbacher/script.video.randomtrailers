@@ -8,17 +8,15 @@ Created on Apr 17, 2019
 
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 
 import xbmc
 import xbmcgui
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator,Annotator
 class BlackBackground(xbmcgui.WindowXML):
     """
         Ensure a nice black window behind our player and transparent
@@ -27,12 +25,11 @@ class BlackBackground(xbmcgui.WindowXML):
     """
 
     _instance = None
-    _destroyed = False
+    _destroyed: bool = False
     _window_id: str = None
 
     @staticmethod
-    def get_instance():
-        # type: () -> BlackBackground
+    def get_instance() -> ForwardRef('BlackBackground'):
         """
 
         :return:
@@ -42,8 +39,7 @@ class BlackBackground(xbmcgui.WindowXML):
                                                         Constants.ADDON_PATH, 'Default')
         return BlackBackground._instance
 
-    def __init__(self, *args, **kwargs):
-        # type: (...) ->  None
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
 
         :param args:
@@ -55,23 +51,20 @@ class BlackBackground(xbmcgui.WindowXML):
         type(self)._window_id = xbmcgui.getCurrentWindowId()
         self.set_visibility(opaque=True)
 
-    def onInit(self):
-        # type: () -> None
+    def onInit(self) -> None:
         """
 
         :return:
         """
 
-    def close(self):
-        # type: () -> None
+    def close(self) -> None:
         """
 
         :return:
         """
         super().close()
 
-    def destroy(self):
-        # type: () -> None
+    def destroy(self) -> None:
         """
 
         :return:
@@ -80,11 +73,10 @@ class BlackBackground(xbmcgui.WindowXML):
         BlackBackground._instance = None
         BlackBackground._destroyed = True
 
-    def show(self):
+    def show(self) -> None:
         super().show()
 
-    def set_visibility(self, opaque=False):
-        # type: (bool) -> None
+    def set_visibility(self, opaque: bool = False) -> None:
         """
             Controls the visible elements of TrailerDialog
 
@@ -98,8 +90,7 @@ class BlackBackground(xbmcgui.WindowXML):
         xbmc.executebuiltin(command)
 
     @classmethod
-    def get_window_id(cls):
-        # type: () -> str
+    def get_window_id(cls) -> str:
         """
 
         :return:

@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+
 import re
+from re import Pattern
+
 import xbmc
 import simplejson as json
 
 
-def say_text(text, interrupt=False):
+def say_text(text, interrupt=False) -> str:
 
     # {"method": "JSONRPC.NotifyAll",
     #  "params": {"sender": "service.xbmc.tts",
@@ -16,7 +19,7 @@ def say_text(text, interrupt=False):
 
     # Remove excess whitespace from text
 
-    _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
+    _RE_COMBINE_WHITESPACE: Pattern = re.compile(r"\s+")
 
     text = _RE_COMBINE_WHITESPACE.sub(" ", text).strip()
     params = dict(method='JSONRPC.NotifyAll',
@@ -41,9 +44,9 @@ def say_text(text, interrupt=False):
                   jsonrpc='2.0')
 
     json_args = json.dumps(params)
-    result = xbmc.executeJSONRPC(json_args)
+    result: str = xbmc.executeJSONRPC(json_args)
     return result
 
 
-def stop():
+def stop() -> None:
     xbmc.executebuiltin('XBMC.NotifyAll(service.xbmc.tts,STOP)')

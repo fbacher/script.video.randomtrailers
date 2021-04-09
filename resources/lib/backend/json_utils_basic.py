@@ -519,8 +519,7 @@ class JsonUtilsBasic:
             """
             return self._lock
 
-        def get_request_window(self):
-            # type: () -> List[JsonUtilsBasic.RequestTimestamp]
+        def get_request_window(self) -> List['JsonUtilsBasic.RequestTimestamp']:
             """
 
             :return:
@@ -534,8 +533,8 @@ class JsonUtilsBasic:
         data_for_destination: List['JsonUtilsBasic.DestinationData'] = []
 
         @classmethod
-        def get_data_for_destination(cls, destination):
-            # type: (int) -> JsonUtilsBasic.DestinationData
+        def get_data_for_destination(cls,
+                    destination: int) -> ForwardRef('JsonUtilsBasic.DestinationData'):
             """
             """
             return JsonUtilsBasic.DestinationDataContainer.data_for_destination[
@@ -573,8 +572,7 @@ class JsonUtilsBasic:
                 rotten_tomatoes_data)
 
         @staticmethod
-        def get_data(destination):
-            # type: (int) -> JsonUtilsBasic.DestinationData
+        def get_data(destination: int) -> ForwardRef('JsonUtilsBasic.DestinationData'):
             """
                 Gets data about recent requests to the given site so that
                 appropriate delays between requests can occur.

@@ -12,17 +12,16 @@ import queue
 
 from common.imports import *
 from common.debug_utils import Debug
-from common.constants import (Constants, Movie)
+from common.constants import Movie
 from common.monitor import Monitor
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 
 from diagnostics.play_stats import PlayStatistics
 from discovery.abstract_movie_data import AbstractMovieData
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator,PyArgumentList
 class PlayableTrailersContainer:
     """
         Abstract class with common code for all Trailer Managers
@@ -35,13 +34,13 @@ class PlayableTrailersContainer:
         Discovery classes for the various TrailerManager subclasses. The
         interfaces would be largely the same.
     """
-    DUPLICATE_TRAILER_CHECK_LIMIT = 15
+    DUPLICATE_TRAILER_CHECK_LIMIT: Final[int] = 15
 
-    _any_trailers_available_to_play = threading.Event()
+    _any_trailers_available_to_play:ClassVar[threading.Event] = threading.Event()
     _singleton_instance = None
     _instances = {}
-    logger = None
-    _recently_played_trailers = OrderedDict()
+    logger: ClassVar[LazyLogger] = None
+    _recently_played_trailers: ClassVar[OrderedDict] = OrderedDict()
 
     # Avoid playing duplicate trailers when we first start up.
 
@@ -54,18 +53,18 @@ class PlayableTrailersContainer:
 
         :return:
         """
-        clz = PlayableTrailersContainer
+        clz = type(self)
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__
                                                 + ':' + source)
 
         PlayableTrailersContainer._instances[source] = self
-        self._movie_data = None
-        self._ready_to_play_queue = queue.Queue(maxsize=3)
-        self._number_of_added_trailers = 0
-        self._starving = False
-        self._starve_check_timer = None
-        self._is_playable_trailers = threading.Event()
+        self._movie_data: AbstractMovieData = None
+        self._ready_to_play_queue: queue.Queue = queue.Queue(maxsize=3)
+        self._number_of_added_trailers: int = 0
+        self._starving: bool = False
+        self._starve_check_timer: threading.Timer = None
+        self._is_playable_trailers: threading.Event = threading.Event()
 
     def set_movie_data(self, movie_data: AbstractMovieData) -> None:
         """
@@ -88,7 +87,7 @@ class PlayableTrailersContainer:
         :param stop_thread
         :return:
         """
-        clz = PlayableTrailersContainer
+        clz = type(self)
         self._number_of_added_trailers = 0
 
         if stop_thread:
@@ -114,7 +113,7 @@ class PlayableTrailersContainer:
         :param movie:
         :return:
         """
-        clz = PlayableTrailersContainer
+        clz = type(self)
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             if Movie.TITLE not in movie:
                 clz.logger.warning('Invalid movie entry. Missing title: ',
@@ -150,8 +149,8 @@ class PlayableTrailersContainer:
                                      self._ready_to_play_queue.empty(), 'full:',
                                      self._ready_to_play_queue.full())
 
-        finished = False
-        waited = 0
+        finished: bool = False
+        waited: int = 0
         while not finished:
             try:
                 self._ready_to_play_queue.put(movie, block=True, timeout=0.05)
@@ -206,7 +205,7 @@ class PlayableTrailersContainer:
 
         :return:
         """
-        clz = PlayableTrailersContainer
+        clz = type(self)
         movie = self._ready_to_play_queue.get(block=False)
         if movie is not None:
             title = movie[Movie.TITLE]
@@ -221,8 +220,7 @@ class PlayableTrailersContainer:
         return movie
 
     @classmethod
-    def is_any_trailers_available_to_play(cls):
-        # type: () -> bool
+    def is_any_trailers_available_to_play(cls) -> bool:
         """
 
         :return:
@@ -230,16 +228,14 @@ class PlayableTrailersContainer:
 
         return cls._any_trailers_available_to_play.isSet()
 
-    def is_playable_trailers(self):
-        # type: () -> bool
+    def is_playable_trailers(self) -> bool:
         """
 
         :return:
         """
         return self._is_playable_trailers.isSet()
 
-    def get_projected_number_of_trailers(self):
-        # type: () -> int
+    def get_projected_number_of_trailers(self) -> int:
         """
 
         :return:
@@ -295,8 +291,7 @@ class PlayableTrailersContainer:
         return starving
 
     @staticmethod
-    def get_instances():
-        # type: () -> Dict[str, PlayableTrailersContainer]
+    def get_instances() -> Dict[str, 'PlayableTrailersContainer']:
         """
 
         :return:

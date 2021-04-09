@@ -41,17 +41,15 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
     """
 
     _singleton_instance = None
-    logger = None
+    logger: LazyLogger = None
 
     def __init__(self,
-                 group=None,  # type: None
-                 # type: Callable[[Union[None, Any]], Union[Any, None]]
-                 target=None,
-                 thread_name=None,  # type: str
-                 args=(),  # type: Optional[Any]
-                 kwargs=None  # type: Optional[Any]
-                 ):
-        # type: (...) -> None
+                 group: Any = None, # Not used
+                 target: Callable[[Union[None, Any]], Union[Any, None]] = None,
+                 thread_name: str = None,
+                 *args: Any,
+                 **kwargs: Any
+                 ) -> None:
         """
 
         :param group:
@@ -536,8 +534,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-    def discover_basic_information(self):
-        # type: () -> None
+    def discover_basic_information(self) -> None:
         """
 
         :return:
@@ -645,7 +642,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             except Exception as e:
                 clz.logger.exception('')
 
-    def get_days_since_last_played(self, last_played_field: str, movie_name:str) -> int:
+    def get_days_since_last_played(self, last_played_field: str, movie_name: str) -> int:
         """
             Get the number of days since this movie (not the trailer)
             was last played. For invalid or missing values, -1 will be

@@ -56,6 +56,8 @@ class Constants:
 
     FRONTEND_DATA_PATH: str = None
     COUCH_POTATO_ID: Final[str] = 'plugin.video.couchpotato'
+    COUCH_POTATO_URL: Final[str] = 'plugin://plugin.video.couchpotato_manager/movies/add'
+
     InitialGarbageCollectionTime: Final[int] = 10 * 60  # Ten minutes in seconds
     # Run daily garbage collection at 04:13 in the morning.
     DailyGarbageCollectionTime: datetime.time = datetime.time(hour=4, minute=13)

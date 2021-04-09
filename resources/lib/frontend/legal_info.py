@@ -14,17 +14,16 @@ from xbmcgui import (Control, ControlImage, ControlButton, ControlEdit,
                      ControlSpin, ControlSlider, ControlProgress, ControlFadeLabel,
                      ControlRadioButton)
 
-from common.constants import Constants, Movie
-from common.exceptions import AbortException
+from common.constants import Constants
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger, Trace
 from common.messages import Messages
 from common.monitor import Monitor
 from frontend import text_to_speech
 from action_map import Action
 
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class LegalInfo(xbmcgui.WindowXMLDialog):
@@ -32,13 +31,12 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         Page shown at startup displaying legal information, such as logos, etc.
     """
 
-    _instance = None
-    _destroyed = False
+    _instance: ForwardRef('LegalInfo') = None
+    _destroyed: bool = False
     _window_id: str = None
 
     @staticmethod
-    def get_instance():
-        # type: () -> LegalInfo
+    def get_instance() -> ForwardRef('LegalInfo'):
         """
 
         :return:
@@ -48,7 +46,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
                                             Constants.ADDON_PATH, 'Default')
         return LegalInfo._instance
 
-    def __init__(self, *args: Any, **kwargs: int):
+    def __init__(self, *args: Any, **kwargs: int) -> None:
         """
 
         :param args:
@@ -85,7 +83,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
             target=self.update_dialog, name='LegalInfo.update_dialog')
         self._update_dialog_thread.start()
 
-    def update_dialog(self):
+    def update_dialog(self) -> None:
         # self._logger.debug_extra_verbose('In update_dialog')
         label: Union[ControlLabel, Control] = self.getControl(38021)
         label_text = Messages.get_msg(Messages.LICENSE_LABEL)

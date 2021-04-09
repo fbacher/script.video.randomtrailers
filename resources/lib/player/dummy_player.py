@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import xbmcgui
+from xbmc import InfoTagMusic, InfoTagRadioRDS, InfoTagVideo, PlayList
 
 from common.imports import *
 
@@ -13,227 +15,238 @@ class PlayerState:
 
 class DummyPlayer:
 
-    def __init__(self):
+    def __init__(self) -> None:
         return
 
-    def register_exit_on_movie_playing(self, listener):
+    def register_exit_on_movie_playing(self, listener) -> None:
         pass
 
-    def setCallBacks(self, on_video_window_opened=None, on_video_window_closed=None,
-                     on_show_osd=None, on_show_info=None):
+    def set_callbacks(self,
+                      on_video_window_opened: Callable[[Any], Any] = None,
+                      on_video_window_closed: Callable[[Any], Any] = None,
+                      on_show_osd: Callable[[Any], Any] = None,
+                      on_show_info: Callable[[Any], Any] = None) -> None:
         return
 
-    def enableAdvancedMonitoring(self):
+    def enable_advanced_monitoring(self) -> None:
         return
 
-    def disableAdvancedMonitoring(self, shutdown=False):
+    def disable_advanced_monitoring(self, shutdown: bool = False) -> None:
         return
 
-    def reset(self):
+    def reset(self) -> None:
         return
 
-    def control(self, cmd):
+    def control(self, cmd: str) -> None:
         return
 
     @property
-    def playState(self):
+    def play_state(self) -> str:
         return 'dummyState'
 
-    def isVideoFullscreen(self):
+    def is_video_fullscreen(self) -> bool:
         return True
 
     def play_trailer(self, path, trailer):
         return
 
-    def play(self, item="", listitem=None, windowed=False, startpos=-1):
+    def play(self,
+             item: Union[PlayList, str] = "",
+             listitem: xbmcgui.ListItem = None,
+             windowed: bool = False,
+             startpos: int = -1) -> None:
         return
 
-    def stop(self):
+    def stop(self) -> None:
         return
 
-    def pause(self):
+    def pause(self) -> None:
         return
 
-    def pausePlay(self):
+    def pause_play(self) -> None:
         return
 
-    def resumePlay(self):
+    def resume_play(self) -> None:
         return
 
-    def playnext(self):
+    def playnext(self) -> None:
         return
 
-    def playprevious(self):
+    def playprevious(self) -> None:
         return
 
-    def playselected(self, selected):
-        # type: (int) -> None
+    def playselected(self, selected: int) -> None:
         return
 
-    def isPlaying(self):
+    def isPlaying(self) -> bool:
         return False
 
     def myIsPlayingVideo(self):
         return False
 
-    def isPlayingAudio(self):
+    def isPlayingAudio(self) -> bool:
         return False
 
-    def isPlayingVideo(self):
+    def isPlayingVideo(self) -> bool:
         return False
 
-    def isPlayingRDS(self):
+    def isPlayingRDS(self) -> bool:
         return False
 
-    def isPaused(self):
+    def is_paused(self) -> bool:
         return False
 
-    def isExternalPlayer(self):
+    def isExternalPlayer(self) -> bool:
         return False
 
-    def isFinished(self):
+    def is_finished(self) -> bool:
         return True
 
-    def getPlayingFile(self):
+    def getPlayingFile(self) -> str:
         return ''
 
     def _dumpState(self):
         return
 
-    def getTime(self):
+    def getTime(self) -> float:
         return 0
 
-    def seekTime(self, seekTime):
+    def seekTime(self, seek_time) -> None:
         return 0
 
-    def setSubtitles(self, subtitleFile):
+    def setSubtitles(self, subtitle_file: Any) -> None:
         return
 
-    def showSubtitles(self, bVisible):
+    def showSubtitles(self, b_visible: bool) -> None:
         return
 
-    def getSubtitles(self):
+    def getSubtitles(self) -> str:
         return ''
 
-    def getAvailableSubtitleStreams(self):
+    def getAvailableSubtitleStreams(self) -> List[str]:
         return []
 
-    def setSubtitleStream(self, iStream):
+    def setSubtitleStream(self, i_stream: int) -> None:
         return
 
-    def updateInfoTag(self, item):
+    def updateInfoTag(self, item: xbmcgui.ListItem) -> None:
         return
 
-    def getVideoInfoTag(self):
+    def getVideoInfoTag(self) -> InfoTagVideo:
         return None
 
-    def getMusicInfoTag(self):
+    def getMusicInfoTag(self) -> InfoTagMusic:
         return None
 
-    def getRadioRDSInfoTag(self):
+    def getRadioRDSInfoTag(self) -> InfoTagRadioRDS:
         return None
 
-    def getTotalTime(self):
-        return 0
+    def getTotalTime(self) -> float:
+        return 0.0
 
-    def getAvailableAudioStreams(self):
+    def getAvailableAudioStreams(self) -> List[str]:
         return []
 
-    def setAudioStream(self, iStream):
+    def setAudioStream(self, i_stream: int) -> None:
         return
 
-    def getAvailableVideoStreams(self):
+    def getAvailableVideoStreams(self) -> List[str]:
         return []
 
-    def setVideoStream(self, iStream):
+    def setVideoStream(self, i_stream: int) -> None:
         return
 
-    def getPlayingTitle(self):
+    def get_playing_title(self) -> str:
         return ''
 
-    def killPlayer(self):
+    def kill_player(self) -> None:
         return
 
-    def onPrePlayStarted(self):
+    def on_preplay_started(self) -> None:
         return
 
-    def onPlayBackStarted(self):
+    def onPlayBackStarted(self) -> None:
         return
 
-    def onAVStarted(self):
+    def onAVStarted(self) -> None:
         return
 
-    def waitForIsPlayingVideo(self, timeout=None):
+    def wait_for_is_playing_video(self, timeout: float = None) -> bool:
 
         Monitor.throw_exception_if_abort_requested()
         return False
 
-    def waitForIsNotPlayingVideo(self, timeout=None, trace=None):
+    def wait_for_is_not_playing_video(self,
+                                  timeout: float = None,
+                                  trace: str = None) -> bool:
         Monitor.throw_exception_if_abort_requested()
         return True
 
-    def onAVChange(self):
+    def onAVChange(self) -> None:
         return
 
-    def onPlayBackEnded(self):
+    def onPlayBackEnded(self)  -> None:
         return
 
-    def onPlayBackFailed(self):
+    def on_playback_failed(self) -> None:
         return
 
-    def onPlayBackStopped(self):
+    def onPlayBackStopped(self) -> None:
         return
 
-    def onPlayBackError(self):
+    def onPlayBackError(self) -> None:
         return
 
     def onPlayBackPaused(self):
         return
 
-    def onPlayBackResumed(self):
+    def onPlayBackPaused(self) -> None:
         return
 
-    def onPlayBackSeek(self, time, seekOffset):
+    def onPlayBackResumed(self) -> None:
         return
 
-    def onPlayBackSeekChapter(self, chapter):
+    def onPlayBackSeek(self, time: int, seekOffset: int) -> None:
         return
 
-    def onPlayBackSpeedChanged(self, speed):
+    def onPlayBackSeekChapter(self, chapter: int) -> None:
         return
 
-    def onQueueNextItem(self):
+    def onPlayBackSpeedChanged(self, speed: int) -> None:
         return
 
-    def onVideoWindowOpened(self):
+    def onQueueNextItem(self) -> None:
         return
 
-    def onVideoWindowClosed(self):
+    def on_video_window_opened(self) -> None:
         return
 
-    def showOSD(self, from_seek=False):
+    def on_video_window_closed(self) -> None:
         return
 
-    def hideOSD(self, delete=False):
+    def show_osd(self, from_seek: bool = False) -> None:
         return
 
-    def onVideoOSD(self):
+    def hide_osd(self, delete=False) -> None:
         return
 
-    def onShowInfo(self):
+    def on_video_osd(self) -> None:
+        return
+
+    def on_show_info(self) -> None:
         return
 
     def tick(self):
         pass
 
-    def onSeekOSD(self):
+    def on_seek_osd(self) -> None:
         return
 
-    def killPlayingTrailer(self):
+    def kill_playing_trailer(self) -> None:
         return
 
-    def monitor(self):
+    def monitor(self) -> None:
         return
 
-    def is_activated(self):
+    def is_activated(self) -> bool:
         return False

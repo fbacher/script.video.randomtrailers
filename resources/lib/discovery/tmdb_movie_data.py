@@ -9,18 +9,16 @@ Created on Feb 10, 2019
 from backend.movie_entry_utils import MovieEntryUtils
 from cache.tmdb_cache_index import CacheIndex
 from common.imports import *
-from common.constants import (Constants, Movie)
+from common.constants import Movie
 from discovery.abstract_movie_data import AbstractMovieData
 
 
-# noinspection Annotator,PyArgumentList
 class TMDBMovieData(AbstractMovieData):
     """
 
     """
 
-    def __init__(self, movie_source=''):
-        # type: (str) -> None
+    def __init__(self, movie_source: str = Movie.TMDB_SOURCE) -> None:
         """
 
         """

@@ -7,17 +7,16 @@ Created on Mar 21, 2019
 """
 
 
-import os
 import sys
 
 from common.constants import Constants, Movie
 from common.exceptions import AbortException
 from common.imports import *
-from common.logger import LazyLogger, Trace
+from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 """
     FrontendBridge provides support for the random trailers front_end_service to
@@ -25,12 +24,12 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
     accomplished using the AddonSignals service. 
 """
 
+MAX_LOOPS: int = 150
+
 
 class FrontendBridgeStatus(PluginBridgeStatus):
     """
     """
-
-# noinspection Annotator
 
 
 class FrontendBridge(PluginBridge):
@@ -44,8 +43,7 @@ class FrontendBridge(PluginBridge):
     _busy_getting_trailer = False
     _status = FrontendBridgeStatus.IDLE
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self) -> None:
         """
 
         """
@@ -53,17 +51,17 @@ class FrontendBridge(PluginBridge):
         type(self).class_init()
 
     @classmethod
-    def class_init(cls):
+    def class_init(cls) -> None:
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.enter()
             try:
-                cls._next_trailer = None
+                cls._next_trailer: MovieType = None
                 cls._trailer_iterator = None
-                cls._trailer = None
-                cls._busy_getting_trailer = False
-                cls._status = FrontendBridgeStatus.IDLE
+                cls._trailer: MovieType = None
+                cls._busy_getting_trailer: bool = False
+                cls._status: str = FrontendBridgeStatus.IDLE
                 cls.register_listeners()
             except AbortException:
                 reraise(*sys.exc_info())
@@ -77,8 +75,7 @@ class FrontendBridge(PluginBridge):
     ###########################################################
 
     @classmethod
-    def get_next_trailer(cls):
-        # type: () -> (Union[str, None], Union[Dict[str, Any], None])
+    def get_next_trailer(cls) -> (str, Dict[str, Any]):
         """
          front-end requests a trailer from the back-end and waits for
             response.
@@ -98,7 +95,6 @@ class FrontendBridge(PluginBridge):
 
             cls._status = FrontendBridgeStatus.BUSY
             count = 0
-            MAX_LOOPS = 150
             while cls._status == FrontendBridgeStatus.BUSY and count < MAX_LOOPS:
                 Monitor.throw_exception_if_abort_requested(timeout=0.20)
                 count += 1
@@ -125,8 +121,7 @@ class FrontendBridge(PluginBridge):
             cls._logger.exception('')
 
     @classmethod
-    def notify_settings_changed(cls):
-        # type: () -> None
+    def notify_settings_changed(cls) -> None:
         """
             Front-end informs others (back-end) that settings may have changed.
 
@@ -139,8 +134,7 @@ class FrontendBridge(PluginBridge):
                         source_id=Constants.BACKEND_ID)
 
     @classmethod
-    def ack(cls, what):
-        # type: (str) -> None
+    def ack(cls, what: str) -> None:
         """
             Front-end acknowledges receipt some messages. This is used
             to confirm that the front-end is running and received message.
@@ -158,8 +152,7 @@ class FrontendBridge(PluginBridge):
                         source_id=Constants.BACKEND_ID)
 
     @classmethod
-    def returned_trailer(cls, data):
-        # type: (Any) -> None
+    def returned_trailer(cls, data: Any) -> None:
         """
             Front-end receives trailer from back-end
 
@@ -207,8 +200,7 @@ class FrontendBridge(PluginBridge):
             cls._logger.exception('')
 
     @classmethod
-    def register_listeners(cls):
-        # type: () -> None
+    def register_listeners(cls) -> None:
         """
             Register listeners (callbacks) with service. Note that
             communication is asynchronous

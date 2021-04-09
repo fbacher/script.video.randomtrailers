@@ -27,7 +27,7 @@ from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.tfh_movie_data import TFHMovieData
 from backend.video_downloader import VideoDownloader
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class DiscoverTFHMovies(BaseDiscoverMovies):
@@ -35,7 +35,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         TFH, like iTunes, provides trailers. Query TFH for trailers
         and manufacture trailer entries for them.
     """
-    FORCE_TFH_REDISCOVERY = False  # For development use
+    FORCE_TFH_REDISCOVERY: Final[bool] = False  # For development use
 
     _singleton_instance = None
     logger: LazyLogger = None

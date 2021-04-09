@@ -6,13 +6,10 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-from common.imports import *
-
-from common.constants import (Constants, Movie)
+from common.constants import Movie
 from discovery.abstract_movie_data import AbstractMovieData
 
 
-# noinspection Annotator,PyArgumentList
 class TFHMovieData(AbstractMovieData):
     """
 

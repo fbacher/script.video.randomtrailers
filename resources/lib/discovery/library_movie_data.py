@@ -6,20 +6,16 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-from common.imports import *
-
-from common.constants import Constants, Movie
+from common.constants import Movie
 from discovery.abstract_movie_data import AbstractMovieData
 
 
-# noinspection Annotator,PyArgumentList
 class LibraryMovieData(AbstractMovieData):
     """
 
     """
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self, movie_source: str = Movie.LIBRARY_SOURCE) -> None:
         """
 
         """
@@ -32,8 +28,7 @@ class LibraryNoTrailerMovieData(AbstractMovieData):
 
     """
 
-    def __init__(self):
-        # type: () -> None
+    def __init__(self, movie_source: str = Movie.LIBRARY_NO_TRAILER) -> None:
         """
 
 
@@ -47,8 +42,7 @@ class LibraryURLMovieData(AbstractMovieData):
 
     """
 
-    def __init__(self, movie_source=''):
-        # type: (str) -> None
+    def __init__(self, movie_source: str = Movie.LIBRARY_URL_TRAILER) -> None:
         """
 
         :param movie_source:

@@ -31,7 +31,6 @@ from discovery.playable_trailers_container import PlayableTrailersContainer
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection Annotator,PyArgumentList
 class PlayableTrailerService:
     """
         Abstract class with common code for all Trailer Managers
@@ -46,60 +45,57 @@ class PlayableTrailerService:
     """
     logger: LazyLogger = None
 
-    def __init__(self):
-        # type: (...) -> None
+    def __init__(self) -> None:
         """
 
         :return:
         """
-        if type(self).logger is None:
-            type(self).logger = module_logger.getChild(type(self).__name__)
+        clz = type(self)
+        if clz.logger is None:
+            clz.logger = module_logger.getChild(clz.__name__)
 
-        self._next_total_duration = 0
-        self._next_calls = 0
-        self._next_attempts = 0
-        self._load_fetch_total_duration = 0
-        self._next_failures = 0
-        self._next_total_first_method_attempts = 0
-        self._next_second_attempts = 0
-        self._next_second_total_Duration = 0
-        self._played_movies_count = 0
-        self._previous_title = ''
+        self._next_total_duration: int = 0
+        self._next_calls: int = 0
+        self._next_attempts: int = 0
+        self._load_fetch_total_duration: int = 0
+        self._next_failures: int = 0
+        self._next_total_first_method_attempts: int = 0
+        self._next_second_attempts: int = 0
+        self._next_second_total_Duration: int = 0
+        self._played_movies_count: int = 0
+        self._previous_title: str = ''
 
-    def iter(self):
-        # type: () -> Iterable
+    def iter(self) -> Iterable:
         """
 
         :return:
         """
         return self.__iter__()
 
-    def __iter__(self):
-        # type: () -> Iterable
+    def __iter__(self) -> Iterable:
         """
 
         :return:
         """
         return self
 
-    def next(self):
-        # type: () -> dict
+    def next(self) -> MovieType:
         """
 
         :return:
         """
         return self.__next__()
 
-    def __next__(self):
-        # type: () -> Union[dict, None]
+    def __next__(self) -> MovieType:
         """
 
         :return:
         """
-        movie = None
+        clz = type(self)
+        movie: MovieType = None
         try:
-            finished = False
-            attempt = 0
+            finished: bool = False
+            attempt: int = 0
             while not finished:
                 try:
                     attempt += 1
@@ -107,32 +103,31 @@ class PlayableTrailerService:
                     finished = True
                 except RestartDiscoveryException:
                     Monitor.throw_exception_if_abort_requested(timeout=0.10)
-                    if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        self.logger.debug_verbose(
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose(
                             'Rediscovery in progress. attempt:', attempt)
         except Exception as e:
-            self.logger.exception('')
+            clz.logger.exception('')
             reraise(*sys.exc_info())
 
         return movie
 
-    def _do_next(self):
-        # type: () -> Union[dict, None]
+    def _do_next(self) -> MovieType:
         """
 
         :return:
         """
-        clz = PlayableTrailerService
+        clz = type(self)
         try:
             while not PlayableTrailersContainer.is_any_trailers_available_to_play():
                 self.throw_exception_on_forced_to_stop(
                     movie_data=None, delay=0.25)
 
         except Exception as e:
-            self.logger.exception('')
+            clz.logger.exception('')
 
-        total_number_of_trailers = 0
-        start_time = datetime.datetime.now()
+        total_number_of_trailers: int = 0
+        start_time: datetime.datetime = datetime.datetime.now()
 
         # Considered locking all TrailerManagers here to guarantee
         # that lengths don't change while finding the right trailer
@@ -147,7 +142,7 @@ class PlayableTrailerService:
         # It is possible that all discovery is complete and there is nothing
         # to play.
 
-        nothing_to_play = True
+        nothing_to_play: bool = True
         # playable_trailers_map = None  # type: Dict[str,
         # PlayableTrailersContainer]
         # type:
@@ -156,7 +151,7 @@ class PlayableTrailerService:
 
         # Need to use the same projected sizes throughout this method.
 
-        projected_sizes_map = {}
+        projected_sizes_map: Dict[str, int] = {}
         for source in playable_trailers_map:
             playable_trailers = playable_trailers_map[source]
             if not playable_trailers.is_playable_trailers():
@@ -166,25 +161,24 @@ class PlayableTrailerService:
             self.throw_exception_on_forced_to_stop(movie_data=movie_data)
             number_of_trailers = movie_data.get_number_of_movies()
             trailers_queue_size = movie_data.get_discovered_trailer_queue_size()
-            if self.logger.isEnabledFor(LazyLogger.DISABLED):
-                self.logger.debug_extra_verbose(source, 'size:',
-                                                number_of_trailers,
-                                                'discoveredTrailersQueue size:',
-                                                trailers_queue_size,
-                                                'readyToPlayQueue size:',
-                                                playable_trailers.get_ready_to_play_queue().qsize(),
-                                                'trailersToFetchQueue size:',
-                                                movie_data.get_trailers_to_fetch_queue_size())
+            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                clz.logger.debug_extra_verbose(source, 'size:',
+                                    number_of_trailers,                                        'discoveredTrailersQueue size:',
+                                    trailers_queue_size,
+                                    'readyToPlayQueue size:',
+                                    playable_trailers.get_ready_to_play_queue().qsize(),
+                                    'trailersToFetchQueue size:',
+                                    movie_data.get_trailers_to_fetch_queue_size())
 
             projected_size = playable_trailers.get_projected_number_of_trailers()
             projected_sizes_map[source] = projected_size
 
-            if (self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+            if (clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                     and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
-                self.logger.debug_extra_verbose('source:', source,
-                                                'projected size:',
-                                                projected_size,
-                                                trace=Trace.TRACE_PLAY_STATS)
+                clz.logger.debug_extra_verbose('source:', source,
+                                               'projected size:',
+                                               projected_size,
+                                               trace=Trace.TRACE_PLAY_STATS)
             total_number_of_trailers += projected_size
             if not movie_data.is_discovery_complete() or number_of_trailers != 0:
                 nothing_to_play = False
@@ -193,20 +187,20 @@ class PlayableTrailerService:
 
             if (trailers_queue_size == 0
                     and playable_trailers.is_playable_trailers()):
-                if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    self.logger.debug('Shuffling because discoveredTrailerQueue empty',
-                                      trace=Trace.TRACE_DISCOVERY)
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug('Shuffling because discoveredTrailerQueue empty',
+                                     trace=Trace.TRACE_DISCOVERY)
                 movie_data.shuffle_discovered_trailers(mark_unplayed=True)
 
-        if (self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+        if (clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                 and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
-            self.logger.debug_extra_verbose('total_number_of_trailers:',
-                                            total_number_of_trailers,
-                                            Trace.TRACE_PLAY_STATS)
+            clz.logger.debug_extra_verbose('total_number_of_trailers:',
+                                           total_number_of_trailers,
+                                           Trace.TRACE_PLAY_STATS)
         if nothing_to_play:
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.debug_verbose('Nothing to Play! numTrailers:',
-                                          total_number_of_trailers)
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose('Nothing to Play! numTrailers:',
+                                         total_number_of_trailers)
             raise StopIteration
             # return None
 
@@ -216,14 +210,14 @@ class PlayableTrailerService:
         # We loop here because there may not be any trailers in the readyToPlayQueue
         # for a specific playable_trailers
 
-        trailer = None
-        attempts = 0
+        trailer: MovieType = None
+        attempts: int = 0
         while trailer is None and attempts < 10:
             try:
                 trailer_index_to_play = DiskUtils.RandomGenerator.randint(
                     0, total_number_of_trailers - 1)
-                if self.logger.isEnabledFor(LazyLogger.DISABLED):
-                    self.logger.debug_extra_verbose(
+                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                    clz.logger.debug_extra_verbose(
                         'PlayableTrailerService.next trailer_index_to_play:',
                         trailer_index_to_play)
             except ValueError as e:  # Empty range
@@ -245,11 +239,11 @@ class PlayableTrailerService:
                         found_playable_trailers = playable_trailers
                         break
                 except Exception as e:
-                    self.logger.log_exception(e)
+                    clz.logger.log_exception(e)
             try:
                 attempts += 1
-                if attempts > 1 and self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    self.logger.debug_verbose(
+                if attempts > 1 and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug_verbose(
                         'PlayableTrailerService.next Attempt:', attempts,
                         'manager:', found_playable_trailers.__class__.__name__)
                 trailer = found_playable_trailers.get_next_movie()
@@ -272,8 +266,8 @@ class PlayableTrailerService:
         second_method_attempts = None
 
         if trailer is None:
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.debug_verbose('Trailer not found by preferred method',
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose('Trailer not found by preferred method',
                                           trace=Trace.TRACE)
 
             # Alternative method is to pick a random PlayableTrailersContainer to start
@@ -295,8 +289,8 @@ class PlayableTrailerService:
                             and playable_trailers.get_movie_data().
                                     get_number_of_movies() > 0
                             and playable_trailers.is_playable_trailers()):
-                        if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                            self.logger.debug_verbose(
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            clz.logger.debug_verbose(
                                 'Shuffling because',
                                 'discoveredTrailerQueue empty',
                                 'source:', source,
@@ -367,15 +361,15 @@ class PlayableTrailerService:
         if trailer is None:
             raise StopIteration
 
-        if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            self.logger.debug_verbose('Playing:', trailer[Movie.DETAIL_TITLE],
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            clz.logger.debug_verbose('Playing:', trailer[Movie.DETAIL_TITLE],
                                       trace=Trace.TRACE)
         Debug.validate_detailed_movie_properties(trailer)
 
         # Periodically report on played movie statistics
 
         self._played_movies_count += 1
-        if self.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+        if clz.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
             if (self._played_movies_count % 100) == 0:
                 PlayStatistics.report_play_count_stats()
 
@@ -390,9 +384,10 @@ class PlayableTrailerService:
         :param delay:
         :return:
         """
+        clz = type(self)
         Monitor.throw_exception_if_abort_requested(timeout=delay)
         if movie_data is not None and movie_data.restart_discovery_event.isSet():
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.debug_verbose('RestartDiscoveryException source:',
-                                          movie_data.get_movie_source())
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                clz.logger.debug_verbose('RestartDiscoveryException source:',
+                                         movie_data.get_movie_source())
             raise RestartDiscoveryException()

@@ -3,31 +3,30 @@ import sys
 import threading
 
 import xbmc
+import xbmcgui
 from xbmc import PlayList, InfoTagVideo, InfoTagMusic, InfoTagRadioRDS
 
 from common.imports import *
-from common.constants import (Constants)
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
-DEBUG_PLAYER = LazyLogger.DISABLED
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+DEBUG_PLAYER: int = LazyLogger.DISABLED
 
 
 class PlayerState:
-    STATE_STOPPED = 'stopped'
-    STATE_PLAYING = 'playing'
-    STATE_PAUSED = 'paused'
+    STATE_STOPPED: Final[str] = 'stopped'
+    STATE_PLAYING: Final[str] = 'playing'
+    STATE_PAUSED: Final[str] = 'paused'
 
 
-# noinspection Annotator,Annotator
 class AdvancedPlayer(xbmc.Player):
     """
 
     """
-    DEBUG_MONITOR = False
-    _logger = None
+    DEBUG_MONITOR: Final[bool] = False
+    _logger: LazyLogger = None
 
     def __init__(self):
         super().__init__()
@@ -35,33 +34,30 @@ class AdvancedPlayer(xbmc.Player):
         if AdvancedPlayer._logger is None:
             AdvancedPlayer._logger = module_logger.getChild(type(self).__name__)
 
-        self._is_playing = False
-        self._is_finished = False
-        self._kill_trailer_timer = None
-        self._previous_info_tag = None
-        self._info_dialog_initialized = False
-        self._monitor_thread = None
-        self._closed = True
-        self._has_osd = False
-        self._has_seek_osd = False
-        self._has_show_info = False
-        self._player_window_open = False
-        self._call_back_on_show_info = None
-        self._player_state = PlayerState.STATE_STOPPED
-        self.video = None
-        self.started = False
-        self.player_object = None
-        self.current_time = None
+        self._is_playing: bool = False
+        self._is_finished: bool = False
+        self._monitor_thread: threading.Thread = None
+        self._closed: bool = True
+        self._has_osd: bool = False
+        self._has_seek_osd: bool = False
+        self._has_show_info: bool = False
+        self._player_window_open: bool = False
+        self._call_back_on_show_info: Callable[[Any], Any] = None
+        self._player_state: str = PlayerState.STATE_STOPPED
+        self.started: bool = False
 
-    def setCallBacks(self, on_video_window_opened=None, on_video_window_closed=None,
-                     on_show_osd=None, on_show_info=None):
+    def set_callbacks(self,
+                      on_video_window_opened: Callable[[Any], Any] = None,
+                      on_video_window_closed: Callable[[Any], Any] = None,
+                      on_show_osd: Callable[[Any], Any] = None,
+                      on_show_info: Callable[[Any], Any] = None) -> None:
         self._call_back_on_show_info = on_show_info
 
-    def enableAdvancedMonitoring(self):
+    def enable_advanced_monitoring(self) -> None:
         self._closed = False
         self.monitor()
 
-    def disableAdvancedMonitoring(self, shutdown=False):
+    def disable_advanced_monitoring(self, shutdown: bool = False) -> None:
         self._closed = True
         try:
             if self._monitor_thread is not None and self._monitor_thread.isAlive():
@@ -69,16 +65,13 @@ class AdvancedPlayer(xbmc.Player):
         finally:
             self._monitor_thread = None
 
-    def reset(self):
+    def reset(self) -> None:
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(DEBUG_PLAYER):
             local_class._logger.enter()
-        self.video = None
         self.started = False
-        self.player_object = None
-        self.current_time = 0
 
-    def control(self, cmd):
+    def control(self, cmd: str) -> None:
         local_class = AdvancedPlayer
 
         if cmd == 'play':
@@ -97,7 +90,7 @@ class AdvancedPlayer(xbmc.Player):
                 xbmc.executebuiltin('PlayerControl(Play)')
 
     @property
-    def play_state(self):
+    def play_state(self) -> str:
         local_class = AdvancedPlayer
 
         if xbmc.getCondVisibility('Player.Playing'):
@@ -111,13 +104,16 @@ class AdvancedPlayer(xbmc.Player):
         # self._dump_state()  # TODO: remove
         return play_state
 
-    def isVideoFullscreen(self):
-        isFullScreen = bool(xbmc.getCondVisibility('VideoPlayer.IsFullscreen'))
-        return isFullScreen
+    def is_video_fullscreen(self) -> bool:
+        is_fullscreen = bool(xbmc.getCondVisibility('VideoPlayer.IsFullscreen'))
+        return is_fullscreen
 
     # Defined in xbmc.Player
-    def play(self, item="", listitem=None, windowed=False, startpos=-1):
-        # type: (Union[PlayList], 'xbmcgui.ListItem', bool, int) ->None
+    def play(self,
+             item: Union[PlayList, str] = "",
+             listitem: xbmcgui.ListItem = None,
+             windowed: bool = False,
+             startpos: int = -1) -> None:
         """
         Play a item.
 
@@ -148,10 +144,10 @@ class AdvancedPlayer(xbmc.Player):
         if type(self).DEBUG_MONITOR:
             local_class._logger.enter()
         super().play(item, listitem, windowed, startpos)
-        self.enableAdvancedMonitoring()
+        self.enable_advanced_monitoring()
 
     # Defined in xbmc.Player
-    def stop(self):
+    def stop(self) -> None:
         """
         Stop playing.
         """
@@ -163,7 +159,7 @@ class AdvancedPlayer(xbmc.Player):
         super().stop()
 
     # Defined in xbmc.Player
-    def pause(self):
+    def pause(self) -> None:
         """
         Toggle play/pause state
         """
@@ -175,7 +171,7 @@ class AdvancedPlayer(xbmc.Player):
         super().pause()
         #self._dump_state()  # TODO: remove
 
-    def pausePlay(self):
+    def pause_play(self) -> None:
         local_class = AdvancedPlayer
 
         if (local_class._logger.isEnabledFor(DEBUG_PLAYER)
@@ -185,7 +181,7 @@ class AdvancedPlayer(xbmc.Player):
             # self._dump_state()  # TODO: remove
             self.pause()
 
-    def resumePlay(self):
+    def resume_play(self) -> None:
         local_class = AdvancedPlayer
 
         if local_class._logger.isEnabledFor(DEBUG_PLAYER):
@@ -195,7 +191,7 @@ class AdvancedPlayer(xbmc.Player):
             self.pause()
 
     # Defined in xbmc.Player
-    def playnext(self):
+    def playnext(self) -> None:
         """
         Play next item in playlist.
         """
@@ -207,7 +203,7 @@ class AdvancedPlayer(xbmc.Player):
         # self._dump_state()  # TODO: remove
 
     # Defined in xbmc.Player
-    def playprevious(self):
+    def playprevious(self) -> None:
         """
         Play previous item in playlist.
         """
@@ -219,8 +215,7 @@ class AdvancedPlayer(xbmc.Player):
         # self._dump_state()  # TODO: remove
 
     # Defined in xbmc.Player
-    def playselected(self, selected):
-        # type: (int) -> None
+    def playselected(self, selected: int) -> None:
         """
         Play a certain item from the current playlist.
 
@@ -234,7 +229,7 @@ class AdvancedPlayer(xbmc.Player):
         # self._dump_state()  # TODO: remove
 
     # Defined in xbmc.Player
-    def isPlaying(self):
+    def isPlaying(self) -> bool:
         """
         Is Kodi is playing something.
 
@@ -246,7 +241,7 @@ class AdvancedPlayer(xbmc.Player):
         return self._is_playing
 
     # Defined in xbmc.Player
-    def isPlayingAudio(self):
+    def isPlayingAudio(self) -> bool:
         """
         Is Kodi playing audio.
 
@@ -259,7 +254,7 @@ class AdvancedPlayer(xbmc.Player):
         return playing_audio
 
     # Defined in xbmc.Player
-    def isPlayingVideo(self):
+    def isPlayingVideo(self) -> bool:
         """
         Is Kodi playing video.
 
@@ -272,7 +267,7 @@ class AdvancedPlayer(xbmc.Player):
         return isPlaying
 
     # Defined in xbmc.Player
-    def isPlayingRDS(self):
+    def isPlayingRDS(self) -> bool:
         """
         Check for playing radio data system (RDS).
 
@@ -283,7 +278,7 @@ class AdvancedPlayer(xbmc.Player):
         playing_rds = bool(super().isPlayingRDS())
         return playing_rds
 
-    def isPaused(self):
+    def is_paused(self) -> bool:
         local_class = AdvancedPlayer
         paused = False
         if self._player_state == PlayerState.STATE_PAUSED:
@@ -291,7 +286,7 @@ class AdvancedPlayer(xbmc.Player):
         return True
 
     # Defined in xbmc.Player
-    def isExternalPlayer(self):
+    def isExternalPlayer(self) -> bool:
         """
         Is Kodi using an external player.
 
@@ -303,14 +298,14 @@ class AdvancedPlayer(xbmc.Player):
         external_player = bool(super().isExternalPlayer())
         return external_player
 
-    def isFinished(self):
+    def is_finished(self) -> bool:
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(DEBUG_PLAYER):
             local_class._logger.debug_extra_verbose('value:', self._is_finished)
         return self._is_finished
 
     # Defined in xbmc.Player
-    def getPlayingFile(self):
+    def getPlayingFile(self) -> str:
         """
         Returns the current playing file as a string.
 
@@ -332,10 +327,10 @@ class AdvancedPlayer(xbmc.Player):
         finally:
             return playing_file
 
-    def _dump_state(self):
+    def _dump_state(self) -> None:
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            self.isVideoFullscreen()
+            self.is_video_fullscreen()
             self.isPlaying()
             self.isPlayingAudio()
             self.isPlayingVideo()
@@ -353,10 +348,10 @@ class AdvancedPlayer(xbmc.Player):
             # self.getRadioRDSInfoTag()
             # self.getTotalTime()
             # self.getAvailableAudioStreams()
-            # self.getPlayingTitle()
+            # self.get_playing_title()
 
     # Defined in xbmc.Player
-    def getTime(self):
+    def getTime(self) -> float:
         """
         Get playing time.
 
@@ -366,7 +361,7 @@ class AdvancedPlayer(xbmc.Player):
         :raises Exception: If player is not playing a file.
         """
         local_class = AdvancedPlayer
-        time = 0
+        time: float = 0.0
         try:
             time = super().getTime()
         except Exception:
@@ -375,7 +370,7 @@ class AdvancedPlayer(xbmc.Player):
         return time
 
     # Defined in xbmc.Player
-    def seekTime(self, seek_time):
+    def seekTime(self, seek_time) -> None:
         """
         Seek time.
 
@@ -389,14 +384,14 @@ class AdvancedPlayer(xbmc.Player):
         local_class = AdvancedPlayer
         seek_time = 0
         try:
-            seek_time = super().seekTime(seek_time)
+            super().seekTime(seek_time)
         except Exception:
             pass
         finally:
-            return seek_time
+            return
 
     # Defined in xbmc.Player
-    def setSubtitles(self, subtitle_file):
+    def setSubtitles(self, subtitle_file: Any) -> None:
         """
         Set subtitle file and enable subtitles.
 
@@ -406,8 +401,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().setSubtitles(subtitle_file)
 
     # Defined in xbmc.Player
-    def showSubtitles(self, b_visible):
-        # type: (bool) -> None
+    def showSubtitles(self, b_visible: bool) -> None:
         """
         Enable / disable subtitles.
 
@@ -421,8 +415,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().showSubtitles(b_visible)
 
     # Defined in xbmc.Player
-    def getSubtitles(self):
-        # type: () -> str
+    def getSubtitles(self) -> str:
         """
         Get subtitle stream name.
 
@@ -432,8 +425,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().getSubtitles()
 
     # Defined in xbmc.Player
-    def getAvailableSubtitleStreams(self):
-        # type: () -> List[str]
+    def getAvailableSubtitleStreams(self) -> List[str]:
         """
         Get Subtitle stream names.
 
@@ -442,8 +434,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().getAvailableSubtitleStreams()
 
     # Defined in xbmc.Player
-    def setSubtitleStream(self, i_stream):
-        # type: (int) -> None
+    def setSubtitleStream(self, i_stream: int) -> None:
         """
         Set Subtitle Stream.
 
@@ -456,8 +447,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().setSubtitleStream(i_stream)
 
     # Defined in xbmc.Player
-    def updateInfoTag(self, item):
-        # type: ('xbmcgui.ListItem') -> None
+    def updateInfoTag(self, item: xbmcgui.ListItem) -> None:
         """
         Update info labels for currently playing item.
 
@@ -476,8 +466,7 @@ class AdvancedPlayer(xbmc.Player):
         super().updateInfoTag(item)
 
     # Defined in xbmc.Player
-    def getVideoInfoTag(self):
-        # type: () -> InfoTagVideo
+    def getVideoInfoTag(self) -> InfoTagVideo:
         """
         To get video info tag.
 
@@ -490,8 +479,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().getVideoInfoTag()
 
     # Defined in xbmc.Player
-    def getMusicInfoTag(self):
-        # type: () -> InfoTagMusic
+    def getMusicInfoTag(self) -> InfoTagMusic:
         """
         To get music info tag.
 
@@ -504,8 +492,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().getMusicInfoTag()
 
     # Defined in xbmc.Player
-    def getRadioRDSInfoTag(self):
-        # type: () -> Union[InfoTagRadioRDS, None]
+    def getRadioRDSInfoTag(self) -> InfoTagRadioRDS:
         """
         To get Radio RDS info tag
 
@@ -521,8 +508,7 @@ class AdvancedPlayer(xbmc.Player):
             return None
 
     # Defined in xbmc.Player
-    def getTotalTime(self):
-        # type: () -> float
+    def getTotalTime(self) -> float:
         """
         To get total playing time.
 
@@ -538,8 +524,7 @@ class AdvancedPlayer(xbmc.Player):
             return 0
 
     # Defined in xbmc.Player
-    def getAvailableAudioStreams(self):
-        # type: () -> List[str]
+    def getAvailableAudioStreams(self) -> List[str]:
         """
         Get Audio stream names
 
@@ -548,8 +533,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().getAvailableAudioStreams()
 
     # Defined in xbmc.Player
-    def setAudioStream(self, i_stream):
-        # type: (int) -> None
+    def setAudioStream(self, i_stream: int) -> None:
         """
         Set Audio Stream.
 
@@ -562,8 +546,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().setAudioStream(i_stream)
 
     # Defined in xbmc.Player
-    def getAvailableVideoStreams(self):
-        # type: () -> List[str]
+    def getAvailableVideoStreams(self) -> List[str]:
         """
         Get Video stream names
 
@@ -572,8 +555,7 @@ class AdvancedPlayer(xbmc.Player):
         return super().getAvailableVideoStreams()
 
     # Defined in xbmc.Player
-    def setVideoStream(self, i_stream):
-        # type: (int) -> None
+    def setVideoStream(self, i_stream: int) -> None:
         """
         Set Video Stream.
 
@@ -585,7 +567,7 @@ class AdvancedPlayer(xbmc.Player):
         """
         return super().setVideoStream(i_stream)
 
-    def getPlayingTitle(self) -> str:
+    def get_playing_title(self) -> str:
         local_class = AdvancedPlayer
         title = None
         try:
@@ -601,7 +583,7 @@ class AdvancedPlayer(xbmc.Player):
 
         return title
 
-    def killPlayer(self) -> None:
+    def kill_player(self) -> None:
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(DEBUG_PLAYER):
             local_class._logger.enter()
@@ -610,7 +592,7 @@ class AdvancedPlayer(xbmc.Player):
 
         self._is_finished = True
 
-    def onPrePlayStarted(self):
+    def on_preplay_started(self) -> None:
         pass
 
     """
@@ -634,7 +616,7 @@ class AdvancedPlayer(xbmc.Player):
     """
 
     # Defined in xbmc.Player
-    def onAVStarted(self):
+    def onAVStarted(self) -> None:
         '''
         Will be called when Kodi has a video or audiostream.
 
@@ -644,12 +626,11 @@ class AdvancedPlayer(xbmc.Player):
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             local_class._logger.debug_verbose(
-                self.getPlayingTitle(), trace=Trace.TRACE)
+                self.get_playing_title(), trace=Trace.TRACE)
 
         # self._dump_state()  # TODO: remove
 
-    def waitForIsPlayingVideo(self, timeout=None):
-        # type: (Optional[float]) -> bool
+    def wait_for_is_playing_video(self, timeout: float = None) -> bool:
         '''
         This is a mess.
 
@@ -677,8 +658,9 @@ class AdvancedPlayer(xbmc.Player):
 
         return True
 
-    def wait_for_is_not_playing_video(self, timeout=None, trace=None):
-        # type: (float, str) -> Union[bool, None]
+    def wait_for_is_not_playing_video(self,
+                                      timeout: float = None,
+                                      trace: str = None) -> bool:
         '''
         This is a mess.
 
@@ -713,7 +695,7 @@ class AdvancedPlayer(xbmc.Player):
         return True
 
     # Defined in xbmc.Player
-    def onAVChange(self):
+    def onAVChange(self) -> None:
         '''
             Will be called when Kodi has a video, audio or subtitle stream. Also
             happens when the stream changes.
@@ -724,13 +706,13 @@ class AdvancedPlayer(xbmc.Player):
         local_class = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
                 local_class._logger.isEnabledFor(LazyLogger.DEBUG)):
-            local_class._logger.debug_extra_verbose(self.getPlayingTitle(), trace=Trace.TRACE)
+            local_class._logger.debug_extra_verbose(self.get_playing_title(), trace=Trace.TRACE)
         # self._dump_state()  # TODO: remove
 
         # self.displayInfo()
 
     # Defined in xbmc.Player
-    def onPlayBackEnded(self):
+    def onPlayBackEnded(self)  -> None:
         '''
             Will be called when Kodi stops playing a file.
         '''
@@ -738,13 +720,13 @@ class AdvancedPlayer(xbmc.Player):
 
         # self._dump_state()  # TODO: remove
 
-    def onPlayBackFailed(self):
+    def on_playback_failed(self) -> None:
         self._player_state = PlayerState.STATE_STOPPED
 
         # self._dump_state()  # TODO: remove
 
     # Defined in xbmc.Player
-    def onPlayBackStopped(self):
+    def onPlayBackStopped(self) -> None:
         '''
         Will be called when user stops Kodi playing a file.
         '''
@@ -752,15 +734,15 @@ class AdvancedPlayer(xbmc.Player):
         # self._dump_state()  # TODO: remove
 
     # Defined in xbmc.Player
-    def onPlayBackError(self):
+    def onPlayBackError(self) -> None:
         '''
             Will be called when playback stops due to an error.
         '''
         self._player_state = PlayerState.STATE_STOPPED
         # self._dump_state()  # TODO: remove
 
-    # Defined in xbmc.Playser
-    def onPlayBackPaused(self):
+    # Defined in xbmc.Player
+    def onPlayBackPaused(self) -> None:
         '''
             Will be called when user pauses a playing file.
         '''
@@ -768,37 +750,37 @@ class AdvancedPlayer(xbmc.Player):
         local_class = AdvancedPlayer
         self._player_state = PlayerState.STATE_PAUSED
         if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            local_class._logger.debug_extra_verbose(self.getPlayingTitle(),
-                                             trace=Trace.TRACE)
+            local_class._logger.debug_extra_verbose(self.get_playing_title(),
+                                                    trace=Trace.TRACE)
         # self._dump_state()  # TODO: remove
 
-    # Defined in xbmc.Playser
-    def onPlayBackResumed(self):
+    # Defined in xbmc.Player
+    def onPlayBackResumed(self) -> None:
         '''
             Will be called when user resumes a paused file.
         '''
 
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            local_class._logger.debug_extra_verbose(self.getPlayingTitle(),
-                                             trace=Trace.TRACE)
+            local_class._logger.debug_extra_verbose(self.get_playing_title(),
+                                                    trace=Trace.TRACE)
         self._player_state = PlayerState.STATE_PLAYING
 
     # Defined in xbmc.Player
-    def onPlayBackSeek(self, time, seekOffset):
+    def onPlayBackSeek(self, time: int, seekOffset: int) -> None:
         '''
         Will be called when user seeks to a time.
         '''
         # self._dump_state()  # TODO: remove
 
     # Defined in xbmc.Player
-    def onPlayBackSeekChapter(self, chapter):
+    def onPlayBackSeekChapter(self, chapter: int) -> None:
         '''
         Will be called when user performs a chapter seek.
         '''
 
     # Defined in xmbc.Player
-    def onPlayBackSpeedChanged(self, speed):
+    def onPlayBackSpeedChanged(self, speed: int) -> None:
         '''
         Will be called when players speed changes (eg. user FF/RW).
 
@@ -806,19 +788,18 @@ class AdvancedPlayer(xbmc.Player):
         '''
 
     # Defined in xbmc.Player
-    def onQueueNextItem(self):
+    def onQueueNextItem(self) -> None:
         '''
         Will be called when user queues the next item.
         '''
         local_class = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
                 local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-            local_class._logger.debug_extra_verbose(self.getPlayingTitle(),
-                                             trace=Trace.TRACE)
+            local_class._logger.debug_extra_verbose(self.get_playing_title(),
+                                                    trace=Trace.TRACE)
         # self._dump_state()  # TODO: remove
 
-    def onVideoWindowOpened(self):
-        # type: () -> None
+    def on_video_window_opened(self) -> None:
         """
             Event indicating that the Video Window has been opened.
 
@@ -831,8 +812,7 @@ class AdvancedPlayer(xbmc.Player):
         self._player_window_open = True
         # self.getDialog().show()
 
-    def onVideoWindowClosed(self):
-        # type: () ->None
+    def on_video_window_closed(self) -> None:
         """
             Event indicating that the Video Window has been closed.
 
@@ -845,41 +825,41 @@ class AdvancedPlayer(xbmc.Player):
                 local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
             local_class._logger.enter()
         self._player_window_open = False
-        # self.hideOSD()
+        # self.hide_osd()
         # self._dump_state()  # TODO: remove
 
-    def showOSD(self, from_seek=False):
+    def show_osd(self, from_seek=False) -> None:
         pass
 
-    def hideOSD(self, delete=False):
+    def hide_osd(self, delete=False) -> None:
         pass
 
-    def onVideoOSD(self):
+    def on_video_osd(self) -> None:
         # self._dump_state()  # TODO: remove
         pass
 
-    def onShowInfo(self):
+    def on_show_info(self) -> None:
         # self._dump_state()  # TODO: remove
 
         if self._call_back_on_show_info is not None:
             self._call_back_on_show_info()
 
-    def tick(self):
+    def tick(self) -> None:
         pass
 
-    def onSeekOSD(self):
+    def on_seek_osd(self) -> None:
         local_class = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
                 local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
             local_class._logger.enter()
         # self._dump_state()  # TODO: remove
 
-    def kill_playing_trailer(self):
+    def kill_playing_trailer(self) -> None:
         local_class = AdvancedPlayer
         if local_class._logger.isEnabledFor(DEBUG_PLAYER):
             local_class._logger.enter()
 
-    def monitor(self):
+    def monitor(self) -> None:
         Monitor.throw_exception_if_abort_requested()
         if not self._monitor_thread or not self._monitor_thread.isAlive():
             if self._monitor_thread:
@@ -889,14 +869,15 @@ class AdvancedPlayer(xbmc.Player):
                 target=self._monitor, name='AdvancedPlayer:MONITOR')
             self._monitor_thread.start()
 
-    def _monitor(self):
+    def _monitor(self) -> None:
         local_class = AdvancedPlayer
+        clz = type(self)
         try:
-            if type(self).DEBUG_MONITOR:
+            if clz.DEBUG_MONITOR:
                 local_class._logger.enter()
 
             while not Monitor.wait_for_abort(0.1) and not self._closed:
-                if (type(self).DEBUG_MONITOR and
+                if (clz.DEBUG_MONITOR and
                         local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
                     if not self.isPlaying():
                         local_class._logger.debug_extra_verbose('Player: Idling...')
@@ -905,22 +886,22 @@ class AdvancedPlayer(xbmc.Player):
                     Monitor.throw_exception_if_abort_requested(timeout=0.1)
 
                 if self.isPlayingVideo():
-                    if (type(self).DEBUG_MONITOR and
+                    if (clz.DEBUG_MONITOR and
                             local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                         local_class._logger.debug_verbose('Monitoring video...')
                     self._video_monitor()
                 elif self.isPlayingAudio():
-                    if (type(self).DEBUG_MONITOR and
+                    if (clz.DEBUG_MONITOR and
                             local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                         local_class._logger.debug_verbose('Monitoring audio...')
                     # self._audio_monitor()
                 elif self.isPlaying():
-                    if (type(self).DEBUG_MONITOR and
+                    if (clz.DEBUG_MONITOR and
                             local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                         local_class._logger.debug_verbose('Monitoring pre-play...')
                     self._preplay_monitor()
 
-            if (type(self).DEBUG_MONITOR and
+            if (clz.DEBUG_MONITOR and
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.debug_verbose('Player: Closed')
         except AbortException:
@@ -930,22 +911,23 @@ class AdvancedPlayer(xbmc.Player):
         finally:
             pass
 
-    def _preplay_monitor(self):
+    def _preplay_monitor(self) -> None:
         local_class = AdvancedPlayer
+        clz = type(self)
         try:
-            if (type(self).DEBUG_MONITOR and
+            if (clz.DEBUG_MONITOR and
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.enter()
-            self.onPrePlayStarted()
+            self.on_preplay_started()
             while (self.isPlaying() and not self.isPlayingVideo()
                    and not self.isPlayingAudio()
                    and not self._closed):
                 Monitor.throw_exception_if_abort_requested(timeout=0.1)
 
             if not self.isPlayingVideo() and not self.isPlayingAudio():
-                self.onPlayBackFailed()
+                self.on_playback_failed()
 
-            if (type(self).DEBUG_MONITOR and
+            if (clz.DEBUG_MONITOR and
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.exit()
         except AbortException:
@@ -953,10 +935,11 @@ class AdvancedPlayer(xbmc.Player):
         except Exception as e:
             local_class._logger.exception('')
 
-    def _video_monitor(self):
+    def _video_monitor(self) -> None:
         local_class = AdvancedPlayer
+        clz = type(self)
         try:
-            if (type(self).DEBUG_MONITOR and
+            if (clz.DEBUG_MONITOR and
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.enter()
             has_full_screened = False
@@ -967,7 +950,7 @@ class AdvancedPlayer(xbmc.Player):
                 if xbmc.getCondVisibility('Window.IsActive(videoosd)'):
                     if not self._has_osd:
                         self._has_osd = True
-                        self.onVideoOSD()
+                        self.on_video_osd()
                 else:
                     self._has_osd = False
 
@@ -976,7 +959,7 @@ class AdvancedPlayer(xbmc.Player):
 
                 if xbmc.getCondVisibility('Player.ShowInfo'):
                     if not self._has_show_info:
-                        self.onShowInfo()
+                        self.on_show_info()
                         self._has_show_info = True
                 else:
                     self._has_show_info = False
@@ -987,7 +970,7 @@ class AdvancedPlayer(xbmc.Player):
                 if xbmc.getCondVisibility('Window.IsActive(seekbar)'):
                     if not self._has_seek_osd:
                         self._has_seek_osd = True
-                        self.onSeekOSD()
+                        self.on_seek_osd()
                 else:
                     self._has_seek_osd = False
 
@@ -997,18 +980,18 @@ class AdvancedPlayer(xbmc.Player):
                 if xbmc.getCondVisibility('VideoPlayer.IsFullscreen'):
                     if not has_full_screened:
                         has_full_screened = True
-                        self.onVideoWindowOpened()
+                        self.on_video_window_opened()
                 elif has_full_screened and not xbmc.getCondVisibility('Window.IsVisible(busydialog)'):
                     has_full_screened = False
-                    self.onVideoWindowClosed()
+                    self.on_video_window_closed()
 
                 if self._closed:
                     break
 
             if has_full_screened:
-                self.onVideoWindowClosed()
+                self.on_video_window_closed()
 
-            if (type(self).DEBUG_MONITOR and
+            if (clz.DEBUG_MONITOR and
                     local_class._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
                 local_class._logger.exit()
         except AbortException:

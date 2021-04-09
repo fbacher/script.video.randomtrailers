@@ -6,44 +6,36 @@ Created on May 25, 2019
 @author: Frank Feuerbacher
 '''
 
-import sys
-import threading
-from collections import deque
 
-from common.constants import Constants, Movie
-from common.exceptions import AbortException
+from common.constants import Movie
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
-from common.messages import Messages
-from common.monitor import Monitor
+from common.logger import LazyLogger
 
 from frontend.history_empty import HistoryEmpty
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class HistoryList:
     """
 
     """
-    MAX_HISTORY = 20
+    MAX_HISTORY: int = 20
     logger: LazyLogger = None
     _buffer: List[MovieType] = []
-    _cursor: int = int(-1)
+    _cursor: int = -1
 
     @classmethod
-    def class_init(cls):
-        # type: () -> None
+    def class_init(cls) -> None:
         """
 
         """
-        cls.logger = module_logger.getChild(cls.__class__.__name__)
-        cls._buffer = []  # type: List[MovieType]
-        cls._cursor = int(-1)  # type: int
+        cls.logger: Final[LazyLogger] = module_logger.getChild(cls.__class__.__name__)
+        cls._buffer: List[MovieType] = []
+        cls._cursor: int = -1
 
     @classmethod
-    def append(cls, movie):
-        # type: (MovieType) -> None
+    def append(cls, movie: MovieType) -> None:
         """
 
         :param movie:
@@ -62,8 +54,7 @@ class HistoryList:
                              len(cls._buffer), 'cursor:', cls._cursor)
 
     @classmethod
-    def get_previous_movie(cls):
-        # type: () -> MovieType
+    def get_previous_movie(cls) -> MovieType:
         """
 
         :return:
@@ -86,8 +77,7 @@ class HistoryList:
         return movie
 
     @classmethod
-    def get_next_movie(cls):
-        # type: () -> MovieType
+    def get_next_movie(cls) -> MovieType:
         """
         Play the next movie in the history buffer.
         :return: The next movie in the buffer or None, if there are none.
@@ -112,7 +102,7 @@ class HistoryList:
         return movie
 
     @classmethod
-    def remove(cls, movie):
+    def remove(cls, movie: MovieType) -> None:
         try:
             i = cls._buffer.index(movie)
             del cls._buffer[i]

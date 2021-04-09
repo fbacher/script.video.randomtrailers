@@ -7,30 +7,28 @@ Created on Apr 17, 2019
 '''
 
 import threading
-import xbmc
-import xbmcgui
 
 from common.imports import *
-from common.logger import (LazyLogger)
+from common.logger import LazyLogger
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class ReasonEvent:
     '''
         Provides a threading.Event with an attached reason
     '''
-    TIMED_OUT = 'timed out'
-    CLEARED = 'Cleared'
-    KODI_ABORT = 'Kodi Abort'
-    SHUTDOWN = 'Shutdown'
-    RUN_STATE_CHANGE = 'Run State Changed'
+    TIMED_OUT: Final[str] = 'timed out'
+    CLEARED: Final[str] = 'Cleared'
+    KODI_ABORT: Final[str] = 'Kodi Abort'
+    SHUTDOWN: Final[str] = 'Shutdown'
+    RUN_STATE_CHANGE: Final[str] = 'Run State Changed'
 
     def __init__(self):
         self._event = threading.Event()
         self._reason: Union[str, None] = None
 
-    def getReason(self):
+    def get_reason(self):
         return self._reason
 
     def set(self, reason):

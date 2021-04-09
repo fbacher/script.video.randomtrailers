@@ -12,14 +12,12 @@ from common.constants import (Constants, Movie)
 from discovery.abstract_movie_data import AbstractMovieData
 
 
-# noinspection Annotator,PyArgumentList
 class FolderMovieData(AbstractMovieData):
     """
 
     """
 
-    def __init__(self, movie_source=''):
-        # type: (str) -> None
+    def __init__(self, movie_source: str = Movie.FOLDER_SOURCE) -> None:
         """
 
         :param movie_source:

@@ -5,7 +5,6 @@ Created on Feb 12, 2019
 @author: Frank Feuerbacher
 """
 
-import sys
 import os
 import threading
 from xml.dom import minidom
@@ -14,20 +13,20 @@ import xbmc
 import xbmcgui
 import xbmcvfs
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.playlist import Playlist
 from common.settings import Settings
 
-from frontend.trailer_dialog import TrailerDialog, DialogState
+from frontend.trailer_dialog import TrailerDialog
 from frontend.black_background import BlackBackground
 from player.player_container import PlayerContainer
 from frontend.legal_info import LegalInfo
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 '''
@@ -71,23 +70,20 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 '''
 
-logger = LazyLogger.get_addon_module_logger().getChild('frontend.random_trailers_ui')
-
-# noinspection Annotator,PyMethodMayBeStatic,PyRedundantParentheses
+logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-def get_title_font():
-    # type: () -> str
+def get_title_font() -> str:
     """
 
     :return:
     """
-    title_font = 'font13'
-    base_size = 20
-    multiplier = 1
-    skin_dir = xbmcvfs.translatePath("special://skin/")
-    list_dir = os.listdir(skin_dir)
-    fonts = []
+    title_font: str = 'font13'
+    base_size: int = 20
+    multiplier: float = 1.0
+    skin_dir: str = xbmcvfs.translatePath("special://skin/")
+    list_dir: List[str] = os.listdir(skin_dir)
+    fonts: List[Dict[str, float]] = []
     fontxml_path = ''
     font_xml = ''
     for item in list_dir:
@@ -115,14 +111,13 @@ def get_title_font():
     return title_font
 
 
-def play_trailers():
-    # type: () -> None
+def play_trailers() -> None:
     """
 
     :return:
     """
     my_trailer_dialog = None
-    black_background = None
+    black_background: BlackBackground = None
     exiting_playing_movie = False
 
     # Hack to prevent Kodi from eating first Action (key press)
@@ -147,18 +142,16 @@ def play_trailers():
     finally:
         if my_trailer_dialog is not None:
             del my_trailer_dialog
-            my_trailer_dialog = None
         if black_background is not None:
             black_background.destroy()
             del black_background
-            black_background = None
         if exiting_playing_movie:
             if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
 
 
-def kodi_hack():
+def kodi_hack() -> None:
     from player.my_player import MyPlayer
     player = MyPlayer()
     path_to_black_video = Constants.BLACK_VIDEO
@@ -173,53 +166,52 @@ def kodi_hack():
     player.play(item=path_to_black_video, listitem=listitem)
 
 
-# noinspection Annotator
 class StartUI(threading.Thread):
     """
 
     """
+    _logger: LazyLogger = None
 
-    def __init__(self, started_as_screesaver):
-        # type: (bool) -> None
+    def __init__(self, started_as_screesaver: bool) -> None:
         """
 
         :param started_as_screesaver:
         """
         super().__init__(name='startUI')
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        clz = type(self)
+        clz._logger = module_logger.getChild(self.__class__.__name__)
 
         self._player_container = None
         self._started_as_screensaver = started_as_screesaver
 
     # Don't start if Kodi is busy playing something
 
-    def run(self):
-        # type: () -> None
+    def run(self) -> None:
         """
 
         :return:
         """
+        clz = type(self)
         try:
             self.start_playing_trailers()
 
         except AbortException:
             return
         except Exception as e:
-            self._logger.exception('')
+            clz._logger.exception('')
 
         finally:
             if logger.isEnabledFor(LazyLogger.DEBUG):
-                self._logger.debug('Stopping random_trailers player')
+                clz._logger.debug('Stopping random_trailers player')
 
             Monitor.abort_requested()
 
-    def start_playing_trailers(self):
-        # type: () -> None
+    def start_playing_trailers(self) -> None:
         """
 
         :return:
         """
-        # black_background = None
+        clz = type(self)
         try:
             if not xbmc.Player().isPlaying() and not self.check_for_xsqueeze():
                 if (self._started_as_screensaver and
@@ -261,19 +253,19 @@ class StartUI(threading.Thread):
                             'XBMC.SetVolume(' + str(current_volume) + ')')
 
                 if logger.isEnabledFor(LazyLogger.DEBUG):
-                    self._logger.debug('Shutting down')
+                    clz._logger.debug('Shutting down')
                 Playlist.shutdown()
             else:
-                self._logger.info(
+                clz._logger.info(
                     'Exiting Random Trailers Screen Saver Something is playing!!!!!!')
         except AbortException:
             pass
         except Exception as e:
-            self._logger.exception('')
+            clz._logger.exception('')
 
         finally:
             if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self._logger.debug_verbose('Stopping xbmc.Player')
+                clz._logger.debug_verbose('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
             # Random Trailers control
@@ -287,15 +279,14 @@ class StartUI(threading.Thread):
                 black_background.close()
                 black_background.destroy()
                 del black_background
-            black_background = None
 
-    def check_for_xsqueeze(self):
-        # type: () -> bool
+    def check_for_xsqueeze(self) -> bool:
         """
 
         :return:
         """
-        self._logger.enter()
+        clz = type(self)
+        clz._logger.enter()
         key_map_dest_file = os.path.join(xbmcvfs.translatePath(
             'special://userdata/keymaps'), "xsqueeze.xml")
         if os.path.isfile(key_map_dest_file):
