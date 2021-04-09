@@ -17,6 +17,7 @@ import threading
 import xbmc
 import xbmcvfs
 
+from cache.tmdb_cache_index import CacheIndex
 from common.imports import *
 from common.constants import Constants, Movie
 from common.logger import (LazyLogger)
@@ -28,6 +29,7 @@ from common.settings import Settings
 from backend import backend_constants
 from common.disk_utils import DiskUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
+from diagnostics.statistics import Statistics
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -40,7 +42,7 @@ class Cache:
 
     In addition, the size of the caches are maintained.
     The user selects how large the caches can
-    grown using several different metrics and these classes enforce
+    grow using several different metrics and these classes enforce
     it.
 
     TODO: Need to add delete of old cache when switching locations, or when
@@ -105,9 +107,13 @@ class Cache:
             cls._logger.error('Invalid source:', source)
 
         if Settings.is_use_tmdb_cache():
+            start = datetime.datetime.now()
             trailer_data = Cache.read_tmdb_cache_json(
                 movie_id, source, error_msg=error_msg)
             status = 0
+            stop = datetime.datetime.now()
+            read_time = stop - start
+            Statistics.add_json_read_time(int(read_time.microseconds / 10000))
             if trailer_data is not None:
                 trailer_data[Movie.CACHED] = True
 
@@ -122,6 +128,11 @@ class Cache:
                     Settings.is_use_tmdb_cache():
                 Cache.write_tmdb_cache_json(movie_id, source, trailer_data)
 
+        if trailer_data is None and Settings.is_use_tmdb_cache():
+            CacheIndex.remove_cached_tmdb_trailer_id(movie_id)
+
+        if trailer_data is None and status == 0:
+            status = -1
         return status, trailer_data
 
     @classmethod
@@ -138,6 +149,11 @@ class Cache:
         :param error_msg: Supplies additional text to display on error.
                           Typically a movie title
         :return: MovieType containing cached data, or None if not found
+
+        TODO: For ALL remote json/trailer requests, need return code to
+        indicate whether communication is down or not. Don't want to purge
+        everything just because network is down.
+
         """
 
         trailer = None

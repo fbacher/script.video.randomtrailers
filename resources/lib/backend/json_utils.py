@@ -28,41 +28,19 @@ class JsonUtils(JsonUtilsBasic):
             TMDB is limited over a period of 10 seconds
             iTunes is limited to 20 requests/minute and 200
             results per search.
-            
+
             For iTunes see:
          https://affiliate.itunes.apple.com/resources/documentation/itunes-store-web-service-search-api/#overview
              All iTunes results are JSON UTF-8
 
         In order to track the rate of requests over a minute, we have to
         track the timestamp of each request made in the last minute.
-    
+
         Keep in mind for both TMDB and iTunes, that other plugins may be
         making requests
     """
 
-    TMDB_NAME = 'tmdb'
-    TMDB_REQUEST_INDEX = 0
-    TMDB_WINDOW_TIME_PERIOD = datetime.timedelta(seconds=20)
-    TMDB_WINDOW_MAX_REQUESTS = 40
-
-    ITUNES_NAME = 'iTunes'
-    ITUNES_REQUEST_INDEX = 1
-    ITUNES_WINDOW_TIME_PERIOD = datetime.timedelta(minutes=1)
-    ITUNES_WINDOW_MAX_REQUESTS = 20
-
-    ROTTEN_TOMATOES_NAME = 'Rotten Tomatoes'
-    ROTTEN_TOMATOES_REQUEST_INDEX = 2
-
-    # Values not specified in available docs. Not using Rotten Tomatoes
-    # at this time
-
-    ROTTEN_TOMATOES_WINDOW_TIME_PERIOD = datetime.timedelta(minutes=1)
-    ROTTEN_TOMATOES_WINDOW_MAX_REQUESTS = 20
-
-    UNLIMITED = Messages.get_msg(Messages.UNLIMITED)
-
     _logger = None
-    _instance = None
 
     @classmethod
     def class_init(cls) -> None:
@@ -72,17 +50,7 @@ class JsonUtils(JsonUtilsBasic):
         super().class_init()
         cls._logger = module_logger.getChild(cls.__name__)
 
-    @staticmethod
-    def get_instance():  # type:  () -> JsonUtils
-        """
-            Returns the singleton instance of JsonUtils
-
-        :return:
-        """
-        if JsonUtils._instance is None:
-            JsonUtils._instance = JsonUtils()
-        return JsonUtils._instance
-
+'''
     @staticmethod
     def get_cached_json(url: str,
                         movie_id: Union[str, int] = None,
@@ -149,6 +117,7 @@ class JsonUtils(JsonUtilsBasic):
         if trailer_data is None and status == 0:
             status = -1
         return status, trailer_data
+'''
 
 
 # Force initialization of config_logger

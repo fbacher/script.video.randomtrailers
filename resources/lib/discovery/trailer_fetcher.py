@@ -697,7 +697,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             else:
                 cache_id = tmdb_id
 
-            status_code, tmdb_result = JsonUtils.get_cached_json(
+            status_code, tmdb_result = Cache.get_cached_json(
                 url, movie_id=cache_id, error_msg=movie_title, source=source,
                 params=data, dump_results=False, dump_msg=dump_msg)
             if status_code == 0:
