@@ -11,9 +11,9 @@
         <!-- Python Debugger -->
         <import addon="script.module.pydevd" version="4.4.0" optional="true"/>
         <!-- youtube.dl needed to for download to cache option -->
-        <import addon="script.module.youtube.dl" version="v21.303.0" optional="true"/>
+        <import addon="script.module.youtube.dl" version="21.303.0" optional="true"/>
         <!-- Remote trailers (that are not downloaded by youtube.dl) -->
-        <import addon="plugin.video.youtube" version="v6.8.10" optional="true"/>
+        <import addon="plugin.video.youtube" version="6.8.10" optional="true"/>
         <import addon="script.module.requests" version="2.22.0"/>
         <import addon="script.module.six" version="1.15.0"/>
         <import addon="script.module.kodi65" version="1.2.1"/>
@@ -60,7 +60,7 @@ Navigation:
         <website></website>
         <email>fbacher@brisbin.net</email>
         <source>https://github.com/fbacher/Kodi-script.video.randomtrailers</source>
-        <news>v2.0.4 (02/05/2021)
+        <news>v2.0.5-alpha2 (04/09/2021)
             [new] Major Release See Readme.txt
         </news>
         <assets>
@@ -78,8 +78,6 @@ Navigation:
             <screenshot>resources/screenshots/Settings Folder.png</screenshot>
             <screenshot>resources/screenshots/Settings Cache 1.png</screenshot>
             <screenshot>resources/screenshots/Settings Advanced.png</screenshot>
-
-
         </assets>
     </extension>
 </addon>
