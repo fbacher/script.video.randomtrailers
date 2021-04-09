@@ -89,13 +89,15 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         #
         # In order to give good response during startup, block
         # other discovery (TMDB, iTunes) until a few local trailers have
-        # been located (~50).
+        # been located (~50), or so many seconds have elapsed.
 
-        countdown = 150  # ~Fifteen seconds
+        countdown = Constants.EXCLUSIVE_LIBRARY_DISCOVERY_SECONDS * 10
         while not self._some_movies_discovered_event.wait(timeout=0.1):
             Monitor.throw_exception_if_abort_requested()
+            if self._some_movies_discovered_event.is_set():
+                break
             countdown -= 1
-            if countdown == 0:
+            if countdown <= 0:
                 break
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -351,7 +353,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         library_movies = []
         library_url_movies = []
         library_no_trailer_movies = []
-        empty_limit = 50
+        empty_limit = Constants.NUMBER_OF_LIBRARY_MOVIES_TO_DISCOVER_DURING_EXCLUSIVE_DISCOVERY
         movie_data = None
         if Settings.is_enable_movie_stats():
             movie_data = LibraryMovieStats()

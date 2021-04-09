@@ -67,6 +67,13 @@ class Constants:
 
     PLAY_STATISTICS_REPORT_PATH: str = None
 
+    # For better response, give local trailers a bit of a head start by
+    # delaying other discovery a bit. Other discovery blocked while both
+    # of these are true
+
+    EXCLUSIVE_LIBRARY_DISCOVERY_SECONDS: int = 45
+    NUMBER_OF_LIBRARY_MOVIES_TO_DISCOVER_DURING_EXCLUSIVE_DISCOVERY = 50
+
     # Altered to one month ago in static_init
     CACHE_FILE_EXPIRED_TIME: int = datetime.MAXYEAR
     PLAYLIST_PATH: str = ''
@@ -576,6 +583,11 @@ class iTunes:
 
 
 class TFH:
+    # Pattern to isolate movie title from TFH fluff:
+    # John Landis on WAY OUT WEST
+    # Need to strip everything before Way. Note that not every TFH title
+    # follows this pattern, but is pretty close.
+
     TITLE_RE: Final[Pattern] = \
         re.compile(r'(([A-Z0-9.!?_$#-]) ?[A-Zc0-9.!?_#&@:$\'" -]*$)')
 
