@@ -1079,9 +1079,10 @@ class TrailerFetcher(TrailerFetcherInterface):
                 else:
                     tmdb_id = None
 
-                changed = MovieEntryUtils.set_tmdb_id(movie, tmdb_id)
-                if changed and source == Movie.TFH_SOURCE:
-                    TFHCache.update_trailer(movie)
+                if tmdb_id is not None:
+                    changed = MovieEntryUtils.set_tmdb_id(movie, tmdb_id)
+                    if changed and source == Movie.TFH_SOURCE:
+                        TFHCache.update_trailer(movie)
 
             movie.setdefault(Movie.THUMBNAIL, '')
             tmdb_detail_info = None
