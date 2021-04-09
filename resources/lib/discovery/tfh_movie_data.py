@@ -18,8 +18,7 @@ class TFHMovieData(AbstractMovieData):
 
     """
 
-    def __init__(self, movie_source=''):
-        # type: (str) -> None
+    def __init__(self, movie_source: str = Movie.TFH_SOURCE) -> None:
         """
 
         """
