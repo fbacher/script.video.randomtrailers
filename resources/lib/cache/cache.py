@@ -21,7 +21,7 @@ from cache.tmdb_cache_index import CacheIndex
 from common.imports import *
 from common.constants import Constants, Movie
 from common.logger import (LazyLogger)
-from common.exceptions import (AbortException, TrailerIdException)
+from common.exceptions import (AbortException, CommunicationException, TrailerIdException)
 from common.messages import Messages
 from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -75,8 +75,7 @@ class Cache:
                         headers=None,  # type: Union[dict, None]
                         params=None,  # type: Union[dict, None]
                         timeout=3.0  # type: int
-                        ):
-        # type: (...) -> (int, str)
+                        ) -> (int, str):
         """
             Attempt to get cached JSON movie information before using the JSON calls
             to get it remotely.
@@ -118,17 +117,29 @@ class Cache:
                 trailer_data[Movie.CACHED] = True
 
         if trailer_data is None:
-            status, trailer_data = JsonUtilsBasic.get_json(url, dump_results=dump_results,
-                                                           dump_msg=dump_msg,
-                                                           headers=headers,
-                                                           error_msg=error_msg, params=params,
-                                                           timeout=timeout)
-            if (
-                    status == 0 or status == 200) and trailer_data is not None and \
-                    Settings.is_use_tmdb_cache():
-                Cache.write_tmdb_cache_json(movie_id, source, trailer_data)
+            finished = False
+            delay = 0.5
+            while not finished:
+                try:
+                    status, trailer_data = JsonUtilsBasic.get_json(url, dump_results=dump_results,
+                                                                   dump_msg=dump_msg,
+                                                                   headers=headers,
+                                                                   error_msg=error_msg, params=params,
+                                                                   timeout=timeout)
+                    if (status == 0 and trailer_data is not None
+                            and Settings.is_use_tmdb_cache()):
+                        Cache.write_tmdb_cache_json(movie_id, source, trailer_data)
+                        finished = True
+                    else:
+                        raise CommunicationException()
+                except CommunicationException as e:
+                    Monitor.throw_exception_if_abort_requested(timeout=delay)
+                    delay += delay
 
-        if trailer_data is None and Settings.is_use_tmdb_cache():
+        # trailer_data == None when an error occurs.
+
+        if (Settings.is_use_tmdb_cache() and trailer_data is not None
+                and len(trailer_data) == 0):
             CacheIndex.remove_cached_tmdb_trailer_id(movie_id)
 
         if trailer_data is None and status == 0:

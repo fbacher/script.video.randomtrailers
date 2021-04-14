@@ -13,7 +13,8 @@ import sys
 from common.imports import *
 
 from common.constants import Constants, Movie
-from common.exceptions import AbortException
+from common.exceptions import AbortException, CommunicationException
+from common.minimal_monitor import MinimalMonitor
 from common.settings import Settings
 from common.logger import (LazyLogger)
 from backend.movie_entry_utils import (MovieEntryUtils)
@@ -49,8 +50,8 @@ class TMDBMatcher:
             self._language: str = tmdb_language
             self._runtime_seconds: int = runtime_seconds
             self._tmdb_id: str = tmdb_id
-            self._lower_title = self._title.lower()
-            self._score = 0
+            self._lower_title: str = self._title.lower()
+            self._score: int = 0
 
         def score(self, movie_title: str, movie_year: Union[str, None],
                   movie_tmdb_id: str = None, runtime_seconds: int = 0) -> None:
@@ -143,7 +144,6 @@ class TMDBMatcher:
         self._title_to_match: str = title
         self._year_to_match: Union[str, None] = year
         self._runtime_seconds_to_match: int = runtime_seconds
-
         self.candidate_movies: List[clz.CandidateMovie] = []
 
         data = {
@@ -168,12 +168,30 @@ class TMDBMatcher:
             data['append_to_response'] = 'alternative_titles'
 
             url = 'https://api.themoviedb.org/3/search/movie'
-            status_code, _info_string = \
-                JsonUtilsBasic.get_json(url, params=data,
-                                        dump_msg='get_tmdb_id_from_title_year',
-                                        dump_results=True,
-                                        error_msg=title +
-                                        f' ({year})')
+            finished = False
+            delay = 0.5
+            _info_string: Dict[str, Any] = None
+            attempts: int = 0
+            while not finished:
+                attempts += 1
+                try:
+                    status_code, _info_string = \
+                        JsonUtilsBasic.get_json(url, params=data,
+                                                dump_msg='get_tmdb_id_from_title_year',
+                                                dump_results=True,
+                                                error_msg=title +
+                                                f' ({year})')
+                    if status_code == 0:
+                        finished = True
+                    else:
+                        raise CommunicationException
+                except CommunicationException as e:
+                    if attempts > 10:  # 5 seconds
+                        reraise(*sys.exc_info())
+                    else:
+                        MinimalMonitor.throw_exception_if_abort_requested(timeout=delay)
+                        delay += delay
+
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(
                     f'Getting TMDB movie for title: {title} year: {year} '
@@ -331,15 +349,24 @@ class TMDBUtils:
 
         number_of_tmdb_id_entries = 0
         if result_field is not None:
+            communication_error_count: int = 0
             for movie in result_field.get('movies', []):
                 title = movie[Movie.TITLE]
                 kodi_id = movie[Movie.MOVIEID]
                 kodi_file = movie[Movie.FILE]
                 year = movie[Movie.YEAR]
                 tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-                if tmdb_id is None:
-                    tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
-                        title, year)
+
+                # If we can't talk to TMDb we just won't get the tmdb_id
+                # this time around.
+
+                if tmdb_id is None and communication_error_count < 5:
+                    try:
+                        tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
+                            title, year)
+                    except CommunicationException:
+                        communication_error_count += 1
+
                 if tmdb_id is not None:
                     number_of_tmdb_id_entries += 1
                     entry = TMDBUtils(kodi_id, tmdb_id, kodi_file)
@@ -395,7 +422,7 @@ class TMDBUtils:
                 tmdb_id = TMDBUtils._get_tmdb_id_from_title_year(
                     title, year - 1, runtime_seconds=runtime_seconds)
 
-        except AbortException:
+        except (AbortException, CommunicationException):
             reraise(*sys.exc_info())
 
         except Exception:
@@ -424,7 +451,7 @@ class TMDBUtils:
             matcher = TMDBMatcher(title, year_str, runtime_seconds)
             best_match, best_score = matcher.get_best_score()
 
-        except AbortException:
+        except (AbortException, CommunicationException):
             reraise(*sys.exc_info())
 
         except Exception:

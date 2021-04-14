@@ -283,7 +283,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                                                                    stack_trace=False,
                                                                    force_check=True)
             if (tfh_trailer[Movie.TITLE] == tfh_trailer[Movie.TFH_TITLE]
-                    or dirty):
+                    or dirty or tfh_trailer[Movie.YEAR] == 0):
                 tfh_trailer[Movie.TITLE] = self.fix_title(tfh_trailer)
                 tfh_trailer[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
                 if dirty:
