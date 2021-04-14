@@ -257,6 +257,31 @@ class MovieList:
 
         PlayStatistics.add(movie)
 
+    def get_by_id(self, source: str, id: str) -> MovieType:
+        """
+
+        :param source: Movie source- Movie.LIBRARY_SOURCE,
+         Movie.TMDB_SOURCE, Movie.TFH_SOURCE, etc.
+
+        :param id: key appropriate for the movie source
+               tmdb_id, tfh_id, itunes_id or library_id
+        :return:
+        """
+        clz = type(self)
+        key: str = source + str(id)
+
+        with self._lock:
+            try:
+                movie: MovieType = None
+                movie = self._ordered_dict[key]
+
+            except AbortException:
+                reraise(*sys.exc_info())
+            except KeyError:
+                pass
+
+            return movie
+
     def get_movies(self) -> ValuesView[MovieType]:
         return self._ordered_dict.values()
 
@@ -457,6 +482,12 @@ class AbstractMovieData:
         :return:
         """
         return cls._aggregate_trailers_by_name_date
+
+    def get_by_id(self, id: str) -> MovieType:
+        movie: MovieType = None
+        with self._discovered_trailers_lock:
+            movie = self._discovered_trailers.get_by_id(self._movie_source, id)
+        return movie
 
     def add_to_discovered_trailers(self,
                                    movies: Union[MovieType,

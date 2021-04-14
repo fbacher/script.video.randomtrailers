@@ -121,6 +121,9 @@ class BaseDiscoverMovies(threading.Thread):
             self._movie_data.shuffle_discovered_trailers(mark_unplayed=False)
             self._discovery_complete = True
 
+    def get_by_id(self, id: str) -> MovieType:
+        return self._movie_data.get_by_id(id)
+
     def add_to_discovered_trailers(self,
                                    movies: Union[MovieType,
                                                  List[MovieType]]) -> None:
