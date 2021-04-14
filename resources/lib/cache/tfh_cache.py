@@ -7,25 +7,19 @@ Created on Feb 10, 2019
 """
 
 import datetime
-import dateutil.parser
 
 import io
 import simplejson as json
 from simplejson import (JSONDecodeError)
 import os
-import sys
 import threading
 
-import xbmc
 import xbmcvfs
 from common.imports import *
 
 from common.constants import (Constants, Movie, RemoteTrailerPreference)
-from common.exceptions import AbortException
 from common.logger import (Logger, LazyLogger)
-from common.messages import (Messages)
 from common.monitor import Monitor
-from backend.movie_entry_utils import (MovieEntryUtils)
 from common.settings import (Settings)
 from common.disk_utils import (DiskUtils)
 from common.utils import Utils
