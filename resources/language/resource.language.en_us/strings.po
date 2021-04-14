@@ -1426,3 +1426,8 @@ msgstr ""
 msgctxt "#32283"
 msgid "\"Trailers From Hell (TFH)\" provides content by a non-exclusive agreement which requires that there is no financial gain from the use of this content. TFH reserves the right to change the terms of this agreement.\n\nTrailers From Hell. All Rights Reserved.\nAll trailers appearing on TrailersFromHell.com are the property of their respective owners.\n\nTrailers From Hell\n\n© 2007-2021"
 msgstr ""
+
+# Not Yet Rated (Different from Unrated, can be a bit confusing).
+msgctxt "#32284"
+msgid "Net Yet Rated"
+msgstr ""

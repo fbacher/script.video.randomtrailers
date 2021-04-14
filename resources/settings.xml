@@ -17,18 +17,18 @@
 						<options>
 							<!-- See resources/certifiations *.xml for your country -->
 							<!-- In increasing appropriate age -->
-							<option label="None">0</option> <!-- Special- None: Not well defined, TODO: look at -->
-							<option label="32243">1</option> <!-- G -->
-							<option label="32244">2</option>
-							<option label="32245">3</option>
-							<option label="32246">4</option>
-							<option label="32247">5</option> <!-- NC-17 -->
-							<!-- Rerserved for countries that need it, won't display if non-numeric -->
-							<option label="_32271">6</option>
-							<option label="_32272">7</option>
-							<option label="_32273">8</option>
-							<option label="_32274">9</option>
-							<option label="_32275">10</option>
+							<option label="32284">0</option> <!-- Special- Not Yet Rated-->
+							<option label="32248">1</option> <!-- Unrated -->
+							<option label="32243">2</option> <!-- G -->
+							<option label="32244">3</option> <!-- PG -->
+							<option label="32245">4</option> <!-- PG-13 -->
+							<option label="32246">5</option> <!-- R -->
+							<option label="32247">6</option> <!-- NC-17 -->
+							<!-- Reserved for countries that need it, won't display if non-numeric -->
+							<option label="_32271">7</option>
+							<option label="_32272">8</option>
+							<option label="_32273">9</option>
+							<option label="_32274">10</option>
 						</options>
 					</constraints>
 					<control format="string" type="spinner"/>
