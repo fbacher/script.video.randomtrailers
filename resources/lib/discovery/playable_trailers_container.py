@@ -53,9 +53,7 @@ class PlayableTrailersContainer:
 
         :return:
         """
-        clz = type(self)
-        if clz.logger is None:
-            clz.logger = module_logger.getChild(clz.__name__
+        self.logger = module_logger.getChild(type(self).__name__
                                                 + ':' + source)
 
         PlayableTrailersContainer._instances[source] = self
@@ -87,7 +85,6 @@ class PlayableTrailersContainer:
         :param stop_thread
         :return:
         """
-        clz = type(self)
         self._number_of_added_trailers = 0
 
         if stop_thread:
@@ -114,9 +111,9 @@ class PlayableTrailersContainer:
         :return:
         """
         clz = type(self)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             if Movie.TITLE not in movie:
-                clz.logger.warning('Invalid movie entry. Missing title: ',
+                self.logger.warning('Invalid movie entry. Missing title: ',
                                    str(movie))
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
         """
@@ -128,11 +125,11 @@ class PlayableTrailersContainer:
             if self._aggregate_trailers_queued <= clz.DUPLICATE_TRAILER_CHECK_LIMIT:
                 if title in clz._recently_played_trailers:
                     if self._ready_to_play_queue.empty():
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                            clz.logger.debug_verbose(
+                        if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            self.logger.debug_verbose(
                                 f'Movie: {title} played recently, but starving')
-                    elif clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose(
+                    elif self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        self.logger.debug_verbose(
                             f'Movie: {title} played recently, skipping')
                         return
 
@@ -141,11 +138,11 @@ class PlayableTrailersContainer:
 
                 clz._recently_played_trailers[title] = movie
         except Exception as e:
-            clz.logger.exception(e)
+            self.logger.exception(e)
         """
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug_verbose('movie:', movie[Movie.TITLE], 'queue empty:',
+        if self.logger.isEnabledFor(LazyLogger.DEBUG):
+            self.logger.debug_verbose('movie:', movie[Movie.TITLE], 'queue empty:',
                                      self._ready_to_play_queue.empty(), 'full:',
                                      self._ready_to_play_queue.full())
 
@@ -162,15 +159,15 @@ class PlayableTrailersContainer:
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
         if not clz._any_trailers_available_to_play.isSet():
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose(
+            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                self.logger.debug_verbose(
                     'Setting _any_trailers_available_to_play')
             clz._any_trailers_available_to_play.set()
 
         self._is_playable_trailers.set()
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.debug_extra_verbose('readyToPlayQueue size:',
+        if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            self.logger.debug_extra_verbose('readyToPlayQueue size:',
                                            self._ready_to_play_queue.qsize(), 'waited:',
                                            waited)
         return
@@ -212,11 +209,11 @@ class PlayableTrailersContainer:
             clz._recently_played_trailers[title] = movie
 
             PlayStatistics.increase_play_count(movie)
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.exit('movie:', movie[Movie.TITLE])
+            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                self.logger.exit('movie:', movie[Movie.TITLE])
         else:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.exit('No movie in queue')
+            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                self.logger.exit('No movie in queue')
         return movie
 
     @classmethod
