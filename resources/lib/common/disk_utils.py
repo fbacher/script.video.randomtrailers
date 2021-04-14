@@ -5,7 +5,14 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
+import math
+import queue
+import threading
+from collections import Iterator
+from pathlib import Path
+from queue import Queue
 
+import xbmcvfs
 from common.imports import *
 
 import datetime
@@ -18,6 +25,7 @@ from common.exceptions import AbortException
 from common.logger import (LazyLogger, Trace)
 from common.monitor import Monitor
 from common.settings import Settings
+from common.utils import Delay
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -388,13 +396,16 @@ class DiskUtils:
     @classmethod
     def get_stats_for_path(cls,
                            top: str,
-                           patterns: Dict[str, Tuple[Pattern[str], str]]
+                           patterns: Dict[str, Tuple[Pattern[str], str]],
+                           delay_scale_factor: float = 0.0
                            ) -> Dict[str, UsageData]:
         """
             Gets disk usage information for a subtree of the filesystem
 
         :param top:
         :param patterns:
+        :param delay_scale_factor: if non-zero, then delays are added during file
+               traversal to reduce cpu and memory impact. The delays are non-linear.
         :return:
         """
         usage_data = None
@@ -451,76 +462,83 @@ class DiskUtils:
             trailer_cache_file_expiration_seconds = \
                 trailer_cache_file_expiration_days * 24 * 60 * 60
             trailer_cache_path_top = Settings.get_downloaded_trailer_cache_path()
-            now = datetime.datetime.now()
+            now: datetime.datetime = datetime.datetime.now()
 
-            found_directories = set()
-            for root, dirs, files in os.walk(top):
-                for filename in files:
-                    for cache_name, (pattern, cache_type) in patterns.items():
-                        Monitor.throw_exception_if_abort_requested()
-                        usage_data = usage_data_map[cache_name]
-                        if pattern.match(filename):
-                            path = os.path.join(root, filename)
-                            mod_time = now
-                            try:
-                                if not os.path.isdir(path):
-                                    st = os.stat(path)
-                                    mod_time = datetime.datetime.fromtimestamp(
-                                        st.st_mtime)
-                                    size_in_blocks = st.st_size
-                                    size_on_disk = ((size_in_blocks - 1) /
-                                                    block_size + 1) * block_size
-                                else:
-                                    found_directories.add(path)
-                            except OSError as e:
-                                continue  # File doesn't exist
-                            except Exception as e:
-                                cls._logger.exception('')
+            found_directories: Set[Path] = set()
+            finder: FindFiles = FindFiles(top)
+
+            #  Delay one second on each call.
+            delay = Delay(bias=1.0, call_scale_factor=0.0, scale_factor=0.0)
+            path: Path
+
+            for path in finder:
+                for cache_name, (pattern, cache_type) in patterns.items():
+                    delay.delay()  # Can throw AbortException
+                    Monitor.throw_exception_if_abort_requested()
+                    usage_data = usage_data_map[cache_name]
+                    if path.match(pattern):
+                        mod_time: datetime.datetime = now
+                        try:
+                            if path.is_file():
+                                st: os.stat_result = path.stat()
+                                mod_time = datetime.datetime.fromtimestamp(st.st_mtime)
+                                size_in_blocks = st.st_size
+                                size_on_disk = ((size_in_blocks - 1) /
+                                                block_size + 1) * block_size
+                            else:
+                                found_directories.add(path)
                                 continue
+                        except OSError as e:
+                            continue  # File doesn't exist
+                        except Exception as e:
+                            cls._logger.exception('')
+                            continue
 
-                            deleted = False
-                            try:
-                                if (top == db_cache_path_top
-                                        and cache_type == 'json'):
-                                    if ((now - mod_time).total_seconds() >
-                                            db_cache_file_expiration_seconds):
-                                        if cls._logger.isEnabledFor(LazyLogger.INFO):
-                                            cls._logger.info(
-                                                'deleting:', path)
-                                        os.remove(path)
-                                        deleted = True
-                                        usage_data.add_to_disk_deleted(
-                                            size_on_disk)
-                                    break  # Next file
+                        deleted = False
+                        try:
+                            if (top == db_cache_path_top
+                                    and cache_type == 'json'):
+                                if ((now - mod_time).total_seconds() >
+                                        db_cache_file_expiration_seconds):
+                                    if cls._logger.isEnabledFor(LazyLogger.INFO):
+                                        cls._logger.info(
+                                            'deleting:', path.absolute())
+                                    path.remove()
+                                    deleted = True
+                                    usage_data.add_to_disk_deleted(
+                                        size_on_disk)
+                                break  # Next file
 
-                                if (top == trailer_cache_path_top
-                                        and cache_type == 'trailer'):
-                                    if ((now - mod_time).total_seconds() >
-                                            trailer_cache_file_expiration_seconds):
-                                        if cls._logger.isEnabledFor(LazyLogger.INFO):
-                                            cls._logger.info(
-                                                'deleting:', path)
-                                        os.remove(path)
-                                        deleted = True
-                                        usage_data.add_to_disk_deleted(
-                                            size_on_disk)
-                                    break  # Next file
+                            if (top == trailer_cache_path_top
+                                    and cache_type == 'trailer'):
+                                if ((now - mod_time).total_seconds() >
+                                        trailer_cache_file_expiration_seconds):
+                                    if cls._logger.isEnabledFor(LazyLogger.INFO):
+                                        cls._logger.info(
+                                            'deleting:', path.absolute())
+                                    path.remove()
+                                    deleted = True
+                                    usage_data.add_to_disk_deleted(
+                                        size_on_disk)
+                                break  # Next file
 
-                            except AbortException:
-                                reraise(*sys.exc_info())
-                            except Exception as e:
-                                cls._logger.exception('')
+                        except AbortException:
+                            reraise(*sys.exc_info())
+                        except Exception as e:
+                            cls._logger.exception('')
 
-                            if not deleted:
-                                file_data = FileData(
-                                    path, mod_time, size_on_disk)
-                                usage_data.add_file_data(file_data)
-                                usage_data.add_to_disk_used_by_cache(
-                                    size_on_disk)
+                        if not deleted:
+                            file_data = FileData(
+                                path.absolute(), mod_time, size_on_disk)
+                            usage_data.add_file_data(file_data)
+                            usage_data.add_to_disk_used_by_cache(
+                                size_on_disk)
 
             for directory in found_directories:
                 try:
-                    os.rmdir(directory)
+                    # If empty
+                    if next(directory.iterdir(), None) is None:
+                        directory.rmdir()
                 except Exception as e:
                     pass
 
@@ -547,6 +565,139 @@ class DiskUtils:
                 return "%3.1f%s%s" % (num, unit, suffix)
             num /= 1024.0
         return "%.1f%s%s" % (num, 'Yi', suffix)
+
+
+class FindFiles(Iterable):
+    _logger: LazyLogger = None
+
+    def __init__(self,
+                 top: str,
+                 glob_pattern: str = '**/*'
+                 ) -> None:
+        """
+            Gets all file paths matching the given pattern in
+            the sub-tree top.
+
+        :param top:
+        :param patterns:
+        :return:
+        """
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__class__.__name__)
+
+        self._die: bool = False
+        self._top: str = xbmcvfs.translatePath(top)
+        self._path: Path = Path(self._top)
+        self._glob_pattern: str = glob_pattern
+        #  clz._logger.debug(f'top: {self._top} path: {self._path} pattern: {self._glob_pattern}')
+
+        self._queue_complete: bool = False
+
+        # Don't make queue too big, just waste lots of memory and cpu building
+        # it before it can be used.
+
+        self._file_queue: Queue = Queue(20)
+        self._find_thread: threading.Thread = threading.Thread(
+            target=self._run,
+            name='find files')
+        self._find_thread.start()
+
+    def _run(self) -> None:
+        clz = type(self)
+        try:
+            for path in self._path.glob(self._glob_pattern):
+                #  clz._logger.debug(f'path: {path}')
+                if self._die:
+                    break
+
+                self._file_queue.put(path)
+        except Exception as e:
+            clz._logger.exception()
+        finally:
+            #  clz._logger.debug('queue complete')
+            self._queue_complete = True
+            self._file_queue.put(None)
+
+    def get_next(self) -> Path:
+        clz = type(self)
+        if self._file_queue is None:
+            #  clz._logger.debug('get_next returning None')
+            return None
+
+        next_path: Path = None
+        while next_path is None:
+
+            try:
+                Monitor.throw_exception_if_abort_requested(timeout=0.1)
+                next_path: Path = self._file_queue.get(timeout=0.01)
+                self._file_queue.task_done()
+            except queue.Empty:
+                # Empty because we are done, or empty due to timeout
+                if self._queue_complete:
+                    clz._logger.debug('Queue empty')
+                    try:
+                        clz._logger.debug(f'Thread joined alive: {self._find_thread.is_alive()}')
+                        self._find_thread.join(timeout= 0.1)
+                        clz._logger.debug(f'Thread joined alive: {self._find_thread.is_alive()}')
+                    except Exception as e:
+                        clz._logger.exception()
+                    finally:
+                        self._find_thread = None
+                        self._file_queue = None
+                        break
+            except BaseException as e:
+                clz._logger.exception()
+
+        #  clz._logger.debug(f'next_path: {next_path}')
+        return next_path
+
+    def kill(self):
+        clz = type(self)
+        #  clz._logger.debug('In kill')
+        if self._file_queue is None:
+            return
+        try:
+            self._find_thread.join(timeout=0.1)
+        except Exception as e:
+            clz._logger.exception(0)
+        finally:
+            self._find_thread = None
+            self._file_queue = None
+
+    def __iter__(self) -> Iterator:
+        clz = type(self)
+        #  clz._logger.debug('in __iter__')
+        return FindFilesIterator(self)
+
+
+class FindFilesIterator(Iterator):
+
+    _logger: LazyLogger = None
+
+    def __init__(self, files: FindFiles):
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__class__.__name__)
+        #  clz._logger.debug(f'In __init__')
+
+        self._files: FindFiles = files
+
+    def __next__(self) -> Path:
+        path: Path
+        clz = type(self)
+        #  clz._logger.debug('In __next__')
+        try:
+            path = self._files.get_next()
+            #  clz._logger.debug(f'__next__ path: {path}')
+        except Exception as e:
+            clz._logger.exception()
+
+        if path is None:
+            clz._logger.debug('iterator path None raising StopIteration')
+            raise StopIteration()
+
+        return path
 
 
 DiskUtils.class_init()

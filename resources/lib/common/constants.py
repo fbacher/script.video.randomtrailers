@@ -58,7 +58,7 @@ class Constants:
     COUCH_POTATO_ID: Final[str] = 'plugin.video.couchpotato'
     COUCH_POTATO_URL: Final[str] = 'plugin://plugin.video.couchpotato_manager/movies/add'
 
-    InitialGarbageCollectionTime: Final[int] = 10 * 60  # Ten minutes in seconds
+    InitialGarbageCollectionTime: Final[int] = 60 * 60 * 4 # Four Hours in seconds
     # Run daily garbage collection at 04:13 in the morning.
     DailyGarbageCollectionTime: datetime.time = datetime.time(hour=4, minute=13)
     HTTP_TOO_MANY_REQUESTS: Final[int] = 429
@@ -86,6 +86,18 @@ class Constants:
         'script.video.randomtrailers.screensaver': 'randomtrailers.screensaver',
         'script.video.randomtrailers': 'randomtrailers'
     }
+
+    # File patterns to find cached files
+
+    TRAILER_PATTERN: Pattern = re.compile(r'^.*-trailer\..*$')
+    TRAILER_GLOB_PATTERN: str = '**/*-trailer.*'
+    JSON_PATTERN: Pattern =    re.compile(r'^.*\.json$')
+    JSON_GLOB_PATTERN: str = '**/*.json'
+    TFH_PATTERN: Pattern =     re.compile(r'^.*-movie\..*$')
+    TFH_GLOB_PATTERN: str = '**/*-movie.*'
+
+    TMDB_GLOB_JSON_PATTERN: str = '**/tmdb_*.json'
+    TMDB_ID_PATTERN: Pattern = re.compile(r'^tmdb_([0-9]+).json')
 
     @staticmethod
     def static_init() -> None:

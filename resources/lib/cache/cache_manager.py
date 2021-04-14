@@ -13,6 +13,7 @@ import os
 import locale
 import re
 import threading
+from pathlib import Path
 
 import xbmcvfs
 
@@ -23,7 +24,7 @@ from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
-from common.disk_utils import DiskUtils, UsageData, FileData
+from common.disk_utils import DiskUtils, FindFiles, UsageData, FileData
 
 RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
 
@@ -49,9 +50,21 @@ class CacheData:
         if local_class._logger is None:
             local_class._logger = module_logger.getChild(local_class.__name__)
 
-        self._usage_data = None
-        self._messages = Messages
-        self._is_trailer_cache = trailer_cache
+        self._usage_data: UsageData = None
+        self._remaining_allowed_files: int = None
+        self._used_space_in_cache_fs: int = None
+        self._free_disk_in_cache_fs: int = None
+        self._total_size_of_cache_fs: int = None
+        self._disk_used_by_cache: int = None
+        self._actual_cache_percent: int = None
+        self._is_trailer_cache: bool = trailer_cache
+        self._is_limit_number_of_cached_files: bool
+        self._max_number_of_files: bool
+        self._is_limit_size_of_cache: bool
+        self._max_cache_size_mb: bool
+        self._is_limit_percent_of_cache_disk: bool
+        self._max_percent_of_cache_disk: bool
+
         if trailer_cache:
             self._is_limit_number_of_cached_files = \
                 Settings.is_limit_number_of_cached_trailers()
@@ -94,14 +107,14 @@ class CacheData:
                                                           grouping=True)
         else:
             self._max_number_of_files = 0
-            self._max_number_of_files_str = self._messages.get_msg(
+            self._max_number_of_files_str = Messages.get_msg(
                 Messages.UNLIMITED)
         if self._is_limit_size_of_cache:
             self._max_cache_size_mb_str = DiskUtils.sizeof_fmt(
                 self._max_cache_size_mb * 1024 * 1024)
         else:
             self._max_cache_size_mb = 0
-            self._max_cache_size_mb_str = self._messages.get_msg(
+            self._max_cache_size_mb_str = Messages.get_msg(
                 Messages.UNLIMITED)
 
         if self._is_limit_percent_of_cache_disk:
@@ -109,15 +122,8 @@ class CacheData:
                 self._max_percent_of_cache_disk) + '%'
         else:
             self._max_percent_of_cache_disk = 100.0
-            self._max_percent_of_cache_disk_str = self._messages.get_msg(
+            self._max_percent_of_cache_disk_str = Messages.get_msg(
                 Messages.UNLIMITED)
-
-        self._remaining_allowed_files = None
-        self._used_space_in_cache_fs = None
-        self._free_disk_in_cache_fs = None
-        self._total_size_of_cache_fs = None
-        self._disk_used_by_cache = None
-        self._actual_cache_percent = None
 
     def add_usage_data(self, usage_data: UsageData) -> None:
         """
@@ -184,7 +190,7 @@ class CacheData:
                                                             grouping=True)
             else:
                 self._remaining_allowed_files = None
-                remaining_allowed_files_str = self._messages.get_msg(
+                remaining_allowed_files_str = Messages.get_msg(
                     Messages.UNLIMITED)
 
             self._used_space_in_cache_fs = self._usage_data.get_used_space()
@@ -365,9 +371,7 @@ class CacheManager:
         :return:
         """
         local_class = CacheManager
-        TRAILER_PATTERN = re.compile(r'^.*-trailer\..*$')
-        JSON_PATTERN =    re.compile(r'^.*\.json$')
-        TFH_PATTERN =     re.compile(r'^.*-movie\..*$')
+
 
         TRAILER_TYPE = 'trailer'
         JSON_TYPE = 'json'
@@ -378,19 +382,19 @@ class CacheManager:
                 Settings.get_remote_db_cache_path()):
             usage_data_map = DiskUtils.get_stats_for_path(
                 Settings.get_downloaded_trailer_cache_path(),
-                {'trailer': (TRAILER_PATTERN, TRAILER_TYPE),
-                 'json': (JSON_PATTERN, JSON_TYPE),
-                 'tfh': (TFH_PATTERN, TRAILER_TYPE)})
+                {'trailer': (Constants.TRAILER_GLOB_PATTERN, TRAILER_TYPE),
+                 'json': (Constants.JSON_GLOB_PATTERN, JSON_TYPE),
+                 'tfh': (Constants.TFH_GLOB_PATTERN, TRAILER_TYPE)})
         else:
             # When Trailer Cache and Data Cache are different directories.
 
             usage_data_map = DiskUtils.get_stats_for_path(
                 Settings.get_downloaded_trailer_cache_path(),
-                {'trailer': (TRAILER_PATTERN, TRAILER_TYPE),
-                 'tfh': (TFH_PATTERN, TRAILER_TYPE)})
+                {'trailer': (Constants.TRAILER_GLOB_PATTERN, TRAILER_TYPE),
+                 'tfh': (Constants.TFH_GLOB_PATTERN, TRAILER_TYPE)})
             json_usage_data = DiskUtils.get_stats_for_path(
                 Settings.get_remote_db_cache_path(),
-                {'json': (JSON_PATTERN, JSON_TYPE)})
+                {'json': (Constants.JSON_GLOB_PATTERN, JSON_TYPE)})
             usage_data_map['json'] = json_usage_data['json']
 
         return usage_data_map
@@ -404,7 +408,6 @@ class CacheManager:
         """
         self._initial_run = True
         if self._cache_monitor_thread is None:
-            # noinspection PyTypeChecker
             self._cache_monitor_thread = threading.Thread(
                 target=self.drive_garbage_collection_wrapper, name='cacheMonitor')
             self._cache_monitor_thread.start()
@@ -477,7 +480,7 @@ class CacheManager:
 
                 start_time = datetime.datetime.combine(datetime.datetime.now(),
                                                        Constants.DailyGarbageCollectionTime)
-                start_time_delta = start_time - datetime.datetime.now()
+                start_time_delta = datetime.datetime.now() - start_time
                 start_seconds_from_now = start_time_delta.total_seconds()
 
                 if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -506,3 +509,5 @@ class CacheManager:
             local_class._logger.exception('')
         finally:
             del usage_data_map
+
+

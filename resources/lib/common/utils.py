@@ -7,10 +7,12 @@ Created on Feb 10, 2019
 """
 
 import datetime
+import math
 import os
 import random
 import time
 
+from common.minimal_monitor import MinimalMonitor
 from kodi65.kodiaddon import Addon
 
 from common.constants import Constants
@@ -98,3 +100,82 @@ class Utils:
         result = datetime.datetime(*(time.strptime(date_string,
                                                    date_format)[0:6]))
         return result
+
+
+class Delay:
+    _logger: LazyLogger = None
+
+    def __init__(self, bias: float = 0.0, call_scale_factor: float = 1.0,
+                 scale_factor: float = 1.0) -> None:
+        '''
+        Delay simply provides a mechanism to keep from throttling the cpu.
+        The delay is designed to increase with each call (although this can
+        be overridden). The wait time, in seconds, is:
+
+           delay = bias + log10(number_of_calls * call_scale_factor) * scale_factor
+
+        :param bias: Base amount of time to wait
+        :param call_scale_factor: Increases the weight of each call
+        :param scale_factor: See formula
+        '''
+
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__class__.__name__)
+
+        self._bias: float = bias
+        self._call_scale_factor = call_scale_factor
+        self._scale_factor: float = scale_factor
+
+        self._call_count: int = 0
+        self._delay: float = 0.0
+
+    def delay(self, bias: float = None,
+              call_scale_factor: float = None,
+              scale_factor: float = None,
+              timeout: float = None) -> float:
+        '''
+        Waits to keep from throttling the cpu. The wait time depends upon
+        the given parameters. The time to wait is returned after the call.
+
+        Note: Can raise AbortException
+
+            number_of_calls += call_increase
+            if timeout > 0.0:
+                delay = timeout
+            else:
+                delay = bias + log10(number_of_calls * call_scale_factor) * scale_factor
+
+        :param bias: Base amount of time to wait; replaces value from constructor
+        :param call_scale_factor: Increases the weight of each call; replaces
+               value from constructor
+        :param scale_factor: See formula; replaces value from constructor
+        :param timeout: If specified, this overrides the calculated delay
+        :return:
+        '''
+        clz = type(self)
+
+        if bias is not None:
+            self._bias = float(bias)
+        if call_scale_factor is not None:
+            self._call_scale_factor = float(call_scale_factor)
+        if scale_factor is not None:
+            self._scale_factor = float(scale_factor)
+
+        self._call_count += 1
+
+        delay: float
+        if timeout is not None:
+            delay = float(timeout)
+        else:
+            delay = self._bias + (math.log10(self._call_count * self._call_scale_factor)
+                                  * self._scale_factor)
+
+        MinimalMonitor.throw_exception_if_abort_requested(delay)
+
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'delay: {delay:f} call_count: '
+                                            f'{self._call_count} call_scale_factor: '
+                                            f'{self._call_scale_factor:f} scale_factor: '
+                                            f'{self._scale_factor}')
+        return delay

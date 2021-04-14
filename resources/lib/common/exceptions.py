@@ -25,3 +25,9 @@ class LogicError(Exception):
 
 class DuplicateException(Exception):
     pass
+
+# Something went wrong trying to communicate. Could be network failure
+# or could be api failure, perhaps even failure in RandomTrailers
+
+class CommunicationException(Exception):
+    pass
