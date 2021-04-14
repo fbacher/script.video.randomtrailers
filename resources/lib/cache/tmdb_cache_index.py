@@ -105,7 +105,7 @@ class CacheParameters:
     # Used only for comparing cached value to current value
     #
     def __init__(self,
-                 dict_value  # type: Dict[str, Any]
+                 dict_value: Dict[str, Any]
                  ):
         """
             Settings with no impact:
@@ -321,8 +321,7 @@ class CacheParameters:
         cls.save_cache()
 
     @classmethod
-    def set_state(cls, value):
-        # type: (str) ->None
+    def set_state(cls, value: str) -> None:
         """
         :param value:
         :return:
@@ -332,8 +331,7 @@ class CacheParameters:
         cls.save_cache()
 
     @classmethod
-    def get_state(cls):
-        # type: () -> str
+    def get_state(cls) -> str:
         """
 
         :return:
@@ -495,9 +493,8 @@ class CachedPagesData:
         self._years_to_query = years_to_query
 
     def set_search_pages_configured(self,
-                                    flush=False  # type: bool
-                                    ):
-        # type: (bool) -> None
+                                    flush: bool = False
+                                    ) -> None:
         """
 
         :return:
@@ -841,8 +838,7 @@ class CachedPagesData:
 
         self._logger.debug_verbose("Entries Saved: ", saved_pages)
 
-    def load_search_pages(self):
-        # type: () -> None
+    def load_search_pages(self) -> None:
         """
 
         :return:
@@ -939,6 +935,7 @@ class CacheIndex:
         :param cache_changed:
         :return:
         """
+        cls.logger().debug_verbose(f'cache_changed: {cache_changed}')
         with CacheIndex.lock:
             if cache_changed:
                 # Replace Cache
@@ -1156,7 +1153,12 @@ class CacheIndex:
                 for tmdb_id, entry in cls.get_unprocessed_movies().items():
                     temp_entry = {}
                     for key in Movie.TMDB_PAGE_DATA_FIELDS:
-                        temp_entry[key] = entry[key]
+                        value = entry.get(key, None)
+                        if value is not None:
+                            temp_entry[key] = value
+                        else:
+                            cls._logger.debug(f'TMDB_id: {tmdb_id} missing value for {key}')
+
                     temp_entries[tmdb_id] = temp_entry
 
                 json_text = json.dumps(temp_entries,
