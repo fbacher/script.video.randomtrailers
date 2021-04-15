@@ -164,18 +164,19 @@ class Delay:
 
         self._call_count += 1
 
-        delay: float
-        if timeout is not None:
-            delay = float(timeout)
-        else:
-            delay = self._bias + (math.log10(self._call_count * self._call_scale_factor)
-                                  * self._scale_factor)
-
-        MinimalMonitor.throw_exception_if_abort_requested(delay)
-
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose(f'delay: {delay:f} call_count: '
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(f' bias: {bias} call_count: '
                                             f'{self._call_count} call_scale_factor: '
                                             f'{self._call_scale_factor:f} scale_factor: '
                                             f'{self._scale_factor}')
-        return delay
+        _delay: float
+        if timeout is not None:
+            _delay = float(timeout)
+        else:
+            # Adding 1.0 ensures that we don't do log10(0)
+            _delay = self._bias + (math.log10(1.0 + self._call_count *
+                                              self._call_scale_factor)
+                                  * self._scale_factor)
+
+        MinimalMonitor.throw_exception_if_abort_requested(_delay)
+        return _delay
