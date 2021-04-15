@@ -7,27 +7,47 @@ Created on Feb 19, 2019
 """
 
 
+# From six
+def reraise(tp, value, tb=None):
+    try:
+        if value is None:
+            value = tp()
+        if value.__traceback__ is not tb:
+            raise value.with_traceback(tb)
+        raise value
+    finally:
+        value = None
+        tb = None
+
+
 class AbortException(Exception):
-    pass
+    def __init__(self):
+        super().__init__
 
 
 class LaunchException(Exception):
-    pass
+    def __init__(self):
+        super().__init__
 
 
 class TrailerIdException(Exception):
-    pass
+    def __init__(self):
+        super().__init__
 
 
 class LogicError(Exception):
-    pass
+    def __init__(self):
+        super().__init__
 
 
 class DuplicateException(Exception):
-    pass
+    def __init__(self):
+        super().__init__
 
 # Something went wrong trying to communicate. Could be network failure
 # or could be api failure, perhaps even failure in RandomTrailers
 
+
 class CommunicationException(Exception):
-    pass
+    def __init__(self):
+        super().__init__

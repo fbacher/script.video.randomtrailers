@@ -10,6 +10,7 @@ from math import sqrt
 import re
 import sys
 
+
 from common.imports import *
 
 from common.constants import Constants, Movie
@@ -29,10 +30,10 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 class TMDBMatcher:
     FILTER_TITLE_PATTERN = re.compile(r'(?:(?:the)|(?:a) )(.*)(?:[?!:-]?)')
 
-    _logger = None
+    _logger: LazyLogger = None
 
     class CandidateMovie:
-        _logger = None
+        _logger: LazyLogger = None
 
         def __init__(self, tmdb_movie: [Dict[str, Any]],
                      tmdb_title: str,
@@ -184,7 +185,7 @@ class TMDBMatcher:
                     if status_code == 0:
                         finished = True
                     else:
-                        raise CommunicationException
+                        raise CommunicationException()
                 except CommunicationException as e:
                     if attempts > 10:  # 5 seconds
                         reraise(*sys.exc_info())
@@ -236,7 +237,7 @@ class TMDBMatcher:
                     self._add(movie, tmdb_title, tmdb_year,
                               tmdb_language, tmdb_id, runtime_seconds)
 
-        except AbortException:
+        except (AbortException, CommunicationException):
             reraise(*sys.exc_info())
 
         except Exception as e:
@@ -387,15 +388,23 @@ class TMDBUtils:
         return kodi_id
 
     @classmethod
-    def get_movie_by_tmdb_id(cls, tmdb_id):
-        # type: (int) -> TMDBUtils
+    def get_movie_by_tmdb_id(cls, tmdb_id: int) -> ForwardRef('TMDBUtils'):
         """
 
         :param tmdb_id:
         :return:
         """
-        cls.load_cache()
-        entry = cls.kodi_data_for_tmdb_id.get(tmdb_id)
+        entry: TMDBUtils
+        try:
+            cls.load_cache()
+            entry = cls.kodi_data_for_tmdb_id.get(tmdb_id)
+        except (AbortException, CommunicationException):
+            pass
+
+        except Exception:
+            cls._logger.exception()
+
+
         return entry
 
     @staticmethod

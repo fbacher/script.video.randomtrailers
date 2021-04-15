@@ -4,5 +4,5 @@ from typing import (Any, Callable, Final, ForwardRef, FrozenSet, Optional,
                     Sequence, Union, KeysView, ItemsView, ValuesView)
 
 MovieType = Dict[str, Any]
-from six import reraise
+from common.exceptions import reraise
 

@@ -1696,7 +1696,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                             url, params=data)
 
                         if info_string is None:
-                            raise CommunicationException
+                            raise CommunicationException()
                         else: finished = True
                     except CommunicationException as e:
                         self.wait_until_restart_or_shutdown(timeout=delay)
