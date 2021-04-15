@@ -372,7 +372,6 @@ class CacheManager:
         """
         local_class = CacheManager
 
-
         TRAILER_TYPE = 'trailer'
         JSON_TYPE = 'json'
 
