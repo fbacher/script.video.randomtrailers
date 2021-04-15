@@ -741,14 +741,14 @@ class AbstractMovieData:
 
             Otherwise, discoveryComplete == False:
 
-            If._discovered_trailers_queue is empty and _trailers_to_fetch_queue
+            If _discovered_trailers_queue is empty and _trailers_to_fetch_queue
             is not empty, then return without loading any.
 
-            If._discovered_trailers_queue is empty and _trailers_to_fetch_queue is empty
+            If _discovered_trailers_queue is empty and _trailers_to_fetch_queue is empty
             then block until an item becomes available or discoveryComplete == True.
 
             Finally, _trailers_to_fetch_queue is not full, fill it from any available
-            items from._discovered_trailers_queue.
+            items from _discovered_trailers_queue.
         :return:
         """
         clz = type(self)
