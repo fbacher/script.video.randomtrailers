@@ -67,8 +67,8 @@ class PlayerContainer:
         self._saved_player = self._player
         self._player = DummyPlayer()
         self._is_dummy_player = True
-        self._saved_player.setCallBacks()
-        self._saved_player.disableAdvancedMonitoring()
+        self._saved_player.set_callbacks()
+        self._saved_player.disable_advanced_monitoring()
         if delete:
             del self._saved_player
             self._saved_player = None
