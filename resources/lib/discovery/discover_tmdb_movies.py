@@ -1005,6 +1005,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                     clz.logger.debug(f'path: {path.absolute()} name: {path.name}')
                     match: Match = Constants.TMDB_ID_PATTERN.search(path.name)
+                    if match is None:  # Just in case
+                        continue
 
                     tmdb_id: str = match.group(1)
                     clz.logger.debug(f'tmdb_id: {tmdb_id}')
@@ -1045,9 +1047,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             clz.logger.exception()
 
         stop_time: datetime.datetime = datetime.datetime.now()
-        delta_time = stop_time - start_time
-        clz.logger.debug_extra_verbose(f'Elapsed time to discover json files: '
-                                       f'{delta_time:%M:%S}')
+        delta_time_minutes: int = int((stop_time - start_time).total_seconds() / 60.0)
+
+        clz.logger.debug_extra_verbose(f'Minutes discover json files: '
+                                       f'{delta_time_minutes:%,d}')
 
         try:
             # Send any unprocessed TMDB trailers to the discovered list

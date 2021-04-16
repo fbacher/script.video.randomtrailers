@@ -96,7 +96,7 @@ class Constants:
     TFH_PATTERN: Pattern =     re.compile(r'^.*-movie\..*$')
     TFH_GLOB_PATTERN: str = '**/*-movie.*'
 
-    TMDB_GLOB_JSON_PATTERN: str = '**/tmdb_*.json'
+    TMDB_GLOB_JSON_PATTERN: str = '**/tmdb_[0-9]*.json'
     TMDB_ID_PATTERN: Pattern = re.compile(r'^tmdb_([0-9]+).json')
 
     @staticmethod
@@ -482,7 +482,7 @@ List.Sort
     REJECTED_VOTE: Final[int] = 8
     REJECTED_TOO_MANY_TMDB_REQUESTS: Final[int] = 9
 
-    DEFAULT_MOVIE: Dict[str, Any] = {
+    DEFAULT_MOVIE: MovieType = {
         DISCOVERY_STATE: NOT_INITIALIZED,
         TITLE: 'default_' + TITLE,
         ORIGINAL_TITLE: 'default_' + ORIGINAL_TITLE,

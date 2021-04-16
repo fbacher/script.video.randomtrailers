@@ -606,7 +606,10 @@ class FindFiles(Iterable):
     def _run(self) -> None:
         clz = type(self)
         try:
-            for path in self._path.glob(self._glob_pattern):
+            # glob uses more resources than iglob since it must build entire
+            # list before returning. iglob, returns one at a time.
+
+            for path in self._path.iglob(self._glob_pattern):
                 #  clz._logger.debug(f'path: {path}')
                 if self._die:
                     break
