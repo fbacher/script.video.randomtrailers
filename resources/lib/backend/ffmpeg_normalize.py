@@ -14,15 +14,13 @@ import threading
 
 import xbmc
 
-from common.constants import Constants, Movie
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace, log_entry_exit)
+from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(
-    file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 '''
     Normalizes the volume of video using ffmpeg. Normalizing volumes is particularly

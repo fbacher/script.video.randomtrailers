@@ -16,11 +16,12 @@ import xbmcvfs
 import xmltodict
 
 from common.imports import *
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.logger import (LazyLogger, Trace)
 from common.messages import Messages
 from common.monitor import Monitor
 from common.disk_utils import DiskUtils
+from common.movie import AbstractMovie
 from common.settings import (Settings)
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -224,12 +225,12 @@ class Playlist:
         self.writeLine('random trailers started: {!s}'.format(now))
 
     def record_played_trailer(self,
-                              trailer: MovieType,
+                              movie: AbstractMovie,
                               use_movie_path: bool = False,
                               msg: str = '') -> None:
         """
 
-        :param trailer:
+        :param movie:
         :param use_movie_path:
         :param msg:
         :return:
@@ -237,15 +238,15 @@ class Playlist:
         if self.playlist_format:
             use_movie_path = True
 
-        name = trailer.get(Movie.TITLE, 'unknown Title')
-        year = '(' + str(trailer.get(Movie.YEAR, 'unknown Year')) + ')'
-        movie_type = trailer.get(Movie.TRAILER_TYPE, 'Unknown MovieType')
-        movie_path = trailer.get(Movie.FILE, None)
+        name: str = movie.get_title()
+        year: str = str(movie.get_year())
+        trailer_type: str = movie.get_trailer_type()
+        trailer_path: str = movie.get_trailer_path()
+        movie_path: str = movie.get_movie_path()
         if movie_path is None:
             if use_movie_path:  # Nothing to do if there is no movie path
                 return
             movie_path = 'Unknown movie path'
-        trailer_path = trailer.get(Movie.TRAILER, '')
         cache_path_prefix = Settings.get_downloaded_trailer_cache_path()
         trailer_path = trailer_path.replace(cache_path_prefix, '<cache_path>')
         missing_detail_msg = Messages.get_msg(Messages.MISSING_DETAIL)
@@ -255,14 +256,12 @@ class Playlist:
             name = 'name is None'
         if year is None:
             year = 'year is None'
-        if movie_type is None:
-            movie_type = 'movie_type is None'
+        if trailer_type is None:
+            trailer_type = 'trailer_type is None'
 
         path = trailer_path
         if use_movie_path:
             path = movie_path
-
-        formatted_title = Messages.get_formated_title(trailer)
 
         with Playlist._playlist_lock:
             # file closed
@@ -273,8 +272,7 @@ class Playlist:
             line = Playlist.PLAYLIST_ENTRY_PREFIX + name + '\n'
             line += path + '\n'
         else:
-            line = name + '  ' + year + '  # path: ' + formatted_title + ' ' +\
-                path + ' ' + msg + '\n'
+            line = f'{name}  {year}  # path: {movie.get_detail_title()} {path} {msg}\n'
         self._file.writelines(line)
 
     def writeLine(self, line: str) -> None:

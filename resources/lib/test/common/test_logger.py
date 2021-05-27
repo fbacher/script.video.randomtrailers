@@ -7,21 +7,12 @@ Created on Apr 17, 2019
 """
 
 import unittest
-import os
-import re
+
 import sys
-import threading
 import traceback
-import cStringIO
 
-from kodi_six import xbmc, utils
-from kodi65.kodiaddon import Addon
 
-from common.constants import Constants
-from common.critical_settings import CriticalSettings
-from common.exceptions import AbortException
-from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 import common.logger as logger
 
 lazy_module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -56,7 +47,6 @@ class LazyLoggerTestCase(unittest.TestCase):
         try:
             raise ZeroDivisionError
         except ZeroDivisionError:
-            frame = sys._getframe(0)
             self._logger.log_exception()
 
         pass
@@ -65,7 +55,6 @@ class LazyLoggerTestCase(unittest.TestCase):
         try:
             raise ZeroDivisionError
         except ZeroDivisionError:
-            frame = sys._getframe(0)
             self._logger.exception()
 
     def test_log_stack(self):

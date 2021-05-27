@@ -12,13 +12,14 @@ import sys
 
 import xbmcvfs
 
-from common.constants import Constants, Movie
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException
+from common.exceptions import AbortException, reraise
 from common.imports import *
 from common.monitor import Monitor
-from common.logger import (LazyLogger, Trace)
+from common.movie import LibraryMovie
+from common.movie_constants import MovieField, MovieType
+from common.logger import LazyLogger, Trace
 from common.settings import Settings
 
 from discovery.restart_discovery_exception import RestartDiscoveryException
@@ -48,7 +49,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             clz.logger = module_logger.getChild(clz.__name__)
 
         thread_name = 'Disc Folder'
-        kwargs = {Movie.SOURCE: Movie.FOLDER_SOURCE}
+        kwargs = {MovieField.SOURCE: MovieField.FOLDER_SOURCE}
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=kwargs)
         self._movie_data = FolderMovieData()
@@ -62,8 +63,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
         self.start()
         # self._trailer_fetcher.start_fetchers(self)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug(': started')
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose(': started')
 
     def run(self) -> None:
         """
@@ -71,15 +72,6 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         :return:
         """
         clz = type(self)
-
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            try:
-                import resource
-
-                memory: int = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-                clz.logger.debug(': memory: ' + str(memory))
-            except ImportError:
-                pass
 
         start_time = datetime.datetime.now()
         try:
@@ -134,7 +126,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     # get all files and sub-folders
                     dirs, files = xbmcvfs.listdir(folder)
 
-                    # Assume every file is a movie trailer. Manufacture
+                    # Assume every file is a movie movie. Manufacture
                     # a movie name and other info from the filename.
                     DiskUtils.RandomGenerator.shuffle(files)
                     for item in files:
@@ -147,20 +139,23 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
                             title = os.path.basename(title)
                             title = os.path.splitext(title)[0]
-                            new_trailer = {Movie.TITLE: title,
-                                           Movie.TRAILER: file_path,
-                                           Movie.TRAILER_TYPE: 'trailer file',
-                                           Movie.SOURCE:
-                                           Movie.FOLDER_SOURCE,
-                                           Movie.FANART: '',
-                                           Movie.THUMBNAIL: '',
-                                           Movie.FILE: '',
-                                           Movie.YEAR: ''}
+                            new_movie_data: MovieType = {MovieField.TITLE: title,
+                                                         MovieField.TRAILER: file_path,
+                                                         MovieField.TRAILER_TYPE:
+                                                             'movie file',
+                                                         MovieField.SOURCE:
+                                                             MovieField.FOLDER_SOURCE,
+                                                         MovieField.FANART: '',
+                                                         MovieField.THUMBNAIL: '',
+                                                         MovieField.FILE: '',
+                                                         MovieField.YEAR: ''}
+                            new_movie: LibraryMovie = LibraryMovie(
+                                movie_info=new_movie_data)
                             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                                 Debug.validate_basic_movie_properties(
-                                    new_trailer)
-                            self.add_to_discovered_trailers(
-                                new_trailer)
+                                    new_movie)
+                            self.add_to_discovered_movies(
+                                new_movie)
 
                         except AbortException:
                             reraise(*sys.exc_info())

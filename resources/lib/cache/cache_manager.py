@@ -11,20 +11,18 @@ import datetime
 import glob
 import os
 import locale
-import re
 import threading
-from pathlib import Path
 
 import xbmcvfs
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger, Trace
 from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
-from common.disk_utils import DiskUtils, FindFiles, UsageData, FileData
+from common.disk_utils import DiskUtils, UsageData
 
 RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
 
@@ -209,7 +207,8 @@ class CacheData:
                                    DiskUtils.sizeof_fmt(self._free_disk_in_cache_fs))
 
                 local_class._logger.info(msg_files_in_cache,
-                                   locale.format("%d", files_in_cache, grouping=True))
+                                   locale.format_string("%d", files_in_cache,
+                                                        grouping=True))
                 local_class._logger.info(msg_remaining_allowed_files,
                                    remaining_allowed_files_str)
 
@@ -372,6 +371,7 @@ class CacheManager:
         """
         local_class = CacheManager
 
+
         TRAILER_TYPE = 'trailer'
         JSON_TYPE = 'json'
 
@@ -410,6 +410,8 @@ class CacheManager:
             self._cache_monitor_thread = threading.Thread(
                 target=self.drive_garbage_collection_wrapper, name='cacheMonitor')
             self._cache_monitor_thread.start()
+            # For some reason did not see thread name while using debugger
+            self._cache_monitor_thread.setName('cacheMonitor')
 
     def drive_garbage_collection_wrapper(self) -> None:
         """
@@ -484,12 +486,12 @@ class CacheManager:
 
                 if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     local_class._logger.debug_extra_verbose('Daily Schedule',
-                                                     'start_time:',
-                                                     start_time.strftime(
-                                                         "%d/%m/%d %H:%M"),
-                                                     'delay:',
-                                                     start_seconds_from_now,
-                                                           trace=Trace.STATS_CACHE)
+                                                            'start_time:',
+                                                            start_time.strftime(
+                                                                "%d/%m/%d %H:%M"),
+                                                            'delay:',
+                                                            start_seconds_from_now,
+                                                            trace=Trace.STATS_CACHE)
 
                 # If start time is less than 5 hours into future, then add a
                 # day
@@ -499,8 +501,8 @@ class CacheManager:
                         (24 * 60 * 60)
                     if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         local_class._logger.debug_extra_verbose('New delay:',
-                                                               start_seconds_from_now,
-                                                               trace=Trace.STATS_CACHE)
+                                                                start_seconds_from_now,
+                                                                trace=Trace.STATS_CACHE)
 
         except AbortException as e:
             reraise(*sys.exc_info())

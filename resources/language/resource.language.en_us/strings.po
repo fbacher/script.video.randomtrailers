@@ -1004,7 +1004,7 @@ msgid "{} [B]Minutes[/B] - "
 msgstr ""
 
 msgctxt "#32197"
-msgid "{} [B]Genre:[/B] {}"
+msgid "{}  [B]Genre: [/B] {}"
 msgstr ""
 
 msgctxt "#32198"
@@ -1430,4 +1430,38 @@ msgstr ""
 # Not Yet Rated (Different from Unrated, can be a bit confusing).
 msgctxt "#32284"
 msgid "Net Yet Rated"
+msgstr ""
+
+# Types of videos that can be played as a "trailer":
+# 'Trailer', 'Featurette', 'Clip', 'Teaser', Behind the Scenes'
+# Used in label for a movie: <movie_title> <(release_year)> - <trailer_sources> <trailer_type>
+# <trailer_sources> can be a single source: Library, TFH, or TMDb.
+#                   or when a 'trailer' is being played from a remote service (like TMDb)
+#                      AND the movie is also in the local library, then the label is:
+#                   <movie_title> <(release_year)> - <remote_source> / Library <trailer_type>
+#
+# Examples: Gone With the Wind (1939) - TFH / Library Trailer
+#           Gone With the Wind (1939) - TMDb Featurette
+#
+# Perhaps this message should not be constructed by code, but by the translator. Open
+# defect or contact me if this should be the case.
+
+msgctxt "#32285"
+msgid "Trailer"
+msgstr ""
+
+msgctxt "#32286"
+msgid "Featurette"
+msgstr ""
+
+msgctxt "#32287"
+msgid "Clip"
+msgstr ""
+
+msgctxt "#32288"
+msgid "Teaser"
+msgstr ""
+
+msgctxt "#32289"
+msgid "Behind the Scenes"
 msgstr ""

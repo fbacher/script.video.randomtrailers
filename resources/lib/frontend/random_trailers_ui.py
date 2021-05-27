@@ -51,7 +51,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
             * On each iteration it gets movie a to play from
               TrailerManager's ReadyToPlay queue
             * Listens for events:stop & exit, pause, play, queue_movie, showInfo,
-              Skip to next trailer, etc.
+              Skip to next movie, etc.
 
         TrailerManager holds various queues and lists:
             * Queues for each video source (library, iTunes, etc.) for
@@ -160,7 +160,7 @@ def kodi_hack() -> None:
     listitem.setInfo(
         'video', {'title': title, 'genre': 'randomtrailers',
                   'Genre': 'randomtrailers',
-                  'trailer': title, 'path': path_to_black_video,
+                  'movie': title, 'path': path_to_black_video,
                   'mediatype': 'video', 'tag': 'randomtrailers'})
     listitem.setPath(path_to_black_video)
     player.play(item=path_to_black_video, listitem=listitem)

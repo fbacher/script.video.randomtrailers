@@ -9,6 +9,14 @@ Created on Feb 19, 2019
 
 # From six
 def reraise(tp, value, tb=None):
+    """
+    Usage:    reraise(*sys.exc_info())
+
+    :param tp: Exception to reraise
+    :param value:
+    :param tb:
+    :return:
+    """
     try:
         if value is None:
             value = tp()

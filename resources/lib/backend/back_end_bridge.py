@@ -6,19 +6,22 @@ Created on Mar 21, 2019
 @author: Frank Feuerbacher
 """
 
+import pickle
 import sys
 import threading
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.exceptions import AbortException
 from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
+from common.movie import AbstractMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 from discovery.playable_trailer_service import PlayableTrailerService
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+
 
 
 class BackendBridgeStatus(PluginBridgeStatus):
@@ -34,9 +37,9 @@ class BackendBridge(PluginBridge):
         accomplished using the AddonSignals service.
     """
     _logger: LazyLogger = None
-    _next_trailer: MovieType = None
-    _trailer_iterator: Iterable = None
-    _trailer: MovieType = None
+    _next_trailer: AbstractMovie = None
+    _trailer_iterator: Iterator = None
+    _trailer: AbstractMovie = None
     _on_settings_changed_callback = None
     _busy_getting_trailer: bool = False
     _status: str = BackendBridgeStatus.IDLE
@@ -79,7 +82,7 @@ class BackendBridge(PluginBridge):
     @classmethod
     def get_trailer(cls, _) -> None:
         """
-            Back-end receives request for next trailer from the front-end and
+            Back-end receives request for next movie from the front-end and
             waits for response.
         """
         try:
@@ -97,7 +100,7 @@ class BackendBridge(PluginBridge):
     @classmethod
     def get_trailer_worker(cls) -> None:
         """
-            Back-end receives request for next trailer from the front-end and
+            Back-end receives request for next movie from the front-end and
             waits for response.
         """
 
@@ -114,7 +117,7 @@ class BackendBridge(PluginBridge):
 
         cls._busy_getting_trailer = True
         try:
-            trailer = next(cls._trailer_iterator)
+            trailer: AbstractMovie = next(cls._trailer_iterator)
         except StopIteration:
             cls.send_trailer(BackendBridgeStatus.BUSY, None)
             cls._busy_getting_trailer = False
@@ -126,13 +129,15 @@ class BackendBridge(PluginBridge):
         cls._busy_getting_trailer = False
 
     @classmethod
-    def send_trailer(cls, status: str, trailer: MovieType) -> None:
+    def send_trailer(cls, status: str, trailer: AbstractMovie) -> None:
         """
-            Send trailer to front-end
+            Send movie to front-end
         """
         try:
+            pickled: bytes = pickle.dumps(trailer)
+            pickled_str: str = pickled.hex()
             cls.send_signal('nextTrailer',
-                            data={'trailer': trailer,
+                            data={'movie': pickled_str,
                                   'status': status},
                             source_id=Constants.FRONTEND_ID)
 

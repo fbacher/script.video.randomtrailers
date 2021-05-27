@@ -6,12 +6,12 @@ import os
 import threading
 import sys
 
-from common.constants import Constants, Movie
-from common.exceptions import AbortException, DuplicateException
+from common.constants import Constants
+from common.exceptions import AbortException
 from common.imports import *
 from common.monitor import Monitor
-from backend.movie_entry_utils import (MovieEntryUtils)
-from common.logger import (Trace, LazyLogger)
+from common.logger import Trace, LazyLogger
+from common.movie import BaseMovie
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -23,7 +23,7 @@ class PlayStatistics:
     logger: LazyLogger = None
     _total_removed: int = 0
     _play_count: Dict[str, int] = dict()
-    _key_to_movie: Dict[str, MovieType] = {}
+    _key_to_movie: Dict[str, BaseMovie] = {}
     _lock: threading.RLock = threading.RLock()
     _number_of_added_movies = 0
     report: io.TextIOBase = None
@@ -52,7 +52,7 @@ class PlayStatistics:
             cls._number_of_added_movies = 0
 
     @classmethod
-    def add(cls, movie: MovieType) -> None:
+    def add(cls, movie: BaseMovie) -> None:
         """
 
         :param movie:
@@ -69,7 +69,7 @@ class PlayStatistics:
             cls._number_of_added_movies += 1
 
     @classmethod
-    def get_play_count(cls, movie: MovieType) -> int:
+    def get_play_count(cls, movie: BaseMovie) -> int:
         """
 
         :param movie:
@@ -84,12 +84,12 @@ class PlayStatistics:
         except KeyError as e:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.debug(
-                    'Could not find entry for:', movie[Movie.TITLE])
+                    'Could not find entry for:', movie.get_title())
 
         return count
 
     @classmethod
-    def increase_play_count(cls, movie: MovieType) -> None:
+    def increase_play_count(cls, movie: BaseMovie) -> None:
         """
 
         :param movie:
@@ -107,7 +107,7 @@ class PlayStatistics:
         except KeyError as e:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.debug('Could not find entry for:',
-                                 movie[Movie.TITLE])
+                                 movie.get_title())
         return
 
     @classmethod
@@ -209,13 +209,13 @@ class PlayStatistics:
         for key in movies_with_same_count:
             Monitor.throw_exception_if_abort_requested()
             try:
-                movie: Optional[MovieType] = cls._key_to_movie.get(key, None)
+                movie: Optional[AbstractMovie] = cls._key_to_movie.get(key, None)
                 if movie is not None:
-                    movie_title = movie.get(Movie.TITLE, 'unknown')
+                    movie_title = movie.get_title()
                 else:
                     movie_title = 'Not in dictionary'
                 if include_source:
-                    movie_title = movie_title + f': {movie.get(Movie.SOURCE)}'
+                    movie_title = movie_title + f': {movie.get_source()}'
 
                 if line_length + len(movie_title) >= clz.MAX_LINE_LENGTH:
                     line = '   {}\n'.format(', '.join(movies_in_line))
@@ -240,25 +240,13 @@ class PlayStatistics:
                 clz.logger.exception()
 
     @staticmethod
-    def get_key(movie: MovieType) -> str:
+    def get_key(movie: BaseMovie) -> str:
         """
 
         :param movie:
         :return:
         """
-
-        key = None
-        movie_source = movie[Movie.SOURCE]
-        if movie_source == Movie.TMDB_SOURCE:
-            key = str(MovieEntryUtils.get_tmdb_id(movie))
-        elif movie_source == Movie.ITUNES_SOURCE:
-            key = movie[Movie.ITUNES_ID]
-        elif movie_source == Movie.LIBRARY_SOURCE:
-            key = movie_source + str(movie[Movie.MOVIEID])
-        elif movie_source == Movie.TFH_SOURCE:
-            key = movie_source + str(movie[Movie.TFH_ID])
-
-        return key
+        return movie.get_source() + movie.get_id()
 
 
 PlayStatistics.init_class()

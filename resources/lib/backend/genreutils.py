@@ -13,7 +13,7 @@ import xmltodict
 import xbmcvfs
 
 from common.exceptions import AbortException
-from common.constants import (Constants, GenreEnum)
+from common.constants import Constants, GenreEnum
 from common.imports import *
 from common.logger import LazyLogger
 from common.messages import Messages
@@ -577,7 +577,7 @@ class _RandomTrailersGenre:
         # if (destination_id == GenreUtils.ROTTEN_TOMATOES_DATABASE
         #                    or destination_id == GenreUtils.LOCAL_DATABASE):
         #    if self.getTomatoesGenre() is not None:
-        #        genres.extend(self.getTomatoesGenre().get_genres())
+        #        genres.extend(self.getTomatoesGenre().get_genre_names())
 
         return genres
 
@@ -727,7 +727,7 @@ class GenreUtils:
             particular destination (LOCAL_DATABASE, TMDB_DATABASE,
             etc.). Different destinations use different ids for
             genres. In some cases, tags are used instead of genres,
-            so both get_genres and get_tags must be done.
+            so both get_genre_names and get_tags must be done.
         """
         genres = []
         for genre in generic_genres:
@@ -743,7 +743,7 @@ class GenreUtils:
             particular destination (LOCAL_DATABASE, TMDB_DATABASE,
             etc.). Different destinations use different ids for
             genres. In some cases, tags are used instead of genres,
-            so both get_genres and get_tags must be done.
+            so both get_genre_names and get_tags must be done.
         """
         tags = []
         for genre in generic_genres:
@@ -1037,17 +1037,17 @@ class GenreUtils:
 
     @classmethod
     def include_movie(cls,
-                      genres: List[str] = None,
-                      tags: List[str] = None) -> bool:
+                      genre_names: List[str] = None,
+                      tag_names: List[str] = None) -> bool:
         if not Settings.get_filter_genres():
             return True
 
-        if genres is None:
-            genres = []
+        if genre_names is None:
+            genre_names = []
 
-        if tags is None:
+        if tag_names is None:
             ignore_tags = True
-            tags = []
+            tag_names = []
         else:
             # When tags is None, they haven't been discovered yet for this
             # movie. Assume that any allowed_tag will be found.
@@ -1065,7 +1065,7 @@ class GenreUtils:
 
         genre_found = False
         genre_excluded = False
-        for genre_id in genres:
+        for genre_id in genre_names:
             genre_id = str(genre_id)
             if genre_id in allowed_genres:
                 genre_found = True
@@ -1074,7 +1074,7 @@ class GenreUtils:
 
         tag_found = False
         tag_excluded = False
-        for tag_id in tags:
+        for tag_id in tag_names:
             tag_id = str(tag_id)
             if tag_id in allowed_tags:
                 tag_found = True

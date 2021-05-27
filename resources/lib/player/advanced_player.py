@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import threading
+from abc import ABC
 
 import xbmc
 import xbmcgui
@@ -10,18 +11,13 @@ from common.imports import *
 from common.exceptions import AbortException
 from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
+from player.abstract_player import AbstractPlayer, PlayerState
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 DEBUG_PLAYER: int = LazyLogger.DISABLED
 
 
-class PlayerState:
-    STATE_STOPPED: Final[str] = 'stopped'
-    STATE_PLAYING: Final[str] = 'playing'
-    STATE_PAUSED: Final[str] = 'paused'
-
-
-class AdvancedPlayer(xbmc.Player):
+class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     """
 
     """
@@ -175,7 +171,7 @@ class AdvancedPlayer(xbmc.Player):
         local_class = AdvancedPlayer
 
         if (local_class._logger.isEnabledFor(DEBUG_PLAYER)
-                and local_class._logger.isEnabled(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                and local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
             local_class._logger.enter()
         if self.play_state == PlayerState.STATE_PLAYING:
             # self._dump_state()  # TODO: remove
@@ -262,9 +258,9 @@ class AdvancedPlayer(xbmc.Player):
         """
         local_class = AdvancedPlayer
 
-        isPlaying = bool(super().isPlayingVideo())
+        is_playing: bool = bool(super().isPlayingVideo())
 
-        return isPlaying
+        return is_playing
 
     # Defined in xbmc.Player
     def isPlayingRDS(self) -> bool:
@@ -336,7 +332,7 @@ class AdvancedPlayer(xbmc.Player):
             self.isPlayingVideo()
             self.isPlayingRDS()
             self.isExternalPlayer()
-            self.isFinished()
+            self.is_finished()
             local_class._logger.debug_extra_verbose('play_state: ', self._player_state)
 
             # self.getPlayingFile()

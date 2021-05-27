@@ -5,17 +5,13 @@ from xbmc import InfoTagMusic, InfoTagRadioRDS, InfoTagVideo, PlayList
 from common.imports import *
 
 from common.monitor import Monitor
+from player.abstract_player import AbstractPlayer
 
 
-class PlayerState:
-    STATE_STOPPED = 'stopped'
-    STATE_PLAYING = 'playing'
-    STATE_PAUSED = 'paused'
-
-
-class DummyPlayer:
+class DummyPlayer(AbstractPlayer):
 
     def __init__(self) -> None:
+        super().__init__()
         return
 
     def register_exit_on_movie_playing(self, listener) -> None:

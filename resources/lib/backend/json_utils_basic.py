@@ -12,10 +12,7 @@ from email.utils import parsedate_tz
 import simplejson as json
 import random
 import requests
-from requests.exceptions import (
-    ConnectionError,
-    ConnectTimeout, ReadTimeout
-)
+from requests.exceptions import ConnectionError, ConnectTimeout, ReadTimeout
 
 import threading
 import calendar
@@ -23,14 +20,14 @@ import calendar
 import xbmc
 from common.imports import *
 
-from common.constants import Constants, Movie
-from common.logger import (LazyLogger, Trace)
+from common.constants import Constants
+from common.logger import LazyLogger, Trace
 from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
 from backend import backend_constants
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class JsonUtilsBasic:
@@ -79,7 +76,7 @@ class JsonUtilsBasic:
 
     UNLIMITED = Messages.get_msg(Messages.UNLIMITED)
 
-    _logger = None
+    _logger: LazyLogger = None
     _instance = None
 
     @classmethod
@@ -180,16 +177,16 @@ class JsonUtilsBasic:
                                                 trace=[Trace.TRACE_JSON,
                                                        Trace.TRACE_NETWORK])
             else:
-                cls._logger.debug_extra_verbose('oldest_entry:',
-                                                oldest_entry.get_time_stamp(),
-                                                'expiration:', window_expiration_time,
-                                                'oldest RequestCount:',
-                                                oldest_entry.get_request_count(),
-                                                'hardCodedRequestsPerTimePeriod:',
-                                                destination_data.
-                                                    hard_coded_requests_per_time_period,
-                                                trace=[Trace.TRACE_JSON,
-                                                    Trace.TRACE_NETWORK])
+                cls._logger.debug_extra_verbose(
+                    'oldest_entry:',
+                    oldest_entry.get_time_stamp(),
+                    'expiration:', window_expiration_time,
+                    'oldest RequestCount:',
+                    oldest_entry.get_request_count(),
+                    'hardCodedRequestsPerTimePeriod:',
+                    destination_data.hard_coded_requests_per_time_period,
+                    trace=[Trace.TRACE_JSON,
+                           Trace.TRACE_NETWORK])
         #
         # Have we hit the maximum number of requests over this
         # time period? If we have, then how long do we have to wait before the
@@ -211,17 +208,18 @@ class JsonUtilsBasic:
                                                     starting_request_count + 1
             if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                     and Trace.is_enabled(Trace.TRACE_NETWORK)):
-                cls._logger.debug_extra_verbose('calculated_number_of_requests_pending:',
-                                                calculated_number_of_requests_pending,
-                                                'length of request_window:',
-                                                len(request_window),
-                                                'numberOfAdditionalRequetsAllowedByServer from server:',
-                                                destination_data.number_of_additional_requests_allowed_by_server,
-                                                'starting_request_count',
-                                                starting_request_count, 'limit:',
-                                                destination_data.hard_coded_requests_per_time_period,
-                                                trace=[Trace.TRACE_JSON,
-                                                    Trace.TRACE_NETWORK])
+                cls._logger.debug_extra_verbose(
+                    'calculated_number_of_requests_pending:',
+                    calculated_number_of_requests_pending,
+                    'length of request_window:',
+                    len(request_window),
+                    'numberOfAdditionalRequetsAllowedByServer from server:',
+                    destination_data.number_of_additional_requests_allowed_by_server,
+                    'starting_request_count',
+                    starting_request_count, 'limit:',
+                    destination_data.hard_coded_requests_per_time_period,
+                    trace=[Trace.TRACE_JSON,
+                           Trace.TRACE_NETWORK])
 
         # If the server gives us this info directly, then replace
         # our calculated value with the server value.
@@ -298,9 +296,10 @@ class JsonUtilsBasic:
                             + datetime.timedelta(0, 1))
                 corrected_delay = reset_time_from_server - datetime.datetime.now()
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    cls._logger.debug_extra_verbose('correctedDelay:',
-                                              corrected_delay.total_seconds(),
-                                              trace=Trace.TRACE_JSON)
+                    cls._logger.debug_extra_verbose(
+                        'correctedDelay:',
+                        corrected_delay.total_seconds(),
+                        trace=Trace.TRACE_JSON)
 
             # Second method:
         #
@@ -498,7 +497,8 @@ class JsonUtilsBasic:
             # will expire.  header.get('X-RateLimit-Reset')
             # Limit will be lifted at this time, in epoch seconds
 
-            self.actual_oldest_request_in_window_expiration_time = None
+            self.actual_oldest_request_in_window_expiration_time:\
+                Union[datetime.datetime, None] = None
 
             # Not all requests utilize the above, but when a limit failure occurs,
             # use 'Retry-After' header value which tells you when you can retry
@@ -595,7 +595,7 @@ class JsonUtilsBasic:
                  headers: Union[dict, None] = None,
                  params: Union[Dict[str, Any], None] = None,
                  timeout: float = 3.0
-                 ) -> (int, str):
+                 ) -> (int, MovieType):
         """
             Queries external site for movie/trailer information.
 
@@ -641,7 +641,7 @@ class JsonUtilsBasic:
         Monitor.throw_exception_if_abort_requested()
         with destination_data.get_lock():
             time_delay = JsonUtilsBasic.get_delay_time(request_index)
-            json_text = None
+            movie_data: MovieType = None
 
             # Some TMDB api calls do NOT give RATE-LIMIT info in header responses
             # In such cases we detect the failure from the status code and retry
@@ -689,7 +689,7 @@ class JsonUtilsBasic:
                     cls._logger.debug(
                         'generated url:', response.url)
 
-                json_text = response.json()
+                movie_data = response.json()
                 returned_header = response.headers
             except AbortException:
                 reraise(*sys.exc_info())
@@ -739,8 +739,8 @@ class JsonUtilsBasic:
 
                     if second_attempt:
                         status_code = -1
-                        json_text = None
-                        return status_code, json_text
+                        movie_data = None
+                        return status_code, movie_data
 
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG):
                         JsonUtilsBasic.dump_delay_info(request_index)
@@ -825,8 +825,8 @@ class JsonUtilsBasic:
                 #        cls._logger.debug_extra_verbose(
                 #            'TMDB response header missing X-RateLimit info.', msg)
 
-            # Debug.myLog('get_json json_text: ' + json_text.__class__.__name__ +
-            #            ' ' + json.dumps(json_text), xbmc.LOGDEBUG)
+            # Debug.myLog('get_json movie_data: ' + movie_data.__class__.__name__ +
+            #            ' ' + json.dumps(movie_data), xbmc.LOGDEBUG)
 
             '''
             
@@ -930,7 +930,7 @@ class JsonUtilsBasic:
 
                 if not second_attempt:
                     try:
-                        status_code, json_text = \
+                        status_code, movie_data = \
                             JsonUtilsBasic.get_json(url,
                                                     second_attempt=True,
                                                     headers=headers,
@@ -940,7 +940,7 @@ class JsonUtilsBasic:
                         reraise(*sys.exc_info())
                     except Exception as e:
                         status_code = -1
-                        json_text = None
+                        movie_data = None
                     finally:
                         JsonUtilsBasic.record_request_timestamp(
                             request_index, response_time_stamp, failed=request_failed)
@@ -948,11 +948,11 @@ class JsonUtilsBasic:
         # if dump_results and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
         #    cls._logger.debug_extra_verbose('JSON DUMP:', dump_msg)
         #    cls._logger.debug_extra_verbose(json.dumps(
-        #        json_text, indent=3, sort_keys=True))
+        #        movie_data, indent=3, sort_keys=True))
 
         if status_code == 200:
             status_code = 0
-        return status_code, json_text
+        return status_code, movie_data
 
     @classmethod
     def get_kodi_json(cls,

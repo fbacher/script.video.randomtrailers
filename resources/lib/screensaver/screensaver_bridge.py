@@ -9,9 +9,9 @@ Created on Mar 21, 2019
 import sys
 
 from common.imports import *
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)

@@ -6,19 +6,11 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-import datetime
-import random
-
 from common.imports import *
-from backend.json_utils_basic import (JsonUtilsBasic)
-from diagnostics.statistics import Statistics
-from cache.cache import (Cache)
-from common.constants import Movie
-from common.logger import (LazyLogger)
-from common.messages import Messages
-from common.settings import Settings
+from backend.json_utils_basic import JsonUtilsBasic
+from common.logger import LazyLogger
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class JsonUtils(JsonUtilsBasic):
@@ -40,7 +32,7 @@ class JsonUtils(JsonUtilsBasic):
         making requests
     """
 
-    _logger = None
+    _logger: LazyLogger = None
 
     @classmethod
     def class_init(cls) -> None:

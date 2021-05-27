@@ -9,23 +9,23 @@ import datetime
 import re
 import sys
 
-import xbmcvfs
-
-from cache.tfh_cache import (TFHCache)
-from common.constants import Constants, Movie, TFH
+from cache.tfh_cache import TFHCache
+from common.constants import Constants, TFH
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException
+from common.exceptions import AbortException, reraise
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
-from common.rating import WorldCertifications
+from common.movie import TFHMovie
+from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
 
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.restart_discovery_exception import RestartDiscoveryException
 from discovery.tfh_movie_data import TFHMovieData
 from backend.video_downloader import VideoDownloader
+from discovery.utils.parse_tfh import ParseTFH
 
 module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -48,7 +48,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
         thread_name = 'Disc TFH'
-        kwargs = {Movie.SOURCE: Movie.TMDB_SOURCE}
+        kwargs = {MovieField.SOURCE: MovieField.TFH_SOURCE}
 
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=kwargs)
@@ -65,6 +65,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         clz = DiscoverTFHMovies
 
         self.start()
+        self.setName('Disc TFH')
+
         # self._trailer_fetcher.start_fetchers(self)
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
@@ -114,6 +116,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                         finished = True
                         self.remove_self()
 
+            # TODO: Move before wait_until_restart_or_shutdown()
+
             self.finished_discovery()
             duration = datetime.datetime.now() - start_time
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
@@ -145,18 +149,21 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
     def discover_movies(self) -> None:
         """
-        :return: (Lower code uses add_to_discovered_trailers).
+        :return: (Lower code uses add_to_discovered_movies).
         """
 
         """
-        youtube-dl --ignore-errors --skip-download --get-id https://www.youtube.com/user/trailersfromhell/videos 
+        youtube-dl --ignore-errors --skip-download --get-id 
+        https://www.youtube.com/user/trailersfromhell/videos 
         gives ids. Extract movies via id by:
         
-        time youtube-dl --ignore-errors --skip-download https://www.youtube.com/watch?v=YbqC0b_jfxQ
+        time youtube-dl --ignore-errors --skip-download 
+        https://www.youtube.com/watch?v=YbqC0b_jfxQ
 
         or
         
-       youtube-dl --flat-playlist -J --skip-download  https://www.youtube.com/user/trailersfromhell/videos 
+       youtube-dl --flat-playlist -J --skip-download  
+       https://www.youtube.com/user/trailersfromhell/videos 
         
         Returns:
      {
@@ -194,7 +201,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         Get JSON for TFH entire trailers in playlist:
         youtube-dl --ignore-errors --skip-download --playlist-random  
             --print-json https://www.youtube.com/user/trailersfromhell/videos >>downloads2
-        Each line is a separate JSON "file" for a single trailer.
+        Each line is a separate JSON "file" for a single movie.
              
              -J --dump-single-json: -> dump_single_json
              --skip-download: -> skip_download
@@ -236,15 +243,15 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
          Libsyn: http://podcast.trailersfromhell.com\n
          Google Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7",
         """
-        clz = DiscoverTFHMovies
+        clz = type(self)
 
         cache_expiration_time = datetime.timedelta(
             float(Settings.get_tfh_cache_expiration_days()))
         cache_expiration_time = datetime.datetime.now() - cache_expiration_time
         if TFHCache.get_creation_date() > cache_expiration_time:
-            cached_trailers = TFHCache.get_cached_trailers()
+            cached_trailers = TFHCache.get_cached_movies()
         else:
-            cached_trailers: Dict[str, MovieType] = {}
+            cached_trailers: Dict[str, TFHMovie] = {}
 
         max_trailers = Settings.get_max_number_of_tfh_trailers()
         trailer_list = list(cached_trailers.values())
@@ -279,24 +286,28 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             # TODO: Remove patch to clean up cache
 
-            dirty: bool = Debug.validate_detailed_movie_properties(tfh_trailer,
-                                                                   stack_trace=False,
-                                                                   force_check=True)
-            if (tfh_trailer[Movie.TITLE] == tfh_trailer[Movie.TFH_TITLE]
-                    or dirty or tfh_trailer[Movie.YEAR] == 0):
-                tfh_trailer[Movie.TITLE] = self.fix_title(tfh_trailer)
-                tfh_trailer[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
-                if dirty:
-                    for property in (Movie.FANART, Movie.WRITER, Movie.CAST,
-                                       Movie.GENRE, Movie.STUDIO, Movie.UNIQUE_ID):
-                        if property in tfh_trailer:
-                            del tfh_trailer[property]
-
-            # Mostly to protect against cached entries produced by bugs which
-            # are now fixed, reset certain fields to force rediscovery.
-
-            if clz.FORCE_TFH_REDISCOVERY:
-                tfh_trailer[Movie.DISCOVERY_STATE] = Movie.NOT_FULLY_DISCOVERED
+            try:
+                dirty: bool = Debug.validate_detailed_movie_properties(tfh_trailer,
+                                                                       stack_trace=False,
+                                                                       force_check=True)
+                if (tfh_trailer.get_title() == tfh_trailer.get_tfh_title()
+                        or dirty or tfh_trailer.get_year() == 0):
+                    tfh_trailer.set_title(self.fix_title(tfh_trailer))
+                    tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
+                    if dirty:
+                        tfh_trailer.set_fanart('')
+                        tfh_trailer.set_writers([])
+                        tfh_trailer.set_genre_names([])
+                        tfh_trailer.set_unique_ids({})
+    
+                # Mostly to protect against cached entries produced by bugs which
+                # are now fixed, reset certain fields to force rediscovery.
+    
+                if clz.FORCE_TFH_REDISCOVERY:
+                    tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
+            except Exception as e:
+                clz.logger.exception(e)
+                
                 # Fields read from youtube
                 """
                     = {Movie.SOURCE: 'unknown',
@@ -309,7 +320,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                        Movie.THUMBNAIL: thumbnail,
                        Movie.RATING: movie_data.get('average_rating', 0.0),
                        # Kodi measures in seconds
-                       # At least for TFH, this appears to be time of trailer
+                       # At least for TFH, this appears to be time of movie
                        # (not movie), measured in 1/60 of a
                        # second, or 60Hz frames. Weird.
                        Movie.RUNTIME: movie_data.get('duration', 1.0) * 60
@@ -324,13 +335,27 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 J- Junk
                 D- Detail (no need to persist)
                 
-                    "cached_trailer": "/home/fbacher/.kodi/userdata/addon_data/script.video.randomtrailers/cache/hA/tfh_AniaXIWKKuc_John Landis on KIND HEARTS AND CORONETS (2013)-movie.mkv",
+                    "cached_trailer": 
+                    "/home/fbacher/.kodi/userdata/addon_data/script.video
+                    .randomtrailers/cache/hA/tfh_AniaXIWKKuc_John Landis on KIND HEARTS 
+                    AND CORONETS (2013)-movie.mkv",
                       "cast": [],
                       "fanart": "",
                       "genre": [],
                       "mpaa": "NR",
                       "original_language": "",
-                      "plot": "Perhaps the greatest of the Ealing comedies, this blackly humorous multiple murder farce is best known for Alec Guinness's eight roles as all the D'ascoyne family victims, but it's really murderous lead Dennis Price who walks away with the acting honors.\n\nAs always, find more great cinematic classics at http://www.trailersfromhell.com\n\nABOUT TRAILERS FROM HELL:  \n\nTFH is the premier showcase for a breathtakingly eclectic assortment of trailers from classic era films both in their original form and punctuated with informative and amusing commentary by contemporary filmmakers.\n\nFollow us on Twitter: ‪‪http://www.twitter.com/trailersfromhel‬‬\nLike us on Facebook: ‪‪http://www.facebook.com/trailersfromhell‬‬",
+                      "plot": "Perhaps the greatest of the Ealing comedies, 
+                      this blackly humorous multiple murder farce is best known for 
+                      Alec Guinness's eight roles as all the D'ascoyne family victims, 
+                      but it's really murderous lead Dennis Price who walks away with 
+                      the acting honors.\n\nAs always, find more great cinematic 
+                      classics at http://www.trailersfromhell.com\n\nABOUT TRAILERS 
+                      FROM HELL:  \n\nTFH is the premier showcase for a breathtakingly 
+                      eclectic assortment of trailers from classic era films both in 
+                      their original form and punctuated with informative and amusing 
+                      commentary by contemporary filmmakers.\n\nFollow us on Twitter: 
+                      ‪‪http://www.twitter.com/trailersfromhel‬‬\nLike us on Facebook: 
+                      ‪‪http://www.facebook.com/trailersfromhell‬‬",
                       "rating": 4.9272728,
                 D     "rts.actors": [],
                 D     "rts.certification": "Unrated",
@@ -341,7 +366,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 D     "rts.studios": "",
                       "rts.tfhId": "AniaXIWKKuc",
                       "rts.tfh_title": "KIND HEARTS AND CORONETS",
-                D     "rts.title": "John Landis on KIND HEARTS AND CORONETS (2013) - TFH ",
+                D     "rts.title": "John Landis on KIND HEARTS AND CORONETS (2013) - 
+                TFH ",
                 D     "rts.voiced.actors": "",
                 D     "rts.writers": "",
                       "rts.youtube.trailers_in_index": 1449,
@@ -355,7 +381,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                       ],
                       "thumbnail": "https://i.ytimg.com/vi/AniaXIWKKuc/maxresdefault.jpg",
                       "title": "KIND HEARTS AND CORONETS",
-                      "trailer": "https://youtu.be/AniaXIWKKuc",
+                      "movie": "https://youtu.be/AniaXIWKKuc",
                       "trailerDiscoveryState": "04_discoveryReadyToDisplay",
                       "trailerPlayed": false,
                       "trailerType": "default_trailerType",
@@ -363,7 +389,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                       "year": 2013
                 """
 
-        self.add_to_discovered_trailers(trailer_list)
+        self.add_to_discovered_movies(trailer_list)
 
         # Entire TFH index is read, so only re-do if the cache was not
         # completely built, or expired
@@ -385,7 +411,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         clz.logger.debug(f'TFH Discovery Complete')
 
-    def fix_title(self, tfh_trailer: MovieType) -> str:
+    def fix_title(self, tfh_movie: TFHMovie) -> str:
         clz = type(self)
 
         # TFH Title formats prefix the movie title with the name of the
@@ -407,7 +433,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         #               ex: BIG JIM McLEAN
         #                   Eli Roth on EXCORCIST II: THE HERETIC
 
-        tfh_title = tfh_trailer[Movie.TFH_TITLE]
+        tfh_title = tfh_movie.get_tfh_title()
         title_segments = re.split(TFH.TITLE_RE, tfh_title)
         # director : on : title
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
@@ -439,7 +465,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         """
         
-            Handle entry for one trailer
+            Handle entry for one movie
             
                    "_type": "url_transparent",
                   "ie_key": "Youtube",
@@ -453,35 +479,42 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     }
             
         """
-        trailer_id = tfh_trailer.get(Movie.TFH_ID, None)
-        if trailer_id is None:
-            trailer_id = tfh_trailer.get(Movie.YOUTUBE_ID, None)
-        if trailer_id is None:
-            import simplejson as json
-            type(self).logger.error('Can not find TFH_ID',
-                                    json.dumps(tfh_trailer,
-                                               ensure_ascii=False,
-                                               indent=3, sort_keys=True))
 
-        if trailer_id not in self._unique_trailer_ids:
-            self._unique_trailer_ids.add(trailer_id)
+        parser = ParseTFH(tfh_trailer, -1)
+        tfh_id: str = parser.parse_id()
+
+        if tfh_id not in self._unique_trailer_ids:
+            self._unique_trailer_ids.add(tfh_id)
 
             # The movie's title is embedded within the TFH title
             # The title will be extracted from it, but save the original
 
-            tfh_trailer[Movie.TFH_TITLE] = tfh_trailer[Movie.TITLE]
-            tfh_trailer[Movie.TITLE] = self.fix_title(tfh_trailer)
-            tfh_trailer[Movie.SOURCE] = Movie.TFH_SOURCE
-            tfh_trailer[Movie.TFH_ID] = tfh_trailer[Movie.YOUTUBE_ID]
-            tfh_trailer[Movie.TRAILER_TYPE] = Movie.VIDEO_TYPE_TRAILER
-            del tfh_trailer[Movie.YOUTUBE_ID]
+            title: str = parser.parse_title()
+            parser.parse_tfh_title()
+            parser.parse_trailer_type()
+            parser.parse_trailer_path()
+            parser.parse_discovery_state()
+
+            # Bogus value of unrated. Replaced with value from TMDb, if
+            # movie can be found there.
+
+            parser.parse_certification()
+            parser.parse_thumbnail()
+            parser.parse_plot()
+            parser.parse_rating()
+            parser.parse_year()
+            parser.parse_runtime()
+
+            #  TODO: parse fields which optionally come from TMDb discovery
+
+            movie: TFHMovie = parser.get_movie()
+            movie.set_title(self.fix_title(movie))
 
             # if (Settings.get_max_number_of_tfh_trailers()
             #        <= len(TFHCache.get_cached_trailers())):
             #    return True
             # else:
-            TFHCache.add_trailer(
-                tfh_trailer, flush=False)
-            self.add_to_discovered_trailers(tfh_trailer)
+            TFHCache.add_movie(movie, flush=False)
+            self.add_to_discovered_movies(movie)
             self.number_of_trailers_on_site += 1
             return

@@ -19,6 +19,7 @@ class CriticalSettings:
 
     DEBUG_INCLUDE_THREAD_INFO: Final[str] = 'debug_include_thread_info'
     addon = None
+    _plugin_name: str = ""
     try:
         addon = Addon('script.video.randomtrailers')
     except Exception:
@@ -118,3 +119,11 @@ class CriticalSettings:
                      level=xbmc.LOGERROR)
 
         return translated_value
+
+    @classmethod
+    def set_plugin_name(cls, plugin_name: str):
+        cls._plugin_name = plugin_name
+
+    @classmethod
+    def get_plugin_name(cls) -> str:
+        return cls._plugin_name

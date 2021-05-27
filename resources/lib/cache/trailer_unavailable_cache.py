@@ -11,7 +11,8 @@ import datetime
 import dateutil.parser
 import io
 import simplejson as json
-from simplejson import (JSONDecodeError)
+from common.movie import MovieField
+from simplejson import JSONDecodeError
 import os
 import sys
 import threading
@@ -19,7 +20,7 @@ import threading
 import xbmcvfs
 
 from diagnostics.statistics import (Statistics)
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.exceptions import AbortException
 from common.logger import (LazyLogger)
 from common.monitor import Monitor
@@ -29,7 +30,6 @@ from common.disk_utils import DiskUtils
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-# noinspection PyRedundantParentheses
 class TrailerUnavailableCache:
     """
 
@@ -46,13 +46,12 @@ class TrailerUnavailableCache:
 
     @classmethod
     def add_missing_tmdb_trailer(cls,
-                                 tmdb_id=None,  # type: int
-                                 library_id=None,  # type: Optional[int]
-                                 title=None,  # type: str
-                                 year=None,  # type: int
-                                 source=None  # type str
-                                 ):
-        # type (...) -> None
+                                 tmdb_id: int = None,
+                                 library_id: int = None,
+                                 title: str = None,
+                                 year: int = None,
+                                 source:str = None
+                                 ) -> None:
         """
 
         :param tmdb_id:
@@ -62,14 +61,14 @@ class TrailerUnavailableCache:
         :param source:
         :return:
         """
-        values = {Movie.UNIQUE_ID_TMDB: tmdb_id,
+        values = {MovieField.UNIQUE_ID_TMDB: tmdb_id,
                   'timestamp': datetime.date.today()
                   }
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            values[Movie.MOVIEID] = library_id
-            values[Movie.TITLE] = title
-            values[Movie.YEAR] = year
-            values[Movie.SOURCE] = source
+            values[MovieField.MOVIEID] = library_id
+            values[MovieField.TITLE] = title
+            values[MovieField.YEAR] = year
+            values[MovieField.SOURCE] = source
 
         cls.abort_on_shutdown()
         with cls.lock:
@@ -100,15 +99,15 @@ class TrailerUnavailableCache:
         """
 
         values = {
-            Movie.MOVIEID: library_id,
+            MovieField.MOVIEID: library_id,
             'timestamp': datetime.date.today()
         }
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            values[Movie.UNIQUE_ID_TMDB] = tmdb_id
-            values[Movie.TITLE] = title
-            values[Movie.YEAR] = year
-            values[Movie.SOURCE] = source
+            values[MovieField.UNIQUE_ID_TMDB] = tmdb_id
+            values[MovieField.TITLE] = title
+            values[MovieField.YEAR] = year
+            values[MovieField.SOURCE] = source
 
         cls.abort_on_shutdown()
         with cls.lock:
@@ -120,10 +119,8 @@ class TrailerUnavailableCache:
 
     @classmethod
     def is_library_id_missing_trailer(cls,
-                                      library_id):
-        # type: (int) -> Union[bool, None]
+                                      library_id: int) -> Union[bool, None]:
         """
-
         :param library_id:
         :return:
         """
@@ -149,8 +146,7 @@ class TrailerUnavailableCache:
         return entry
 
     @classmethod
-    def library_cache_changed(cls, flush=False):
-        # type: (bool) -> None
+    def library_cache_changed(cls, flush: bool = False) -> None:
         """
 
         :return:
@@ -167,8 +163,7 @@ class TrailerUnavailableCache:
 
     @classmethod
     def is_tmdb_id_missing_trailer(cls,
-                                   tmdb_id):
-        # type: (int) -> Union[bool, None]
+                                   tmdb_id: int) -> None:
         """
 
         :param tmdb_id:
@@ -196,8 +191,7 @@ class TrailerUnavailableCache:
         return entry
 
     @classmethod
-    def tmdb_cache_changed(cls, flush=False):
-        # type: (bool) -> None
+    def tmdb_cache_changed(cls, flush: bool = False) -> None:
         """
 
         :return:
@@ -233,13 +227,13 @@ class TrailerUnavailableCache:
                 cls.save_cache()
 
     @classmethod
-    def abort_on_shutdown(cls, ignore_shutdown=False):
+    def abort_on_shutdown(cls, ignore_shutdown: bool = False) -> None:
         if ignore_shutdown:
             return
         Monitor.throw_exception_if_abort_requested()
 
     @classmethod
-    def save_cache(cls, ignore_shutdown=False) -> None:
+    def save_cache(cls, ignore_shutdown: bool = False) -> None:
         """
 
         :return:
@@ -255,9 +249,9 @@ class TrailerUnavailableCache:
                     elapsed_time = datetime.date.today() - entry['timestamp']
                     elapsed_days = elapsed_time.days
                     if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
-                        if entry[Movie.UNIQUE_ID_TMDB] in cls._all_missing_tmdb_trailers:
+                        if entry[MovieField.UNIQUE_ID_TMDB] in cls._all_missing_tmdb_trailers:
                             entries_to_delete.append(
-                                entry[Movie.UNIQUE_ID_TMDB])
+                                entry[MovieField.UNIQUE_ID_TMDB])
                 for entry_to_delete in entries_to_delete:
                     del cls._all_missing_tmdb_trailers[entry_to_delete]
 
@@ -314,8 +308,8 @@ class TrailerUnavailableCache:
                     elapsed_time = datetime.date.today() - entry['timestamp']
                     elapsed_days = elapsed_time.days
                     if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
-                        if entry[Movie.MOVIEID] in cls._all_missing_library_trailers:
-                            entries_to_delete.append(entry[Movie.MOVIEID])
+                        if entry[MovieField.MOVIEID] in cls._all_missing_library_trailers:
+                            entries_to_delete.append(entry[MovieField.MOVIEID])
 
                 for entry_to_delete in entries_to_delete:
                     del cls._all_missing_library_trailers[entry_to_delete]
@@ -381,8 +375,7 @@ class TrailerUnavailableCache:
         return dct
 
     @staticmethod
-    def handler(obj):
-        # type: (Any) -> Any
+    def handler(obj: Any) -> Any:
         """
 
         :param obj:
@@ -397,8 +390,7 @@ class TrailerUnavailableCache:
                 type(obj), repr(obj)))
 
     @staticmethod
-    def datetime_parser(dct):
-        # type: (Dict[Any]) -> Dict[Any]
+    def datetime_parser(dct: Dict[Any, Any]) -> Dict[Any, Any]:
         """
 
         :param dct:

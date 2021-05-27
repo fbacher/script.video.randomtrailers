@@ -6,10 +6,8 @@ Created on Feb 11, 2019
 @author: fbacher
 """
 
-import os
-
 from common.imports import *
-from common.constants import Movie
+from common.movie import LibraryMovie
 from common.playlist import Playlist
 from common.logger import LazyLogger
 from backend.json_utils import JsonUtils
@@ -60,7 +58,7 @@ class LibraryMovieStats:
         my_genres.sort()
         return my_genres
 
-    def collect_data(self, movie: MovieType) -> None:
+    def collect_data(self, movie: LibraryMovie) -> None:
         """
 
         :param movie:
@@ -88,15 +86,15 @@ class LibraryMovieStats:
 
         Settings.disable_movie_stats()
 
-    def collect_actors(self, movie: MovieType) -> None:
+    def collect_actors(self, movie: LibraryMovie) -> None:
         """
 
         :param movie:
         :return:
         """
-        actors = movie.get(Movie.CAST, [])
-        movie_name = movie[Movie.TITLE]
-        movie_year = movie[Movie.YEAR]
+        actors = movie.get_actors()
+        movie_name = movie.get_title()
+        movie_year = movie.get_year()
         movie_id = movie_name + ' (' + str(movie_year) + ')'
 
         actor_count = 0
@@ -138,15 +136,15 @@ class LibraryMovieStats:
 
         playlist.close()
 
-    def collect_tags(self, movie: MovieType) -> None:
+    def collect_tags(self, movie: LibraryMovie) -> None:
         """
 
         :param movie:
         :return:
         """
-        tags = movie.get(Movie.TAG, [])
-        movie_name = movie[Movie.TITLE]
-        movie_year = movie[Movie.YEAR]
+        tags = movie.get_tags()
+        movie_name = movie.get_title()
+        movie_year = movie.get_year()
         movie_id = movie_name + ' (' + str(movie_year) + ')'
 
         tag_count = 0
@@ -188,15 +186,15 @@ class LibraryMovieStats:
 
         playlist.close()
 
-    def collect_genres(self, movie: MovieType) -> None:
+    def collect_genres(self, movie: LibraryMovie) -> None:
         """
 
         :param movie:
         :return:
         """
-        genres = movie.get(Movie.GENRE, [])
-        movie_name = movie[Movie.TITLE]
-        movie_year = movie[Movie.YEAR]
+        genres = movie.get_genre_names()
+        movie_name = movie.get_title()
+        movie_year = movie.get_year()
         movie_id = movie_name + ' (' + str(movie_year) + ')'
 
         genre_count = 0

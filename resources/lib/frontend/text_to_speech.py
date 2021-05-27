@@ -5,6 +5,7 @@ from re import Pattern
 
 import xbmc
 import simplejson as json
+from common.imports import *
 
 
 def say_text(text, interrupt=False) -> str:

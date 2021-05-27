@@ -9,9 +9,7 @@ Created on Feb 10, 2019
 import os
 
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
-from common.constants import Constants, Movie
-from common.settings import Settings
+from common.logger import LazyLogger
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 

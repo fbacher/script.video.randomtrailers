@@ -7,7 +7,7 @@ Created on Feb 28, 2019
 
 import xbmcaddon
 from common.imports import *
-from common.constants import Movie, Constants
+from common.constants import Constants
 from common.logger import LazyLogger
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -37,7 +37,7 @@ class Messages:
     PLAYING_PREVIOUS_MOVIE: Final[str] = 'Playing: %s'
     GENRE_LABEL: Final[str] = 'Genre: '
     MINUTES_DETAIL: Final[str] = '{} [B]Minutes[/B] - '
-    RUNTIME_GENRE: Final[str] = '{} [B]Genre:[/B]'
+    RUNTIME_GENRE: Final[str] = '{}  [B]Genre: [/B]'
     TITLE_LABEL: Final[str] = 'Title'
     DIRECTOR_LABEL: Final[str] = 'Director'
     WRITER_LABEL: Final[str] = 'Writer'
@@ -97,6 +97,12 @@ class Messages:
     RATING_R: Final[str] = 'R'
     RATING_NC_17: Final[str] = 'NC-17'
     RATING_NR: Final[str] = 'Unrated'
+    # The following Trailer type values must be the same as in movie.py
+    TRAILER_TYPE_TRAILER: Final[str] = 'Trailer'
+    TRAILER_TYPE_FEATURETTE: Final[str] = 'Featurette'
+    TRAILER_TYPE_CLIP: Final[str] = 'Clip'
+    TRAILER_TYPE_TEASER: Final[str] = 'Teaser'
+    TRAILER_TYPE_BEHIND_THE_SCENES: Final[str] = 'Behind the Scenes'
 
     # VOICED messages are spoken via TTS engine when available
 
@@ -181,7 +187,12 @@ class Messages:
         VOICED_STARS: 32250,
         TFH_LICENSE: 32283,
         TMDB_LICENSE: 32281,
-        LICENSE_LABEL: 32282
+        LICENSE_LABEL: 32282,
+        TRAILER_TYPE_TRAILER: 32285,
+        TRAILER_TYPE_FEATURETTE: 32286,
+        TRAILER_TYPE_CLIP: 32287,
+        TRAILER_TYPE_TEASER: 32288,
+        TRAILER_TYPE_BEHIND_THE_SCENES: 32289
     }
 
     _instance = None
@@ -219,7 +230,7 @@ class Messages:
 
         if Messages._debug_dump:
             for msg_number in range(32000, 32300):
-                unformatted_msg = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
+                unformatted_msg: str = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
                     msg_number)
                 if (unformatted_msg != ""
                         and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
@@ -227,7 +238,7 @@ class Messages:
                                                     unformatted_msg)
             Messages._debug_dump = False
 
-        unformatted_msg = 'Message not defined'
+        unformatted_msg: str = 'Message not defined'
         try:
             msg_id = int(msg_key)
         except Exception:
@@ -261,27 +272,4 @@ class Messages:
 
         return msg
 
-    @classmethod
-    def get_formated_title(cls, movie: MovieType) -> str:
-        """
-
-        :param movie:
-        :return:
-        """
-
-        trailer_type = movie.get(Movie.TRAILER_TYPE, '')
-
-        year = str(movie.get(Movie.YEAR, ''))
-        if year != '':
-            year = '(' + year + ')'
-
-        # A movie from a remote source (tmdb) may also be in local library.
-
-        sources = movie[Movie.SOURCE]
-        if movie[Movie.SOURCE] != Movie.LIBRARY_SOURCE and movie.get(Movie.MOVIEID, None):
-            sources += ' / ' + Movie.LIBRARY_SOURCE
-
-        title_string = (movie[Movie.TITLE] + ' ' + year + ' - ' +
-                        sources + ' ' + trailer_type)
-        return title_string
 

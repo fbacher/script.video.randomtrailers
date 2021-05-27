@@ -9,13 +9,11 @@ Created on Mar 21, 2019
 import sys
 import threading
 
-from .imports import *
-from kodi65 import addon
+from common.imports import *
 import AddonSignals as AddonSignals
 
-from common.constants import Constants, Movie
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from common.monitor import Monitor
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -29,7 +27,7 @@ class PluginBridgeStatus:
     TIMED_OUT: Final[str] = 'Timed Out'
     BUSY: Final[str] = 'Busy'
     OK: Final[str] = 'OK'
-    DELETED: Final[str] = 'Deleted'  # When cached trailer (or even non-cached) is deleted
+    DELETED: Final[str] = 'Deleted'  # When cached movie (or even non-cached) is deleted
 
 
 class PluginBridge:

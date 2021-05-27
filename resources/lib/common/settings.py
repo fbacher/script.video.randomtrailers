@@ -5,13 +5,13 @@ Created on Feb 10, 2019
 @author: Frank Feuerbacher
 """
 
-import datetime
 import locale
 import os
 
 import xbmc
 import xbmcvfs
 
+from common.movie_constants import MovieField, MovieType
 from kodi65.kodiaddon import Addon
 
 from common.imports import *
@@ -1063,13 +1063,25 @@ class Settings:
         """
         return Settings.get_setting_bool(Settings.INCLUDE_FEATURETTES)
 
-    @staticmethod
-    def get_include_teasers() -> bool:
+    @classmethod
+    def get_include_teasers(cls) -> bool:
         """
 
         :return:
         """
         return Settings.get_setting_bool(Settings.INCLUDE_TEASERS)
+
+    @classmethod
+    def is_allowed_trailer_types(cls) -> List[str]:
+        allowed_trailer_types: List[str] = []
+
+        allowed_trailer_types.append(MovieField.TRAILER_TYPE_TRAILER)
+        if cls.get_include_featurettes():
+            allowed_trailer_types.append(MovieField.TRAILER_TYPE_FEATURETTE)
+
+        if cls.get_include_teasers():
+            allowed_trailer_types.append(MovieField.TRAILER_TYPE_TEASER)
+        return allowed_trailer_types
 
     @staticmethod
     def get_include_itunes_trailers() -> bool:
@@ -1092,7 +1104,7 @@ class Settings:
         return trailer_type
 
     @staticmethod
-    def get_include_library_no_trailer_info() -> bool:
+    def is_include_library_no_trailer_info() -> bool:
         """
 
         :return:
@@ -1117,7 +1129,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_NOT_YET_RATED)
 
     @staticmethod
-    def get_include_library_remote_trailers() -> bool:
+    def is_include_library_remote_trailers() -> bool:
         """
 
         :return:
@@ -1296,12 +1308,12 @@ class Settings:
             Settings.get_resources_path(), 'media'))
 
     @staticmethod
-    def get_minimum_days_since_watched() -> str:
+    def get_minimum_days_since_watched() -> int:
         """
 
         :return:
         """
-        return Settings.get_addon().setting(Settings.MINIMUM_DAYS_SINCE_WATCHED)
+        return Settings.get_setting_int(Settings.MINIMUM_DAYS_SINCE_WATCHED)
 
     @staticmethod
     def is_normalize_volume_of_downloaded_trailers() -> bool:
@@ -1552,7 +1564,7 @@ class Settings:
 
     '''
         Time in seconds to display detailed movie info prior
-        to playing a trailer. Default is 5 seconds
+        to playing a movie. Default is 5 seconds
     '''
 
     @staticmethod

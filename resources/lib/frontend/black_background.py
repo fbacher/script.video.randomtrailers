@@ -7,7 +7,7 @@ Created on Apr 17, 2019
 '''
 
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.imports import *
 from common.logger import LazyLogger
 

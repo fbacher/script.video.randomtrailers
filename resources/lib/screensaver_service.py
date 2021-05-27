@@ -15,9 +15,9 @@ import sys
 import xbmc
 import xbmcaddon
 
+from common.imports import *
 from common.exceptions import AbortException
-from common.monitor import Monitor
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)

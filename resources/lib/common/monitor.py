@@ -93,6 +93,8 @@ class Monitor(MinimalMonitor):
 
         :return:
         """
+        thread_name = CriticalSettings.get_plugin_name() + "_monitorSettingsChanges"
+        threading.current_thread().setName(thread_name)
         start_time: datetime.datetime = datetime.datetime.now()
         settings_path = os.path.join(
             Constants.FRONTEND_DATA_PATH, 'settings.xml')

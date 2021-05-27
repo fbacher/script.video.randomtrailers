@@ -7,6 +7,8 @@ Created on Feb 12, 2019
 '''
 
 from common.python_debugger import PythonDebugger
+from common.critical_settings import CriticalSettings
+CriticalSettings.set_plugin_name('frontend')
 REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.frontend')

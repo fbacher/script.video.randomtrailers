@@ -5,10 +5,8 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-import math
 import queue
 import threading
-from collections import Iterator
 from pathlib import Path
 from queue import Queue
 
@@ -20,9 +18,8 @@ import os
 import random
 import sys
 
-from common.constants import (Constants)
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace)
+from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.settings import Settings
 from common.utils import Delay
@@ -35,7 +32,7 @@ class UsageData:
 
     """
 
-    def __init__(self, cache_name: str, pattern: Pattern[str]) -> None:
+    def __init__(self, cache_name: str, pattern: str) -> None:
         """
 
         :param cache_name
@@ -43,7 +40,7 @@ class UsageData:
         """
         self._logger: LazyLogger = module_logger.getChild(self.__class__.__name__)
         self._cache_name: str = cache_name
-        self._pattern: Pattern[str] = pattern
+        self._pattern: str = pattern
         self._aggregate_cache_file_size: int = 0
         self._aggregate_deleted_size: int = 0
         self._deleted_files: int = 0
@@ -204,7 +201,8 @@ class UsageData:
         # signature unknown; restored from __doc__
 
         file_data_list = sorted(self._file_data.values(),
-                                key=lambda file_data_element: file_data_element.get_size(),
+                                key=lambda
+                                    file_data_element: file_data_element.get_size(),
                                 reverse=False)
         return file_data_list
 
@@ -396,7 +394,7 @@ class DiskUtils:
     @classmethod
     def get_stats_for_path(cls,
                            top: str,
-                           patterns: Dict[str, Tuple[Pattern[str], str]],
+                           patterns: Dict[str, Tuple[str, str]],
                            delay_scale_factor: float = 0.0
                            ) -> Dict[str, UsageData]:
         """
@@ -409,7 +407,7 @@ class DiskUtils:
         :return:
         """
         usage_data = None
-        fileMap = {}
+        file_map = {}
 
         usage_data_map = {}
         try:
@@ -483,8 +481,8 @@ class DiskUtils:
                                 st: os.stat_result = path.stat()
                                 mod_time = datetime.datetime.fromtimestamp(st.st_mtime)
                                 size_in_blocks = st.st_size
-                                size_on_disk = ((size_in_blocks - 1) /
-                                                block_size + 1) * block_size
+                                size_on_disk = int(((size_in_blocks - 1) /
+                                                block_size + 1) * block_size)
                             else:
                                 found_directories.add(path)
                                 continue
@@ -503,20 +501,20 @@ class DiskUtils:
                                     if cls._logger.isEnabledFor(LazyLogger.INFO):
                                         cls._logger.info(
                                             'deleting:', path.absolute())
-                                    path.remove()
+                                    path.unlink()
                                     deleted = True
                                     usage_data.add_to_disk_deleted(
                                         size_on_disk)
                                 break  # Next file
 
                             if (top == trailer_cache_path_top
-                                    and cache_type == 'trailer'):
+                                    and cache_type == 'movie'):
                                 if ((now - mod_time).total_seconds() >
                                         trailer_cache_file_expiration_seconds):
                                     if cls._logger.isEnabledFor(LazyLogger.INFO):
                                         cls._logger.info(
                                             'deleting:', path.absolute())
-                                    path.remove()
+                                    path.unlink()
                                     deleted = True
                                     usage_data.add_to_disk_deleted(
                                         size_on_disk)
@@ -529,7 +527,7 @@ class DiskUtils:
 
                         if not deleted:
                             file_data = FileData(
-                                path.absolute(), mod_time, size_on_disk)
+                                str(path), mod_time, size_on_disk)
                             usage_data.add_file_data(file_data)
                             usage_data.add_to_disk_used_by_cache(
                                 size_on_disk)
@@ -590,7 +588,8 @@ class FindFiles(Iterable):
         self._top: str = xbmcvfs.translatePath(top)
         self._path: Path = Path(self._top)
         self._glob_pattern: str = glob_pattern
-        #  clz._logger.debug(f'top: {self._top} path: {self._path} pattern: {self._glob_pattern}')
+        #  clz._logger.debug(f'top: {self._top} path: {self._path} pattern:
+        #  {self._glob_pattern}')
 
         self._queue_complete: bool = False
 
@@ -609,7 +608,7 @@ class FindFiles(Iterable):
             # glob uses more resources than iglob since it must build entire
             # list before returning. iglob, returns one at a time.
 
-            for path in self._path.iglob(self._glob_pattern):
+            for path in self._path.glob(self._glob_pattern):
                 #  clz._logger.debug(f'path: {path}')
                 if self._die:
                     break
@@ -640,9 +639,11 @@ class FindFiles(Iterable):
                 if self._queue_complete:
                     clz._logger.debug('Queue empty')
                     try:
-                        clz._logger.debug(f'Thread joined alive: {self._find_thread.is_alive()}')
-                        self._find_thread.join(timeout= 0.1)
-                        clz._logger.debug(f'Thread joined alive: {self._find_thread.is_alive()}')
+                        clz._logger.debug(
+                            f'Thread joined alive: {self._find_thread.is_alive()}')
+                        self._find_thread.join(timeout=0.1)
+                        clz._logger.debug(
+                            f'Thread joined alive: {self._find_thread.is_alive()}')
                     except Exception as e:
                         clz._logger.exception()
                     finally:
@@ -658,6 +659,7 @@ class FindFiles(Iterable):
     def kill(self):
         clz = type(self)
         #  clz._logger.debug('In kill')
+        self._die = True
         if self._file_queue is None:
             return
         try:

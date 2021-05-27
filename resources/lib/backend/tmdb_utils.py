@@ -10,26 +10,25 @@ from math import sqrt
 import re
 import sys
 
-
 from common.imports import *
 
-from common.constants import Constants, Movie
 from common.exceptions import AbortException, CommunicationException
 from common.minimal_monitor import MinimalMonitor
+from common.movie import LibraryMovie
+from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
-from common.logger import (LazyLogger)
-from backend.movie_entry_utils import (MovieEntryUtils)
-
+from common.logger import LazyLogger
 from common.rating import WorldCertifications
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
+from discovery.utils.parse_library import ParseLibrary
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class TMDBMatcher:
-    FILTER_TITLE_PATTERN = re.compile(r'(?:(?:the)|(?:a) )(.*)(?:[?!:-]?)')
 
+    FILTER_TITLE_PATTERN = re.compile(r'(?:(?:the)|(?:a) )(.*)(?:[?!:-]?)')
     _logger: LazyLogger = None
 
     class CandidateMovie:
@@ -47,7 +46,7 @@ class TMDBMatcher:
 
             self._movie: [Dict[str, Any]] = tmdb_movie
             self._title: str = tmdb_title
-            self._year:str = tmdb_year
+            self._year: str = tmdb_year
             self._language: str = tmdb_language
             self._runtime_seconds: int = runtime_seconds
             self._tmdb_id: str = tmdb_id
@@ -128,7 +127,7 @@ class TMDBMatcher:
                 reraise(*sys.exc_info())
 
             except Exception as e:
-                clz._logger.exception(e)
+                clz._logger.exception(f'movie_title: {movie_title}')
 
         def get_score(self) -> int:
             return self._score
@@ -154,7 +153,7 @@ class TMDBMatcher:
             'language': Settings.get_lang_iso_639_1()
         }
 
-        if year is not None:
+        if year is not None and year != '':
             data['primary_release_year'] = year
 
         try:
@@ -206,23 +205,23 @@ class TMDBMatcher:
                             f'Got multiple matching movies: {title} '
                             f'year: {year} runtime: {runtime_seconds}')
 
-                # TODO: Improve. Create best trailer function from get_tmdb_trailer
+                # TODO: Improve. Create best movie function from get_tmdb_trailer
                 # TODO: find best trailer_id
 
                 current_language = Settings.get_lang_iso_639_1()
 
                 for movie in results:
-                    release_date = movie.get('release_date', '')  # 1932-04-22
-                    tmdb_year = release_date[:-6]
-                    movie[Movie.YEAR] = tmdb_year
+                    tmdb_year: str = movie.get('year', '0')
                     tmdb_title = movie.get('title', '')
                     tmdb_id = movie.get('id', None)
                     tmdb_language = movie.get('original_language')
-                    runtime_minutes = movie.get(Movie.RUNTIME, 0)
+                    runtime_minutes = movie.get(MovieField.RUNTIME, 0)
                     runtime_seconds = int(runtime_minutes * 60)
 
+                    # TODO: take advantage of alt-titles
+
                     titles = movie.get('alternative_titles', {'titles': []})
-                    alt_titles = []
+                    alt_titles: List[Tuple[str, str]] = []
                     for title in titles['titles']:
                         alt_title = (title['title'], title['iso_3166_1'])
                         alt_titles.append(alt_title)
@@ -237,7 +236,7 @@ class TMDBMatcher:
                     self._add(movie, tmdb_title, tmdb_year,
                               tmdb_language, tmdb_id, runtime_seconds)
 
-        except (AbortException, CommunicationException):
+        except AbortException:
             reraise(*sys.exc_info())
 
         except Exception as e:
@@ -271,21 +270,68 @@ class TMDBMatcher:
                 best_match = candidate.get_movie()
 
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            title = 'Not Found'
+            title = 'Not Found: ' + self._title_to_match
             if best_match is not None:
-                title = best_match[Movie.TITLE]
+                title = best_match[MovieField.TITLE]
 
             clz._logger.debug_extra_verbose(f'Best match: score: {best_score}'
                                             f' title: {title}')
         return best_match, best_score
 
 
+class TMDbIdForKodiId:
+    """
+    Contains the kodi_id, kodi movie path and tmdb_id for a kodi movie.
+
+    Used in conjunction with a map to look up the Kodi movie corresponding
+    to a TMDbId.
+    """
+
+    def __init__(self,
+                 kodi_id: int,
+                 tmdb_id: int,
+                 kodi_file: str,
+                 title: str
+                 ) -> None:
+        self._kodi_id = kodi_id
+        self._tmdb_id = tmdb_id
+        self._kodi_file = kodi_file
+        self._title = title
+
+    @classmethod
+    def class_init(cls) -> None:
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+
+    def get_kodi_id(self) -> int:
+        return self._kodi_id
+
+    def get_kodi_file(self) -> str:
+        """
+
+        :return:
+        """
+        return self._kodi_file
+
+    def get_tmdb_id(self) -> int:
+        """
+
+        :return:
+        """
+        return self._tmdb_id
+
+    def get_title(self) -> str:
+        return self._title
+
+
 class TMDBUtils:
     """
-
+        Provides the ability to look up a movie's kodi_id, tmdb_id and movie file path
+        using a tmdb-id. This cache is built from local kodi library information.
+        For movies that do not include the TMDb_id,
 
     """
-    kodi_data_for_tmdb_id = None
+    kodi_data_for_tmdb_id: Dict[int, TMDbIdForKodiId] = {}
     _logger = None
 
     def __init__(self,
@@ -303,24 +349,6 @@ class TMDBUtils:
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
 
-    def get_kodi_id(self) -> int:
-
-        return self._kodi_id
-
-    def get_kodi_file(self) -> str:
-        """
-
-        :return:
-        """
-        return self._kodi_file
-
-    def get_tmdb_id(self) -> int:
-        """
-
-        :return:
-        """
-        return self._tmdb_id
-
     @classmethod
     def load_cache(cls) -> None:
         """
@@ -335,14 +363,10 @@ class TMDBUtils:
         if cls.kodi_data_for_tmdb_id is not None:
             return
 
-        cls._logger = module_logger.getChild(type(cls).__name__)
-
-        cls.kodi_data_for_tmdb_id = {}
-
-        query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
-                    "params": {\
-                    "properties": \
-                        ["title", "year", "uniqueid", "file"]}, "id": 1}'
+        query: str = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
+                     "params": {\
+                     "properties": \
+                         ["title", "year", "uniqueid", "file"]}, "id": 1}'
 
         query_result = JsonUtils.get_kodi_json(
             query, dump_results=False)
@@ -351,12 +375,21 @@ class TMDBUtils:
         number_of_tmdb_id_entries = 0
         if result_field is not None:
             communication_error_count: int = 0
-            for movie in result_field.get('movies', []):
-                title = movie[Movie.TITLE]
-                kodi_id = movie[Movie.MOVIEID]
-                kodi_file = movie[Movie.FILE]
-                year = movie[Movie.YEAR]
-                tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+            for movie_entry in result_field.get('movies', []):
+                # Create partially populated LibraryMove to unify access.
+                # Remember that it is only partially populated!
+
+                lib_parser = ParseLibrary(movie_entry)
+                title: str = lib_parser.parse_title()
+                kodi_file: str = lib_parser.parse_movie_path()
+                year: int = lib_parser.parse_year()
+
+                lib_parser.parse_unique_ids()
+
+                movie: LibraryMovie = lib_parser.get_movie()
+                tmdb_id: int = movie.get_tmdb_id()
+                kodi_id: int = movie.get_library_id()
+
 
                 # If we can't talk to TMDb we just won't get the tmdb_id
                 # this time around.
@@ -370,41 +403,33 @@ class TMDBUtils:
 
                 if tmdb_id is not None:
                     number_of_tmdb_id_entries += 1
-                    entry = TMDBUtils(kodi_id, tmdb_id, kodi_file)
+                    entry: TMDbIdForKodiId = TMDbIdForKodiId(kodi_id, tmdb_id,
+                                                             kodi_file, title)
                     TMDBUtils.kodi_data_for_tmdb_id[tmdb_id] = entry
 
     @classmethod
-    def get_kodi_id_for_tmdb_id(cls, tmdb_id: int) -> str:
+    def get_kodi_id_for_tmdb_id(cls, tmdb_id: int) -> int:
         """
 
         :param tmdb_id:
         :return:
         """
         cls.load_cache()
-        entry = cls.kodi_data_for_tmdb_id.get(tmdb_id)
+        entry: TMDbIdForKodiId = cls.kodi_data_for_tmdb_id.get(tmdb_id)
         kodi_id = None
         if entry is not None:
             kodi_id = entry.get_kodi_id()
         return kodi_id
 
     @classmethod
-    def get_movie_by_tmdb_id(cls, tmdb_id: int) -> ForwardRef('TMDBUtils'):
+    def get_movie_by_tmdb_id(cls, tmdb_id: int) -> TMDbIdForKodiId:
         """
 
         :param tmdb_id:
         :return:
         """
-        entry: TMDBUtils
-        try:
-            cls.load_cache()
-            entry = cls.kodi_data_for_tmdb_id.get(tmdb_id)
-        except (AbortException, CommunicationException):
-            pass
-
-        except Exception:
-            cls._logger.exception()
-
-
+        cls.load_cache()
+        entry: TMDbIdForKodiId = cls.kodi_data_for_tmdb_id.get(tmdb_id)
         return entry
 
     @staticmethod
@@ -417,7 +442,7 @@ class TMDBUtils:
         :param runtime_seconds:
         :return:
         """
-        tmdb_id = None
+        tmdb_id: int = None
         try:
             if year is not None:
                 year = int(year)
@@ -444,15 +469,15 @@ class TMDBUtils:
     def _get_tmdb_id_from_title_year(title: str, year: int,
                                      runtime_seconds: int = 0) -> Optional[int]:
         """
-            When we don't have a trailer for a movie, we can
-            see if TMDB has one.
+            The library may not have the TMDb id's for a movie.
+            See if TMDb has one.
         :param title:
         :param year:
         :param runtime_seconds:
         :return:
         """
         year_str = None
-        if year is not None:
+        if year is not None and year != 0:
             year_str = str(year)
 
         best_match = None

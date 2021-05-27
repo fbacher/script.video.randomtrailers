@@ -11,16 +11,16 @@ import glob
 import simplejson as json
 import os
 import random
-import re
 import sys
 import threading
 
 import youtube_dl
 
-from common.constants import Constants, Movie, MovieType
+from common.constants import Constants
 from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.exceptions import AbortException
+from common.movie_constants import MovieField, MovieType
 from common.rating import WorldCertifications
 from common.settings import Settings
 
@@ -30,19 +30,19 @@ module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 YOUTUBE_DOWNLOAD_INFO_DELAY = (5.0, 10.0)
 ITUNES_DOWNLOAD_INFO_DELAY = (1.0, 3.0)
 TFH_INFO_DELAY = (0.0, 0.0)   # Requires few calls for full index
-DOWNLOAD_INFO_DELAY_BY_SOURCE = {Movie.ITUNES_SOURCE: ITUNES_DOWNLOAD_INFO_DELAY,
-                                 Movie.TMDB_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
-                                 Movie.TFH_SOURCE: TFH_INFO_DELAY,
-                                 Movie.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
-                                 Movie.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY}
+DOWNLOAD_INFO_DELAY_BY_SOURCE = {MovieField.ITUNES_SOURCE: ITUNES_DOWNLOAD_INFO_DELAY,
+                                 MovieField.TMDB_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
+                                 MovieField.TFH_SOURCE: TFH_INFO_DELAY,
+                                 MovieField.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
+                                 MovieField.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY}
 #  Intentional delay (seconds) to help prevent TOO_MANY_REQUESTS
 YOUTUBE_DOWNLOAD_VIDEO_DELAY = (30.0, 120.0)
 ITUNES_DOWNLOAD_VIDEO_DELAY = (10.0, 60.0)
-DOWNLOAD_VIDEO_DELAY_BY_SOURCE = {Movie.ITUNES_SOURCE: ITUNES_DOWNLOAD_VIDEO_DELAY,
-                                  Movie.TMDB_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
-                                  Movie.TFH_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
-                                  Movie.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
-                                  Movie.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY}
+DOWNLOAD_VIDEO_DELAY_BY_SOURCE = {MovieField.ITUNES_SOURCE: ITUNES_DOWNLOAD_VIDEO_DELAY,
+                                  MovieField.TMDB_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
+                                  MovieField.TFH_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
+                                  MovieField.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
+                                  MovieField.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY}
 
 PYTHON_PATH = Constants.YOUTUBE_DL_ADDON_LIB_PATH
 PYTHON_EXEC = sys.executable
@@ -50,6 +50,9 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
                                'resources', 'lib', 'shell', 'youtube_dl_main.py')
 # Delay two hours after encountering 429 (too many requests)
 RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
+
+LOG_ALL = False
+LOGGER_ENABLE_LEVEL = LazyLogger.DISABLED
 
 
 class VideoDownloader:
@@ -62,6 +65,9 @@ class VideoDownloader:
     BLOCKED_ERROR = 11
     UNAVAILABLE = 12
     PARSE_ERROR = 13
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    ADULT = 14
 
     # Initialize to a year ago
     # Is an estimate of when the Too Many Requests will expire
@@ -100,12 +106,12 @@ class VideoDownloader:
     _youtube_lock: threading.RLock = threading.RLock()
     _itunes_lock: threading.RLock = threading.RLock()
     locks = {
-        Movie.ITUNES_SOURCE: _itunes_lock,
-        Movie.LIBRARY_SOURCE: _youtube_lock,
-        Movie.TMDB_SOURCE: _youtube_lock,
-        Movie.TFH_SOURCE: _youtube_lock,
-        Movie.LIBRARY_URL_TRAILER: _youtube_lock,
-        Movie.LIBRARY_NO_TRAILER: _youtube_lock
+        MovieField.ITUNES_SOURCE: _itunes_lock,
+        MovieField.LIBRARY_SOURCE: _youtube_lock,
+        MovieField.TMDB_SOURCE: _youtube_lock,
+        MovieField.TFH_SOURCE: _youtube_lock,
+        MovieField.LIBRARY_URL_TRAILER: _youtube_lock,
+        MovieField.LIBRARY_NO_TRAILER: _youtube_lock
     }
 
     def __init__(self) -> None:
@@ -145,7 +151,7 @@ class VideoDownloader:
           Returns 429 if a 429 error has occurred within RETRY_DELAY seconds.
           Otherwise, returns 0.
         """
-        if source == Movie.ITUNES_SOURCE:
+        if source == MovieField.ITUNES_SOURCE:
             return 0
 
         if cls._too_many_requests_resume_time > datetime.datetime.now():
@@ -161,7 +167,7 @@ class VideoDownloader:
 
     @classmethod
     def wait_if_too_many_requests(cls, source: str, video: bool) -> None:
-        if source == Movie.ITUNES_SOURCE:
+        if source == MovieField.ITUNES_SOURCE:
             return
 
         delay = cls.get_youtube_wait_seconds()
@@ -186,7 +192,7 @@ class VideoDownloader:
         try:
             cls.get_lock(source)  # Block new transaction
             # HAVE LOCK
-            if source == Movie.ITUNES_SOURCE:
+            if source == MovieField.ITUNES_SOURCE:
                 waited: datetime.timedelta = (
                         datetime.datetime.now() - cls._last_itunes_request_timestamp)
             else:
@@ -201,7 +207,7 @@ class VideoDownloader:
 
         # LOCK RELEASED
 
-        if source == Movie.ITUNES_SOURCE:
+        if source == MovieField.ITUNES_SOURCE:
             cls._last_itunes_request_timestamp = datetime.datetime.now()
         else:
             cls._last_youtube_request_timestamp = datetime.datetime.now()
@@ -232,7 +238,7 @@ class VideoDownloader:
         :return:
         """
         clz = VideoDownloader
-        movie = None
+        movie: MovieType = None
         video_logger: Optional[VideoLogger] = None
 
         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
@@ -257,7 +263,7 @@ class VideoDownloader:
             template = os.path.join(folder, f'_rt_{movie_id}_%(title)s.%(ext)s')
 
             # Collect and respond to output from youtube-dl
-            if source == Movie.ITUNES_SOURCE:
+            if source == MovieField.ITUNES_SOURCE:
                 parse_json_as_youtube = False
             else:
                 parse_json_as_youtube = True
@@ -292,7 +298,9 @@ class VideoDownloader:
                     self._download_finished):
                 Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
-            movie = video_logger.data
+            movie: MovieType = video_logger.data
+            if movie is None:
+                self._error = VideoDownloader.DOWNLOAD_ERROR
             if self._error == 0:
                 trailer_file = os.path.join(folder, f'_rt_{movie_id}*')
                 trailer_file = glob.glob(trailer_file)
@@ -303,15 +311,15 @@ class VideoDownloader:
                     # Don't know why, but sometimes youtube_dl returns incorrect
                     # file extension
 
-                    movie.setdefault(Movie.TRAILER, trailer_file)
-                    if trailer_file != movie[Movie.TRAILER]:
+                    movie.setdefault(MovieField.TRAILER, trailer_file)
+                    if trailer_file != movie[MovieField.TRAILER]:
                         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                             clz._logger.debug_extra_verbose(
                                 'youtube_dl gave incorrect file name:',
-                                movie[Movie.TRAILER], 'changing to:',
+                                movie[MovieField.TRAILER], 'changing to:',
                                 trailer_file)
 
-                        movie[Movie.TRAILER] = trailer_file
+                        movie[MovieField.TRAILER] = trailer_file
         except AbortException:
             self.set_error(99, force=True)
             movie = None
@@ -342,20 +350,21 @@ class VideoDownloader:
         if movie is None:
             self.set_error(1)
 
-        if self._error != 0:
+        if LOG_ALL or self._error != 0:
             clz._logger.debug(
                 f'Results for {title} url:{url} error: {self._error}')
             video_logger.log_debug()
             video_logger.log_warning()
             video_logger.log_error()
-            movie = None
-            to_delete = os.path.join(folder, f'_rt_{movie_id}*')
-            to_delete = glob.glob(to_delete)
-            for aFile in to_delete:
-                try:
-                    os.remove(aFile)
-                except Exception as e:
-                    pass
+            if self._error != 0:
+                movie = None
+                to_delete = os.path.join(folder, f'_rt_{movie_id}*')
+                to_delete = glob.glob(to_delete)
+                for aFile in to_delete:
+                    try:
+                        os.remove(aFile)
+                    except Exception as e:
+                        pass
 
         Monitor.throw_exception_if_abort_requested()
         return self._error, movie
@@ -435,7 +444,7 @@ class VideoDownloader:
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
 
-        if self._error not in (0, 99):
+        if LOG_ALL or self._error not in (0, 99):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
             info_logger.log_debug()
             info_logger.log_warning()
@@ -463,22 +472,22 @@ class VideoDownloader:
         """
 
         clz = VideoDownloader
-        clz.delay_between_transactions(Movie.TFH_SOURCE, False)
+        clz.delay_between_transactions(MovieField.TFH_SOURCE, False)
         tfh_index_logger = TfhIndexLogger(self, trailer_handler, url)
 
         try:
-            clz.get_lock(Movie.TFH_SOURCE)
+            clz.get_lock(MovieField.TFH_SOURCE)
             # HAVE LOCK
 
             if not block:
-                too_many_requests = clz.check_too_many_requests(url, Movie.TFH_SOURCE)
+                too_many_requests = clz.check_too_many_requests(url, MovieField.TFH_SOURCE)
                 if too_many_requests != 0:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz._logger.debug_verbose(
                             f'Not getting tfh_index url: {url} Too Many Requests')
                     return too_many_requests
             else:
-                clz.wait_if_too_many_requests(Movie.TFH_SOURCE, True)
+                clz.wait_if_too_many_requests(MovieField.TFH_SOURCE, True)
 
             # Would prefer to specify a list of playlist_items in order
             # to control rate of fetches (and hopefully avoid TOO_MANY REQUESTS)
@@ -543,7 +552,7 @@ class VideoDownloader:
             if self._error == 0:
                 clz._logger.exception(f'Error downloading: url: {url}')
         finally:
-            clz.release_lock(Movie.TFH_SOURCE)
+            clz.release_lock(MovieField.TFH_SOURCE)
 
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
@@ -553,7 +562,7 @@ class VideoDownloader:
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
 
-        if self._error not in (0, 99):
+        if LOG_ALL or self._error not in (0, 99):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
             tfh_index_logger.log_error()
             tfh_index_logger.log_debug()
@@ -616,7 +625,7 @@ class BaseYDLogger:
         self.total = 0
         self.url = url
         self._parse_json_as_youtube = parse_json_as_youtube
-        self._parsed_movie = None
+        self._parsed_movie: MovieType = None
         self.raw_data: Optional[MovieType] = None
 
     def set_error(self, rc: int, force: bool = False) -> None:
@@ -629,9 +638,16 @@ class BaseYDLogger:
                     f'Abandoning download of {self.url}. Too Many Requests')
         if rc == Constants.HTTP_UNAUTHORIZED:
             clz.logger.info(f'Not authorized to download {self.url}.')
+        if rc != 0:
+            clz.logger.debug(f'RC: {rc:d}')
 
     def debug(self, line: str) -> None:
         """
+
+        See TFHIndexLogger to see what lines are returned when get_tfh_index
+        is called. (Only {"type":... entries appear, no {"id":... entries.)
+
+
         {"_type": "url", "url": "vYALYAuD5Fw", "ie_key": "Youtube",
         "id": "vYALYAuD5Fw", "title": "Larry Karaszewski on ROAD TO SALINA"}
                                                    [download] Downloading video 14 of 1448
@@ -664,12 +680,14 @@ class BaseYDLogger:
         :return:
         """
         clz = type(self)
+        # self._parsed_movie = None
         if Monitor.is_abort_requested():
             self.set_error(99, force=True)
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
         self.debug_lines.append(line)
+        '''
         if line.startswith('[download] Downloading video'):
             try:
                 _, index_str, total_str = re.split(r'[^0-9]+', line)
@@ -678,8 +696,10 @@ class BaseYDLogger:
             except Exception as e:
                 clz.logger.exception(f'url: {self.url}')
                 self.set_error(1)
+        '''
 
         if line.startswith('{"_type":'):
+            # "_type playlist" lists summary information for each movie in playlist
             try:
                 self.raw_data = json.loads(line)
                 if self._parse_json_as_youtube:
@@ -688,7 +708,8 @@ class BaseYDLogger:
             except Exception as e:
                 clz.logger.exception(f'url: {self.url}')
                 self.set_error(VideoDownloader.PARSE_ERROR)
-        if line.startswith('{"id":'):
+        elif line.startswith('{"id":'):
+            # "id" describes single downloaded movie
             try:
                 self.raw_data = json.loads(line)
                 # VideoDownloader._retry_attempts = 0
@@ -752,23 +773,22 @@ class BaseYDLogger:
             if movie_data.get('duration') is None:
                 missing_keywords.append('duration')
                 dump_json = True
-            movie = {Movie.SOURCE: 'unknown',
-                     Movie.YOUTUBE_ID: trailer_id,
-                     Movie.TITLE: movie_title,
-                     Movie.YEAR: year,
-                     Movie.ORIGINAL_LANGUAGE: '',
-                     Movie.TRAILER: trailer_url,
-                     Movie.PLOT: description,
-                     Movie.THUMBNAIL: thumbnail,
-                     Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                     Movie.MPAA: unrated_id,
-                     Movie.ADULT: False,
-                     Movie.RATING: movie_data.get('average_rating', 0.0),
+            movie = {MovieField.SOURCE: 'unknown',
+                     MovieField.YOUTUBE_ID: trailer_id,
+                     MovieField.TITLE: movie_title,
+                     MovieField.YEAR: year,
+                     MovieField.TRAILER: trailer_url,
+                     MovieField.PLOT: description,
+                     MovieField.THUMBNAIL: thumbnail,
+                     MovieField.DISCOVERY_STATE: MovieField.NOT_FULLY_DISCOVERED,
+                     MovieField.CERTIFICATION_ID: unrated_id,
+                     MovieField.ADULT: False,
+                     MovieField.RATING: int(movie_data.get('average_rating', 0)),
                      # Kodi measures in seconds
-                     # At least for TFH, this appears to be time of trailer
+                     # At least for TFH, this appears to be time of movie
                      # (not movie), measured in 1/60 of a
                      # second, or 60Hz frames. Weird.
-                     Movie.RUNTIME: 0  # Ignore trailer length
+                     MovieField.RUNTIME: 0  # Ignore movie length
                      }
         except Exception as e:
             dump_json = True
@@ -784,6 +804,12 @@ class BaseYDLogger:
         return movie
 
     def warning(self, line: str) -> None:
+        if 'HTTP Error 403' in line:
+            self.set_error(VideoDownloader.FORBIDDEN)
+        elif 'HTTP Error 404' in line:
+            self.set_error(VideoDownloader.NOT_FOUND)
+
+
         if Monitor.is_abort_requested():
             self.set_error(99, force=True)
             # Kill YoutubeDL
@@ -815,6 +841,8 @@ class BaseYDLogger:
             self.set_error(VideoDownloader.BLOCKED_ERROR)
         elif 'unavailable' in line:
             self.set_error(VideoDownloader.UNAVAILABLE)
+        elif 'ERROR: Sign in to confirm your age':
+            self.set_error(VideoDownloader.ADULT)
         else:
             self.error_lines.append(line)
 
@@ -845,7 +873,7 @@ class BaseYDLogger:
 
         clz = BaseYDLogger
         text = '\n'.join(lines)
-        if type(self).logger.isEnabledFor(LazyLogger.DISABLED):
+        if type(self).logger.isEnabledFor(LOGGER_ENABLE_LEVEL):
             type(self).logger.debug_extra_verbose(label, text)
 
     def log_debug(self) -> None:
@@ -870,6 +898,36 @@ class TfhIndexLogger(BaseYDLogger):
 
     def debug(self, line: str) -> None:
         """
+
+        Sample lines from actual use:
+
+        trailersfromhell: Downloading webpage
+        [download] Downloading playlist: Trailers From Hell - Videos
+        [youtube:tab] Downloading page 1
+        [youtube:tab] Downloading page 2
+        [youtube:tab] Downloading page 3
+        [youtube:tab] Downloading page 4
+        [youtube:tab] Downloading page 5
+        [youtube:tab] Downloading page 6
+        ...
+        [youtube:tab] Downloading page 48
+        [youtube:tab] playlist Trailers From Hell - Videos: Downloading 1466 videos
+        [download] Downloading video 1 of 1466
+        {"_type": "url_transparent", "ie_key": "Youtube", "id": "ED5Xo_SmJSY", "url": "ED5Xo_SmJSY", "title": "Mark Pellington on THE LOST WEEKEND", "description": null, "duration": null, "view_count": 7874, "uploader": null}
+        [download] Downloading video 2 of 1466
+        {"_type": "url_transparent", "ie_key": "Youtube", "id": "qFSWn1SK9E8", "url": "qFSWn1SK9E8", "title": "Josh Olson on BATTLE ROYALE", "description": null, "duration": null, "view_count": 11363, "uploader": null}
+        [download] Downloading video 3 of 1466
+        {"_type": "url_transparent", "ie_key": "Youtube", "id": "dfqQJhEz394", "url": "dfqQJhEz394", "title": "Allan Arkush on THE LAST WALTZ", "description": null, "duration": null, "view_count": 5342, "uploader": null}
+        [download] Downloading video 4 of 1466
+        {"_type": "url_transparent", "ie_key": "Youtube", "id": "nJAot8IWIUc", "url": "nJAot8IWIUc", "title": "Katt Shea on KLUTE", "description": null, "duration": null, "view_count": 7550, "uploader": null}
+        [download] Downloading video 5 of 1466
+        {"_type": "url_transparent", "ie_key": "Youtube", "id": "cm5n-BNCaYc", "url": "cm5n-BNCaYc", "title": "Allan Arkush on THE BEST OF EVERYTHING", "description": null, "duration": null, "view_count": 13214, "uploader": null}
+        [download] Downloading video 6 of 1466
+        {"_type": "url_transparent", "ie_key": "Youtube", "id": "ZGOlTBvd0Xo", "url": "ZGOlTBvd0Xo", "title": "Michael Lehmann on THE MAN WHO FELL TO EARTH", "description": null, "duration": null, "view_count": 5156, "uploader": null}
+        [download] Downloading video 7 of 1466
+        ...
+        [download] Finished downloading playlist: Trailers From Hell - Videos
+
              :return:
         """
         super().debug(line)
@@ -877,17 +935,19 @@ class TfhIndexLogger(BaseYDLogger):
         if self._parsed_movie is not None and self._downloader._error == 0:
             try:
                 self._trailer_handler(self._parsed_movie)
-                VideoDownloader.delay_between_transactions(Movie.TFH_SOURCE, False)
+                self._parsed_movie = None  # Don't send duplicates
+
+                VideoDownloader.delay_between_transactions(MovieField.TFH_SOURCE, False)
                 #
-                # Give another thread a chance to fetch a trailer
+                # Give another thread a chance to fetch a movie
                 #
-                self._downloader.release_lock(Movie.TFH_SOURCE)
+                self._downloader.release_lock(MovieField.TFH_SOURCE)
                 # LOCK RELEASED
 
                 # ..... Some other thread can get video
 
                 # GET LOCK
-                self._downloader.get_lock(Movie.TFH_SOURCE)
+                self._downloader.get_lock(MovieField.TFH_SOURCE)
                 # HAVE LOCK
 
             except Exception as e:
@@ -946,23 +1006,23 @@ class TfhIndexLogger(BaseYDLogger):
             certifications = WorldCertifications.get_certifications(country_id)
             unrated_id = certifications.get_unrated_certification().get_preferred_id()
             trailers_in_playlist = movie_data.get('n_entries', 1)
-            movie = {Movie.SOURCE: 'unknown',
-                     Movie.YOUTUBE_ID: trailer_id,
-                     Movie.TITLE: movie_title,
-                     Movie.YEAR: 0,
-                     Movie.ORIGINAL_LANGUAGE: '',
-                     Movie.TRAILER: trailer_url,
-                     Movie.PLOT: '',
-                     Movie.THUMBNAIL: '',
-                     Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                     Movie.MPAA: unrated_id,
-                     Movie.ADULT: False,
-                     Movie.RATING: movie_data.get('average_rating', 0.0),
+            movie = {MovieField.SOURCE: 'unknown',
+                     MovieField.YOUTUBE_ID: trailer_id,
+                     MovieField.TITLE: movie_title,
+                     MovieField.YEAR: 0,
+                     MovieField.ORIGINAL_LANGUAGE: '',
+                     MovieField.TRAILER: trailer_url,
+                     MovieField.PLOT: '',
+                     MovieField.THUMBNAIL: '',
+                     MovieField.DISCOVERY_STATE: MovieField.NOT_FULLY_DISCOVERED,
+                     MovieField.CERTIFICATION_ID: unrated_id,
+                     MovieField.ADULT: False,
+                     MovieField.RATING: movie_data.get('average_rating', 0.0),
                      # Kodi measures in seconds
-                     # At least for TFH, this appears to be time of trailer
+                     # At least for TFH, this appears to be time of movie
                      # (not movie), measured in 1/60 of a
                      # second, or 60Hz frames. Weird.
-                     Movie.RUNTIME: 0  # Ignore trailer length
+                     MovieField.RUNTIME: 0  # Ignore movie length
                      }
         except Exception as e:
             dump_json = True
@@ -988,7 +1048,7 @@ class VideoLogger(BaseYDLogger):
         clz = type(self)
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
-        self.data = None
+        self.data: MovieType = None
 
     def debug(self, line: str) -> None:
         """

@@ -8,6 +8,7 @@ import xbmc
 
 from common.imports import *
 from common.logger import LazyLogger
+from player.abstract_player import AbstractPlayer
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
 
@@ -29,9 +30,9 @@ class PlayerContainer:
         if clz._logger is None:
             clz._logger = module_logger.getChild(self.__class__.__name__)
 
-        self._player: xbmc.Player = MyPlayer()
+        self._player: Union[AbstractPlayer, xbmc.Player] = MyPlayer()
         self._is_dummy_player: bool = False
-        self._saved_player = None
+        self._saved_player: Union[AbstractPlayer, xbmc.Player] = None
 
     def register_exit_on_movie_playing(self, listener: Callable[[Any], Any]) -> None:
         """
@@ -42,7 +43,7 @@ class PlayerContainer:
 
         self._player.register_exit_on_movie_playing(listener)
 
-    def get_player(self) -> xbmc.Player:
+    def get_player(self) -> AbstractPlayer:
         return self._player
 
     def get_saved_player(self) -> xbmc.Player:

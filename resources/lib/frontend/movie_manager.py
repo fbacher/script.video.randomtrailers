@@ -11,12 +11,13 @@ import sys
 import os
 import threading
 
-from common.constants import Movie
 from common.debug_utils import Debug
 from common.exceptions import AbortException, LogicError
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
+from common.movie import AbstractMovie, FolderMovie
+from common.movie_constants import MovieField
 from frontend.front_end_bridge import FrontendBridge, FrontendBridgeStatus
 from common.settings import Settings
 from frontend.history_list import HistoryList
@@ -56,26 +57,26 @@ class MovieManager:
         self.fetched_event = threading.Event()
         self.pre_fetch_trailer()
 
-    def get_next_trailer(self) -> (str, MovieType):
+    def get_next_trailer(self) -> (str, AbstractMovie):
         """
 
         :return:
         """
         clz = type(self)
-        trailer: MovieType = None
+        trailer: AbstractMovie = None
         status: str = None
         prefetched: bool = False
         if self._play_open_curtain_next:
             status = MovieStatus.OK
-            trailer = {Movie.SOURCE: 'curtain',
-                       Movie.TITLE: 'openCurtain',
-                       Movie.TRAILER: Settings.get_open_curtain_path()}
+            trailer = FolderMovie({MovieField.SOURCE: 'curtain',
+                                   MovieField.TITLE: 'openCurtain',
+                                   MovieField.TRAILER: Settings.get_open_curtain_path()})
             self._play_open_curtain_next = False
         elif self._play_close_curtain_next:
             status = MovieStatus.OK
-            trailer = {Movie.SOURCE: 'curtain',
-                       Movie.TITLE: 'closeCurtain',
-                       Movie.TRAILER: Settings.get_close_curtain_path()}
+            trailer = FolderMovie({MovieField.SOURCE: 'curtain',
+                                   MovieField.TITLE: 'closeCurtain',
+                                   MovieField.TRAILER: Settings.get_close_curtain_path()})
             self._play_close_curtain_next = False
         elif self._play_previous_trailer:
             status = MovieStatus.PREVIOUS_MOVIE
@@ -119,38 +120,38 @@ class MovieManager:
                 return self.get_next_trailer()
 
         if trailer is not None:
-            title = trailer.get(Movie.TITLE)
+            title = trailer.get_title()
         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-            clz._logger.exit('status:', status, 'trailer', title)
+            clz._logger.exit('status:', status, 'movie', title)
 
         return status, trailer
 
-    def purge_removed_cached_trailers(self, trailer: MovieType) -> None:
+    def purge_removed_cached_trailers(self, trailer: AbstractMovie) -> None:
         clz = type(self)
         trailer_path = None
-        if trailer.get(Movie.NORMALIZED_TRAILER) is not None:
-            trailer_path = trailer[Movie.NORMALIZED_TRAILER]
+        if trailer.get_normalized_trailer_path() != '':
+            trailer_path = trailer.get_normalized_trailer_path()
             if not os.path.exists(trailer_path):
-                trailer[Movie.NORMALIZED_TRAILER] = None
+                trailer.set_normalized_trailer_path('')
                 clz._logger.debug('Does not exist:', trailer_path)
-        elif trailer.get(Movie.CACHED_TRAILER) is not None:
-            trailer_path = trailer[Movie.CACHED_TRAILER]
+        elif trailer.get_cached_movie() != '':
+            trailer_path = trailer.get_cached_movie()
             if not os.path.exists(trailer_path):
-                trailer[Movie.CACHED_TRAILER] = None
+                trailer.set_cached_trailer('')
                 clz._logger.debug('Does not exist:', trailer_path)
         else:
-            trailer_path = trailer[Movie.TRAILER]
-            if trailer_path is None:
+            trailer_path = trailer.get_trailer_path()
+            if not trailer.has_trailer():
                 trailer_path = None
             elif not (trailer_path.startswith('plugin') or os.path.exists(trailer_path)):
-                trailer[Movie.TRAILER] = None
+                trailer.set_trailer_path('')
                 clz._logger.debug('Does not exist:', trailer_path)
                 trailer_path = None
         return trailer_path is None
 
     def pre_fetch_trailer(self) -> None:
         self._thread = threading.Thread(
-            target=self._pre_fetch_trailer, name='Pre-Fetch trailer')
+            target=self._pre_fetch_trailer, name='Pre-Fetch movie')
         self._thread.start()
 
     def _pre_fetch_trailer(self) -> None:
@@ -170,9 +171,10 @@ class MovieManager:
         except AbortException:
             pass  # In thread, let die
         except Exception as e:
+            clz = type(self)
             clz._logger.exception(e)
 
-    # Put trailer in recent history. If full, delete oldest
+    # Put movie in recent history. If full, delete oldest
     # entry. User can traverse backwards through shown
     # trailers
 

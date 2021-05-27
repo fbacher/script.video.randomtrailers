@@ -12,12 +12,13 @@ import threading
 import traceback
 
 import xbmc
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.imports import *
 from common.logger import LazyLogger
+from common.movie import AbstractMovie
+from common.movie_constants import MovieField, MovieType
 from common.rating import WorldCertifications
 from common.settings import Settings
-from common.monitor import Monitor
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -136,14 +137,14 @@ class Debug:
             cls._logger.debug_verbose('At least one argument is None')
             return
 
-        keys_of_primary_interest = [Movie.TRAILER,
-                                    Movie.SOURCE, Movie.TITLE,
-                                    Movie.YEAR, Movie.TRAILER_TYPE]
-        keys_of_interest = [Movie.TRAILER,
-                            Movie.SOURCE, Movie.TITLE,
-                            Movie.FANART, Movie.PLOT,
-                            Movie.FILE, Movie.THUMBNAIL,
-                            Movie.YEAR, Movie.TRAILER_TYPE]
+        keys_of_primary_interest = [MovieField.TRAILER,
+                                    MovieField.SOURCE, MovieField.TITLE,
+                                    MovieField.YEAR, MovieField.TRAILER_TYPE]
+        keys_of_interest = [MovieField.TRAILER,
+                            MovieField.SOURCE, MovieField.TITLE,
+                            MovieField.FANART, MovieField.PLOT,
+                            MovieField.FILE, MovieField.THUMBNAIL,
+                            MovieField.YEAR, MovieField.TRAILER_TYPE]
         for key in trailer:
             if key in keys_of_interest and new_trailer.get(key) is None:
                 value = str(trailer.get(key))
@@ -177,7 +178,7 @@ class Debug:
 
     @classmethod
     def validate_basic_movie_properties(cls,
-                                        movie: MovieType,
+                                        movie_arg: Union[MovieType, AbstractMovie],
                                         stack_trace: bool = True) -> None:
         """
             Verifies that certain fields in a Kodi VideoInfo dictionary
@@ -190,15 +191,22 @@ class Debug:
         if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             return
 
-        if movie is None:
+        if movie_arg is None:
             cls._logger.debug_verbose('movie is None')
             return
 
+        movie: MovieType
+        if isinstance(movie_arg, AbstractMovie):
+            movie = movie_arg.get_as_movie_type()
+        else:
+            movie = movie_arg
+
         basic_properties = {}
 
-        for key in (Movie.TRAILER_TYPE, Movie.FANART, Movie.THUMBNAIL, Movie.TRAILER,
-                    Movie.SOURCE, Movie.YEAR, Movie.RATING, Movie.TITLE):
-            basic_properties[key] = Movie.DEFAULT_MOVIE[key]
+        for key in (MovieField.TRAILER_TYPE, MovieField.FANART, MovieField.THUMBNAIL,
+                    MovieField.TRAILER, MovieField.SOURCE, MovieField.YEAR,
+                    MovieField.RATING, MovieField.TITLE):
+            basic_properties[key] = MovieField.DEFAULT_MOVIE[key]
 
         failing_properties = []
         is_failed = False
@@ -210,7 +218,7 @@ class Debug:
                     property_name, basic_properties[property_name])
 
         if len(failing_properties) > 0:
-            msg = f'{movie.get(Movie.TITLE, "title missing")} ' \
+            msg = f'{movie.get(MovieField.TITLE, "title missing")} ' \
                 f'{",".join(failing_properties)}'
             if stack_trace:
                 LazyLogger.dump_stack('Missing basic property: ' + msg)
@@ -220,7 +228,8 @@ class Debug:
         assert not is_failed, 'LEAK: Invalid property values'
 
     @classmethod
-    def validate_detailed_movie_properties(cls, movie: MovieType,
+    def validate_detailed_movie_properties(cls,
+                                           movie_arg: Union[MovieType, AbstractMovie],
                                            stack_trace: bool = True,
                                            force_check: bool = False) -> bool:
         """
@@ -234,33 +243,27 @@ class Debug:
         if not (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE) or force_check):
             return True
 
-        if movie is None:
+        if movie_arg is None:
             cls._logger.debug_verbose('movie is None')
             return False
-
-        details_properties = {}
-
-        for key in (Movie.TRAILER_TYPE, Movie.FANART, Movie.THUMBNAIL, Movie.TRAILER,
-                    Movie.SOURCE, Movie.YEAR, Movie.RATING, Movie.TITLE,
-                    Movie.WRITER, Movie.DETAIL_DIRECTORS, Movie.DETAIL_TITLE,
-                    Movie.CAST, Movie.PLOT, Movie.GENRE, Movie.STUDIO,
-                    Movie.DETAIL_ACTORS, Movie.DETAIL_GENRES,
-                    Movie.DETAIL_CERTIFICATION, Movie.DETAIL_CERTIFICATION_IMAGE,
-                    Movie.DETAIL_RUNTIME, Movie.DETAIL_WRITERS,
-                    Movie.DETAIL_STUDIOS, Movie.RUNTIME, Movie.MPAA):
-            details_properties[key] = Movie.DEFAULT_MOVIE[key]
+        movie: MovieType
+        if isinstance(movie_arg, AbstractMovie):
+            movie = movie_arg.get_as_movie_type()
+        else:
+            movie = movie_arg
 
         cls.validate_basic_movie_properties(movie, stack_trace=stack_trace)
         failing_properties = []
         is_ok = True
-        for property_name in details_properties.keys():
+        for property_name in MovieField.DEFAULT_MOVIE.keys():
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
                 movie.setdefault(
-                    property_name, details_properties[property_name])
+                    property_name, MovieField.DEFAULT_MOVIE[property_name])
                 is_ok = False
 
-        if len(failing_properties) > 0:
+        if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE) 
+                                     and len(failing_properties) > 0):
             msg = ', '.join(failing_properties)
             if stack_trace:
                 LazyLogger.dump_stack('Missing details property: ' + msg)
@@ -269,12 +272,13 @@ class Debug:
 
         country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
-        if not certifications.is_valid(movie[Movie.MPAA]):
-            if movie[Movie.MPAA] != '':
+        if not certifications.is_valid(movie[MovieField.CERTIFICATION_ID]):
+            is_ok = False
+            if movie[MovieField.CERTIFICATION_ID] != '':
                 cls._logger.debug_verbose(
-                    f'Invalid certification: {movie[Movie.MPAA]} for movie: '
-                    '{movie[Movie.TITLE]} set to NR')
-            movie[Movie.MPAA] = certifications.get_unrated_certification() \
+                    f'Invalid certification: {movie[MovieField.CERTIFICATION_ID]} for movie: '
+                    '{movie[MovieField.TITLE]} set to NR')
+            movie[MovieField.CERTIFICATION_ID] = certifications.get_unrated_certification() \
                 .get_preferred_id()
 
         # assert is_ok, 'LEAK, Invalid property values'

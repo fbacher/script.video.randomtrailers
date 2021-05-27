@@ -38,6 +38,9 @@ class GarbageCollector:
 
         garbage_collector.start()
 
+        # Did not see thread name while using debugger.
+        garbage_collector.setName('Thread garbage collection')
+
     @classmethod
     def join_dead_threads(cls) -> None:
         finished = False

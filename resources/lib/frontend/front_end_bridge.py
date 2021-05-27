@@ -6,14 +6,15 @@ Created on Mar 21, 2019
 @author: Frank Feuerbacher
 """
 
-
+import pickle
 import sys
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.exceptions import AbortException
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
+from common.movie import AbstractMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -37,9 +38,9 @@ class FrontendBridge(PluginBridge):
 
     """
     _logger = None
-    _next_trailer = None
+    _next_trailer: AbstractMovie = None
     _trailer_iterator = None
-    _trailer = None
+    _traile: AbstractMovie = None
     _busy_getting_trailer = False
     _status = FrontendBridgeStatus.IDLE
 
@@ -57,9 +58,9 @@ class FrontendBridge(PluginBridge):
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.enter()
             try:
-                cls._next_trailer: MovieType = None
+                cls._next_trailer: AbstractMovie = None
                 cls._trailer_iterator = None
-                cls._trailer: MovieType = None
+                cls._trailer: AbstractMovie = None
                 cls._busy_getting_trailer: bool = False
                 cls._status: str = FrontendBridgeStatus.IDLE
                 cls.register_listeners()
@@ -75,9 +76,9 @@ class FrontendBridge(PluginBridge):
     ###########################################################
 
     @classmethod
-    def get_next_trailer(cls) -> (str, Dict[str, Any]):
+    def get_next_trailer(cls) -> (str, AbstractMovie):
         """
-         front-end requests a trailer from the back-end and waits for
+         front-end requests a movie from the back-end and waits for
             response.
 
         :return:
@@ -104,7 +105,7 @@ class FrontendBridge(PluginBridge):
                 cls._next_trailer = None
                 cls._status = FrontendBridgeStatus.TIMED_OUT
 
-            trailer = cls._next_trailer
+            trailer: AbstractMovie = cls._next_trailer
             status = cls._status
             cls._next_trailer = None
             cls._status = FrontendBridgeStatus.IDLE
@@ -112,7 +113,7 @@ class FrontendBridge(PluginBridge):
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     cls._logger.debug_extra_verbose('returning status:',
                                                     status, 'title:',
-                                                    trailer[Movie.TITLE])
+                                                    trailer.get_title())
             return status, trailer
         except AbortException:
             cls.delete_instance()
@@ -154,14 +155,16 @@ class FrontendBridge(PluginBridge):
     @classmethod
     def returned_trailer(cls, data: Any) -> None:
         """
-            Front-end receives trailer from back-end
+            Front-end receives movie from back-end
 
         :param data:
         :return:
         """
         try:
             Monitor.throw_exception_if_abort_requested()
-            cls._next_trailer = data.get('trailer', None)
+            pickled_str: str = data.get('movie', None)
+            pickled: bytes = bytes.fromhex(pickled_str)
+            cls._next_trailer: AbstractMovie = pickle.loads(pickled)
             cls._status = data.get('status', None)
             if cls._status == FrontendBridgeStatus.BUSY:
                 Monitor.throw_exception_if_abort_requested(timeout=2.0)
@@ -169,9 +172,9 @@ class FrontendBridge(PluginBridge):
                 if cls._next_trailer is None:
                     title = 'No Trailer Received'
                 else:
-                    title = cls._next_trailer.get(Movie.TITLE, 'No Title')
+                    title = cls._next_trailer.get_title()
                 cls._logger.debug_extra_verbose('status:', cls._status,
-                                                'received trailer for:',
+                                                'received movie for:',
                                                 title)
         except AbortException:
             pass  # Don't pass exception to AddonSignals

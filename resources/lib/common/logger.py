@@ -21,8 +21,7 @@ import xbmc
 from common.exceptions import AbortException
 from common.constants import Constants
 from common.critical_settings import CriticalSettings
-from common.imports import Any, Callable, Dict, Final, ForwardRef, List,\
-    reraise, Set, Type, Union
+from common.imports import *
 
 TOP_PACKAGE_PATH = Constants.PYTHON_ROOT_PATH
 
@@ -481,7 +480,7 @@ class Logger(logging.Logger):
         :return: None
         """
         ignore_frames += 1
-        trace_back, thread_name = cls.capture_stack(
+        trace_back, thread_name = cls._capture_stack(
             ignore_frames=ignore_frames)
         cls.log_stack(msg, trace_back, thread_name)
 
@@ -1043,7 +1042,7 @@ class LazyLogger(Logger):
         :return: None
         """
         ignore_frames += 1
-        trace_back, thread_name = cls._capture_stack(
+        trace_back, thread_name = super()._capture_stack(
             ignore_frames=ignore_frames)
         cls.log_stack(msg, trace_back, thread_name)
 
@@ -1054,7 +1053,7 @@ class LazyLogger(Logger):
         :return:
         """
         ignore_frames += 1
-        return cls._capture_stack(ignore_frames=ignore_frames)
+        return super()._capture_stack(ignore_frames=ignore_frames)
 
     @staticmethod
     def log_stack(msg: str, trace_back: List[Type],
@@ -1331,7 +1330,7 @@ class MyFormatter(logging.Formatter):
             threadName 	%(threadName)s 	Thread name (if available).
             
             [service.randomtrailers.backend:DiscoverTmdbMovies:process_page] 
-            [service.randomtrailers.backend:FolderMovieData:add_to_discovered_trailers  TRACE_DISCOVERY]
+            [service.randomtrailers.backend:FolderMovieData:add_to_discovered_movies  TRACE_DISCOVERY]
         """
         # threadName Constants.CURRENT_ADDON_SHORT_NAME funcName:lineno
         # [threadName name funcName:lineno]

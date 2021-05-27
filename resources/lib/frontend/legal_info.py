@@ -154,7 +154,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         :param action:
         :return:
 
-            ACTION_MOVE_RIGHT -> Skip to next trailer
+            ACTION_MOVE_RIGHT -> Skip to next movie
 
             PREVIOUS_MENU | NAV_BACK | ACTION_BUILT_IN_FUNCTION ->
                                                  Exit Random Trailer script

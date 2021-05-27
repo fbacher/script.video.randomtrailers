@@ -12,9 +12,9 @@ import queue
 
 from common.imports import *
 from common.debug_utils import Debug
-from common.constants import Movie
 from common.monitor import Monitor
 from common.logger import LazyLogger
+from common.movie import AbstractMovie
 
 from diagnostics.play_stats import PlayStatistics
 from discovery.abstract_movie_data import AbstractMovieData
@@ -40,7 +40,7 @@ class PlayableTrailersContainer:
     _singleton_instance = None
     _instances = {}
     logger: ClassVar[LazyLogger] = None
-    _recently_played_trailers: ClassVar[OrderedDict] = OrderedDict()
+    _recently_played_trailers: ClassVar[Dict[str, AbstractMovie]] = OrderedDict()
 
     # Avoid playing duplicate trailers when we first start up.
 
@@ -104,7 +104,7 @@ class PlayableTrailersContainer:
         """
         pass
 
-    def add_to_ready_to_play_queue(self, movie: MovieType) -> None:
+    def add_to_ready_to_play_queue(self, movie: AbstractMovie) -> None:
         """
 
         :param movie:
@@ -112,9 +112,6 @@ class PlayableTrailersContainer:
         """
         clz = type(self)
         if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            if Movie.TITLE not in movie:
-                self.logger.warning('Invalid movie entry. Missing title: ',
-                                   str(movie))
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
         """
         try:
@@ -142,9 +139,9 @@ class PlayableTrailersContainer:
         """
 
         if self.logger.isEnabledFor(LazyLogger.DEBUG):
-            self.logger.debug_verbose('movie:', movie[Movie.TITLE], 'queue empty:',
-                                     self._ready_to_play_queue.empty(), 'full:',
-                                     self._ready_to_play_queue.full())
+            self.logger.debug_verbose('movie:', movie.get_title(), 'queue empty:',
+                                      self._ready_to_play_queue.empty(), 'full:',
+                                      self._ready_to_play_queue.full())
 
         finished: bool = False
         waited: int = 0
@@ -168,8 +165,8 @@ class PlayableTrailersContainer:
 
         if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             self.logger.debug_extra_verbose('readyToPlayQueue size:',
-                                           self._ready_to_play_queue.qsize(), 'waited:',
-                                           waited)
+                                            self._ready_to_play_queue.qsize(), 'waited:',
+                                            waited)
         return
 
     def get_ready_to_play_queue(self) -> queue.Queue:
@@ -187,7 +184,7 @@ class PlayableTrailersContainer:
         return self._ready_to_play_queue.qsize()
 
     @classmethod
-    def get_recently_played_trailers(cls) -> Dict[str, MovieType]:
+    def get_recently_played_trailers(cls) -> Dict[str, AbstractMovie]:
         return cls._recently_played_trailers
 
     def get_number_of_added_trailers(self) -> int:
@@ -197,20 +194,20 @@ class PlayableTrailersContainer:
         """
         return int(self._number_of_added_trailers)
 
-    def get_next_movie(self) -> MovieType:
+    def get_next_movie(self) -> AbstractMovie:
         """
 
         :return:
         """
         clz = type(self)
-        movie = self._ready_to_play_queue.get(block=False)
+        movie: AbstractMovie = self._ready_to_play_queue.get(block=False)
         if movie is not None:
-            title = movie[Movie.TITLE]
+            title = movie.get_title()
             clz._recently_played_trailers[title] = movie
 
             PlayStatistics.increase_play_count(movie)
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.exit('movie:', movie[Movie.TITLE])
+                self.logger.exit('movie:', movie.get_title())
         else:
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 self.logger.exit('No movie in queue')
@@ -250,8 +247,8 @@ class PlayableTrailersContainer:
         # Inform the fetching code that at least one of the queues is out of
         # playable trailers.
         #
-        # Since TrailerDialog pre-fetches the next trailer to play and because
-        # we don't want to force replaying the currently running trailer when if
+        # Since TrailerDialog pre-fetches the next movie to play and because
+        # we don't want to force replaying the currently running movie when if
         # we just waited a few seconds we would have more options, we put a delay
         # before passing along the starving message.
 
@@ -267,7 +264,7 @@ class PlayableTrailersContainer:
                 self._starve_check_timer = None
 
             # Wait ten seconds before declaring starvation. This gives the
-            # trailer_fetcher time to do something useful while trailer is
+            # trailer_fetcher time to do something useful while movie is
             # playing.
 
             self._starve_check_timer = threading.Timer(10.0, self.starving_check)

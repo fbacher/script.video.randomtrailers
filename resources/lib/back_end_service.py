@@ -7,6 +7,8 @@ Created on Feb 12, 2019
 """
 
 from common.python_debugger import PythonDebugger
+from common.critical_settings import CriticalSettings
+CriticalSettings.set_plugin_name('backend')
 REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.backend')
@@ -20,7 +22,7 @@ import threading
 import xbmc
 from common.exceptions import AbortException
 from common.minimal_monitor import MinimalMonitor
-from common.imports import reraise, Callable
+from common.imports import *
 
 
 def exit_randomtrailers():
@@ -63,6 +65,10 @@ class MainThreadLoop:
             initial_timeout = 0.05
             switch_timeouts_count = 10 * 20
 
+            if REMOTE_DEBUG:
+                start_backend_count_down = 2.0 / initial_timeout
+            else:
+                start_backend_count_down = 0.0
             i = 0
             timeout = initial_timeout
 
@@ -84,13 +90,16 @@ class MainThreadLoop:
                      pass
                 """
 
-                if not worker_thread_initialized:
-                    worker_thread_initialized = True
-                    cls.start_backend_worker_thread()
+                if start_backend_count_down > 0:
+                    start_backend_count_down -= 1.0
+                else:
+                    if not worker_thread_initialized:
+                        worker_thread_initialized = True
+                        cls.start_backend_worker_thread()
 
-                if not bridge_initialized:
-                    bridge_initialized = True
-                    cls.start_back_end_bridge()
+                    if not bridge_initialized:
+                        bridge_initialized = True
+                        cls.start_back_end_bridge()
 
             MinimalMonitor.throw_exception_if_abort_requested(timeout=timeout)
 

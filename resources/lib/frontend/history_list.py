@@ -7,9 +7,9 @@ Created on May 25, 2019
 '''
 
 
-from common.constants import Movie
 from common.imports import *
 from common.logger import LazyLogger
+from common.movie import AbstractMovie
 
 from frontend.history_empty import HistoryEmpty
 
@@ -22,7 +22,7 @@ class HistoryList:
     """
     MAX_HISTORY: int = 20
     logger: LazyLogger = None
-    _buffer: List[MovieType] = []
+    _buffer: List[AbstractMovie] = []
     _cursor: int = -1
 
     @classmethod
@@ -30,19 +30,19 @@ class HistoryList:
         """
 
         """
-        cls.logger: Final[LazyLogger] = module_logger.getChild(cls.__class__.__name__)
-        cls._buffer: List[MovieType] = []
+        cls.logger = module_logger.getChild(cls.__class__.__name__)
+        cls._buffer: List[AbstractMovie] = []
         cls._cursor: int = -1
 
     @classmethod
-    def append(cls, movie: MovieType) -> None:
+    def append(cls, movie: AbstractMovie) -> None:
         """
 
         :param movie:
         :return:
         """
         if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.enter('movie', movie[Movie.TITLE], 'len(buffer):',
+            cls.logger.enter('movie', movie.get_title(), 'len(buffer):',
                                len(cls._buffer), 'cursor:', cls._cursor)
         cls._buffer.append(movie)
         if len(cls._buffer) > HistoryList.MAX_HISTORY:
@@ -50,18 +50,18 @@ class HistoryList:
             del cls._buffer[0]
         cls._cursor = len(cls._buffer) - 1
         if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
+            cls.logger.exit('movie', movie.get_title(), 'len(buffer):',
                              len(cls._buffer), 'cursor:', cls._cursor)
 
     @classmethod
-    def get_previous_movie(cls) -> MovieType:
+    def get_previous_movie(cls) -> AbstractMovie:
         """
 
         :return:
         """
         if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.enter('len(buffer):',
-                               len(cls._buffer), 'cursor:', cls._cursor)
+                             len(cls._buffer), 'cursor:', cls._cursor)
         # cursor points to currently playing movie or -1
         cls._cursor -= 1
         if cls._cursor < 0:
@@ -72,12 +72,12 @@ class HistoryList:
             movie = cls._buffer[cls._cursor]
 
         if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.exit('movie', movie[Movie.TITLE], 'len(buffer):',
-                              len(cls._buffer), 'cursor:', cls._cursor)
+            cls.logger.exit('movie', movie.get_title(), 'len(buffer):',
+                            len(cls._buffer), 'cursor:', cls._cursor)
         return movie
 
     @classmethod
-    def get_next_movie(cls) -> MovieType:
+    def get_next_movie(cls) -> AbstractMovie:
         """
         Play the next movie in the history buffer.
         :return: The next movie in the buffer or None, if there are none.
@@ -95,14 +95,14 @@ class HistoryList:
             title = 'None'
         else:
             movie = cls._buffer[cls._cursor]
-            title = movie[Movie.TITLE]
+            title = movie.get_title()
         if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             cls.logger.exit('movie', title, 'len(buffer):',
                               len(cls._buffer), 'cursor:', cls._cursor)
         return movie
 
     @classmethod
-    def remove(cls, movie: MovieType) -> None:
+    def remove(cls, movie: AbstractMovie) -> None:
         try:
             i = cls._buffer.index(movie)
             del cls._buffer[i]
