@@ -351,7 +351,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz.logger.debug_verbose('got trailer to play: ' +
-                                                     self._movie.get(Movie.TRAILER))
+                                             self._movie.get_trailer_path())
 
                 video_is_curtain = (self._movie.get_source() == 'curtain')
 
