@@ -5,6 +5,8 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
+import faulthandler
+import io
 from io import StringIO
 import simplejson as json
 import sys
@@ -116,6 +118,16 @@ class Debug:
         msg = Debug._currentAddonName + ' : dump_all_threads'
         xbmc.log(msg, xbmc.LOGDEBUG)
         xbmc.log(string_buffer, xbmc.LOGDEBUG)
+
+        try:
+            dump_path = Constants.FRONTEND_DATA_PATH + '/stack_dump'
+
+            dump_file = io.open(dump_path, mode='at', buffering=1, newline=None,
+                                encoding='ascii')
+
+            faulthandler.dump_traceback(file=dump_file, all_threads=True)
+        except Exception as e:
+             pass
 
     @classmethod
     def compare_movies(cls,

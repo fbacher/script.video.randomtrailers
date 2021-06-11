@@ -186,10 +186,10 @@ def bootstrap_random_trailers(screensaver: bool) -> None:
     """
     try:
         Monitor.register_settings_changed_listener(
-            Settings.on_settings_changed)
+            Settings.on_settings_changed, 'Settings.on_settings_changed')
 
         Monitor.register_settings_changed_listener(
-            LazyLogger.on_settings_changed)
+            LazyLogger.on_settings_changed, 'LazyLogger.on_settings_changed')
 
         MainThreadLoop.class_init(screensaver)
         MainThreadLoop.startup()

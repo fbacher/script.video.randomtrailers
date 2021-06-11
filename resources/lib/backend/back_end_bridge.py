@@ -23,7 +23,6 @@ from discovery.playable_trailer_service import PlayableTrailerService
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-
 class BackendBridgeStatus(PluginBridgeStatus):
     """
 
@@ -40,7 +39,6 @@ class BackendBridge(PluginBridge):
     _next_trailer: AbstractMovie = None
     _trailer_iterator: Iterator = None
     _trailer: AbstractMovie = None
-    _on_settings_changed_callback = None
     _busy_getting_trailer: bool = False
     _status: str = BackendBridgeStatus.IDLE
 
@@ -64,9 +62,6 @@ class BackendBridge(PluginBridge):
                 cls._logger.error('Need to define playable_trailer_service to be',
                                   'PlayableTrailerService()')
             cls._trailer_iterator = iter(playable_trailer_service)
-            cls._on_settings_changed_callback: Callable[[None], None] =\
-                Monitor.onSettingsChanged
-
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -147,24 +142,6 @@ class BackendBridge(PluginBridge):
             cls._logger.exception('')
 
     @classmethod
-    def on_settings_changed(cls, _: Any) -> None:
-        """
-            Back-end receiving notification from front-end that the settings have
-            changed.
-        """
-        try:
-            thread = threading.Thread(
-                target=cls._on_settings_changed_callback,
-                name='BackendBridge.on_settings_changed')
-
-            thread.start()
-            GarbageCollector.add_thread(thread)
-        except AbortException:
-            pass  # Don't pass up to AddonSignals
-        except Exception:
-            cls._logger.exception('')
-
-    @classmethod
     def register_listeners(cls) -> None:
         """
             Register listeners (callbacks) with service. Note that
@@ -176,10 +153,8 @@ class BackendBridge(PluginBridge):
             cls._logger.enter()
 
         #
-        # Back-end listens for get_next_trailer requests and
-        # settings_changed notifications
+        # Back-end listens for get_next_trailer requests
         #
         cls.register_slot(Constants.BACKEND_ID,
                           'get_next_trailer', cls.get_trailer)
-        cls.register_slot(Constants.BACKEND_ID, 'settings_changed',
-                          cls.on_settings_changed)
+

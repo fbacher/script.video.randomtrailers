@@ -18,6 +18,7 @@ from cache.tmdb_cache_index import (CachedPage, CacheIndex, CacheParameters,
 from common.constants import Constants, RemoteTrailerPreference
 from common.disk_utils import DiskUtils, FindFiles
 from common.exceptions import AbortException, CommunicationException, reraise
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
 from common.logger import LazyLogger, Trace
@@ -27,7 +28,7 @@ from common.settings import Settings
 from common.tmdb_settings import TmdbSettings
 from common.utils import Delay
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
 from backend.json_utils_basic import JsonUtilsBasic
 from common.rating import WorldCertifications
@@ -35,6 +36,7 @@ from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.utils.tmdb_filter import TMDbFilter
 from discovery.tmdb_movie_data import TMDBMovieData
 from discovery.utils.parse_tmdb_page_data import ParseTMDbPageData
+from gc import garbage
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -91,7 +93,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         clz = type(self)
 
         self.start()
-        # self._trailer_fetcher.start_fetchers(self)
+        # self._parent_trailer_fetcher.start_fetchers(self)
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.debug(': started')
@@ -108,8 +110,19 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         clz.logger.enter()
 
         if Settings.is_tmdb_loading_settings_changed():
-            stop_thread = not Settings.get_include_tmdb_trailers()
-            self.restart_discovery(stop_thread)
+            stop_thread = not Settings.is_include_tmdb_trailers()
+            if stop_thread:
+                self.stop_thread()
+
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
+
+        :return:
+        """
+        return Settings.is_include_tmdb_trailers()
 
     def run(self) -> None:
         """
@@ -130,28 +143,24 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 try:
                     self.run_worker()
                     self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
-                    # Restart discovery
+                    self.finished_discovery()
+                    duration = datetime.datetime.now() - start_time
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose(
-                            'Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_tmdb_trailers():
-                        finished = True
-                        self.remove_self()
-
-            self.finished_discovery()
-            duration = datetime.datetime.now() - start_time
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('Time to discover:',
-                                          duration.seconds,
-                                          'seconds',
-                                          trace=Trace.STATS)
+                        clz.logger.debug_verbose(f'Time to discover: {duration.seconds} '
+                                                 f'seconds',
+                                                 trace=Trace.STATS)
+                except StopDiscoveryException:
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose('Stopping discovery')
+                    # self.destroy()
+                    finished = True
 
         except AbortException:
             return
         except Exception as e:
             clz.logger.exception('')
+        finally:
+            GarbageCollector.add_thread(self)
 
     def run_worker(self) -> None:
         """
@@ -222,7 +231,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             self.discover_movies(
                 max_pages, tmdb_trailer_type=tmdb_trailer_type)
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -306,7 +315,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     if self._selected_genres != '' or self._excluded_genres != '':
                         tmdb_search_query = "genre"
                         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
-                        number_of_pages = cached_pages_data.get_number_of_undiscovered_search_pages()
+                        number_of_pages = cached_pages_data.\
+                            get_number_of_undiscovered_search_pages()
                         if number_of_pages > 0:
                             genre_finished = False
                         self.discover_movies_using_search_pages(
@@ -336,7 +346,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         tmdb_search_query=tmdb_search_query  # type: str
                     )
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception:
             clz.logger.exception('')
@@ -423,7 +433,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     movies.extend(generic_movies)
                     del generic_movies
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -1096,7 +1106,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             #
             # ========================
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
 
         except Exception as e:
@@ -1417,7 +1427,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 data['without_genres'] = []
                 data['without_keywords'] = self._excluded_keywords
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -1525,7 +1535,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 if self.is_exceeded_limit_of_trailers():
                     break
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -1663,7 +1673,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     except Exception as e:
                         clz.logger.exception()
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')

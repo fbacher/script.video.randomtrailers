@@ -646,7 +646,8 @@ class GenreUtils:
         """
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
-            Monitor.register_settings_changed_listener(cls.on_settings_changed)
+            Monitor.register_settings_changed_listener(cls.on_settings_changed,
+                                                       'GenreUtils.on_settings_changed')
 
     @classmethod
     def on_settings_changed(cls) -> None:

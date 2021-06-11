@@ -409,12 +409,13 @@ class AbstractMovieData:
         self._movies_to_fetch_queue: KodiQueue = KodiQueue(maxsize=3)
         self._starvation_queue: KodiQueue = KodiQueue()
         self._movies_to_fetch_queueLock: threading.RLock = threading.RLock()
-        self.restart_discovery_event: threading.Event = threading.Event()
+        self.stop_discovery_event: threading.Event = threading.Event()
         self._movie_source: str = movie_source
 
         from discovery.trailer_fetcher import TrailerFetcher
         fetcher_thread_name: Final[str] = 'Fetcher_' + movie_source
-        self._trailer_fetcher: TrailerFetcher = TrailerFetcher(self, fetcher_thread_name)
+        self._parent_trailer_fetcher: TrailerFetcher = \
+            TrailerFetcher(self, fetcher_thread_name)
         self._minimum_shuffle_seconds: int = 10
 
     def start_trailer_fetchers(self) -> None:
@@ -422,7 +423,16 @@ class AbstractMovieData:
 
         :return:
         """
-        self._trailer_fetcher.start_fetchers()
+        self._parent_trailer_fetcher.start_fetchers()
+
+    def stop_discovery(self):
+        self.stop_discovery_event.set()
+        self.stop_trailer_fetchers()
+
+    def stop_trailer_fetchers(self) -> None:
+        #  Removes and joins trailer fetcher threads
+        if self._parent_trailer_fetcher is not None:
+            self._parent_trailer_fetcher.stop_fetchers()
 
     def get_movie_source(self) -> str:
         """
@@ -431,19 +441,18 @@ class AbstractMovieData:
         """
         return self._movie_source
 
-    def prepare_for_restart_discovery(self, stop_thread: bool) -> None:
+    def destroy(self) -> None:
         """
-        :param stop_thread
         :return:
         """
         clz = type(self)
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz.logger.enter()
 
         with self._discovered_movies_lock:
-            # clz.logger.debug('Have Lock')
-            self._trailer_fetcher.prepare_for_restart_discovery(stop_thread)
+            self.stop_discovery_event.set()
+            self._parent_trailer_fetcher.destroy()
             self._movies_discovered_event.clear()
             self._removed_trailers = 0
             self._number_of_added_movies = 0
@@ -453,14 +462,11 @@ class AbstractMovieData:
             self._last_shuffled_index = -1
             self._discovered_movies.clear()
             self._discovered_movies_queue.clear()
+            self._discovery_complete = True
 
-            if stop_thread:
-                # Forget what was in queue
-
-                self._starvation_queue = KodiQueue()
-                self._discovery_complete = True
-                del self._trailer_fetcher
-                self._trailer_fetcher = None
+            self._movie_source_data = {}
+            self._movies_to_fetch_queue.clear()
+            self._starvation_queue.clear()
 
     def finished_discovery(self) -> None:
         """
@@ -1080,6 +1086,44 @@ class AbstractMovieData:
         :return:
         """
         pass
+        clz = type(self)
+        # self._movies_discovered_event: threading.Event = threading.Event()
+        self._movie_source_data = {}
+        # self._removed_trailers: int = 0
+        # self._number_of_added_movies: int = 0
+        # self._load_fetch_total_duration: int = 0
+        # self._discovery_complete: bool = False
+        # self._discovery_complete_reported: bool = False
+        # self._last_shuffle_time: datetime.datetime = datetime.datetime.fromordinal(1)
+        # self._last_shuffled_index: int = -1
+        # self._discovered_movies_lock: threading.RLock = threading.RLock()
+
+        #  Access via self._discovered_movies_lock
+
+        # _discovered_movies is the primary source of all trailers,
+        # (well, they do come from the library database or TMDb or from
+        # the local cache, but as far as this application, the primary data
+        # structure is _discovered_movies).
+        self._discovered_movies = MovieList(self._movie_source)
+
+        # _discovered_movies_queue is filled up with movies (not copies of the
+        # movies) from _discovered_movies. Any change should be reflected in
+        # both places. When empty, or under other conditions,
+        # _discovered_movies_queue is emptied and then filled with all of the
+        # movies from _discovered_movies, after shuffling. Then, movies to
+        # display trailers for are drawn from _discovered_movies_queue until
+        # empty, or some other condition causes it to be refilled.
+
+        self._discovered_movies_queue.clear()
+        self._movies_to_fetch_queue.clear()
+        self._starvation_queue.clear()
+        # self._movies_to_fetch_queueLock
+        # self.stop_discovery_event: threading.Event = threading.Event()
+        # self._movie_source: str = movie_source
+
+        # fetcher_thread_name: Final[str] = 'Fetcher_' + movie_source
+        # from discovery.trailer_fetcher import TrailerFetcher
+        # self._minimum_shuffle_seconds: int = 10
 
     def increase_play_count(self, movie: BaseMovie) -> None:
         """

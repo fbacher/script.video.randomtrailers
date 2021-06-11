@@ -7,7 +7,7 @@ Created on Feb 10, 2019
 """
 
 
-class RestartDiscoveryException(Exception):
+class StopDiscoveryException(Exception):
     """
 
     """

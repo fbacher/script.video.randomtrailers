@@ -151,7 +151,7 @@ class MovieManager:
 
     def pre_fetch_trailer(self) -> None:
         self._thread = threading.Thread(
-            target=self._pre_fetch_trailer, name='Pre-Fetch movie')
+            target=self._pre_fetch_trailer, name='Pre-Fetch trailer')
         self._thread.start()
 
     def _pre_fetch_trailer(self) -> None:

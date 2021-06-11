@@ -22,7 +22,7 @@ from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
 
 from discovery.base_discover_movies import BaseDiscoverMovies
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.tfh_movie_data import TFHMovieData
 from backend.video_downloader import VideoDownloader
 from discovery.utils.parse_tfh import ParseTFH
@@ -67,7 +67,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         self.start()
         self.setName('Disc TFH')
 
-        # self._trailer_fetcher.start_fetchers(self)
+        # self._parent_trailer_fetcher.start_fetchers(self)
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.debug(': started')
@@ -85,7 +85,18 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         if Settings.is_tfh_loading_settings_changed():
             stop_thread = not Settings.is_include_tfh_trailers()
-            self.restart_discovery(stop_thread)
+            if stop_thread:
+                self.stop_thread()
+
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
+
+        :return:
+        """
+        return Settings.is_include_tfh_trailers()
 
     def run(self) -> None:
         """
@@ -107,14 +118,11 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 try:
                     self.run_worker()
                     self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
-                    # Restart discovery
+                except StopDiscoveryException:
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.is_include_tfh_trailers():
-                        finished = True
-                        self.remove_self()
+                        clz.logger.debug('Stopping discovery')
+                    # self.destroy()
+                    finished = True
 
             # TODO: Move before wait_until_restart_or_shutdown()
 
@@ -142,7 +150,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             Monitor.throw_exception_if_abort_requested()
 
             self.discover_movies()
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')

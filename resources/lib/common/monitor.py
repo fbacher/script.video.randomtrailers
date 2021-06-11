@@ -35,11 +35,11 @@ class Monitor(MinimalMonitor):
     startup_complete_event: threading.Event = None
     _monitor_changes_in_settings_thread: threading.Thread = None
     _logger: LazyLogger = None
-    _screen_saver_listeners: List[Callable[[None], None]] = None
+    _screen_saver_listeners: Dict[Callable[[None], None], str] = None
     _screen_saver_listener_lock: threading.RLock = None
-    _settings_changed_listeners: List[Callable[[None], None]] = None
+    _settings_changed_listeners: Dict[Callable[[None], None], str] = None
     _settings_changed_listener_lock: threading.RLock = None
-    _abort_listeners: List[Callable[[None], None]] = None
+    _abort_listeners: Dict[Callable[[None], None], str] = None
     _abort_listener_lock: threading.RLock = None
     _abort_listeners_informed: bool = False
     _wait_return_count_map: Dict[str, int] = {}  # thread_id, returns from wait
@@ -60,11 +60,11 @@ class Monitor(MinimalMonitor):
             cls._logger: LazyLogger = module_logger.getChild(cls.__class__.__name__)
             # Weird problems with recursion if we make requests to the super
 
-            cls._screen_saver_listeners = []
+            cls._screen_saver_listeners = {}
             cls._screen_saver_listener_lock = threading.RLock()
-            cls._settings_changed_listeners: List[Callable[[None], None]] = []
+            cls._settings_changed_listeners = {}
             cls._settings_changed_listener_lock = threading.RLock()
-            cls._abort_listeners = []
+            cls._abort_listeners = {}
             cls._abort_listener_lock = threading.RLock()
             cls._abort_listeners_informed = False
 
@@ -84,7 +84,7 @@ class Monitor(MinimalMonitor):
 
             cls._monitor_changes_in_settings_thread = threading.Thread(
                 target=cls._monitor_changes_in_settings,
-                name='monitorSettingsChanges')
+                name='_monitor_changes_in_settings')
             cls._monitor_changes_in_settings_thread.start()
 
     @classmethod
@@ -93,11 +93,16 @@ class Monitor(MinimalMonitor):
 
         :return:
         """
-        thread_name = CriticalSettings.get_plugin_name() + "_monitorSettingsChanges"
-        threading.current_thread().setName(thread_name)
-        start_time: datetime.datetime = datetime.datetime.now()
+
+        last_time_changed: datetime.datetime
         settings_path = os.path.join(
             Constants.FRONTEND_DATA_PATH, 'settings.xml')
+        try:
+            file_stat = os.stat(settings_path)
+            last_time_changed = datetime.datetime.fromtimestamp(file_stat.st_mtime)
+        except Exception as e:
+            cls._logger.debug("Failed to read settings.xml")
+            last_time_changed = datetime.datetime.now()
 
         # It seems that if multiple xbmc.WaitForAborts are pending, xbmc
         # Does not inform all of them when an abort occurs. So, instead
@@ -105,7 +110,13 @@ class Monitor(MinimalMonitor):
         # and act when 600 calls has been made. Not exactly 60 seconds, but
         # close enough for this
 
+        thread_name = CriticalSettings.get_plugin_name() + "_monitorSettingsChanges"
+        threading.current_thread().setName(thread_name)
         iterations: int = 600
+        
+        # We know that settings have not changed when we first start up,
+        # so ignore first false change.
+        
         while not cls.wait_for_abort(timeout=0.1):
             iterations -= 1
             if iterations < 0:
@@ -116,7 +127,7 @@ class Monitor(MinimalMonitor):
                         file_stat.st_mtime)
                 except Exception as e:
                     cls._logger.debug("Failed to read settings.xml")
-                    mod_time: datetime.datetime = start_time
+                    mod_time: datetime.datetime = datetime.datetime.now()
 
                 # Wait at least a minute after settings changed, just in case there
                 # are multiple changes.
@@ -126,25 +137,62 @@ class Monitor(MinimalMonitor):
                 # after the initial one. However, the Settings code should
                 # detect that nothing has actually changed and no harm should be
                 # done.
+                                
+                if last_time_changed == mod_time:
+                    continue
 
-                if mod_time + datetime.timedelta(seconds=60.0) > start_time:
-                    start_time = datetime.datetime.now()
+                now: datetime.datetime = datetime.datetime.now()
+                
+                #
+                # Was file modified at least a minute ago?
+                #
+                
+                delta: datetime.timedelta = now - mod_time
+                
+                if delta.total_seconds() > 60:
                     if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                         cls._logger.debug_verbose('Settings Changed!')
+                    last_time_changed = mod_time
                     cls.on_settings_changed()
+                        
                     # Here we go again
 
     @classmethod
+    def get_listener_name(cls,
+                          listener: Callable[[None], None],
+                          name: str = None) -> str:
+        listener_name: str = 'unknown'
+        if name is not None:
+            listener_name = name
+        elif hasattr(listener, '__name__'):
+            try:
+                listener_name = listener.__name__
+            except:
+                pass
+        elif hasattr(listener, 'name'):
+            try:
+                listener_name = listener.name
+            except:
+                pass
+
+        return listener_name
+
+    @classmethod
     def register_screensaver_listener(cls,
-                                      listener: Callable[[None], None]) -> None:
+                                      listener: Callable[[None], None],
+                                      name: str = None) -> None:
         """
 
         :param listener:
+        :param name:
         :return:
         """
         with cls._screen_saver_listener_lock:
-            if not cls.is_abort_requested():
-                cls._screen_saver_listeners.append(listener)
+            if not (cls.is_abort_requested()
+                    or listener in cls._screen_saver_listeners):
+                listener_name = cls.get_listener_name(listener, name)
+
+                cls._screen_saver_listeners[listener] = listener_name
 
     @classmethod
     def unregister_screensaver_listener(cls,
@@ -156,21 +204,27 @@ class Monitor(MinimalMonitor):
         """
         with cls._screen_saver_listener_lock:
             try:
-                cls._screen_saver_listeners.remove(listener)
+                if listener in cls._screen_saver_listeners:
+                    del cls._screen_saver_listeners[listener]
             except ValueError:
                 pass
 
     @classmethod
     def register_settings_changed_listener(cls,
-                                           listener: Callable[[None], None]) -> None:
+                                           listener: Callable[[None], None],
+                                           name: str = None) -> None:
         """
 
+        :param name:
         :param listener:
         :return:
         """
         with cls._settings_changed_listener_lock:
-            if not cls.is_abort_requested():
-                cls._settings_changed_listeners.append(listener)
+            if not (cls.is_abort_requested()
+                    or listener in cls._settings_changed_listeners):
+                listener_name = cls.get_listener_name(listener, name)
+
+                cls._settings_changed_listeners[listener] = listener_name
 
     @classmethod
     def unregister_settings_changed_listener(cls,
@@ -182,21 +236,26 @@ class Monitor(MinimalMonitor):
         """
         with cls._settings_changed_listener_lock:
             try:
-                cls._settings_changed_listeners.remove(listener)
+                if listener in cls._settings_changed_listeners:
+                    del cls._settings_changed_listeners[listener]
             except ValueError:
                 pass
 
     @classmethod
     def register_abort_listener(cls,
-                                listener: Callable[[None], None]) -> None:
+                                listener: Callable[[None], None],
+                                name: str = None) -> None:
         """
 
         :param listener:
         :return:
         """
         with cls._abort_listener_lock:
-            if not cls.is_abort_requested():
-                cls._abort_listeners.append(listener)
+            if not (cls.is_abort_requested()
+                    or listener in cls._abort_listeners):
+                listener_name = cls.get_listener_name(listener, name)
+
+                cls._abort_listeners[listener] = listener_name
             else:
                 raise AbortException()
 
@@ -210,7 +269,8 @@ class Monitor(MinimalMonitor):
         """
         with cls._abort_listener_lock:
             try:
-                cls._abort_listeners.remove(listener)
+                if listener in cls._abort_listeners:
+                    del cls._abort_listeners[listener]
             except ValueError:
                 pass
 
@@ -229,10 +289,10 @@ class Monitor(MinimalMonitor):
             del cls._abort_listeners[:]  # Unregister all
             cls._abort_listeners_informed = True
 
-        for listener in listeners_copy:
+        for listener, listener_name in listeners_copy.items():
             # noinspection PyTypeChecker
             thread = threading.Thread(
-                target=listener, name='Monitor._inform_abort_listeners')
+                target=listener, name=listener_name)
             thread.start()
 
         cls.startup_complete_event.set()
@@ -243,7 +303,7 @@ class Monitor(MinimalMonitor):
         with cls._screen_saver_listener_lock:
             del cls._screen_saver_listeners[:]
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             xbmc.sleep(250)
             from common.debug_utils import Debug
             Debug.dump_all_threads()
@@ -263,12 +323,12 @@ class Monitor(MinimalMonitor):
             if cls.is_abort_requested():
                 del cls._settings_changed_listeners[:]
 
-        for listener in listeners:
+        for listener, listener_name in listeners.items():
             if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                 cls._logger.debug_verbose(
-                    'Notifying listener:', listener.__name__)
+                    'Notifying listener:', listener_name)
             thread = threading.Thread(
-                target=listener, name='Monitor.inform:' + listener.__name__)
+                target=listener, name='Monitor.inform_' + listener_name)
             thread.start()
 
     @classmethod
@@ -286,22 +346,27 @@ class Monitor(MinimalMonitor):
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             cls._logger.debug_verbose(f'Screensaver activated: {activated}')
-        for listener in listeners_copy:
-            # noinspection PyTypeChecker
+        for listener, listener_name in listeners_copy.items():
             thread = threading.Thread(
-                target=listener, name='Monitor._inform_screensaver_listeners',
+                target=listener, name='Monitor._inform_' + listener_name,
                 args=(activated,))
             thread.start()
 
     def onSettingsChanged(self) -> None:
         """
-        on_settings_changed method.
+        This method is called by xbmc when any settings have changed.
 
-        Will be called when addon settings are changed
+        Don't rely on xbmc.onSettingsChanged because we want to avoid changes to
+        app settings based upon a user's incomplete changes. Instead, rely
+        on _monitor_changes_in_settings, which waits a minute after settings.xml
+        file is stable before notification.
+
+        Real settings changed notification caused by on_settings_changed method.
 
         :return:
         """
-        type(self).on_settings_changed()
+        # type(self).on_settings_changed()
+        pass
 
     @classmethod
     def on_settings_changed(cls) -> None:
@@ -450,7 +515,7 @@ class Monitor(MinimalMonitor):
         return is_set
 
     @classmethod
-    def throw_exception_if_abort_requested(cls, timeout: float = 0) -> None:
+    def throw_exception_if_abort_requested(cls, timeout: float = 0.0) -> None:
         """
          Throws an AbortException if Abort has been set within the specified
           time period.

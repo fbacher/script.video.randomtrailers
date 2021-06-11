@@ -22,7 +22,7 @@ from common.movie_constants import MovieField, MovieType
 from common.logger import LazyLogger, Trace
 from common.settings import Settings
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.folder_movie_data import FolderMovieData
 
@@ -54,6 +54,16 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                          args=(), kwargs=kwargs)
         self._movie_data = FolderMovieData()
 
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
+
+        :return:
+        """
+        return Settings.is_include_trailer_folders()
+
     def discover_basic_information(self) -> None:
         """
 
@@ -62,7 +72,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         clz = type(self)
 
         self.start()
-        # self._trailer_fetcher.start_fetchers(self)
+        # self._parent_trailer_fetcher.start_fetchers(self)
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz.logger.debug_extra_verbose(': started')
 
@@ -81,14 +91,13 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     self.discover_basic_information_worker(
                         Settings.get_trailers_paths())
                     self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
+                except StopDiscoveryException:
                     # Restart discovery
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug('Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_trailer_folders():
+                    if not Settings.is_include_trailer_folders():
                         finished = True
-                        self.remove_self()
+                        # self.destroy()
 
         except AbortException:
             return  # Just exit thread
@@ -185,8 +194,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         clz.logger.enter()
 
         try:
-            stop_thread: bool = not Settings.get_include_trailer_folders()
+            stop_thread: bool = not Settings.is_include_trailer_folders()
             if stop_thread:
-                self.restart_discovery(stop_thread)
+                self.stop_thread()
         except Exception as e:
             clz.logger.exception('')

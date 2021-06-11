@@ -15,6 +15,7 @@ from common.constants import iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
 from common.exceptions import AbortException, reraise
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
 from common.movie import ITunesMovie
@@ -24,7 +25,7 @@ from common.settings import Settings
 from common.utils import Utils
 from discovery.utils.itunes_filter import ITunesFilter
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
 from backend import backend_constants
 from backend.itunes import ITunes
@@ -86,12 +87,23 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         try:
             if Settings.is_itunes_loading_settings_changed():
-                stop_thread = not Settings.get_include_itunes_trailers()
-                self.restart_discovery(stop_thread)
+                stop_thread = not Settings.is_include_itunes_trailers()
+                if stop_thread:
+                    self.stop_thread()
                 self._duplicate_check.clear()
 
         except Exception as e:
             clz.logger.exception('')
+
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
+
+        :return:
+        """
+        return Settings.is_include_itunes_trailers()
 
     def is_duplicate(self, key):
         clz = type(self)
@@ -115,26 +127,31 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             while not finished:
                 try:
                     self.run_worker()
-                    self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
-                    # Restart discovery
+
+                    # Normal return, finished discovery
+
+                    self.finished_discovery()
+                    duration: datetime.timedelta = datetime.datetime.now() - start_time
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(
+                            Trace.STATS):
+                        clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
+                                         trace=Trace.STATS)
+                    finished = True
+
+                    # self.wait_until_restart_or_shutdown()
+                except StopDiscoveryException:
+                    # Stopping discovery, probably settings changed
+
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose('Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_itunes_trailers():
-                        finished = True
-                        self.remove_self()
+                        clz.logger.debug_verbose('Stopping discovery')
+                    # self.destroy()
+                    # GarbageCollector.add_thread(self)
+                    finished = True
 
         except AbortException:
             return  # Just exit thread
         except Exception:
             clz.logger.exception('')
-
-        self.finished_discovery()
-        duration: datetime.timedelta = datetime.datetime.now() - start_time
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(Trace.STATS):
-            clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
-                             trace=Trace.STATS)
 
     '''
     def send_cached_movies_to_discovery(self) -> None:

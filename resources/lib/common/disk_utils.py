@@ -601,6 +601,7 @@ class FindFiles(Iterable):
             target=self._run,
             name='find files')
         self._find_thread.start()
+        self._find_thread.setName(f'Find Files: {top}')
 
     def _run(self) -> None:
         clz = type(self)
@@ -608,6 +609,7 @@ class FindFiles(Iterable):
             # glob uses more resources than iglob since it must build entire
             # list before returning. iglob, returns one at a time.
 
+            self.name = f'Find Files'
             for path in self._path.glob(self._glob_pattern):
                 #  clz._logger.debug(f'path: {path}')
                 if self._die:

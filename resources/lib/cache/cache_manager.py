@@ -411,7 +411,6 @@ class CacheManager:
                 target=self.drive_garbage_collection_wrapper, name='cacheMonitor')
             self._cache_monitor_thread.start()
             # For some reason did not see thread name while using debugger
-            self._cache_monitor_thread.setName('cacheMonitor')
 
     def drive_garbage_collection_wrapper(self) -> None:
         """
@@ -422,6 +421,9 @@ class CacheManager:
         """
         local_class = CacheManager
         try:
+            # sometimes the thread name is not set properly.
+            # Perhaps a pydevd thing?
+            self._cache_monitor_thread.setName('cacheMonitor')
             self.drive_garbage_collection()
 
         except AbortException as e:

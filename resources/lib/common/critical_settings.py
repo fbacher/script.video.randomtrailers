@@ -59,7 +59,7 @@ class CriticalSettings:
         :return:
         """
         log_level = 30
-        xbmc.log('get_logging_level', level=xbmc.LOGDEBUG)
+        # xbmc.log('get_logging_level', level=xbmc.LOGDEBUG)
         translated_value = None
 
         try:
@@ -92,7 +92,7 @@ class CriticalSettings:
             else:
                 log_level = CriticalSettings.addon.setting('log_level')
                 msg = 'got log_level from settings: {!s}'.format(log_level)
-                xbmc.log(msg, level=xbmc.LOGDEBUG)
+                # xbmc.log(msg, level=xbmc.LOGDEBUG)
                 log_level = int(log_level)
                 translated_value = 50
                 if log_level <= 0:  # Warning
@@ -113,7 +113,7 @@ class CriticalSettings:
                 # record.lineno)
                 msg = 'get_logging_level got log_level: {!s}'.format(
                     translated_value)
-                xbmc.log(msg, level=xbmc.LOGDEBUG)
+                # xbmc.log(msg, level=xbmc.LOGDEBUG)
         except Exception:
             xbmc.log('Exception occurred in get_logging_level',
                      level=xbmc.LOGERROR)

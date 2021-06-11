@@ -13,6 +13,7 @@ from common.constants import Constants
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
 from common.exceptions import AbortException, reraise
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
 from common.movie import LibraryMovie, BaseMovie
@@ -21,7 +22,7 @@ from common.logger import Trace, LazyLogger
 from common.settings import Settings
 from discovery.utils.library_filter import LibraryFilter
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
 from backend.movie_utils import LibraryMovieStats
 from backend.json_utils_basic import JsonUtilsBasic
@@ -107,20 +108,15 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz.logger.debug_verbose(': started')
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Rediscover trailers if the changed settings impacts this manager.
-        """
-        clz = DiscoverLibraryMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.enter()
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-        try:
-            if Settings.is_library_loading_settings_changed():
-                stop_thread = not Settings.get_include_library_trailers()
-                self.restart_discovery(stop_thread)
-        except Exception as e:
-            clz.logger.exception('')
+        :return:
+        """
+        return Settings.is_include_library_trailers()
 
     def run(self) -> None:
         """
@@ -135,33 +131,29 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 try:
                     self._some_movies_discovered_event.clear()
                     self.run_worker()
-                    self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
-                    # Restart discovery
+                    self.finished_discovery()
+
+                    # Unblock other discovery threads
+
+                    self._some_movies_discovered_event.set()
+
+                    duration = datetime.datetime.now() - start_time
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_library_trailers():
-                        finished = True
-                        self.remove_self()
-                self._some_movies_discovered_event.set()
+                        clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
+                                         trace=Trace.STATS)
+                    finished = True
+                    # self.wait_until_restart_or_shutdown()
+                except StopDiscoveryException:
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        clz.logger.debug('Stopping discovery')
+                    self.destroy()
+                    GarbageCollector.add_thread(self)
+                    finished = True
 
         except AbortException:
             return  # Just exit thread
         except Exception as e:
             clz.logger.exception('')
-
-        # TODO: Move before wait_until_restart_or_shutdown()
-        self.finished_discovery()
-
-        # Unblock other discovery threads
-
-        self._some_movies_discovered_event.set()
-
-        duration = datetime.datetime.now() - start_time
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
-                             trace=Trace.STATS)
 
     @classmethod
     def create_query(cls,
@@ -324,7 +316,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         if Monitor.is_abort_requested():
             return
 
-        self._include_library_trailers = Settings.get_include_library_trailers()
+        self._include_library_trailers = Settings.is_include_library_trailers()
         self._include_library_no_trailers = Settings.is_include_library_no_trailer_info()
         self._include_library_remote_trailers = \
             Settings.is_include_library_remote_trailers()
@@ -390,6 +382,12 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             movie_data = LibraryMovieStats()
 
         movie: Dict[str, Any]
+
+        movies_found: int = 0
+        movies_with_trailer_urls: int = 0
+        movies_with_local_trailers: int = 0
+        movies_without_trailer_info: int = 0
+        movies_skipped: int = 0
 
         movie_iterator: Iterator[Dict[str, Any]] = iter(movies)
         while True:
@@ -548,27 +546,16 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                          args=(), kwargs=None)
         self._movie_data = LibraryURLMovieData()
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Settings changes is handled by DiscoveryLibraryTrailerMovies
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-            Settings changes only impact library entries with Trailer URLs
-            to stop it. Since we are here, Trailer URL discovery was active
-            prior to the settings change, therefore, only do something if
-            we are no longer active.
+        :return:
         """
-        clz = DiscoverLibraryURLTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.enter()
-
-        try:
-            stop_thread = not Settings.is_include_library_remote_trailers()
-            if stop_thread:
-                self.restart_discovery(stop_thread)
-        except AbortException:
-            pass  # don't pass exception to handler
-        except Exception as e:
-            clz.logger.exception('')
+        return (Settings.is_include_library_remote_trailers()
+                and Settings.is_include_library_trailers())
 
     def discover_basic_information(self) -> None:
         """
@@ -592,11 +579,11 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
             try:
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
-            except RestartDiscoveryException:
-                # Restart discovery
+            except StopDiscoveryException:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz.logger.debug_verbose('Restarting discovery')
-                self.prepare_for_restart_discovery()
+                    clz.logger.debug_verbose('Stopping discovery')
+                self.destroy()
+                finished = True
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
@@ -626,25 +613,16 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                          args=(), kwargs=None)
         self._movie_data = LibraryNoTrailerMovieData()
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Settings changes is handled by DiscoveryLibraryTrailerMovies
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-            Settings changes only impact discovery of library entries without
-            Trailer entries to stop it. Since we are here, Trailer discovery
-            was active prior to the settings change, therefore, only do
-            something if we are no longer active.
+        :return:
         """
-        clz = DiscoverLibraryNoTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.enter()
-
-        try:
-            stop_thread = not Settings.is_include_library_no_trailer_info()
-            if stop_thread:
-                self.restart_discovery(stop_thread)
-        except Exception as e:
-            clz.logger.exception('')
+        return (Settings.is_include_library_no_trailer_info()
+                and Settings.is_include_library_trailers())
 
     def discover_basic_information(self) -> None:
         """
@@ -668,11 +646,11 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             try:
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
-            except RestartDiscoveryException:
-                # Restart discovery
+            except StopDiscoveryException:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('Restarting discovery')
-                self.prepare_for_restart_discovery()
+                    clz.logger.debug('Stopping discovery')
+                self.destroy()
+                finished = True
             except AbortException:
                 return  # Just exit thread
             except Exception as e:

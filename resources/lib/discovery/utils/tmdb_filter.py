@@ -17,7 +17,7 @@ from common.rating import Certification, WorldCertifications
 from common.settings import Settings
 
 from common.exceptions import AbortException, reraise
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -102,7 +102,7 @@ class TMDbFilter:
                   and not Settings.get_include_clips()):
                 filter_passes = False
             elif (movie_type == MovieField.TRAILER_TYPE_TRAILER
-                  and not Settings.get_include_tmdb_trailers()):
+                  and not Settings.is_include_tmdb_trailers()):
                 filter_passes = False
 
             elif movie.get_certification_id() is not None:
@@ -181,7 +181,7 @@ class TMDbFilter:
             })
             """
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             cls.logger.exception('')

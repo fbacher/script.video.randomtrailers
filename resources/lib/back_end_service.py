@@ -55,7 +55,6 @@ class MainThreadLoop:
             # Cheat and start the back_end_bridge here, although this method
             # should just be a loop.
 
-            xbmc.log('In event_processing_loop', xbmc.LOGDEBUG)
             worker_thread_initialized = False
             bridge_initialized = False
 
@@ -82,14 +81,6 @@ class MainThreadLoop:
                 if i == switch_timeouts_count:
                     timeout = 0.10
 
-                """
-                try:
-                     task = self._callableTasks.get(block=False)
-                     self.run_task(task)
-                 except Empty as e:
-                     pass
-                """
-
                 if start_backend_count_down > 0:
                     start_backend_count_down -= 1.0
                 else:
@@ -106,9 +97,8 @@ class MainThreadLoop:
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            xbmc.log('xbmc.log Exception: ' + str(e), xbmc.LOGERROR)
+            # xbmc.log('xbmc.log Exception: ' + str(e), xbmc.LOGERROR)
             module_logger.exception(e, lazy_logger=True)
-            # type(self)._logger.exception('')
 
     @classmethod
     def start_back_end_bridge(cls) -> None:
@@ -128,40 +118,6 @@ class MainThreadLoop:
             xbmc.log('Exception: ' + str(e), xbmc.LOGERROR)
             # module_logger# .exception('')
 
-    '''
-    @classmethod
-    def run_on_main_thread(cls,
-                           callable_class: Callable[[None], None] = None) -> None:
-        """
-
-        :param callable_class:
-        :return:
-        """
-        cls._callableTasks.put(callable_class)
-    '''
-
-    '''
-    @classmethod
-    def run_task(cls,
-                 callable_class: Callable[[None], None] = None) -> None:
-        """
-
-        :param callable_class:
-        :return:
-        """
-        # if type(self)._logger.isEnabledFor(LazyLogger.DEBUG):
-        #    type(self)._logger.debug('%s', 'Enter', lazy_logger=False)
-        try:
-            callable_class()
-
-        except AbortException:
-            pass
-            # reraise(*sys.exc_info())
-        except Exception as e:
-            module_logger.exception(e, lazy_logger=True)
-            # type(self)._logger.exception('')
-    '''
-
 
 def bootstrap_random_trailers() -> None:
     """
@@ -172,9 +128,8 @@ def bootstrap_random_trailers() -> None:
     :return:
     """
 
-    xbmc.log('Starting non-main thread', xbmc.LOGDEBUG)
     try:
-        xbmc.log('Starting event processing loop', xbmc.LOGDEBUG)
+        # xbmc.log('Starting event processing loop', xbmc.LOGDEBUG)
 
         MainThreadLoop.event_processing_loop()
     except AbortException as e:
@@ -195,6 +150,9 @@ def bootstrap_unit_test() -> None:
 
 if __name__ == '__main__':
     try:
+        MinimalMonitor.real_waitForAbort(0.1)  # Sometimes thread name is not set
+        threading.current_thread().name = 'RandomTrailers backend'
+        threading.current_thread().setName('RandomTrailers backend main')
         run_random_trailers = True
         argc = len(sys.argv) - 1
         is_unit_test = False
@@ -203,14 +161,10 @@ if __name__ == '__main__':
                 is_unit_test = True
                 run_random_trailers = False
         if run_random_trailers:
-            xbmc.log('main thread 4', xbmc.LOGDEBUG)
 
             # This will NOT return until exiting plugin
 
             bootstrap_random_trailers()
-
-            xbmc.log('main thread 5', xbmc.LOGDEBUG)
-
             profile = False
             if profile:
                 import cProfile

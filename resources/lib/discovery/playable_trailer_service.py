@@ -26,8 +26,9 @@ from diagnostics.statistics import Statistics
 from diagnostics.play_stats import PlayStatistics
 
 from discovery.abstract_movie_data import AbstractMovieData
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.playable_trailers_container import PlayableTrailersContainer
+from discovery.utils.recently_played_trailers import RecentlyPlayedTrailers
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -102,7 +103,7 @@ class PlayableTrailerService:
                     attempt += 1
                     movie = self._do_next()
                     finished = True
-                except RestartDiscoveryException:
+                except StopDiscoveryException:
                     Monitor.throw_exception_if_abort_requested(timeout=0.10)
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz.logger.debug_verbose(
@@ -271,10 +272,10 @@ class PlayableTrailerService:
         if trailer is None:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz.logger.debug_verbose('Trailer not found by preferred method',
-                                          trace=Trace.TRACE)
+                                         trace=Trace.TRACE)
 
             # Alternative method is to pick a random PlayableTrailersContainer to start
-            # with and then find one that has a MovieField. Otherwise, camp out.
+            # with and then find one that has a trailer. Otherwise, camp out.
 
             second_attempt_start_time = datetime.datetime.now()
             second_method_attempts = 0
@@ -318,21 +319,16 @@ class PlayableTrailerService:
                 except queue.Empty:
                     pass  # try again
 
-                recently_played_trailers = \
-                    PlayableTrailersContainer.get_recently_played_trailers()
-                if len(recently_played_trailers) != 0:
-                    recently_played_list = list(
-                        recently_played_trailers.values())
-                    trailer_index_to_play = DiskUtils.RandomGenerator.randint(
-                        0, len(recently_played_trailers) - 1)
-                    trailer = recently_played_list[trailer_index_to_play]
-                    break
-
                 iteration += 1
                 if iteration % len(playable_trailers_list) == 0:
                     second_method_attempts += 1
                     Monitor.throw_exception_if_abort_requested(
                         timeout=0.5)
+
+        # Scraping the barrel, try replaying a recently played trailer.
+
+        if trailer is None:
+            trailer = RecentlyPlayedTrailers.get_recently_played()
 
         if trailer is None:  # No movie found from all our sources (lib, tmdb, tfh, etc)
             self._next_failures += 1
@@ -395,8 +391,8 @@ class PlayableTrailerService:
         """
         clz = type(self)
         Monitor.throw_exception_if_abort_requested(timeout=delay)
-        if movie_data is not None and movie_data.restart_discovery_event.isSet():
+        if movie_data is not None and movie_data.stop_discovery_event.isSet():
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('RestartDiscoveryException source:',
+                clz.logger.debug_verbose('StopDiscoveryException source:',
                                          movie_data.get_movie_source())
-            raise RestartDiscoveryException()
+            raise StopDiscoveryException()

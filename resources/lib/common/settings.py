@@ -1084,7 +1084,7 @@ class Settings:
         return allowed_trailer_types
 
     @staticmethod
-    def get_include_itunes_trailers() -> bool:
+    def is_include_itunes_trailers() -> bool:
         """
 
         :return:
@@ -1113,7 +1113,7 @@ class Settings:
             Settings.INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO)
 
     @staticmethod
-    def get_include_library_trailers() -> bool:
+    def is_include_library_trailers() -> bool:
         """
 
         :return:
@@ -1138,7 +1138,7 @@ class Settings:
             Settings.INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS)
 
     @staticmethod
-    def get_include_tmdb_trailers() -> bool:
+    def is_include_tmdb_trailers() -> bool:
         """
 
         :return:
@@ -1146,7 +1146,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_TMDB_TRAILERS)
 
     @staticmethod
-    def get_include_trailer_folders() -> bool:
+    def is_include_trailer_folders() -> bool:
         """
 
         :return:
