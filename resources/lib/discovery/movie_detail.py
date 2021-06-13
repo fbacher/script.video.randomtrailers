@@ -22,10 +22,13 @@ from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, CommunicationException, reraise
 from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
-from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie
+from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie, LibraryMovie
 from common.movie_constants import MovieField
 from common.playlist import Playlist
+from discovery.discover_library_movies import DiscoverLibraryMovies
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
+from discovery.utils.db_access import DBAccess
+from discovery.utils.parse_library import ParseLibrary
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -70,6 +73,20 @@ class MovieDetail:
             if not movie.is_tmdb_id_not_found():
                 if isinstance(movie, ITunesMovie) or isinstance(movie, TFHMovie):
                     keep_trailer = cls.merge_tmdb_info(movie)
+
+            if isinstance(movie, LibraryMovie):
+                # We only have minimal properties for Library Movies. Get the rest from
+                # the Kodi database so that they can be displayed.
+                # We do it here so that we don't 1) waste a ton of time at startup when
+                # we only need them as a trailer is actually played and 2) We don't waste
+                # the memory. We just get what we need now for display and then toss it.
+
+                query: str = DBAccess.create_details_query(
+                    movie.get_library_id())
+                raw_movie: MovieType = DBAccess.get_movie_details(query)
+                fully_populated_movie = ParseLibrary.parse_movie(is_sparse=False,
+                                                                 raw_movie=raw_movie)
+                movie = fully_populated_movie
 
             if isinstance(movie, TMDbMovie) or isinstance(movie, TFHMovie):
                 # If a movie was downloaded from TMDB or TFH, check to see if

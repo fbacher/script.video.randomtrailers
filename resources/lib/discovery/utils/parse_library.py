@@ -1,7 +1,8 @@
-
+import sys
 import time
 from datetime import datetime
 
+from common.exceptions import AbortException
 from common.imports import *
 from common.logger import LazyLogger
 from common.movie import LibraryMovie
@@ -171,3 +172,42 @@ class ParseLibrary:
         tags: List[str] = self._library_entry.get(MovieField.TAG, [])
         self._movie.set_tags(tags)
 
+    @classmethod
+    def parse_movie(cls,
+                    is_sparse: bool = True,
+                    raw_movie: MovieType = None) -> LibraryMovie:
+        movie: LibraryMovie = None
+        try:
+            movie_parser: ParseLibrary = ParseLibrary(raw_movie)
+            movie_parser.parse_title()
+            movie_parser.parse_unique_ids()
+            movie_parser.parse_year()
+            movie_parser.parse_trailer_path()
+            movie_parser.parse_last_played()
+            movie_parser.parse_certification()
+            movie_parser.parse_vote_average()
+
+            if not is_sparse:
+                movie_parser.parse_trailer_type()
+                movie_parser.parse_plot()
+                movie_parser.parse_writers()
+                movie_parser.parse_fanart()
+                movie_parser.parse_directors()
+                movie_parser.parse_actors()
+                movie_parser.parse_studios()
+                movie_parser.parse_movie_path()
+                movie_parser.parse_genres()
+                movie_parser.parse_runtime()
+                movie_parser.parse_thumbnail()
+                movie_parser.parse_original_title()
+                movie_parser.parse_votes()
+                movie_parser.parse_tags()
+
+            movie: LibraryMovie = movie_parser.get_movie()
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception:
+            cls._logger.exception('')
+            movie = None
+
+        return movie

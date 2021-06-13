@@ -20,6 +20,7 @@ from common.movie import LibraryMovie, BaseMovie
 from common.movie_constants import MovieField
 from common.logger import Trace, LazyLogger
 from common.settings import Settings
+from discovery.utils.db_access import DBAccess
 from discovery.utils.library_filter import LibraryFilter
 
 from discovery.restart_discovery_exception import StopDiscoveryException
@@ -30,7 +31,6 @@ from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.library_movie_data import (LibraryMovieData, LibraryNoTrailerMovieData,
                                           LibraryURLMovieData)
 from discovery.utils.parse_library import ParseLibrary
-from nacl.exceptions import ValueError
 
 module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -62,7 +62,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         :param args:
         :param kwargs:
         """
-        clz = DiscoverLibraryMovies
+        clz = type(self)
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
         thread_name = 'Discv Lib'
@@ -96,7 +96,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         # other discovery (TMDB, iTunes) until a few local trailers have
         # been located (~50), or so many seconds have elapsed.
 
-        countdown = Constants.EXCLUSIVE_LIBRARY_DISCOVERY_SECONDS * 10
+        countdown = Constants.EXCLUSIVE_LIBRARY_DISCOVERY_SECONDS * 5
         while not self._some_movies_discovered_event.wait(timeout=0.1):
             Monitor.throw_exception_if_abort_requested()
             if self._some_movies_discovered_event.is_set():
@@ -155,112 +155,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         except Exception as e:
             clz.logger.exception('')
 
-    @classmethod
-    def create_query(cls,
-                     included_genres: List[str],
-                     excluded_genres: List[str],
-                     included_tags: List[str],
-                     excluded_tags: List[str]
-                     ) -> str:
-        """
-
-        :param included_genres:
-        :param excluded_genres:
-        :param included_tags:
-        :param excluded_tags:
-        :return:
-        """
-        formatted_genre_list = ', '.join('"' + genre + '"' for genre in included_genres)
-        formatted_excluded_genre_list = ', '.join('"' + genre + '"' for genre in excluded_genres)
-
-        formatted_tag_list = ', '.join('"' + tag + '"' for tag in included_tags)
-        formatted_excluded_tag_list = ', '.join('"' + tag + '"' for tag in excluded_tags)
-
-        query_prefix = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
-                    "params": {\
-                    "properties": \
-                        ["title", "lastplayed", "studio", "cast", "plot", "writer", \
-                        "director", "fanart", "rating", "ratings", "runtime", "mpaa", \
-                        "thumbnail", "file", \
-                        "year", "genre", "tag", "trailer", "uniqueid", "userrating",' \
-                       '"votes"]'
-        query_suffix = '}, "id": 1}'
-        query_filter_prefix = ''
-        include_query_filter = ''
-        tag_filter = ''
-        genre_filter = ''
-
-        if (len(included_genres) > 0 or len(included_tags) > 0 or len(excluded_genres) > 0
-                or len(excluded_tags) > 0):
-            query_filter_prefix = ', "filter": '
-
-        exclude_filters = []
-        include_filters = []
-        if len(included_genres) > 0:
-            genre_filter = (f'{{"field": "genre", "operator": "contains", "value": '
-                            f'[{formatted_genre_list}]}}')
-            include_filters.append(genre_filter)
-
-        if len(included_tags) > 0:
-            tag_filter = (f'{{"field": "tag", "operator": "contains", "value": '
-                          f'[{formatted_tag_list}]}}')
-            include_filters.append(tag_filter)
-
-        combined_include_filter: List[str] = []
-        include_sub_query_filter: str = ''
-        if len(include_filters) == 1:
-            include_filters_str: str = ', '.join(include_filters)
-            include_sub_query_filter = f'{include_filters[0]}'
-            combined_include_filter.append(include_sub_query_filter)
-        elif len(include_filters) > 1:
-            include_filters_str: str = ', '.join(include_filters)
-            include_sub_query_filter = f'{{"or": [{include_filters_str}]}}'
-            combined_include_filter.append(include_sub_query_filter)
-
-        if len(excluded_genres) > 0:
-            excluded_genre_filter = (
-                        f'{{"field": "genre", "operator": "doesnotcontain", '
-                        f'"value": [{formatted_excluded_genre_list}]}}')
-            exclude_filters.append(excluded_genre_filter)
-
-        if len(excluded_tags) > 0:
-            excluded_tag_filter = (
-                        'f{{"field": "tag", "operator": "doesnotcontain", '
-                        f'"value": [{formatted_excluded_tag_list}]}}')
-            exclude_filters.append(excluded_tag_filter)
-
-        combined_exclude_filter = []
-        exclude_sub_query_filter = ''
-        if len(exclude_filters) > 1:
-            exclude_filters_str = ', '.join(exclude_filters)
-            exclude_sub_query_filter = f'{{"or": [{exclude_filters_str}]}}'
-            combined_exclude_filter.append(exclude_sub_query_filter)
-        elif len(exclude_filters) == 1:
-            exclude_sub_query_filter = exclude_filters[0]
-            combined_exclude_filter.append(exclude_sub_query_filter)
-
-        combined_filter = []
-        if len(combined_include_filter) > 0:
-            combined_filter.append(combined_include_filter[0])
-        if len(combined_exclude_filter) > 0:
-            combined_filter.append(combined_exclude_filter[0])
-        query_filter = ''
-        if len(combined_filter) > 1:
-            query_filter = f'{{"and": [{", ".join(combined_filter)}]}}'
-        elif len(combined_filter) == 1:
-            query_filter = combined_filter[0]
-
-        query = (query_prefix + query_filter_prefix +
-                 query_filter + query_suffix)
-
-        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.debug_verbose('query', 'genres:', included_genres,
-                                     'excluded_genres:', excluded_genres, 'tags:',
-                                     included_tags, 'excluded_tags:',
-                                     excluded_tags, query)
-
-        return query
-
     def run_worker(self) -> None:
         """
            Initial Discovery of all movies in Kodi.
@@ -309,9 +203,12 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             self._excluded_keywords = GenreUtils.get_internal_kodi_keyword_ids(
                 GenreUtils.LOCAL_DATABASE, exclude=True)
 
-        query = self.create_query(
-            self._selected_genres, self._excluded_genres, self._selected_keywords,
-            self._excluded_keywords)
+        is_sparse = True
+        query = DBAccess.create_query(is_sparse,
+                                      self._selected_genres,
+                                      self._excluded_genres,
+                                      self._selected_keywords,
+                                      self._excluded_keywords)
 
         if Monitor.is_abort_requested():
             return
@@ -325,8 +222,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         Monitor.throw_exception_if_abort_requested()  # Expensive operation
         query_result: Dict[str, Any] = {}
         try:
-            query_result: Dict[str, Any] = JsonUtilsBasic.get_kodi_json(query,
-                                                                        dump_results=False)
+            query_result: Dict[str, Any] =\
+                JsonUtilsBasic.get_kodi_json(query, dump_results=False)
             if query_result.get('error') is not None:
                 raise ValueError
                 
@@ -335,12 +232,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz.logger.debug_verbose('Library query seconds:',
                                          elapsed_time.total_seconds())
-
-            movies_skipped: int = 0
-            movies_found: int = 0
-            movies_with_local_trailers: int = 0
-            movies_with_trailer_urls: int = 0
-            movies_without_trailer_info: int = 0
 
             self.throw_exception_on_forced_to_stop()
             result: Dict[str, Any] = query_result.get('result', {})
@@ -360,7 +251,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                                                     query, indent=3, sort_keys=True))
             except Exception:
                 pass
-
 
             movies = []
 
@@ -393,49 +283,29 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         while True:
             self.throw_exception_on_forced_to_stop()
             try:
-                movie: Dict[str, Any] = next(movie_iterator)
+                raw_movie: Dict[str, Any] = next(movie_iterator)
                 movies_found += 1
-                movie_parser: ParseLibrary = ParseLibrary(movie)
-                movie_parser.parse_title()
-                movie_parser.parse_last_played()
-                movie_parser.parse_certification()
-                movie_parser.parse_trailer_path()
-                movie_parser.parse_trailer_type()
-                movie_parser.parse_plot()
-                movie_parser.parse_writers()
-                movie_parser.parse_fanart()
-                movie_parser.parse_directors()
-                movie_parser.parse_actors()
-                movie_parser.parse_studios()
-                movie_parser.parse_movie_path()
-                movie_parser.parse_year()
-                movie_parser.parse_genres()
-                movie_parser.parse_runtime()
-                movie_parser.parse_thumbnail()
-                movie_parser.parse_original_title()
-                movie_parser.parse_vote_average()
-                movie_parser.parse_votes()
-                movie_parser.parse_unique_ids()
-                movie_parser.parse_tags()
 
-                library_movie: LibraryMovie = movie_parser.get_movie()
-                rejection_reasons: List[int] = LibraryFilter.filter_movie(library_movie)
+                movie: LibraryMovie = ParseLibrary.parse_movie(is_sparse=True,
+                                                               raw_movie=raw_movie)
+
+                rejection_reasons: List[int] = LibraryFilter.filter_movie(movie)
                 if len(rejection_reasons) == 0:
-                    if library_movie.is_trailer_url():
+                    if movie.is_trailer_url():
                         movies_with_trailer_urls += 1
                         if self._include_library_remote_trailers:
-                            library_url_movies.append(library_movie)
+                            library_url_movies.append(movie)
                     else:
                         movies_with_local_trailers += 1
                         if self._include_library_trailers:
-                            library_movies.append(library_movie)
+                            library_movies.append(movie)
 
                 elif (MovieField.REJECTED_NO_TRAILER in rejection_reasons
                         and len(rejection_reasons) == 1):
                     rejection_reasons.clear()  # So we don't report as error
                     movies_without_trailer_info += 1
                     if self._include_library_no_trailers:
-                        library_no_trailer_movies.append(library_movie)
+                        library_no_trailer_movies.append(movie)
 
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     if len(rejection_reasons) > 0: 
@@ -443,14 +313,14 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                             BaseMovie.get_rejection_reasons_str(rejection_reasons)
                         clz.logger.debug_extra_verbose(
                             f'Filter failed for: '
-                            f'{library_movie.get_title()} '
+                            f'{movie.get_title()} '
                             f'- {", ".join(rejection_reasons_str)}')
 
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    Debug.validate_basic_movie_properties(library_movie)
+                    Debug.validate_basic_movie_properties(movie)
 
                 if collect_stats:
-                    movie_data.collect_data(library_movie)
+                    movie_data.collect_data(movie)
 
                 self.add_movies_to_discovery_queues(library_movies, library_url_movies,
                                                     library_no_trailer_movies,

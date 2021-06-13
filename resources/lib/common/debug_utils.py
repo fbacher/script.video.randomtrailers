@@ -17,7 +17,7 @@ import xbmc
 from common.constants import Constants
 from common.imports import *
 from common.logger import LazyLogger
-from common.movie import AbstractMovie
+from common.movie import AbstractMovie, LibraryMovie
 from common.movie_constants import MovieField, MovieType
 from common.rating import WorldCertifications
 from common.settings import Settings
@@ -208,6 +208,9 @@ class Debug:
             return
 
         movie: MovieType
+        if isinstance(movie_arg, LibraryMovie):
+            return 
+        
         if isinstance(movie_arg, AbstractMovie):
             movie = movie_arg.get_as_movie_type()
         else:
