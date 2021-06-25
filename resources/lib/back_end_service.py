@@ -112,7 +112,8 @@ class MainThreadLoop:
             import backend_service_worker
             thread = threading.Thread(
                 target=backend_service_worker.startup_non_main_thread,
-                name='back_end_service.startup_non_main_thread')
+                name='back_end_service.startup_non_main_thread',
+                daemon=False)
             thread.start()
         except Exception as e:
             xbmc.log('Exception: ' + str(e), xbmc.LOGERROR)
@@ -152,7 +153,6 @@ if __name__ == '__main__':
     try:
         MinimalMonitor.real_waitForAbort(0.1)  # Sometimes thread name is not set
         threading.current_thread().name = 'RandomTrailers backend'
-        threading.current_thread().setName('RandomTrailers backend main')
         run_random_trailers = True
         argc = len(sys.argv) - 1
         is_unit_test = False
@@ -168,8 +168,8 @@ if __name__ == '__main__':
             profile = False
             if profile:
                 import cProfile
-                MainThreadLoop.profiler = cProfile.Profile()
-                MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
+                # MainThreadLoop.profiler = cProfile.Profile()
+                # MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
         elif is_unit_test:
             bootstrap_unit_test()
     except AbortException:

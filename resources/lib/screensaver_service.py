@@ -63,8 +63,7 @@ try:
             _monitor.throw_exception_if_abort_requested(timeout=0.01)
 
     MinimalMonitor.abort_requested()
-    while not MinimalMonitor.real_waitForAbort(timeout=0.1):
-        pass
+    MinimalMonitor.real_waitForAbort()
 
 except AbortException:
     pass
