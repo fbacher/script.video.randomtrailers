@@ -48,7 +48,8 @@ class GarbageCollector:
 
         garbage_collector = threading.Thread(
             target=cls.join_dead_threads,
-            name='Thread garbage collection')
+            name='Thread garbage collection',
+            daemon=False)
 
         garbage_collector.start()
 
@@ -90,7 +91,7 @@ class GarbageCollector:
                                                         f'{thread.ident}')
                     cls._threads_to_join.remove(thread)
 
-            if Monitor.wait_for_abort(timeout=10.0):
+            if Monitor.wait_for_abort(timeout=1.0):
                 del cls._threads_to_join
                 finished = True
 
