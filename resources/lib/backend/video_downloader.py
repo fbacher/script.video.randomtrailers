@@ -370,7 +370,7 @@ class VideoDownloader:
         return self._error, movie
 
     def get_info(self, url: str, movie_source: str,
-                 block: bool = False) -> Tuple[int, Optional[List[MovieType]]]:
+                 block: bool = False) -> Tuple[int, List[MovieType]]:
         """
         Instead of downloading a video, get basic information about the video
 
@@ -381,7 +381,7 @@ class VideoDownloader:
         :return: a dictionary (MovieType) from the json returned by site
         """
         clz = VideoDownloader
-        trailer_info: Optional[List[MovieType]] = None
+        trailer_info: List[MovieType] = []
         clz.delay_between_transactions(movie_source, False)
         info_logger = TfhInfoLogger(self, url, parse_json_as_youtube=False)
 
@@ -395,7 +395,7 @@ class VideoDownloader:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz._logger.debug_verbose(
                             f'Not getting info url: {url} Too Many Requests')
-                    return too_many_requests, None
+                    return too_many_requests, []
             else:
                 clz.wait_if_too_many_requests(movie_source, True)
 
@@ -433,7 +433,7 @@ class VideoDownloader:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz._logger.debug_verbose(
                         'Failed to download site info for:', url)
-            trailer_info = None
+            trailer_info = []
         finally:
             clz.release_lock(movie_source)  # LOCK RELEASED
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
@@ -451,6 +451,9 @@ class VideoDownloader:
             info_logger.log_error()
 
         Monitor.throw_exception_if_abort_requested()
+        if trailer_info is None:
+            trailer_info = []
+
         return 0, trailer_info
 
     def get_tfh_index(self, url: str, trailer_handler,

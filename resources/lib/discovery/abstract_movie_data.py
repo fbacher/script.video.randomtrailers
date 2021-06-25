@@ -12,6 +12,7 @@ import threading
 import sys
 import datetime
 
+from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, DuplicateException, reraise
 from common.imports import *
@@ -210,6 +211,10 @@ class MovieList:
         self._number_of_added_movies: int = 0
         self._ordered_dict: OrderedDict = OrderedDict()
 
+    def __sizeof__(self) -> int:
+        approx_size: int =  Debug.total_size(self._ordered_dict)
+        return approx_size
+
     def clear(self) -> None:
         """
 
@@ -237,7 +242,7 @@ class MovieList:
         """
         clz = MovieList
 
-        if self.logger.isEnabledFor(LazyLogger.DEBUG):
+        if self.logger.isEnabledFor(LazyLogger.DISABLED):
             self.logger.debug(f'movie: {movie} source: {movie.get_source()}')
 
         # Key is source + _ + id
@@ -248,12 +253,14 @@ class MovieList:
             if key in self._ordered_dict.keys():
                 current_value = self._ordered_dict.get(key)
                 new_movie = False
-                # Movies are from same source
-                # If replacing an Id with a Movie, then fine
-                # Otherwise, duplicate error
-            
-                if not (isinstance(current_value, AbstractMovieId)
-                        and isinstance(movie, AbstractMovie)):
+                # Movies are from same source then complain about
+                # duplicate, unless one is a movie id and the other
+                # is a movie.
+
+                if (not (isinstance(current_value, AbstractMovieId)
+                         and isinstance(movie, AbstractMovie))
+                        or not (isinstance(current_value, AbstractMovie)
+                                and isinstance(movie, AbstractMovieId))):
                     raise DuplicateException()
 
             # If we didn't raise Exception, then okay to add or replace
@@ -418,6 +425,11 @@ class AbstractMovieData:
             TrailerFetcher(self, fetcher_thread_name)
         self._minimum_shuffle_seconds: int = 10
 
+    def get_size_of(self) -> int:
+        size_of_discovered_movies: int = Debug.total_size(self._discovered_movies,
+                                                          verbose=True)
+        return size_of_discovered_movies
+
     def start_trailer_fetchers(self) -> None:
         """
 
@@ -525,7 +537,7 @@ class AbstractMovieData:
             #     clz.logger.debug('Have discovered_trailers_lock')
             movie: BaseMovie
             for movie in movies:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                     clz.logger.debug_extra_verbose(f' {str(movie)} '
                                                    f'source: {movie.get_source()} '
                                                    f'discovery_state: '
@@ -572,6 +584,26 @@ class AbstractMovieData:
                     trace=Trace.TRACE_DISCOVERY)
 
             self.shuffle_discovered_movies(mark_unplayed=False)
+
+    def replace(self, movie: Union[BaseMovie, MovieType]) -> None:
+        """
+            Replace a MovieId with a MovieType or visa versa. Done
+            to save space, or to add newly discovered information.
+
+        :param movie:
+        :return:
+        """
+        clz = type(self)
+        with self._discovered_movies_lock:
+            self._discovered_movies.add(movie)
+
+    def purge_rediscoverable_data(self, movie: AbstractMovie) -> None:
+        #
+        # Used to clear out fully populated movie data and just keep movieid.
+        # This keeps tables from continually growing. When caching is enabled
+        # the data is locally available and not too expensive to rediscover.
+
+        pass
 
     def have_trailers_been_discovered(self) -> bool:
         """

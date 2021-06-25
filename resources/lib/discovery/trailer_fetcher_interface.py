@@ -16,10 +16,11 @@ class TrailerFetcherInterface(threading.Thread):
 
     """
 
-    def __init__(self, thread_name: str) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """
 
                  :param thread_name
         """
 
-        super().__init__(name=thread_name)
+        kwargs['daemon'] = False
+        super().__init__(*args, **kwargs)

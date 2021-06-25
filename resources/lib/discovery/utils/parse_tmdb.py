@@ -9,6 +9,7 @@ import sys
 from backend.backend_constants import YOUTUBE_URL_PREFIX
 from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import TrailerUnavailableCache
+# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TMDbMovie
@@ -161,7 +162,7 @@ class ParseTMDb:
                                                  f'{trailer_url}')
                 self._tmdb_movie.set_trailer(trailer_url)
                 self._tmdb_movie.set_trailer_type(trailer_type)
-                CacheIndex.add_cached_tmdb_trailer(tmdb_id_int)
+                CacheIndex.add_tmdb_id_with_trailer(tmdb_id_int)
             else:
                 TrailerUnavailableCache.add_missing_tmdb_trailer(
                     tmdb_id=tmdb_id_int,
@@ -179,7 +180,7 @@ class ParseTMDb:
 
                 #  TODO: Movie to caller, or some other central location
 
-                CacheIndex.remove_unprocessed_movies(tmdb_id_int)
+                CacheIndex.remove_unprocessed_movie(tmdb_id_int)
                 is_success = False
         except Exception as e:
             reraise(*sys.exc_info())

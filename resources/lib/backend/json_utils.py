@@ -44,7 +44,7 @@ class JsonUtils(JsonUtilsBasic):
 
 '''
     @staticmethod
-    def get_cached_json(url: str,
+    def get_cached_tmdb_movie(url: str,
                         movie_id: Union[str, int] = None,
                         error_msg: Union[str, int] = None,
                         source: str = None,

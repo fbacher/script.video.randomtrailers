@@ -142,6 +142,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                         clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
                                          trace=Trace.STATS)
                     finished = True
+                    used_memory: int = self._movie_data.get_size_of()
+                    used_mb: float = float(used_memory) / 1000000.0
+                    self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
                     # self.wait_until_restart_or_shutdown()
                 except StopDiscoveryException:
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):

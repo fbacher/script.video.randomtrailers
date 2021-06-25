@@ -11,6 +11,7 @@ import datetime
 import glob
 import os
 
+# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.garbage_collector import GarbageCollector
 from common.monitor import Monitor
 from common.constants import Constants
@@ -62,17 +63,18 @@ class TrailerFetcher(TrailerFetcherInterface):
     NUMBER_OF_FETCHERS: Final[int] = 1
     _logger: LazyLogger = None
 
-    def __init__(self, movie_data: AbstractMovieData,
-                 thread_name: str = 'No TrailerFetcher Thread Name') -> None:
+    def __init__(self, movie_data: AbstractMovieData, *args: Any,
+                 **kwargs: Any) -> None:
         """
 
                  :param movie_data
-                 :param thread_name:
+                 :param name:
         """
+        kwargs.setdefault('name', 'No TrailerFetcher Thread Name')
+        super().__init__(*args, **kwargs)
         clz = type(self)
         clz._logger = module_logger.getChild(clz.__name__)
         clz._logger.enter()
-        super().__init__(thread_name=thread_name)
         self._movie_data: AbstractMovieData = movie_data
         self._playable_trailers: PlayableTrailersContainer = PlayableTrailersContainer(
             movie_data.get_movie_source())
@@ -84,7 +86,6 @@ class TrailerFetcher(TrailerFetcherInterface):
         self._stop_add_ready_to_play_time: datetime.datetime = None
         self._stop_thread: bool = False
         self._child_trailer_fetchers: List['TrailerFetcher'] = []
-        self._thread_name: str = 'no name'
 
     def start_fetchers(self) -> None:
         """
@@ -100,11 +101,13 @@ class TrailerFetcher(TrailerFetcherInterface):
         i: int = 0
         while i < self.NUMBER_OF_FETCHERS:
             i += 1
-            thread_name = 'Fetcher_' + self._movie_data.get_movie_source() + ':' + str(i)
-            self._thread_name = thread_name
+            thread_name = f'Fetcher_{self._movie_data.get_movie_source()}: {str(i)}'
             trailer_fetcher: TrailerFetcher = TrailerFetcher(
                 self._movie_data,
-                thread_name=thread_name)
+                name=thread_name,
+                daemon=False)
+            trailer_fetcher.setName(thread_name)
+
             Monitor.register_abort_listener(trailer_fetcher.shutdown_thread)
             self._child_trailer_fetchers.append(trailer_fetcher)
             trailer_fetcher.start()
@@ -112,7 +115,10 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_verbose(f'trailer fetcher started thread name: '
-                                          f'{self.name} id: {self.ident}')
+                                          f'{trailer_fetcher.name} '
+                                          f'daemon: {trailer_fetcher.isDaemon()} '
+                                          f'parent daemon: {self.isDaemon()} '
+                                          f'id: {trailer_fetcher.ident}')
 
     def stop_fetchers(self) -> None:
         #
@@ -126,6 +132,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_verbose(f'Stopping: '
                                           f'{trailer_fetcher.name} '
+                                          f'daemon: {trailer_fetcher.isDaemon()} '
+                                          f'parent daemon: {self.isDaemon()} '
                                           f'id: {trailer_fetcher.ident}')
             trailer_fetcher._stop_thread = True
 
@@ -147,6 +155,8 @@ class TrailerFetcher(TrailerFetcherInterface):
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_verbose(f'Destroying: '
                                           f'{trailer_fetcher.name} '
+                                          f'daemon: {trailer_fetcher.isDaemon()} '
+                                          f'parent daemon: {self.isDaemon()} '
                                           f'id: {trailer_fetcher.ident}')
 
         TrailerUnavailableCache.save_cache(ignore_shutdown=True)
@@ -172,7 +182,10 @@ class TrailerFetcher(TrailerFetcherInterface):
         clz = type(self)
 
         try:
-            self.setName(self._thread_name)
+            clz._logger.debug_verbose(f'run: '
+                                      f'{self.name} '
+                                      f'daemon: {self.isDaemon()} '
+                                      f'id: {self.ident}')
             self.run_worker()
         except AbortException:
             pass 
@@ -240,6 +253,8 @@ class TrailerFetcher(TrailerFetcherInterface):
         # but can also just be an movie_id (TFH_ID or TMDB_ID), which
         # must be downloaded and populated at this time.
 
+        clz._logger.debug(f'Current thread name: {self.name}')
+
         if isinstance(base_movie, AbstractMovieId):
             tmdb_id: int = None
             try:
@@ -267,7 +282,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # May as well purge it
                     self._movie_data.remove_discovered_movie(base_movie)
                     #  TODO: should be done elsewhere in consistent manner
-                    CacheIndex.remove_cached_tmdb_movie_id(tmdb_id)
+                    CacheIndex.remove_tmdb_id_with_trailer(tmdb_id)
                 return
 
             self.throw_exception_on_forced_to_stop(timeout=0.01)
@@ -292,7 +307,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 raise StopDiscoveryException()
 
             discovery_state: str = movie.get_discovery_state()
-            if discovery_state >= MovieField.DISCOVERY_COMPLETE:
+            if discovery_state >= MovieField.DISCOVERY_NEARLY_COMPLETE:
                 self.throw_exception_on_forced_to_stop()
 
                 # if cached files purged, then reload them
@@ -304,14 +319,14 @@ class TrailerFetcher(TrailerFetcherInterface):
                         self.cache_and_normalize_trailer(movie)
 
                 if discovery_state < MovieField.DISCOVERY_READY_TO_DISPLAY:
-                    fully_populated_trailer: AbstractMovie = \
+                    fully_populated_movie: AbstractMovie = \
                         MovieDetail.get_detail_info(movie)
-                    if (fully_populated_trailer is None
+                    if (fully_populated_movie is None
                             and not isinstance(movie, TFHMovie)):
                         self._movie_data.remove_discovered_movie(movie)
                         continue
                     self._playable_trailers.add_to_ready_to_play_queue(
-                        fully_populated_trailer)
+                        fully_populated_movie)
                 else:
                     self._playable_trailers.add_to_ready_to_play_queue(movie)
 
@@ -319,10 +334,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                 if DiskUtils.is_url(trailer_path) \
                         and movie.is_source(MovieField.TMDB_SOURCE):
                     tmdb_id = movie.get_tmdb_id()
-                    if tmdb_id is not None:
-                        tmdb_id = int(tmdb_id)
 
-                    CacheIndex.remove_unprocessed_movies(tmdb_id)
+                    if tmdb_id is not None:
+                        CacheIndex.remove_unprocessed_movie(tmdb_id)
             else:
                 self._fetch_trailer_to_play_worker(movie)
             finished = True
@@ -525,7 +539,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                     'movies:',
                                     self._movie_data.get_number_of_added_movies())
                         else:
-                            # Keep movie field,not entire new movie
+                            # Keep trailer field,not entire new movie
                             keep_new_trailer = False
                             movie.set_trailer(new_trailer_data.get_trailer_path())
 
@@ -641,7 +655,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             self.throw_exception_on_forced_to_stop()
 
         if keep_new_trailer:
-            movie.set_discovery_state(MovieField.DISCOVERY_COMPLETE)
+            movie.set_discovery_state(MovieField.DISCOVERY_NEARLY_COMPLETE)
             AbstractMovieData.get_aggregate_trailers_by_name_date()[movie_id] = movie
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(movie.get_title(),

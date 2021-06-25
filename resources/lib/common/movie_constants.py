@@ -294,7 +294,17 @@ List.Sort
     NOT_INITIALIZED: Final[str] = '00_not_initialized'
     NOT_FULLY_DISCOVERED: Final[str] = '01_notFullyDiscovered'
     TRAILER_DISCOVERY_IN_PROGRESS: Final[str] = '02_discoveryInProgress'
-    DISCOVERY_COMPLETE: Final[str] = '03_discoveryComplete'
+
+    # Most discovery done. Remote trailers and any volume normalization
+    # has not yet been done, nor have final details from other sources
+    # been acquired. (Example, TFH movie needs details from TMDb).
+
+    DISCOVERY_NEARLY_COMPLETE: Final[str] = '03_discoveryNearlyComplete'
+
+    # READY_TO_DISPLAY means that everything that is needed to play and
+    # display info about the trailer has been discovered (i.e. has
+    # gone through MovieDetail).
+
     DISCOVERY_READY_TO_DISPLAY: Final[str] = '04_discoveryReadyToDisplay'
 
     # IN_FETCH_QUEUE is a boolean

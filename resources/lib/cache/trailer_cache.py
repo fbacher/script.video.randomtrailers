@@ -37,7 +37,7 @@ class TrailerCache:
 
     @classmethod
     def is_more_discovery_needed(cls, movie: BaseMovie) -> bool:
-        if movie.get_discovery_state() <= MovieField.DISCOVERY_COMPLETE:
+        if movie.get_discovery_state() <= MovieField.DISCOVERY_NEARLY_COMPLETE:
             return False
 
         movie: AbstractMovie
@@ -92,7 +92,7 @@ class TrailerCache:
             cls._logger.log_exception()
 
         if more_discovery_needed:
-            movie.set_discovery_state(MovieField.DISCOVERY_COMPLETE)
+            movie.set_discovery_state(MovieField.DISCOVERY_NEARLY_COMPLETE)
             cls._logger.debug(f'More discovery needed: {title}')
 
         return more_discovery_needed

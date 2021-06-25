@@ -67,7 +67,6 @@ class BaseMovie:
         source, id = type(self).get_source_and_id()
         return f'{source}_{id}'
 
-
     @classmethod
     def convert_to_movie(cls,
                          movies: Union['BaseMovie', MovieType,
@@ -192,6 +191,23 @@ class TMDbMoviePageData(TMDbMovieId):
         else:
             self._movie_info = movie_info
 
+        tmdb_id = movie_info.get('id', None)
+        if tmdb_id is not None:
+            tmdb_id = int(tmdb_id)
+        else:  # TODO: Temporary migration code
+            try:
+                unique_ids: Dict[str, str] = movie_info.get(MovieField.UNIQUE_ID)
+                tmdb_id_str: str = unique_ids.get(MovieField.UNIQUE_ID_TMDB)
+                if tmdb_id_str is not None:
+                    try:
+                        tmdb_id = int(tmdb_id_str)
+                    except ValueError:
+                        pass
+            except Exception as e:
+                clz = type(self)
+                clz._logger.log_exception()
+
+        self.set_id(tmdb_id)
         self._cached: bool = False
 
     def get_certification_id(self) -> str:
@@ -345,14 +361,17 @@ class TMDbMoviePageData(TMDbMovieId):
     def serialize(self) -> Dict[str, Any]:
         data: Dict[str, Any] = self.get_as_movie_type().copy()
         data[MovieField.CLASS] = type(self).__name__
+        data['id'] = self.get_id()
         return data
 
     @classmethod
-    def de_serialize(cls, data: Dict[str, Any]) -> ForwardRef('AbstractMovie'):
+    def de_serialize(cls, data: Dict[str, Any]) -> ForwardRef('TMDbMoviePageData'):
         class_type = data.get(MovieField.CLASS, None)
         if class_type is None:
             cls._logger.warning(f'Could not deserialize: {data}')
-            return None
+            # TODO: Remove Hack
+            # return None
+            class_type = 'TMDbMoviePageData'
         if class_type == TMDbMoviePageData.__name__:
             return TMDbMoviePageData(movie_info=data)
         else:
@@ -1081,6 +1100,10 @@ class TMDbMovie(AbstractMovie):
     def set_id(self, tmdb_id: str):
         self.set_tmdb_id(int(tmdb_id))
         self._movie_id = tmdb_id
+
+    def get_as_movie_id_type(self) -> TMDbMovieId:
+        tmdb_movie_id: TMDbMovieId = TMDbMovieId(self.get_id())
+        return tmdb_movie_id
 
     def get_original_language(self) -> str:
         return self._movie_info.setdefault(MovieField.ORIGINAL_LANGUAGE, '')

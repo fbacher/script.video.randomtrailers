@@ -5,6 +5,7 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
+from cache.tmdb_cache_index import CacheIndex
 from common.imports import *
 
 import datetime
@@ -77,6 +78,7 @@ class TrailerUnavailableCache:
                 cls._all_missing_tmdb_trailers[tmdb_id] = values
                 cls.tmdb_cache_changed()
 
+        CacheIndex.remove_unprocessed_movie(tmdb_id)
         Statistics.add_missing_tmdb_trailer()
 
     @classmethod
@@ -170,25 +172,26 @@ class TrailerUnavailableCache:
         :return:
         """
         cls.abort_on_shutdown()
+        tmdb_id_missing: bool = True
         with cls.lock:
             cls.load_cache_if_needed()
             if tmdb_id not in cls._all_missing_tmdb_trailers:
-                return None
-            entry = cls._all_missing_tmdb_trailers[tmdb_id]
+                tmdb_id_missing = False
+            else:
+                entry = cls._all_missing_tmdb_trailers[tmdb_id]
+                elapsed_time = datetime.date.today() - entry['timestamp']
+                elapsed_days = elapsed_time.days
+                if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
+                    del cls._all_missing_tmdb_trailers[tmdb_id]
+                    cls.tmdb_cache_changed()
 
-            elapsed_time = datetime.date.today() - entry['timestamp']
-            elapsed_days = elapsed_time.days
-            if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
-                del cls._all_missing_tmdb_trailers[tmdb_id]
-                entry = None
-                cls.tmdb_cache_changed()
-
-        if entry is None:
+        if tmdb_id_missing:
             Statistics.add_missing_tmdb_id_cache_miss()
+            CacheIndex.remove_unprocessed_movie(tmdb_id)
         else:
             Statistics.add_missing_tmdb_cache_hit()
 
-        return entry
+        return
 
     @classmethod
     def tmdb_cache_changed(cls, flush: bool = False) -> None:

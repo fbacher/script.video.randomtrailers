@@ -37,6 +37,10 @@ class RecentTrailerHistory:
             if len(cls._trailer_history) > cls.MAXIMUM_HISTORY:
                 del cls._trailer_history[0]
 
+    @classmethod
+    def get_number_of_trailers(cls) -> int:
+        return len(cls._trailer_history)
+
 
 class RecentlyPlayedTrailers:
 
@@ -51,3 +55,7 @@ class RecentlyPlayedTrailers:
     @classmethod
     def add_played_trailer(cls, movie: AbstractMovie) -> None:
         return RecentTrailerHistory.add_trailer(movie)
+
+    @classmethod
+    def get_number_of_trailers(cls) -> int:
+        return RecentTrailerHistory.get_number_of_trailers()

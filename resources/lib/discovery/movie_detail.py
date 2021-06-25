@@ -13,6 +13,7 @@ from backend.tmdb_utils import TMDBUtils
 from cache.tfh_cache import TFHCache
 from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import TrailerUnavailableCache
+# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.constants import Constants
 from common.imports import *
 
@@ -114,12 +115,12 @@ class MovieDetail:
 
             movie.set_discovery_state(MovieField.DISCOVERY_READY_TO_DISPLAY)
             if tmdb_id is not None:
-                CacheIndex.remove_unprocessed_movies(tmdb_id)
+                CacheIndex.remove_unprocessed_movie(tmdb_id)
 
             if not keep_trailer:
                 movie = None
                 if tmdb_id is not None:
-                    CacheIndex.remove_cached_tmdb_movie_id(tmdb_id)
+                    CacheIndex.remove_tmdb_id_with_trailer(tmdb_id)
             else:
                 if (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):

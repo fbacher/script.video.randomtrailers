@@ -145,17 +145,16 @@ class PlayableTrailerService:
         # to play.
 
         nothing_to_play: bool = True
-        # playable_trailers_map = None  # type: Dict[str,
-        # PlayableTrailersContainer]
-        # type:
+        playable_trailers_map: Dict[str, PlayableTrailersContainer]
         playable_trailers_map = PlayableTrailersContainer.get_instances()
-        # Dict[str, PlayableTrailersContainer]
-
+        
         # Need to use the same projected sizes throughout this method.
 
         projected_sizes_map: Dict[str, int] = {}
         for source in playable_trailers_map:
+            playable_trailers: PlayableTrailersContainer
             playable_trailers = playable_trailers_map[source]
+            playable_trailers.clear_shuffled()
             if not playable_trailers.is_playable_trailers():
                 continue
 
@@ -195,6 +194,7 @@ class PlayableTrailerService:
                     clz.logger.debug('Shuffling because discoveredTrailerQueue empty',
                                      trace=Trace.TRACE_DISCOVERY)
                 movie_data.shuffle_discovered_movies(mark_unplayed=True)
+                playable_trailers.set_shuffled()
 
         if (clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                 and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
@@ -217,6 +217,7 @@ class PlayableTrailerService:
         trailer: AbstractMovie = None
         attempts: int = 0
         while trailer is None and attempts < 10:
+            attempts += 1
             try:
                 trailer_index_to_play = DiskUtils.RandomGenerator.randint(
                     0, total_number_of_trailers - 1)
@@ -225,12 +226,13 @@ class PlayableTrailerService:
                         'PlayableTrailerService.next trailer_index_to_play:',
                         trailer_index_to_play)
             except ValueError as e:  # Empty range
-                Monitor.throw_exception_if_abort_requested(timeout=0.10)
+                Monitor.throw_exception_if_abort_requested(timeout=0.01)
                 continue
 
-            total_number_of_trailers = 0
+            total_number_of_trailers: int = 0
             found_playable_trailers = None
             for source in playable_trailers_map:
+                playable_trailers: PlayableTrailersContainer
                 playable_trailers = playable_trailers_map[source]
                 if not playable_trailers.is_playable_trailers():
                     continue
@@ -245,22 +247,22 @@ class PlayableTrailerService:
                 except Exception as e:
                     clz.logger.log_exception(e)
             try:
-                attempts += 1
                 if attempts > 1 and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz.logger.debug_verbose(
                         'PlayableTrailerService.next Attempt:', attempts,
                         'manager:', found_playable_trailers.__class__.__name__)
                 trailer = found_playable_trailers.get_next_movie()
-                TrailerCache.is_more_discovery_needed(trailer)
+                if trailer is not None:
+                    TrailerCache.is_more_discovery_needed(trailer)
 
-                # If cached movie is invalid, then skip over this MovieField.
+                    # If cached movie is invalid, then skip over this MovieField.
 
-                if trailer.get_discovery_state() != MovieField.DISCOVERY_READY_TO_DISPLAY:
-                    trailer = None
-                else:
-                    found_playable_trailers.set_starving(False)
-                    title = trailer.get_title() + \
-                        ' : ' + trailer.get_trailer_path()
+                    if trailer.get_discovery_state() != MovieField.DISCOVERY_READY_TO_DISPLAY:
+                        trailer = None
+                    else:
+                        found_playable_trailers.set_starving(False)
+                        title = trailer.get_title() + \
+                            ' : ' + trailer.get_trailer_path()
             except queue.Empty:
                 found_playable_trailers.set_starving(True)
                 trailer = None
@@ -283,13 +285,27 @@ class PlayableTrailerService:
             playable_trailers_list = [*playable_trailers_map.keys()]
             DiskUtils.RandomGenerator.shuffle(playable_trailers_list)
             for source in itertools.cycle(playable_trailers_list):
+                if second_method_attempts == len(playable_trailers_list):
+                    # After giving this second attempt a go through all
+                    # of the trailer types, see if we can replay a trailer
+                    # that we have on hand.
+                    #
+                    # Only need to try this once since none will be added 
+                    # until a trailer is found for playing
+                    
+                    trailer = RecentlyPlayedTrailers.get_recently_played()
+                    if trailer is not None:
+                        break
+                    
+                second_method_attempts += 1
                 try:
                     playable_trailers = playable_trailers_map[source]
                     movie_data = playable_trailers.get_movie_data()
                     self.throw_exception_on_forced_to_stop(
                         movie_data=movie_data)
 
-                    if (playable_trailers.get_number_of_playable_movies() == 0
+                    if (not playable_trailers.is_shuffled()
+                            and playable_trailers.get_number_of_playable_movies() == 0
                             and playable_trailers.get_movie_data().
                                     get_number_of_movies() > 0
                             and playable_trailers.is_playable_trailers()):
@@ -305,14 +321,17 @@ class PlayableTrailerService:
 
                         playable_trailers.get_movie_data().\
                             shuffle_discovered_movies(mark_unplayed=True)
+                        playable_trailers.set_shuffled()
+
                     trailer = playable_trailers.get_next_movie()
+                    if trailer is not None:
 
-                    # If cached movie is invalid, then skip over this
-                    # MovieField.
+                        # If cached movie is invalid, then skip over this
+                        # MovieField.
 
-                    if (trailer.get_discovery_state() !=
-                            MovieField.DISCOVERY_READY_TO_DISPLAY):
-                        trailer = None
+                        if (trailer.get_discovery_state() !=
+                                MovieField.DISCOVERY_READY_TO_DISPLAY):
+                            trailer = None
 
                     if trailer is not None:
                         break
@@ -321,21 +340,16 @@ class PlayableTrailerService:
 
                 iteration += 1
                 if iteration % len(playable_trailers_list) == 0:
-                    second_method_attempts += 1
                     Monitor.throw_exception_if_abort_requested(
-                        timeout=0.5)
-
-        # Scraping the barrel, try replaying a recently played trailer.
-
-        if trailer is None:
-            trailer = RecentlyPlayedTrailers.get_recently_played()
+                        timeout=0.25)
 
         if trailer is None:  # No movie found from all our sources (lib, tmdb, tfh, etc)
             self._next_failures += 1
         else:
             trailer.set_trailer_played(True)
             title = trailer.get_title() + ' : ' + trailer.get_trailer_path()
-            if self._previous_title == title:
+            if (self._previous_title == title and
+                    RecentlyPlayedTrailers.get_number_of_trailers() > 1):
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz.logger.debug_verbose(f'Skipping previously played: {title}')
                 trailer = None

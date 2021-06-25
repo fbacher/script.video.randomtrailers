@@ -10,6 +10,7 @@ from collections import OrderedDict
 import threading
 import queue
 
+from common.constants import Constants
 from common.imports import *
 from common.debug_utils import Debug
 from common.monitor import Monitor
@@ -67,6 +68,7 @@ class PlayableTrailersContainer:
         self._starve_check_lock: threading.RLock = threading.RLock()
         self._is_playable_trailers: threading.Event = threading.Event()
         self._stop_thread = False
+        self._shuffled: bool = False
 
     def set_movie_data(self, movie_data: AbstractMovieData) -> None:
         """
@@ -130,6 +132,14 @@ class PlayableTrailersContainer:
                     return
 
                 self._ready_to_play_queue.put(movie, block=True, timeout=0.05)
+
+                if Constants.SAVE_MEMORY:
+                    # To keep data structures small, get rid of all
+                    # easily rediscoverable data from movie_data structures. Just keep
+                    # movie source & movieid.
+
+                    self.get_movie_data().purge_rediscoverable_data(movie)
+
                 finished = True
                 self._number_of_added_trailers += 1
             except queue.Full:
@@ -178,7 +188,12 @@ class PlayableTrailersContainer:
         :return:
         """
         clz = type(self)
-        movie: AbstractMovie = self._ready_to_play_queue.get(block=False)
+        movie: AbstractMovie = None
+        try:
+            movie = self._ready_to_play_queue.get(block=False)
+        except queue.Empty:
+            movie = None
+
         if movie is not None:
             RecentlyPlayedTrailers.add_played_trailer(movie)
 
@@ -264,6 +279,15 @@ class PlayableTrailersContainer:
         starving = self._starving
         self._starving = False
         return starving
+    
+    def set_shuffled(self) -> None:
+        self._shuffled = True
+
+    def is_shuffled(self) -> bool:
+        return self._shuffled
+
+    def clear_shuffled(self) -> None:
+        self._shuffled = False
 
     @staticmethod
     def get_instances() -> Dict[str, 'PlayableTrailersContainer']:

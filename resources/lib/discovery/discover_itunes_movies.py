@@ -136,6 +136,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             Trace.STATS):
                         clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
                                          trace=Trace.STATS)
+
+                        used_memory: int = self._movie_data.get_size_of()
+                        used_mb: float = float(used_memory) / 1000000.0
+                        self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
                     finished = True
 
                     # self.wait_until_restart_or_shutdown()
@@ -228,10 +232,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                 discovery_state = movie.get(Movie.DISCOVERY_STATE,
                                             Movie.NOT_FULLY_DISCOVERED)
-                if (discovery_state < Movie.DISCOVERY_COMPLETE
+                if (discovery_state < Movie.DISCOVERY_NEARLY_COMPLETE
                         and self.pre_filter_movie(movie)):
                     discovery_needed_movies.append(movie)
-                if (discovery_state >= Movie.DISCOVERY_COMPLETE
+                if (discovery_state >= Movie.DISCOVERY_NEARLY_COMPLETE
                         and self.pre_filter_movie(movie)):
                     discovery_complete_movies.append(movie)
                     tmdb_id = MovieEntryUtils.get_tmdb_id(movie)

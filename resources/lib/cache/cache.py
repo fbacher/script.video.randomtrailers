@@ -101,7 +101,7 @@ class Cache:
         if tmdb_movie is None and status == 0:
             status = -1
             if Settings.is_use_tmdb_cache():
-                CacheIndex.remove_cached_tmdb_movie_id(movie_id)
+                CacheIndex.remove_tmdb_id_with_trailer(movie_id)
         return status, tmdb_movie
 
     @classmethod

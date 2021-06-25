@@ -10,6 +10,7 @@ from datetime import datetime
 
 import simplejson as json
 from backend.json_utils_basic import JsonUtilsBasic
+# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.monitor import Monitor
 
 from common.movie import TMDbMovie
@@ -80,7 +81,7 @@ class TMDbMovieDownloader:
         tmdb_id_int = int(tmdb_id)
         del tmdb_id
         if TrailerUnavailableCache.is_tmdb_id_missing_trailer(tmdb_id_int):
-            CacheIndex.remove_unprocessed_movies(tmdb_id_int)
+            CacheIndex.remove_unprocessed_movie(tmdb_id_int)
             rejection_reasons.append(MovieField.REJECTED_NO_TRAILER)
             if not ignore_failures:
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):

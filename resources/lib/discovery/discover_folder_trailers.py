@@ -91,6 +91,10 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     self.discover_basic_information_worker(
                         Settings.get_trailers_paths())
                     self.wait_until_restart_or_shutdown()
+
+                    used_memory: int = self._movie_data.get_size_of()
+                    used_mb: float = float(used_memory) / 1000000.0
+                    self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
                 except StopDiscoveryException:
                     # Restart discovery
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
