@@ -23,6 +23,7 @@ from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.settings import Settings
 from common.utils import Delay
+from common.garbage_collector import GarbageCollector
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -601,8 +602,8 @@ class FindFiles(Iterable[Path]):
             target=self._run,
             name='find files')
         self._find_thread.start()
-        self._find_thread.setName(f'Find Files: {top}')
-
+        self._find_thread.setName(f'Find Files: {top}')        
+        
     def _run(self) -> None:
         clz = type(self)
         try:
@@ -612,16 +613,26 @@ class FindFiles(Iterable[Path]):
             self.name = f'Find Files'
             for path in self._path.glob(self._glob_pattern):
                 #  clz._logger.debug(f'path: {path}')
+                inserted: bool = False
+                while not inserted:
+                    try:
+                        if self._die:
+                            break
+
+                        self._file_queue.put(path, block=False)
+                        inserted = True
+                    except queue.Full:
+                        Monitor.throw_exception_if_abort_requested(timeout=0.25)
                 if self._die:
                     break
-
-                self._file_queue.put(path)
         except Exception as e:
             clz._logger.exception()
         finally:
             #  clz._logger.debug('queue complete')
             self._queue_complete = True
-            self._file_queue.put(None)
+            if not self._die:
+                self._file_queue.put(None)
+            del self._path
 
     def get_next(self) -> Path:
         clz = type(self)
@@ -641,11 +652,7 @@ class FindFiles(Iterable[Path]):
                 if self._queue_complete:
                     clz._logger.debug('Queue empty')
                     try:
-                        clz._logger.debug(
-                            f'Thread joined alive: {self._find_thread.is_alive()}')
-                        self._find_thread.join(timeout=0.1)
-                        clz._logger.debug(
-                            f'Thread joined alive: {self._find_thread.is_alive()}')
+                        GarbageCollector.add_thread(self._find_thread)
                     except Exception as e:
                         clz._logger.exception()
                     finally:
@@ -664,13 +671,6 @@ class FindFiles(Iterable[Path]):
         self._die = True
         if self._file_queue is None:
             return
-        try:
-            self._find_thread.join(timeout=0.1)
-        except Exception as e:
-            clz._logger.exception(0)
-        finally:
-            self._find_thread = None
-            self._file_queue = None
 
     def __iter__(self) -> Iterator:
         clz = type(self)
@@ -705,6 +705,9 @@ class FindFilesIterator(Iterator):
             raise StopIteration()
 
         return path
+    
+    def __del__(self):
+        self._files.kill()
 
 
 DiskUtils.class_init()
