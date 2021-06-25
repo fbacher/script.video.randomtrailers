@@ -565,7 +565,7 @@ class DiskUtils:
         return "%.1f%s%s" % (num, 'Yi', suffix)
 
 
-class FindFiles(Iterable):
+class FindFiles(Iterable[Path]):
     _logger: LazyLogger = None
 
     def __init__(self,
