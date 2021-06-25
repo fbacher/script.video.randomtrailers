@@ -13,6 +13,15 @@ import sys
 import threading
 import traceback
 
+from sys import getsizeof, stderr
+from itertools import chain
+from collections import deque
+
+try:
+    from reprlib import repr
+except ImportError:
+    pass
+
 import xbmc
 from common.constants import Constants
 from common.imports import *
@@ -108,7 +117,7 @@ class Debug:
         #  Monitor.dump_wait_counts()
         #  for threadId, stack in sys._current_frames().items():
         for th in threading.enumerate():
-            sio.write(f'\n# ThreadID: {th.name}\n\n')
+            sio.write(f'\n# ThreadID: {th.name} Daemon: {th.isDaemon()}\n\n')
             stack = sys._current_frames().get(th.ident, None)
             if stack is not None:
                 traceback.print_stack(stack, file=sio)
@@ -298,3 +307,48 @@ class Debug:
 
         # assert is_ok, 'LEAK, Invalid property values'
         return is_ok
+
+    @classmethod
+    def total_size(cls, o, handlers: Dict[Any, Any] = None, verbose: bool = False):
+        """ Returns the approximate memory footprint an object and all of its contents.
+
+        Automatically finds the contents of the following builtin containers and
+        their subclasses:  tuple, list, deque, dict, set and frozenset.
+        To search other containers, add handlers to iterate over their contents:
+
+            handlers = {SomeContainerClass: iter,
+                        OtherContainerClass: OtherContainerClass.get_elements}
+
+        """
+        if handlers is None:
+            handlers = {}
+
+        dict_handler = lambda d: chain.from_iterable(d.items())
+
+        all_handlers = {tuple: iter,
+                        list: iter,
+                        deque: iter,
+                        dict: dict_handler,
+                        set: iter,
+                        frozenset: iter,
+                       }
+        all_handlers.update(handlers)     # user handlers take precedence
+        seen = set()                      # track which object id's have already been seen
+        default_size = getsizeof(0)       # estimate sizeof object without __sizeof__
+
+        def sizeof(o):
+            if id(o) in seen:       # do not double count the same object
+                return 0
+            seen.add(id(o))
+            s = getsizeof(o, default_size)
+
+            if verbose:
+                cls._logger.debug_verbose(f'size: {s} type: {type(o)} repr: {repr(o)}')
+
+            for typ, handler in all_handlers.items():
+                if isinstance(o, typ):
+                    s += sum(map(sizeof, handler(o)))
+                    break
+            return s
+
+        return sizeof(o)
