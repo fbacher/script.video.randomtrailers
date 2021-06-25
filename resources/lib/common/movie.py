@@ -268,12 +268,12 @@ class TMDbMoviePageData(TMDbMovieId):
     def set_is_original_language_found(self, is_original_language_found: bool) -> None:
         self._movie_info[MovieField.LANGUAGE_MATCHES] = is_original_language_found
 
-    def set_page_number(self, page_number: int) -> int:
-        self._movie_info[MovieField.TMDB_PAGE] = page_number
+    def set_buffer_number(self, page_number: int) -> int:
+        self._movie_info[MovieField.TMDB_BUFFER_NUMBER] = page_number
         return page_number
 
-    def get_page_number(self) -> int:
-        return self._movie_info[MovieField.TMDB_PAGE]
+    def get_buffer_number(self) -> int:
+        return self._movie_info.setdefault(MovieField.TMDB_BUFFER_NUMBER, 0)
 
     def get_popularity(self) -> float:
         return self._movie_info.get(MovieField.TMDB_POPULARITY, 0.0)
@@ -902,7 +902,7 @@ class AbstractMovie(BaseMovie):
 
     def get_serializable(self) -> Dict[str, Any]:
         data: Dict[str, Any] = self.get_as_movie_type().copy()
-        data[MovieField.CLASS] = type(self)
+        data[MovieField.CLASS] = type(self).__name__
         return data
 
     @classmethod
@@ -911,15 +911,15 @@ class AbstractMovie(BaseMovie):
         if class_type is None:
             cls._logger.warning(f'Could not deserialize: {data}')
             return None
-        if class_type == 'LibraryMovie':
+        if class_type == LibraryMovie.__name__:
             return LibraryMovie(movie_info=data)
-        if class_type == 'TMDbMovie':
+        if class_type == TMDbMovie.__name__:
             return TMDbMovie(movie_info=data)
-        if class_type == 'TFHMovie':
+        if class_type == TFHMovie.__name__:
             return TFHMovie(movie_info=data)
-        if class_type == 'ITunesMovie':
+        if class_type == ITunesMovie.__name__:
             return ITunesMovie(movie_info=data)
-        if class_type == 'FolderMovie':
+        if class_type == FolderMovie.__name__:
             return FolderMovie(movie_info=data)
         else:
             cls._logger.warning(f'Unrecognized Movie class: {class_type}')
@@ -1103,6 +1103,19 @@ class TMDbMovie(AbstractMovie):
 
     def set_genre_ids(self, genre_ids: List[str]) -> None:
         self._movie_info[MovieField.TMDB_GENRE_IDS] = genre_ids
+
+    def is_raw_tmdb_data(self) -> bool:
+        #
+        # This method distinguishes between old and new cache formats
+        #
+        # TODO:  Remove temp hack
+        #
+        # Old cache stored raw data from TMDb, now save TMDbLibrary
+        # entry, mostly to reduce size of .json files
+        #
+        if MovieField.LAST_PLAYED in self._movie_info:
+            return False
+        return True
 
 
 class TFHMovie(AbstractMovie):

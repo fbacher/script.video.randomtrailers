@@ -276,7 +276,7 @@ List.Sort
 
     # Trailer Type values:
     TMDB_TYPE: Final[str] = 'TMDB_type'
-    TMDB_PAGE: Final[str] = 'TMDB_page'  # For statistics, remember download page
+    TMDB_BUFFER_NUMBER: Final[str] = 'TMDB_BUFFER_NUMBER'  # For statistics, remember download page
     TMDB_TOTAL_PAGES: Final[str] = 'TMDB_TOTAL_PAGES'  # For statistics
 
     TMDB_TAG_NAMES: Final[str] = 'rts.tags'
@@ -333,6 +333,7 @@ List.Sort
     REJECTED_TOO_MANY_TMDB_REQUESTS: Final[int] = 9
     REJECTED_NO_TMDB_ID: Final[int] = 10
     REJECTED_WATCHED: Final[int] = 11
+    REJECTED_NOT_IN_CACHE: Final[int] = 12
 
     REJECTED_REASON_MAP = {
         REJECTED_NO_TRAILER: 'No Trailer Found',
@@ -345,7 +346,8 @@ List.Sort
         REJECTED_VOTE: 'Vote filter',
         REJECTED_TOO_MANY_TMDB_REQUESTS: 'Too many requests try later',
         REJECTED_NO_TMDB_ID: 'No TMDB-id',
-        REJECTED_WATCHED: 'Already watched filter'
+        REJECTED_WATCHED: 'Already watched filter',
+        REJECTED_NOT_IN_CACHE: 'Not found in cache'
     }
     DEFAULT_MOVIE: MovieType = {
         ACTORS: [],
@@ -424,7 +426,7 @@ List.Sort
         ORIGINAL_LANGUAGE,
         ORIGINAL_TITLE,
         CERTIFICATION_ID,
-        TMDB_PAGE,
+        TMDB_BUFFER_NUMBER,
         TMDB_TOTAL_PAGES
         ]
 

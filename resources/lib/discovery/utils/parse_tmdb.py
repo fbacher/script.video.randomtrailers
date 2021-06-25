@@ -23,6 +23,7 @@ DOWNLOAD_SITE_PREFIXES: Dict[str, str] = {
     'Vimeo': 'https://vimeo.com/'
     }
 
+
 class ParseTMDb:
 
     _logger: LazyLogger = None
@@ -50,6 +51,10 @@ class ParseTMDb:
 
     def get_movie(self) -> TMDbMovie:
         return self._tmdb_movie
+
+    def parse_id(self) -> int:
+        tmdb_id: int = self._tmdb_result['id']
+        return tmdb_id
 
     def parse_title(self) -> str:
         """
@@ -139,7 +144,6 @@ class ParseTMDb:
                     trailer_key = best_size_map[trailer_type]['key']
                     break
 
-            
             # Do NOT update TFH_cache or local DB until this movie is
             # accepted by caller (this may be being used for supplemental
             # info

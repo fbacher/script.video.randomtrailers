@@ -172,7 +172,7 @@ class CacheParameters:
         return cls._cached_value
 
     def __ne__(self,
-               other_value  # type: CacheParameters
+               other_value: ForwardRef('CacheParameters')
                ) -> bool:
         return not self.__eq__(other_value)
 
@@ -422,21 +422,20 @@ class CachedPagesData:
         self._logger: LazyLogger = module_logger.getChild(type(self).__name__)
         self._number_of_unsaved_changes: int = 0
         self._time_of_last_save = None
-        self._key = key
+        self._key: str = key
         self._total_pages: int = total_pages
         self._total_pages_by_year = {}
-        self._query_by_year = query_by_year
+        self._query_by_year: bool = query_by_year
         self._years_to_query = None
-        self._search_pages_configured = False
+        self._search_pages_configured: bool = False
 
         self._logger.debug('remote_db_cache_path:',
                            Settings.get_remote_db_cache_path())
-        self._path = os.path.join(Settings.get_remote_db_cache_path(),
+        self._path: str = os.path.join(Settings.get_remote_db_cache_path(),
                                   'index', f'tmdb_{key}.json')
-        self._temp_path = os.path.join(Settings.get_remote_db_cache_path(),
+        self._temp_path: str = os.path.join(Settings.get_remote_db_cache_path(),
                                        'index', f'tmdb_{key}.json.tmp')
-        # type:
-        self._cached_page_by_key: Optional[Dict[str, CachedPage]] = None
+        self._cached_page_by_key: Dict[str, CachedPage] = None
 
     def get_total_pages(self) -> int:
         """
@@ -536,9 +535,8 @@ class CachedPagesData:
         self.save_search_pages(flush=flush)
 
     def get_total_pages_for_year(self,
-                                 year  # type: int
-                                 ):
-        #  type: (...) -> Optional[int]
+                                 year: int
+                                 ) -> Optional[int]:
         """
         :param year:
         :return:
@@ -551,8 +549,7 @@ class CachedPagesData:
 
         return total_pages
 
-    def get_number_of_search_pages(self):
-        # type: () -> int
+    def get_number_of_search_pages(self) -> int:
         """
 
         :return:
@@ -568,8 +565,7 @@ class CachedPagesData:
         except Exception as e:
             self._logger.exception('')
 
-    def get_undiscovered_search_pages(self):
-        # type: () -> List[CachedPage]
+    def get_undiscovered_search_pages(self) -> List[CachedPage]:
         """
 
         :return:
@@ -591,8 +587,7 @@ class CachedPagesData:
 
         return undiscovered_search_pages
 
-    def get_number_of_undiscovered_search_pages(self):
-        # type: () -> int
+    def get_number_of_undiscovered_search_pages(self) -> int:
         """
 
         :return:
@@ -632,8 +627,8 @@ class CachedPagesData:
 
         return int(number_of_discovered_pages)
 
-    def get_entry_by_year_and_page(self, year, page_number):
-        # type: (int, int) -> CachedPage
+    def get_entry_by_year_and_page(self, year: int,
+                                   page_number: int) -> CachedPage:
         """
 
         :param year:
@@ -653,8 +648,7 @@ class CachedPagesData:
 
         return cached_page
 
-    def get_entries_for_year(self, year):
-        # type: (int) -> List[CachedPage]
+    def get_entries_for_year(self, year: int) -> List[CachedPage]:
         """
 
         :param year:
@@ -676,8 +670,7 @@ class CachedPagesData:
 
         return cached_pages
 
-    def mark_page_as_discovered(self, cached_page):
-        #  type: (CachedPage) -> None
+    def mark_page_as_discovered(self, cached_page: CachedPage) -> None:
         """
 
         :param cached_page:
@@ -688,8 +681,7 @@ class CachedPagesData:
         self._number_of_unsaved_changes += 1
         self.save_search_pages(flush=True)
 
-    def get_number_of_unsaved_changes(self):
-        # type: () -> int
+    def get_number_of_unsaved_changes(self) -> int:
         """
 
         :return:
@@ -732,7 +724,7 @@ class CachedPagesData:
             self._logger.exception('')
         return json_dict
 
-    def from_json(self, encoded_values):
+    def from_json(self, encoded_values: Dict[str, Any]) -> ForwardRef('CachedPagesData'):
         # type: (Dict[str, Any]) -> CachedPagesData
         """
 
@@ -853,7 +845,8 @@ class CachedPagesData:
                         cacheFile, encoding='utf-8',
                         object_hook=CacheIndex.datetime_parser)
                     loaded_cached_pages_data = self.from_json(encoded_values)
-                    self._cached_page_by_key = loaded_cached_pages_data._cached_page_by_key
+                    self._cached_page_by_key = \
+                        loaded_cached_pages_data._cached_page_by_key
             else:
                 self._cached_page_by_key: Dict[str, CachedPage] = dict()
 
@@ -871,8 +864,7 @@ class CachedPagesData:
             "Loaded entries:", len(self._cached_page_by_key))
         self._time_of_last_save = datetime.datetime.now()
 
-    def clear(self):
-        # type: () -> None
+    def clear(self) -> None:
         """
 
         :return:
@@ -912,9 +904,7 @@ class CacheIndex:
     _logger = None
 
     @classmethod
-    def class_init(cls,
-                   ):
-        # type: (...) -> None
+    def class_init(cls) -> None:
         """
         :return:
         """

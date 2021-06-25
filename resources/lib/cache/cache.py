@@ -65,93 +65,50 @@ class Cache:
         self._initial_run = True
 
     @classmethod
-    def get_cached_json(cls, url: str,
-                        movie_id: Union[str, int, None] = None,
-                        error_msg: Union[str, int, None] = None,
-                        source: Union[str, None] = None,
-                        dump_results: bool = False,
-                        dump_msg: str = '',
-                        headers: Union[dict, None] = None,
-                        params: Union[dict, None] = None,
-                        timeout: float = 3.0
-                        ) -> (int, MovieType):
+    def get_cached_tmdb_movie(cls,
+                              movie_id: Union[str, int, None] = None,
+                              error_msg: Union[str, int, None] = None,
+                              source: Union[str, None] = None
+                              ) -> (int, TMDbMovie):
         """
             Attempt to get cached JSON movie information before using the JSON calls
             to get it remotely.
 
             Any information not in the cache will be placed into it after successfully
             reading it.
-        :param url:
         :param movie_id:
         :param error_msg:
         :param source:
-        :param dump_results:
-        :param dump_msg:
         :param headers:
-        :param params:
         :param timeout:
         :return:
         """
 
-        if headers is None:
-            headers = {}
-
-        if params is None:
-            params = {}
-
-        movie_data: MovieType = None
+        tmdb_movie: TMDbMovie = None
         status = 0
         if source is None or source not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
             cls._logger.error('Invalid source:', source)
 
         if Settings.is_use_tmdb_cache():
             start = datetime.datetime.now()
-            movie_data = Cache.read_tmdb_cache_json(
+            tmdb_movie = Cache.read_tmdb_cache_json(
                 movie_id, source, error_msg=error_msg)
             status = 0
             stop = datetime.datetime.now()
             read_time = stop - start
             Statistics.add_json_read_time(int(read_time.microseconds / 10000))
-            if movie_data is not None:
-                movie_data[MovieField.CACHED] = True
 
-        if movie_data is None:
-            finished = False
-            delay = 0.5
-            while not finished:
-                try:
-                    status, movie_data = JsonUtilsBasic.get_json(url,
-                                                                 dump_results=dump_results,
-                                                                 dump_msg=dump_msg,
-                                                                 headers=headers,
-                                                                 error_msg=error_msg,
-                                                                 params=params,
-                                                                 timeout=timeout)
-                    if (status == 0 and movie_data is not None
-                            and Settings.is_use_tmdb_cache()):
-                        Cache.write_tmdb_cache_json(movie_id, source, movie_data)
-                        finished = True
-                    else:
-                        raise CommunicationException()
-                except CommunicationException as e:
-                    Monitor.throw_exception_if_abort_requested(timeout=delay)
-                    delay += delay
-
-        # movie_data == None when an error occurs.
-
-        if (Settings.is_use_tmdb_cache() and movie_data is not None
-                and len(movie_data) == 0):
-            CacheIndex.remove_cached_tmdb_movie_id(movie_id)
-
-        if movie_data is None and status == 0:
+        if tmdb_movie is None and status == 0:
             status = -1
-        return status, movie_data
+            if Settings.is_use_tmdb_cache():
+                CacheIndex.remove_cached_tmdb_movie_id(movie_id)
+        return status, tmdb_movie
 
     @classmethod
     def read_tmdb_cache_json(cls, movie_id: Union[int, str],
                              source: str,
                              error_msg: str = ''
-                             ) -> Union[MovieType, None]:
+                             ) -> Union[TMDbMovie, None]:
         """
             Attempts to read TMDB detail data for a specific movie
             from local cache.
@@ -171,15 +128,14 @@ class Cache:
         movie_id = str(movie_id)
         exception_occurred = False
         path: str = None
-        movie_data: MovieType = None
+        tmdb_movie: TMDbMovie = None
         try:
             path = Cache.get_json_cache_file_path_for_movie_id(movie_id, source,
                                                                error_msg=error_msg)
             if path is None or not os.path.exists(path):
                 if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    cls._logger.debug_extra_verbose('cache file not found for:',
-                                                    error_msg,
-                                                    'id:', movie_id, 'source:', source,
+                    cls._logger.debug_extra_verbose(f'cache file not found for: {error_msg} '
+                                                    f'id: {movie_id} source: {source} '
                                                     f'path: {path}')
                 return None
 
@@ -205,23 +161,41 @@ class Cache:
             Monitor.throw_exception_if_abort_requested()
             with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
                 try:
-                    movie_data: MovieType = json.load(cacheFile, encoding='utf-8')
-                    movie_data[MovieField.CACHED] = True
+                    serializable: MovieType = json.load(cacheFile, encoding='utf-8')
+                    serializable[MovieField.CACHED] = True
+                    
+                    #  TODO: Get rid of this HACK
+                    
+                    if serializable.get(MovieField.CLASS, '') == TMDbMovie.__name__:                          
+                        tmdb_movie = TMDbMovie.de_serialize(serializable)
+                    else:
+                        # serializeable is raw data from TMDb. Must be parsed
+                        # by caller (HACK)
+
+                        tmdb_raw_data: MovieType = serializable
+                        from discovery.tmdb_movie_downloader import TMDbMovieDownloader
+
+                        tmdb_movie = TMDbMovieDownloader.parse_tmdb_movie(tmdb_raw_data, None)
+                        if (tmdb_movie is None and cls._logger.isEnabledFor(
+                                LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                            cls._logger.debug_extra_verbose(
+                                f'Error parsing movie: {error_msg}')
+
                 except Exception as e:
                     cls._logger.exception(e)
                     cls._logger.debug_extra_verbose(
                         'Failing json:', path,  cacheFile)
                     exception_occurred = True
-                    movie_data = None
+                    tmdb_movie = None
         except AbortException:
             reraise(*sys.exc_info())
         except IOError as e:
             cls._logger.exception('')
-            movie_data = None
+            tmdb_movie = None
             exception_occurred = True
         except Exception as e:
             cls._logger.exception('')
-            movie_data = None
+            tmdb_movie = None
             exception_occurred = True
 
         try:
@@ -232,7 +206,7 @@ class Cache:
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('Trying to delete bad cache file.')
-        return movie_data
+        return tmdb_movie
 
     @classmethod
     def delete_cache_json(cls,
@@ -249,23 +223,20 @@ class Cache:
             cls._logger.exception(f'Trying to delete cache file: {path}')
 
     @classmethod
-    def write_tmdb_cache_json(cls,
-                              movie_id: Union[str, int],
-                              source: str,
-                              movie: MovieType
-                              ) -> None:
+    def write_tmdb_cache_json(cls, tmdb_movie: TMDbMovie) -> None:
         """
             Write the given movie information into the cache as JSON
 
             Due to the small size of these files, will not check for
             AbortException during write nor save old version of file.
         """
+        source: str = tmdb_movie.get_source()
+        movie_id_str = tmdb_movie.get_id()
         try:
             if source is None or source not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
                 cls._logger.debug('Invalid source:', source)
-            movie_id = str(movie_id)
             path = Cache.get_json_cache_file_path_for_movie_id(
-                movie_id, source)
+                movie_id_str, source)
             parent_dir, file_name = os.path.split(path)
             if not os.path.exists(parent_dir):
                 DiskUtils.create_path_if_needed(parent_dir)
@@ -275,27 +246,26 @@ class Cache:
                 cls._logger.error(messages.get_msg(
                     Messages.CAN_NOT_WRITE_FILE) % path)
                 return None
-            temp_movie = {}
+            # temp_movie = {}
 
             #  TODO: Move cache serialize logic into TMDbMovie
 
-            movie[MovieField.CACHED] = True
-            for key in MovieField.TMDB_ENTRY_FIELDS:
-                temp_movie[key] = movie[key]
+            tmdb_movie.set_cached(True)
+            serializable: MovieType = tmdb_movie.get_serializable()
 
             Monitor.throw_exception_if_abort_requested()
             with io.open(path, mode='wt', newline=None,
                          encoding='utf-8', ) as cacheFile:
-                json_text = json.dumps(temp_movie,
+                json_text = json.dumps(serializable,
                                        ensure_ascii=False,
                                        indent=3, sort_keys=True)
                 cacheFile.write(json_text)
                 cacheFile.flush()
-                del temp_movie
+                # del temp_movie
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            cls._logger.exception(f'movie_id: {movie_id} source: {source}')
+            cls._logger.exception(f'movie_id: {movie_id_str} source: {source}')
 
     @classmethod
     def get_video_id(cls, movie: AbstractMovie) -> str:
