@@ -15,7 +15,7 @@
 					<default>2</default>
 					<constraints>
 						<options>
-							<!-- See resources/certifiations *.xml for your country -->
+							<!-- See resources/certifications *.xml for your country -->
 							<!-- In increasing appropriate age -->
 							<option label="32284">0</option> <!-- Special- Not Yet Rated-->
 							<option label="32248">1</option> <!-- Unrated -->
@@ -639,7 +639,7 @@
 					</dependencies>
 					<control format="string" type="spinner"/>
 				</setting>
-				<setting help="" id="g_screwball_comedy " label="32085" type="integer">
+				<setting help="" id="g_screwball_comedy" label="32085" type="integer">
 					<level>0</level>
 					<default>0</default>
 					<constraints>
@@ -674,6 +674,23 @@
 					<control format="string" type="spinner"/>
 				</setting>
 				<setting help="" id="g_tv_movie" label="32087" type="integer">
+					<level>0</level>
+					<default>0</default>
+					<constraints>
+						<options>
+							<option label="32066">0</option>
+							<option label="32067">1</option>
+							<option label="32068">2</option>
+						</options>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="do_genre">true</condition>
+						</dependency>
+					</dependencies>
+					<control format="string" type="spinner"/>
+				</setting>
+				<setting help="" id="g_war_documentary" label="32088" type="integer">
 					<level>0</level>
 					<default>0</default>
 					<constraints>
