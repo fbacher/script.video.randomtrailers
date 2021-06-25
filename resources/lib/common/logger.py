@@ -480,9 +480,9 @@ class Logger(logging.Logger):
         :return: None
         """
         ignore_frames += 1
-        trace_back, thread_name = cls._capture_stack(
+        trace_back, thread_name, is_daemon = cls._capture_stack(
             ignore_frames=ignore_frames)
-        cls.log_stack(msg, trace_back, thread_name)
+        cls.log_stack(msg, trace_back, thread_name, is_daemon)
 
     @classmethod
     def capture_stack(cls, ignore_frames: int = 0) -> (List[Type], str):
@@ -505,21 +505,31 @@ class Logger(logging.Logger):
         limit = 15
         trace_back = traceback.extract_stack(frame, limit)
         thread_name = threading.current_thread().getName()
-        return trace_back, thread_name
+        is_daemon: bool = threading.current_thread().isDaemon()
+        return trace_back, thread_name, is_daemon
 
     @staticmethod
     def log_stack(msg: str, trace_back: List[Type],
-                  thread_name: str = '') -> None:
+                  thread_name: str = '', is_daemon: bool = None) -> None:
         """
 
         :param msg:
         :param trace_back:
         :param thread_name:
+        :param is_daemon:
         :return:
         """
 
         try:
-            msg = Constants.CURRENT_ADDON_NAME + ': ' + msg + ' thread:' + thread_name
+            daemon: str = 'None'
+            if is_daemon is not None:
+                if is_daemon:
+                    daemon: 'True'
+                else:
+                    daemon: 'False'
+
+            msg = f'{Constants.CURRENT_ADDON_NAME} :{msg} thread: {thread_name} '\
+                  f'daemon: {daemon}'
 
             string_buffer = msg
             string_buffer = string_buffer + '\n' + Constants.TRACEBACK
@@ -1042,9 +1052,9 @@ class LazyLogger(Logger):
         :return: None
         """
         ignore_frames += 1
-        trace_back, thread_name = super()._capture_stack(
+        trace_back, thread_name, is_daemon = super()._capture_stack(
             ignore_frames=ignore_frames)
-        cls.log_stack(msg, trace_back, thread_name)
+        cls.log_stack(msg, trace_back, thread_name, is_daemon)
 
     @classmethod
     def _capture_stack(cls, ignore_frames: int = 0) -> (List[Type], str):
@@ -1057,17 +1067,26 @@ class LazyLogger(Logger):
 
     @staticmethod
     def log_stack(msg: str, trace_back: List[Type],
-                  thread_name: str = '') -> None:
+                  thread_name: str = '', is_daemon: bool = None) -> None:
         """
 
         :param msg:
         :param trace_back:
         :param thread_name:
+        :param is_daemon:
         :return:
         """
 
         try:
-            msg = Constants.CURRENT_ADDON_NAME + ': ' + msg + ' thread:' + thread_name
+            daemon: str = 'None'
+            if is_daemon is not None:
+                if is_daemon:
+                    daemon = 'True'
+                else:
+                    daemon = 'False'
+
+            msg = f'{Constants.CURRENT_ADDON_NAME}: {msg} thread: {thread_name} ' \
+                  f'daemon: {daemon}'
             # msg = utils.py2_decode(msg)
 
             string_buffer = msg
