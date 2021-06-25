@@ -39,6 +39,7 @@ class Constants:
     MEDIA_PATH: str = None
     SCRIPT_PATH: str = None
     YOUTUBE_DL_ADDON_LIB_PATH: str = None
+    SAVE_MEMORY: bool = True
     TRAILER_INFO_DISPLAY_SECONDS: Final[int] = 60
     TRAILER_INFO_DISPLAY_MILLISECONDS: Final[int] = 6000
     SECONDS_BEFORE_RESHUFFLE: Final[int] = 1 * 60
@@ -66,7 +67,7 @@ class Constants:
     HTTP_UNAUTHORIZED: Final[int] = 401
     TRACEBACK: Final[str] = 'LEAK Traceback StackTrace StackDump'
     TRAILER_CACHE_FLUSH_SECONDS: Final[int] = 300  # Five minutes with changes
-    TRAILER_CACHE_FLUSH_UPDATES: Final[int] = 10  # Flush cache after n updates
+    TRAILER_CACHE_FLUSH_UPDATES: Final[int] = 40  # Flush cache after n updates
 
     PLAY_STATISTICS_REPORT_PATH: str = None
 
