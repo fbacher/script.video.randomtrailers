@@ -56,17 +56,16 @@ class MyPlayer(AdvancedPlayer, ABC):
         passed_file_name: str = os.path.basename(path)
         if file_name != passed_file_name:
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.debug_extra_verbose('passed file name:',
-                                                 passed_file_name,
-                                                 'movie file_name:',
-                                                 file_name,)
+                clz._logger.debug_extra_verbose(f'passed file name: {passed_file_name} '
+                                                f'movie file_name: {file_name}')
 
         listitem: xbmcgui.ListItem = xbmcgui.ListItem(title)
         listitem.setInfo(
             'video', {'title': title, 'genre': 'randomtrailers',
                       'Genre': 'randomtrailers',
-                      'movie': passed_file_name, 'path': path,
+                      'trailer': passed_file_name, 'path': path,
                       'mediatype': 'video', 'tag': 'randomtrailers'})
+
         listitem.setPath(file_path)
 
         self.set_playing_title(title)
