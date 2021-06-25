@@ -267,7 +267,7 @@ class GenreConstants:
     COMEDY: Final[str] = 'g_comedy'
     CRIME: Final[str] = 'g_crime'
     DARK_COMEDY: Final[str] = 'g_black_comedy'
-    DOCUMENTARY: Final[str] = 'g_docu'
+    DOCUMENTARY: Final[str] = 'g_documentary'
     DRAMA: Final[str] = 'g_drama'
     EPIC: Final[str] = 'g_epic'
     EXPERIMENTAL: Final[str] = 'g_experimental'  # not used
@@ -289,7 +289,7 @@ class GenreConstants:
     ROMANTIC_COMEDY: Final[str] = 'g_romantic_comedy'
     SATIRE: Final[str] = 'g_satire'
     SCI_FI: Final[str] = 'g_scifi'
-    SCREWBALL_COMEDY: Final[str] = 'g_screwball'
+    SCREWBALL_COMEDY: Final[str] = 'g_screwball_comedy'
     SWASHBUCKLER: Final[str] = 'g_swashbuckler'
     THRILLER: Final[str] = 'g_thriller'
     TV_MOVIE: Final[str] = 'g_tv_movie'
