@@ -26,8 +26,7 @@ from common.exceptions import AbortException
 from common.logger import LazyLogger
 from common.messages import Messages
 from common.monitor import Monitor
-from common.movie import TMDbMovieId, TMDbMoviePageData, BaseMovie
-from common.movie_constants import MovieField, MovieType
+from common.movie import TMDbMovieId, BaseMovie
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
@@ -1363,13 +1362,5 @@ class CacheIndex:
         else:
             return dct
 
-    @staticmethod
-    def tmdb_movie_page_data_parser(dct: Dict) -> Any:
-        value: str = dct.get('type', None)
-        if value == TMDbMoviePageData.__name__:
-            movie_id: str = dct.get('_movie_id', None)
-            movie_info: MovieType = dct.get('_movie_info', None)
-            tmdb_movie_page_data = TMDbMoviePageData(movie_id, movie_info)
-            return tmdb_movie_page_data
 
 CacheIndex.class_init()
