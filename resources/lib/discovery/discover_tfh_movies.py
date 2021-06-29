@@ -178,83 +178,83 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
        https://www.youtube.com/user/trailersfromhell/videos 
         
         Returns:
-     {
-      "_type": "playlist",
-          "entries": [
-                {
-                  "_type": "url_transparent",
-                  "ie_key": "Youtube",
-                  "id": "1rPbXlQFJCw",
-                  "url": "1rPbXlQFJCw",
-                  "title": "Michael Schlesinger on TOUGH GUYS DON'T DANCE",
-                  "description": null,
-                  "duration": null,
-                  "view_count": 1722,
-                  "uploader": null
-                    }
-                ]
-            }
-        
-        ydl_opts = {
-            'forcejson': True,
-            'noplaylist': False,
-            'extract_flat': True,
-            'skip_download': True,
-            'logger': tfh_index_logger,
-            'sleep_interval': 1,
-            'max_sleep_interval': 8,
-            #  'playlist_items': trailers_to_download,
-            'playlistrandom': True,
-            'progress_hooks': [TFHIndexProgressHook(self).status_hook],
-            # 'debug_printtraffic': True
-        }
+         {
+          "_type": "playlist",
+              "entries": [
+                    {
+                      "_type": "url_transparent",
+                      "ie_key": "Youtube",
+                      "id": "1rPbXlQFJCw",
+                      "url": "1rPbXlQFJCw",
+                      "title": "Michael Schlesinger on TOUGH GUYS DON'T DANCE",
+                      "description": null,
+                      "duration": null,
+                      "view_count": 1722,
+                      "uploader": null
+                        }
+                    ]
+                }
             
-       or-
-        Get JSON for TFH entire trailers in playlist:
-        youtube-dl --ignore-errors --skip-download --playlist-random  
-            --print-json https://www.youtube.com/user/trailersfromhell/videos >>downloads2
-        Each line is a separate JSON "file" for a single movie.
-             
-             -J --dump-single-json: -> dump_single_json
-             --skip-download: -> skip_download
-             
-        ydl_opts = {
+            ydl_opts = {
                 'forcejson': True,
                 'noplaylist': False,
-                # 'extract_flat': 'in_playlist',
+                'extract_flat': True,
                 'skip_download': True,
                 'logger': tfh_index_logger,
-                'sleep_interval': 10,
-                'max_sleep_interval': 240,
+                'sleep_interval': 1,
+                'max_sleep_interval': 8,
                 #  'playlist_items': trailers_to_download,
                 'playlistrandom': True,
                 'progress_hooks': [TFHIndexProgressHook(self).status_hook],
                 # 'debug_printtraffic': True
-                       
-        From JSON youtube download for a single trailer:
-          "license": null,
-           "title": "Allan Arkush on SMALL CHANGE",
-           "thumbnail": "https://i.ytimg.com/vi/YbqC0b_jfxQ/maxresdefault.jpg",
-           "description": "François Truffaut followed up the tragic The Story of Adele H 
-        with this sunny comedy about childhood innocence and resiliency (to show just 
-        how resilient, one baby falls out a window and merely bounces harmlessly off
-        the bushes below). Truffaut worked with a stripped down script to allow for 
-        more improvisation from his young cast. The rosy cinematography was by 
-        Pierre-William Glenn (Day for Night).\n\nAs always, you can find more
-        commentary, more reviews, more podcasts, and more deep-dives into the films
-        you don't know you love yet over on the Trailers From Hell 
-        mothership:\n\nhttp://www.trailersfromhell.com\n\n
-        What's that podcast, you ask? Why, it's THE MOVIES THAT MADE ME, where 
-        you can join Oscar-nominated screenwriter Josh Olson and TFH Fearless 
-        Leader Joe Dante in conversation with filmmakers, comedians, and 
-        all-around interesting people about the movies that made them who they are. 
-        Check it out now, and please subscribe wherever podcasts can be found.
-        \n\nApple Podcasts:
-         https://podcasts.apple.com/us/podcast/the-movies-that-made-me/id1412094313\n
-         Spotify: http://spotify.trailersfromhell.com\n
-         Libsyn: http://podcast.trailersfromhell.com\n
-         Google Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7",
-        """
+            }
+                
+           or-
+            Get JSON for TFH entire trailers in playlist:
+            youtube-dl --ignore-errors --skip-download --playlist-random  
+                --print-json https://www.youtube.com/user/trailersfromhell/videos >>downloads2
+            Each line is a separate JSON "file" for a single movie.
+                 
+                 -J --dump-single-json: -> dump_single_json
+                 --skip-download: -> skip_download
+                 
+            ydl_opts = {
+                    'forcejson': True,
+                    'noplaylist': False,
+                    # 'extract_flat': 'in_playlist',
+                    'skip_download': True,
+                    'logger': tfh_index_logger,
+                    'sleep_interval': 10,
+                    'max_sleep_interval': 240,
+                    #  'playlist_items': trailers_to_download,
+                    'playlistrandom': True,
+                    'progress_hooks': [TFHIndexProgressHook(self).status_hook],
+                    # 'debug_printtraffic': True
+                           
+            From JSON youtube download for a single trailer:
+              "license": null,
+               "title": "Allan Arkush on SMALL CHANGE",
+               "thumbnail": "https://i.ytimg.com/vi/YbqC0b_jfxQ/maxresdefault.jpg",
+               "description": "François Truffaut followed up the tragic The Story of Adele H 
+            with this sunny comedy about childhood innocence and resiliency (to show just 
+            how resilient, one baby falls out a window and merely bounces harmlessly off
+            the bushes below). Truffaut worked with a stripped down script to allow for 
+            more improvisation from his young cast. The rosy cinematography was by 
+            Pierre-William Glenn (Day for Night).\n\nAs always, you can find more
+            commentary, more reviews, more podcasts, and more deep-dives into the films
+            you don't know you love yet over on the Trailers From Hell 
+            mothership:\n\nhttp://www.trailersfromhell.com\n\n
+            What's that podcast, you ask? Why, it's THE MOVIES THAT MADE ME, where 
+            you can join Oscar-nominated screenwriter Josh Olson and TFH Fearless 
+            Leader Joe Dante in conversation with filmmakers, comedians, and 
+            all-around interesting people about the movies that made them who they are. 
+            Check it out now, and please subscribe wherever podcasts can be found.
+            \n\nApple Podcasts:
+             https://podcasts.apple.com/us/podcast/the-movies-that-made-me/id1412094313\n
+             Spotify: http://spotify.trailersfromhell.com\n
+             Libsyn: http://podcast.trailersfromhell.com\n
+             Google Play: http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7",
+          """
         clz = type(self)
 
         cache_expiration_time = datetime.timedelta(
@@ -276,130 +276,32 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         if max_trailers < len(trailer_list):
             del trailer_list[max_trailers:]
 
-        #
-        # PATCH PATCH PATCH PATCH
-        #
-        # Patch to extract Movie title from TFH "title"
-        #
-        # Formats: Reviewer on CAPS TITLE (most common)
-        #          Reviewer talks TITLE
-        #          Reviewer talks about TITLE
-        #          Reviewer discusses TITLE
-        #          Reviewer's TITLE
-        #          TITLE
-        #          Reviewer In Conversation With Person
-        #          Reviewer covers TITLEGenre
-        #          Reviewer introduces TITLE for the Cinenasty series
-        #
-        # Occasionally, CAPS_TITLE has some lower case chars (grr)
-        #               ex: BIG JIM McLEAN
+        if clz.FORCE_TFH_REDISCOVERY:
+            for tfh_trailer in trailer_list:
 
-        for tfh_trailer in trailer_list:
+                # TODO: Remove patch to clean up cache
 
-            # TODO: Remove patch to clean up cache
+                try:
+                    dirty: bool = Debug.validate_detailed_movie_properties(tfh_trailer,
+                                                                           stack_trace=False,
+                                                                           force_check=True)
+                    if (tfh_trailer.get_title() == tfh_trailer.get_tfh_title()
+                            or dirty or tfh_trailer.get_year() == 0):
+                        tfh_trailer.set_title(self.fix_title(tfh_trailer))
+                        tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
+                        if dirty:
+                            tfh_trailer.set_fanart('')
+                            tfh_trailer.set_writers([])
+                            tfh_trailer.set_genre_names([])
+                            tfh_trailer.set_unique_ids({})
 
-            try:
-                dirty: bool = Debug.validate_detailed_movie_properties(tfh_trailer,
-                                                                       stack_trace=False,
-                                                                       force_check=True)
-                if (tfh_trailer.get_title() == tfh_trailer.get_tfh_title()
-                        or dirty or tfh_trailer.get_year() == 0):
-                    tfh_trailer.set_title(self.fix_title(tfh_trailer))
-                    tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
-                    if dirty:
-                        tfh_trailer.set_fanart('')
-                        tfh_trailer.set_writers([])
-                        tfh_trailer.set_genre_names([])
-                        tfh_trailer.set_unique_ids({})
-    
-                # Mostly to protect against cached entries produced by bugs which
-                # are now fixed, reset certain fields to force rediscovery.
-    
-                if clz.FORCE_TFH_REDISCOVERY:
-                    tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
-            except Exception as e:
-                clz.logger.exception(e)
-                
-                # Fields read from youtube
-                """
-                    = {Movie.SOURCE: 'unknown',
-                       Movie.YOUTUBE_ID: trailer_id,
-                       Movie.TFH_TITLE: tfh_title,
-                       Movie.TITLE: movie_title,
-                       Movie.YEAR: year,
-                       Movie.TRAILER: trailer_url,
-                       Movie.PLOT: description,
-                       Movie.THUMBNAIL: thumbnail,
-                       Movie.RATING: movie_data.get('average_rating', 0.0),
-                       # Kodi measures in seconds
-                       # At least for TFH, this appears to be time of movie
-                       # (not movie), measured in 1/60 of a
-                       # second, or 60Hz frames. Weird.
-                       Movie.RUNTIME: movie_data.get('duration', 1.0) * 60
-                       }
-                       
-                Initial values set in youtube video_downloader:
-                       Movie.DISCOVERY_STATE: Movie.NOT_FULLY_DISCOVERED,
-                       Movie.MPAA: unrated_id,
-                       Movie.ADULT: False,
-                   
-                Fields read from cache:
-                J- Junk
-                D- Detail (no need to persist)
-                
-                    "cached_trailer": 
-                    "/home/fbacher/.kodi/userdata/addon_data/script.video
-                    .randomtrailers/cache/hA/tfh_AniaXIWKKuc_John Landis on KIND HEARTS 
-                    AND CORONETS (2013)-movie.mkv",
-                      "cast": [],
-                      "fanart": "",
-                      "genre": [],
-                      "mpaa": "NR",
-                      "original_language": "",
-                      "plot": "Perhaps the greatest of the Ealing comedies, 
-                      this blackly humorous multiple murder farce is best known for 
-                      Alec Guinness's eight roles as all the D'ascoyne family victims, 
-                      but it's really murderous lead Dennis Price who walks away with 
-                      the acting honors.\n\nAs always, find more great cinematic 
-                      classics at http://www.trailersfromhell.com\n\nABOUT TRAILERS 
-                      FROM HELL:  \n\nTFH is the premier showcase for a breathtakingly 
-                      eclectic assortment of trailers from classic era films both in 
-                      their original form and punctuated with informative and amusing 
-                      commentary by contemporary filmmakers.\n\nFollow us on Twitter: 
-                      ‪‪http://www.twitter.com/trailersfromhel‬‬\nLike us on Facebook: 
-                      ‪‪http://www.facebook.com/trailersfromhell‬‬",
-                      "rating": 4.9272728,
-                D     "rts.actors": [],
-                D     "rts.certification": "Unrated",
-                D     "rts.certificationImage": "ratings/us/unrated.png",
-                D     "rts.directors": "",
-                D     "rts.genres": [],
-                D     "rts.runtime": "199 [B]Minutes[/B] - ",
-                D     "rts.studios": "",
-                      "rts.tfhId": "AniaXIWKKuc",
-                      "rts.tfh_title": "KIND HEARTS AND CORONETS",
-                D     "rts.title": "John Landis on KIND HEARTS AND CORONETS (2013) - 
-                TFH ",
-                D     "rts.voiced.actors": "",
-                D     "rts.writers": "",
-                      "rts.youtube.trailers_in_index": 1449,
-                      "rts.youtube_index": 164,
-                      "runtime": 11940,
-                      "source": "TFH",
-                      "studio": "default_studio",
-                      "tags": [
-                         "John Landis (Music Video Director)",
-                         "Kind Hearts And Coronets (Film)"
-                      ],
-                      "thumbnail": "https://i.ytimg.com/vi/AniaXIWKKuc/maxresdefault.jpg",
-                      "title": "KIND HEARTS AND CORONETS",
-                      "movie": "https://youtu.be/AniaXIWKKuc",
-                      "trailerDiscoveryState": "04_discoveryReadyToDisplay",
-                      "trailerPlayed": false,
-                      "trailerType": "default_trailerType",
-                      "writer": [],
-                      "year": 2013
-                """
+                    # Mostly to protect against cached entries produced by bugs which
+                    # are now fixed, reset certain fields to force rediscovery.
+
+                    if clz.FORCE_TFH_REDISCOVERY:
+                        tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
+                except Exception as e:
+                    clz.logger.exception(e)
 
         self.add_to_discovered_movies(trailer_list)
 
@@ -447,12 +349,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         tfh_title = tfh_movie.get_tfh_title()
         title_segments = re.split(TFH.TITLE_RE, tfh_title)
-        # director : on : title
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug(
-                f'tfh_raw: {tfh_title} title_segments: {str(title_segments)}')
-
-        reviewer = title_segments[0]
+        # reviewer = title_segments[0]
 
         # Is this a non-standard format for movie?
         if len(title_segments) > 1:
@@ -460,8 +357,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         else:
             movie_title = tfh_title  # Not sure what else to do
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug(f'reviewer: {reviewer} title: {movie_title}')
+        # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        #     clz.logger.debug(f'reviewer: {reviewer} title: {movie_title}')
 
         return movie_title
 
@@ -506,6 +403,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             parser.parse_trailer_type()
             parser.parse_trailer_path()
             parser.parse_discovery_state()
+
+            # The following are most likely all junk and set to default
+            # values.
 
             # Bogus value of unrated. Replaced with value from TMDb, if
             # movie can be found there.
