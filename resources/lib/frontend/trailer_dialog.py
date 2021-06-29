@@ -296,8 +296,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             # Main movie playing loop
 
             if Settings.get_show_curtains():
-                self._movie_manager.play_curtain_next(
-                    MovieManager.OPEN_CURTAIN)
+                self._movie_manager.play_curtain_next(MovieManager.OPEN_CURTAIN)
 
             while not self.is_random_trailers_play_state():
                 if self.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
@@ -590,8 +589,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                         self._movie.get_title())
 
             if Settings.get_show_curtains():
-                self._movie_manager.play_curtain_next(
-                    MovieManager.CLOSE_CURTAIN)
+                self._movie_manager.play_curtain_next(MovieManager.CLOSE_CURTAIN)
 
                 _, curtain = self._movie_manager.get_next_trailer()
                 self.set_visibility(video_window=True, info=False, brief_info=False,
@@ -1493,6 +1491,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 clz.logger.debug_extra_verbose(
                     key, 'Play next trailer at user\'s request')
             self._wait_or_interrupt_event.set()
+            self._movie_manager.play_next_trailer()
             self.set_random_trailers_play_state(
                 DialogState.SKIP_PLAYING_TRAILER)
             self.play_next_trailer()
