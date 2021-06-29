@@ -107,7 +107,7 @@ class BaseDiscoverMovies(threading.Thread):
 
     def add_to_discovered_movies(self,
                                  movies: Union[BaseMovie,
-                                                 Iterable[BaseMovie]]) -> None:
+                                               Iterable[BaseMovie]]) -> None:
         """
 
         :param movies:
