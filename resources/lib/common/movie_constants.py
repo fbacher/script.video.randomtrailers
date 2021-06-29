@@ -250,10 +250,11 @@ List.Sort
     TRAILER_TYPE_CLIP: Final[str] = 'Clip'
     TRAILER_TYPE_TEASER: Final[str] = 'Teaser'
     TRAILER_TYPE_BEHIND_THE_SCENES: Final[str] = 'Behind the Scenes'
+    TRAILER_TYPE_COMMENTARY: Final[str] = 'Trailer Commentary'
 
     TRAILER_TYPES: Tuple[str] = (TRAILER_TYPE_TRAILER, TRAILER_TYPE_FEATURETTE,
                                  TRAILER_TYPE_CLIP, TRAILER_TYPE_TEASER,
-                                 TRAILER_TYPE_BEHIND_THE_SCENES)
+                                 TRAILER_TYPE_BEHIND_THE_SCENES, TRAILER_TYPE_COMMENTARY)
 
     # Map trailer types found in .json files from iTunes to what is used in this
     # app.
@@ -313,13 +314,11 @@ List.Sort
     # TRAILER_PLAYED is a boolean field
     TRAILER_PLAYED: Final[str] = 'trailerPlayed'
 
-    # TMDB_ID_NOT_FOUND is a boolean that is always True,
-    # If present, then the TMDB id could not be found. Used to suppress
-    # repeated checks. An alternative solution would be to have a special
-    # TMDB_ID value < 1, but at the time the refactoring would be too
-    # disruptive.
+    # TMDB_ID_FINDABLE is False, IFF we have tried to
+    # find the tmdb id but failed due to TMDb not able to
+    # find the movie (not due to communication or other similar failure).
 
-    TMDB_ID_NOT_FOUND: Final[str] = 'rts.tmdb_id_not_found'
+    TMDB_ID_FINDABLE: Final[str] = 'rts.findable'
 
     # Indicates whether this entry is from the TMDb cache
 
@@ -409,20 +408,43 @@ List.Sort
         YEAR: 0
     }
 
+
+    # Used to by get_detail_info to copy fields from TMDb query to TFH movies
+    # to supply missing data. The values in this dict are here in case no value was found
+    # in the movie to be copied from.
+
+    TFH_CLONE_FIELDS: MovieType = {
+        ACTORS: [],
+        CERTIFICATION_ID: '',
+        DIRECTOR: [],
+        DISCOVERY_STATE: NOT_INITIALIZED,
+        FANART: '',
+        # FILE: '',
+        GENRE_NAMES: [],
+        # PLOT: '',
+        # RATING: 0.0,
+        RUNTIME: 0,
+        # SOURCE: '',
+        STUDIO: [],
+        # THUMBNAIL: '',
+        TITLE: 'default_' + TITLE,
+        TMDB_TAG_NAMES: [],
+        # TRAILER: '',
+        # TRAILER_TYPE: '',
+        # VOTES: 0,
+        WRITER: [],
+        YEAR: 0
+    }
+    
     # Initially, the only data in a TFH movie is that which comes from Youtube playlist
     TFH_SKELETAL_MOVIE: MovieType = {
-        DISCOVERY_STATE: NOT_INITIALIZED,
         TITLE: 'default_' + TITLE,
-        # ORIGINAL_TITLE: '',
+        TFH_ID: '',
         # ORIGINAL_LANGUAGE    # For TMDb, assume that only ORIGINAL_LANGUAGE is spoken
-        YEAR: 0,
-        CERTIFICATION_ID: '',
         TRAILER: '',
         PLOT: '',
-        RUNTIME: 0,
-        RATING: 0.0,
         SOURCE: '',
-        TRAILER_TYPE: ''
+        TRAILER_TYPE: TRAILER_TYPE_TRAILER
     }
 
     TMDB_PAGE_DATA_FIELDS: Final[List[str]] = [

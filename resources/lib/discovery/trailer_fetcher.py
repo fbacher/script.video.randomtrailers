@@ -113,7 +113,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             trailer_fetcher.start()
             trailer_fetcher.setName(thread_name)
 
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                 clz._logger.debug_verbose(f'trailer fetcher started thread name: '
                                           f'{trailer_fetcher.name} '
                                           f'daemon: {trailer_fetcher.isDaemon()} '
@@ -461,7 +461,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # Ok, tmdb_id not in Kodi database, query TMDb
 
                     if (tmdb_id is None
-                            and not movie.is_tmdb_id_not_found()):  # Double negative!!
+                            and movie.is_tmdb_id_findable()):
                         try:
                             tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                                 movie.get_title(), movie.get_year(),
@@ -475,12 +475,12 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 self._missing_trailers_playlist.record_played_trailer(
                                     movie, use_movie_path=True,
                                     msg=' Movie not found at tmdb')
-                                movie.set_tmdb_id_not_found(True)
+                                movie.set_tmdb_id_findable(False)
+                                if isinstance(movie, TFHMovie):
+                                    TFHCache.update_movie(movie)
                             else:
                                 movie.add_unique_id(MovieField.UNIQUE_ID_TMDB,
                                                     str(tmdb_id))
-                                if isinstance(movie, TFHMovie):
-                                    TFHCache.update_movie(movie)
 
                         except CommunicationException:
                             pass  # Get it next time
@@ -546,7 +546,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             elif source in (MovieField.ITUNES_SOURCE, MovieField.TFH_SOURCE):
                 self.throw_exception_on_forced_to_stop()
                 tmdb_id: int = movie.get_tmdb_id()
-                if tmdb_id is None and not movie.is_tmdb_id_not_found():  # No No!
+                if tmdb_id is None and movie.is_tmdb_id_findable():
                     if isinstance(movie, TFHMovie):
                         year = None
                     else:
@@ -554,9 +554,10 @@ class TrailerFetcher(TrailerFetcherInterface):
                     try:
                         self.throw_exception_on_forced_to_stop()
                         tmdb_id: Union[
-                            int, str, None] = TMDBUtils.get_tmdb_id_from_title_year(
-                            movie.get_title(), year,
-                            runtime_seconds=movie.get_runtime())
+                            int, str, None]
+
+                        tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
+                            movie.get_title(), year, runtime_seconds=movie.get_runtime())
 
                         if tmdb_id is None:
                             if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -568,7 +569,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 self._missing_trailers_playlist.record_played_trailer(
                                     movie, use_movie_path=True,
                                     msg=' Movie not found at TMDB')
-                                movie.set_tmdb_id_not_found(True)
+                                movie.set_tmdb_id_findable(False)
+                                if isinstance(movie, TFHMovie):
+                                    TFHCache.update_movie(movie)
                             else:
                                 # TFH Movie definitely has a trailer, we just can't
                                 # find the TMDb movie for it, because the name is
@@ -576,6 +579,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 pass
                         else:
                             movie.set_tmdb_id(tmdb_id)
+                            TFHCache.update_movie(movie)
+
                     except CommunicationException:
                         pass  # Try to get next time around
 
@@ -710,7 +715,9 @@ class TrailerFetcher(TrailerFetcherInterface):
                     movie.get_title(), year,
                     runtime_seconds=movie.get_runtime())
                 if tmdb_id is None:
-                    movie.set_tmdb_id_not_found(True)
+                    movie.set_tmdb_id_findable(False)
+                    if isinstance(movie, TFHMovie):
+                        TFHCache.update_movie(movie)
                 else:
                     changed = movie.set_tmdb_id(tmdb_id)
                     if changed and isinstance(movie, TFHMovie):

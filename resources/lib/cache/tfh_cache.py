@@ -40,12 +40,17 @@ class TFHCache:
     INDEX_CREATION_DATE = 'INDEX_CREATION_DATE'
     CACHE_COMPLETE = "CACHE_COMPLETE"
     INCOMPLETE_CREATION_DATE_STR = '1900:01:01'
+    MAX_UNSAVED_CHANGES = 200
     _initialized = threading.Event()
     lock = threading.RLock()
     _logger: LazyLogger = None
     _cached_movies: Dict[str, TFHMovie] = {}
-    _last_saved_trailer_timestamp = datetime.datetime.now()
-    _unsaved_movie_changes: int = 0
+    _last_saved_movie_timestamp = datetime.datetime.now()
+
+    # Does NOT capture changes to the entries, only to the addition or
+    # removal of the entries.
+
+    _unsaved_changes: int = 0
 
     # Cache is marked with timestamp of last update of movie ids from TFH
     # Also marked whether the cache was completely updated.
@@ -78,92 +83,20 @@ class TFHCache:
         :param complete:
         :return:
 
-        Typical json entry
-        Items marked with * are kodi/TMDb artifacts
-
-            "BZwDpOQNgpw": {
-              "adult": false,
-              "cast": [],
-              "fanart": "default_fanart",
-              "genre": [],
-              "mpaa": "NR",
-              "normalized_trailer":
-              "/home/fbacher/.kodi/userdata/addon_data/script.video.randomtrailers
-              /cache/hB/tfh_BZwDpOQNgpw_normalized_Larry Karaszewski on SMOKEY IS THE
-              BANDIT (SMOKEY AND THE BANDIT PART 3) (2017)-movie.mkv",
-              "original_language": "",
-              "plot": "But wait! There's more! TFH has a podcast! \n\nIt's THE MOVIES
-              THAT MADE ME, where you can join Oscar-nominated screenwriter Josh Olson
-              and his, ummm, \"co-host\" Joe Dante in conversation with filmmakers,
-              comedians, and all-around interesting people about the movies that made
-              them who they are. Check it out now, and please subscribe wherever
-              podcasts can be found.\n\nBut wait! There's more! TFH has a podcast!
-              \n\nIt's THE MOVIES THAT MADE ME, where you can join Oscar-nominated
-              screenwriter Josh Olson and his, ummm, \"co-host\" Joe Dante in
-              conversation with filmmakers, comedians, and all-around interesting
-              people about the movies that made them who they are. Check it out now,
-              and please subscribe wherever podcasts can be found.\n\niTunes:
-              http://itunes.trailersfromhell.com\nSpotify:
-              http://spotify.trailersfromhell.com\nLibsyn:
-              http://podcast.trailersfromhell.com\nGoogle Play:
-              http://googleplay.trailersfromhell.com\nRSS: http://goo.gl/3faeG7\n\nAs
-              always, you can find more commentary, more reviews, more podcasts,
-              and more deep-dives into the films you don't know you love yet over at
-              the Trailers From Hell mothership: \n\nhttp://www.trailersfromhell.com",
-              "rating": 4.8974357,
-              "genre": [],
-              "rts.actors": "",
-              "rts.certification": "Unrated",
-              "rts.certificationImage": "ratings/us/unrated.png",
-              "rts.directors": "",
-              "rts.genres": "",
-              "rts.runtime": "143 [B]Minutes[/B] - ",
-              "rts.studios": "",
-              "rts.tfhId": "BZwDpOQNgpw",
-              "rts.tfh_title": "SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3)",
-              "rts.title": "SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3) (2017)
-              - TFH ",
-              "rts.tmdb_id_not_found": true,
-              "rts.voiced.actors": [],
-              "rts.voiced.directors": [],
-              "rts.voiced.studios": [],
-              "rts.voiced.writers": [],
-              "rts.writers": "",
-              "rts.youtube.trailers_in_index": 1449,
-              "rts.youtube_index": 204,
-              "runtime": 8580,
-              "source": "TFH",
-              "studio": [
-                 []
-              ],
-              "tags": [
-                 "smokey and the bandit 3",
-                 "larry karaszewski",
-                 "jackie gleason"
-              ],
-              "thumbnail": "https://i.ytimg.com/vi_webp/BZwDpOQNgpw/maxresdefault.webp",
-              "title": "SMOKEY IS THE BANDIT (SMOKEY AND THE BANDIT PART 3)",
-              "movie": "https://youtu.be/BZwDpOQNgpw",
-              "trailerDiscoveryState": "04_discoveryReadyToDisplay",
-              "trailerPlayed": true,
-              "trailerType": "default_trailerType",
-              "uniqueid": {
-                 "tmdb": "None"
-              },
-              "writer": [
-                 []
-              ],
-              "year": 2017
-           }
-
         """
         cls._initialized.wait()
         with cls.lock:
             if (not flush and
-                    (cls._unsaved_movie_changes < 50)
+                    (cls._unsaved_changes < cls.MAX_UNSAVED_CHANGES)
                     and
-                    (datetime.datetime.now() - cls._last_saved_trailer_timestamp)
+                    (datetime.datetime.now() - cls._last_saved_movie_timestamp)
                     < datetime.timedelta(minutes=5)):
+                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                    delta = int((datetime.datetime.now() -
+                                cls._last_saved_movie_timestamp).total_seconds() / 60)
+                    cls._logger.debug_extra_verbose(f'flush: {flush} '
+                                                    f'changes: {cls._unsaved_changes} '
+                                                    f'time: {delta}' )
                 return
 
             try:
@@ -200,23 +133,52 @@ class TFHCache:
                                                  creation_date_str)
                     dummy_tfh_movie.set_property(cls.CACHE_COMPLETE, cls._cache_complete)
                     
-                    cls._cached_movies[cls.INDEX_CREATION_DATE] = dummy_tfh_movie
                     movie: TFHMovie
-                    for movie in cls._cached_movies.values():
-                        movie.set_cached(True)
 
-                    json_text = json.dumps(cls._cached_movies,
+                    #
+                    # Don't save more fields than we need, slows down
+                    # load/save operations.
+                    #
+
+                    temp_movies: Dict[str, TFHMovie] = {}
+
+                    for movie in cls._cached_movies.values():
+                        try:
+                            temp_movie: TFHMovie = TFHMovie(movie_id=movie.get_id())
+                            temp_movie.set_cached(True)
+                            temp_movie.set_tfh_id(movie.get_id())
+                            temp_movie.set_plot(movie.get_plot())  # Very likely empty
+                            temp_movie.set_title(movie.get_title())
+                            temp_movie.set_trailer_path(movie.get_trailer_path())
+                            temp_movie.set_trailer_type(movie.get_trailer_type())
+                            temp_movie.set_tfh_title(movie.get_tfh_title())
+                            findable: bool = movie.is_tmdb_id_findable()
+                            #
+                            # Only set when NOT findable.
+                            #
+                            if not findable:
+                                temp_movie.set_tmdb_id_findable(findable)
+
+                            tmdb_id: int = movie.get_tmdb_id()
+                            if tmdb_id is not None:
+                                temp_movie.set_tmdb_id(tmdb_id)
+                            temp_movies[movie.get_id()] = temp_movie
+                        except Exception as e:
+                            a = 1
+
+                    temp_movies[cls.INDEX_CREATION_DATE] = dummy_tfh_movie
+
+                    json_text = json.dumps(temp_movies,
                                            encoding='utf-8',
                                            ensure_ascii=False,
                                            default=TFHCache.encoder,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
+                    del temp_movies
 
-                    # Get rid of dummy entry from local dict
-                    del cls._cached_movies[cls.INDEX_CREATION_DATE]
-                    cls._last_saved_trailer_timestamp = datetime.datetime.now()
-                    cls._unsaved_movie_changes = 0
+                    cls._last_saved_movie_timestamp = datetime.datetime.now()
+                    cls._unsaved_changes = 0
 
                 try:
                     os.replace(tmp_path, path)
@@ -237,7 +199,8 @@ class TFHCache:
         """
 
         :return: True if cache is full and no further discovery needed
-        """
+        """ 
+        
         with cls.lock:
             cls._initialized.set()
             try:
@@ -263,16 +226,20 @@ class TFHCache:
 
                         if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
                             movie_ids_to_delete.append(movie.get_id())
+                        elif not isinstance(movie, TFHMovie):
+                            movie_ids_to_delete.append(movie.get_id())
 
                     if len(movie_ids_to_delete) > 0:
                         cls.remove_movies(movie_ids_to_delete, flush=True)
                         
-                        # Cache is not complete. Delete marker
-                        if cls.INDEX_CREATION_DATE in cls._cached_movies:
-                            del cls._cached_movies[cls.INDEX_CREATION_DATE]
+                    # After dummy entry written to cache, remove from 
+                    # local cache
+                    
+                    if cls.INDEX_CREATION_DATE in cls._cached_movies:
+                        del cls._cached_movies[cls.INDEX_CREATION_DATE]
                                                                        
-                    cls.last_saved_movie_timestamp = None
-                    cls._unsaved_movie_changes = 0
+                    cls._last_saved_movie_timestamp = datetime.datetime.now()
+                    cls._unsaved_changes = 0
                     cls.load_creation_date()
                 else:
                     cls._cached_movies = dict()
@@ -337,7 +304,7 @@ class TFHCache:
                 if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
                     cls._logger.debug(f'TFH movie not sane: {movie.get_title}')
                 cls._cached_movies[key] = movie
-                cls._unsaved_movie_changes += 1
+                cls._unsaved_changes += 1
 
             cls.save_cache(flush=flush)
 
@@ -349,7 +316,7 @@ class TFHCache:
         with cls.lock:
             key = movie.get_id()
             cls._cached_movies[key] = movie
-            cls._unsaved_movie_changes += 1
+            cls._unsaved_changes += 1
             cls.save_cache(flush=flush)
 
     @classmethod
@@ -359,7 +326,7 @@ class TFHCache:
             for movie_id in movie_ids:
                 if movie_id in cls._cached_movies:
                     del cls._cached_movies[movie_id]
-                    cls._unsaved_movie_changes += 1
+                    cls._unsaved_changes += 1
 
             cls.save_cache(flush=flush)
 
@@ -381,7 +348,7 @@ class TFHCache:
         with cls.lock:
             key = movie.get_id()
             cls._cached_movies[key] = movie
-            cls._unsaved_movie_changes += 1
+            cls._unsaved_changes += 1
             cls.save_cache(flush=flush)
 
     @classmethod
@@ -414,7 +381,7 @@ class TFHCache:
         return dct
 
     @staticmethod
-    def decoder(dct: MovieType) -> MovieType:
+    def decoder(dct: MovieType) -> TFHMovie:
         try:
             Monitor.throw_exception_if_abort_requested()
             # if len(dct.values()) > 0:
@@ -424,8 +391,10 @@ class TFHCache:
             #         break
 
             if MovieField.TFH_ID in dct:
-                movie = TFHMovie(movie_info=dct)
+                tfh_id: str = dct.get(MovieField.TFH_ID)
+                movie = TFHMovie(movie_id=tfh_id, movie_info=dct)
                 return movie
+
         except Exception as e:
             TFHCache._logger.exception()
         return dct

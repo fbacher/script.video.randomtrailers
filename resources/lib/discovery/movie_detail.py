@@ -68,10 +68,10 @@ class MovieDetail:
                 cls._logger.debug_verbose(f'title: {movie.get_title()}'
                                           f' source: {movie.get_source()}'
                                           f' tmdb_id: {tmdb_id}'
-                                          f' is_tmdb_id_not_found: '
-                                          f'{movie.is_tmdb_id_not_found()}')
+                                          f' is_tmdb_id_findable: '
+                                          f'{movie.is_tmdb_id_findable()}')
 
-            if not movie.is_tmdb_id_not_found():
+            if movie.is_tmdb_id_findable():
                 if isinstance(movie, ITunesMovie) or isinstance(movie, TFHMovie):
                     keep_trailer = cls.merge_tmdb_info(movie)
 
@@ -196,7 +196,7 @@ class MovieDetail:
                                           heading='Dumping TFH movie_info',
                                           log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
 
-                cls.clone_fields(tmdb_detail_info, movie, MovieField.CLONE_FIELDS,
+                cls.clone_fields(tmdb_detail_info, movie, MovieField.TFH_CLONE_FIELDS,
                                  set_default=True)
 
                 if (movie.get_thumbnail(default='') == ''
@@ -304,7 +304,7 @@ class MovieDetail:
             #     or from the ID from the remote source, or some combination
             #
             #  2- Movies from the library have a known name and date. Those
-            #    downloaded come with unreliable names.
+            #    downloaded come with unreliable names and dates.
             #
 
             # Create a uniqueId that can be used in a file name

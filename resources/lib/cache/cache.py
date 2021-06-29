@@ -67,8 +67,7 @@ class Cache:
     @classmethod
     def get_cached_tmdb_movie(cls,
                               movie_id: Union[str, int, None] = None,
-                              error_msg: Union[str, int, None] = None,
-                              source: Union[str, None] = None
+                              error_msg: Union[str, int, None] = None
                               ) -> (int, TMDbMovie):
         """
             Attempt to get cached JSON movie information before using the JSON calls
@@ -78,7 +77,6 @@ class Cache:
             reading it.
         :param movie_id:
         :param error_msg:
-        :param source:
         :param headers:
         :param timeout:
         :return:
@@ -86,13 +84,10 @@ class Cache:
 
         tmdb_movie: TMDbMovie = None
         status = 0
-        if source is None or source not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
-            cls._logger.error('Invalid source:', source)
 
         if Settings.is_use_tmdb_cache():
             start = datetime.datetime.now()
-            tmdb_movie = Cache.read_tmdb_cache_json(
-                movie_id, source, error_msg=error_msg)
+            tmdb_movie = Cache.read_tmdb_cache_json(movie_id, error_msg=error_msg)
             status = 0
             stop = datetime.datetime.now()
             read_time = stop - start
@@ -106,7 +101,6 @@ class Cache:
 
     @classmethod
     def read_tmdb_cache_json(cls, movie_id: Union[int, str],
-                             source: str,
                              error_msg: str = ''
                              ) -> Union[TMDbMovie, None]:
         """
@@ -130,6 +124,7 @@ class Cache:
         path: str = None
         tmdb_movie: TMDbMovie = None
         try:
+            source: str = MovieField.TFH_SOURCE
             path = Cache.get_json_cache_file_path_for_movie_id(movie_id, source,
                                                                error_msg=error_msg)
             if path is None or not os.path.exists(path):
@@ -454,9 +449,7 @@ class Cache:
         movie_id = None
         source = None
         try:
-            valid_sources = [MovieField.LIBRARY_SOURCE, MovieField.TMDB_SOURCE,
-                             MovieField.ITUNES_SOURCE, MovieField.TFH_SOURCE]
-            if movie.get_source() in valid_sources:
+            if movie.get_source() in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
                 movie_id = Cache.get_video_id(movie)
                 source = movie.get_source()
             else:

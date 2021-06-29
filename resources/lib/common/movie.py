@@ -317,17 +317,17 @@ class TMDbMoviePageData(TMDbMovieId):
         return self._movie_info[MovieField.TMDB_TOTAL_PAGES]
 
     def get_tmdb_id_not_found(self) -> Union[bool, None]:
-        return self._movie_info.get(MovieField.TMDB_ID_NOT_FOUND, None)
+        return self._movie_info.get(MovieField.TMDB_ID_FINDABLE, None)
 
-    def is_tmdb_id_not_found(self) -> bool:
+    def is_tmdb_id_findable(self) -> bool:
         """
-        Returns True IFF this movie is marked as not having a TMDB_ID
+        Returns False IFF this movie is marked as not having a TMDB_ID
         :return:
         """
-        return self._movie_info.get(MovieField.TMDB_ID_NOT_FOUND, False)
+        return self._movie_info.get(MovieField.TMDB_ID_FINDABLE, True)
 
-    def set_tmdb_id_not_found(self, not_found: bool) -> None:
-        self._movie_info[MovieField.TMDB_ID_NOT_FOUND] = not_found
+    def set_tmdb_id_findable(self, findable: bool) -> None:
+        self._movie_info[MovieField.TMDB_ID_FINDABLE] = findable
 
     def update(self, imported_movie_data: Union[MovieType,
                                                 'AbstractMovie']):
@@ -629,18 +629,17 @@ class AbstractMovie(BaseMovie):
     def set_unique_ids(self, ids: Dict[str, str]):
         self._movie_info[MovieField.UNIQUE_ID] = ids
 
-    def get_tmdb_id_not_found(self) -> Union[bool, None]:
-        return self._movie_info.get(MovieField.TMDB_ID_NOT_FOUND, None)
-
-    def is_tmdb_id_not_found(self) -> bool:
+    def is_tmdb_id_findable(self) -> bool:
         """
-        Returns True IFF this movie is marked as not having a TMDB_ID
+        Returns False IFF we have tried to find the TMDB ID in the past
+        and failed. (No point in repeatedly trying.)
+
         :return:
         """
-        return self._movie_info.get(MovieField.TMDB_ID_NOT_FOUND, False)
+        return self._movie_info.get(MovieField.TMDB_ID_FINDABLE, True)
 
-    def set_tmdb_id_not_found(self, not_found: bool) -> None:
-        self._movie_info[MovieField.TMDB_ID_NOT_FOUND] = not_found
+    def set_tmdb_id_findable(self, findable: bool) -> None:
+        self._movie_info[MovieField.TMDB_ID_FINDABLE] = findable
 
     def get_tag_names(self) -> List[str]:  # TODO: eliminate!
         return self._movie_info.setdefault(MovieField.TMDB_TAG_NAMES, [])
@@ -1150,7 +1149,7 @@ class TFHMovie(AbstractMovie):
         #    movie_info: MovieType = MovieField.DEFAULT_MOVIE.copy()
         super().__init__(movie_id, MovieField.TFH_SOURCE, movie_info)
         if self._movie_id is None:
-            self._movie_id = self.get_tfh_id()
+            self.set_id(self._movie_id)
 
     @classmethod
     def class_init(cls):
@@ -1165,7 +1164,7 @@ class TFHMovie(AbstractMovie):
         self._movie_id = tfh_id
 
     def get_tfh_title(self) -> str:
-        return self._movie_info[MovieField.TFH_TITLE]
+        return self._movie_info.get(MovieField.TFH_TITLE, '')
 
     def set_tfh_title(self, tfh_title: str) -> None:
         self._movie_info[MovieField.TFH_TITLE] = tfh_title

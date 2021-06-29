@@ -24,7 +24,6 @@ class TMDbUtils:
                 Delay.delay()
             cached_movie: TMDbMovie = Cache.read_tmdb_cache_json(
                 tmdb_id.get_id(),
-                MovieField.TMDB_SOURCE,
                 error_msg='TMDb movie '
                           'not found')
             if cached_movie is not None:

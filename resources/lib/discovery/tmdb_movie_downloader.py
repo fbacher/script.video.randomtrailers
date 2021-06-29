@@ -103,11 +103,10 @@ class TMDbMovieDownloader:
                                                                       source,
                                                                       ignore_failures=False,
                                                                       library_id=library_id)
+            Cache.write_tmdb_cache_json(tmdb_movie)
 
         if tmdb_movie is None:
             return rejection_reasons, None
-        else:
-            Cache.write_tmdb_cache_json(tmdb_movie)
 
         # release_date TMDB key is different from Kodi's
 
@@ -154,7 +153,7 @@ class TMDbMovieDownloader:
 
             status_code: int
             status_code, tmdb_movie = Cache.get_cached_tmdb_movie(
-                movie_id=cache_id, error_msg=movie_title, source=source)
+                movie_id=cache_id, error_msg=movie_title)
             if status_code != 0:
                 rejection_reasons.append(MovieField.REJECTED_FAIL)
                 if tmdb_movie is None:
@@ -290,6 +289,7 @@ class TMDbMovieDownloader:
             original_language: str = tmdb_parser.parse_original_language()
             original_title: str = tmdb_parser.parse_original_title()
             movie = tmdb_parser.get_movie()
+            discovery_state = tmdb_parser.get_discovery_state()
 
         except AbortException as e:
             reraise(*sys.exc_info())

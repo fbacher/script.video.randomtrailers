@@ -444,3 +444,9 @@ class ParseTMDb:
         original_title = self._tmdb_result.get('original_title', None)
         self._tmdb_movie.set_original_title(original_title)
         return original_title
+
+    def get_discovery_state(self) -> str:
+        discovery_state = self._tmdb_result.get(MovieField.DISCOVERY_STATE,
+                                                MovieField.NOT_FULLY_DISCOVERED)
+        self._tmdb_movie.set_discovery_state(discovery_state)
+        return discovery_state
