@@ -44,7 +44,7 @@ class Debug:
     @classmethod
     def dump_dictionary(cls, d: Dict[str, Any], prefix: str = '',
                         heading: str = '',
-                        log_level=LazyLogger.DEBUG_EXTRA_VERBOSE) -> None:
+                        log_level=LazyLogger.DISABLED) -> None:
         """
             Dump key and value fields of a dictionary in human
             readable form.
@@ -70,7 +70,7 @@ class Debug:
 
     @classmethod
     def dump_json(cls, text: str = '', data: str = '',
-                  log_level: int = LazyLogger.DEBUG) -> None:
+                  log_level: int = LazyLogger.DISABLED) -> None:
         """
             Log Json values using the json.dumps utility
 
