@@ -40,7 +40,37 @@ class TFHCache:
     INDEX_CREATION_DATE = 'INDEX_CREATION_DATE'
     CACHE_COMPLETE = "CACHE_COMPLETE"
     INCOMPLETE_CREATION_DATE_STR = '1900:01:01'
-    MAX_UNSAVED_CHANGES = 200
+
+    # Saving the single .json file is expensive.
+    #
+    # MAX_UNSAVED_CHANGES and MIN_MINUTES_BETWEEN_SAVES both limit how
+    # often the cache is saved to disk.
+    #
+    # By far, most cache activity occurs when the cache data expires and
+    # must be downloaded from TFH. (See Settings.get_tfh_cache_expiration_days)
+    # Cache expiration is most likely detected at startup.
+    #
+    # After the cache is created (from data downloaded from TFH), changes
+    # to the cache tend to be infrequent, only as trailers are played. The
+    # only exception is that at startup, a small number of trailers (about 3)
+    # are prepared for playing and loaded into a cache.
+    #
+    # Here, a large MAX_UNSAVED_CHANGES value causes it to be ignored since
+    # it should be very rare that that many changes can occur prior to
+    # MIN_MINUTES_BETWEEN_SAVES expires.
+    #
+    # A special cache entry, INDEX_CREATION_DATE, is used to determine
+    # if the cache was fully downloaded and saved. This entry also
+    # determines if the cache is expired.
+    #
+    # If changes to the cache are not saved, the only consequence is
+    # that something must be rediscovered. Updates to this cache is
+    # primarily to save the TMDb_id corresponding to a TFH trailer,or
+    # the fact that the TMDb_id could not be discovered.
+
+    MAX_UNSAVED_CHANGES: int = 10000
+    MIN_MINUTES_BETWEEN_SAVES: int = 5
+
     _initialized = threading.Event()
     lock = threading.RLock()
     _logger: LazyLogger = None
@@ -86,11 +116,13 @@ class TFHCache:
         """
         cls._initialized.wait()
         with cls.lock:
-            if (not flush and
-                    (cls._unsaved_changes < cls.MAX_UNSAVED_CHANGES)
-                    and
-                    (datetime.datetime.now() - cls._last_saved_movie_timestamp)
-                    < datetime.timedelta(minutes=5)):
+            seconds_since_last_save: float
+            seconds_since_last_save = (datetime.datetime.now() -
+                                    cls._last_saved_movie_timestamp).total_seconds()
+            minutes_since_last_save: int = int(seconds_since_last_save / 60)
+            if (flush or
+                    (cls._unsaved_changes > cls.MAX_UNSAVED_CHANGES)
+                    or (minutes_since_last_save > cls.MIN_MINUTES_BETWEEN_SAVES)):
                 if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                     delta = int((datetime.datetime.now() -
                                 cls._last_saved_movie_timestamp).total_seconds() / 60)
