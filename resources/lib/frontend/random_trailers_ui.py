@@ -217,40 +217,45 @@ class StartUI(threading.Thread):
                 if (self._started_as_screensaver and
                         Settings.is_set_fullscreen_when_screensaver()):
                     if not xbmc.getCondVisibility('System.IsFullscreen'):
-                        xbmc.executebuiltin('xbmc.Action(togglefullscreen)')
+                        xbmc.executebuiltin('Action(ToggleFullScreen)')
 
                 # TODO: Use settings
 
+                # Ability to set volume is DISABLED since there does not appear
+                # to be a way to find out what the volume is currently set to.
+                # We can't restore volume without knowing what it was.
+                '''
                 volume_was_adjusted = False
                 if Settings.get_adjust_volume():
-                    muted = xbmc.getCondVisibility(u"Player.Muted")
+                    muted = xbmc.getCondVisibility("Player.Muted")
                     if not muted and Settings.get_volume() == 0:
-                        xbmc.executebuiltin('xbmc.Mute()')
+                        xbmc.executebuiltin('Mute')
                     else:
                         volume = Settings.get_volume()
                         if volume != 100:
                             volume_was_adjusted = True
-                            xbmc.executebuiltin(
-                                'XBMC.SetVolume(' + str(volume) + ')')
+                            xbmc.executebuiltin(f'SetVolume({volume})')
+                '''
 
                 self._player_container = PlayerContainer.get_instance()
                 play_trailers()
 
+                '''
                 # TODO: Need to adjust whenever settings changes
 
                 if volume_was_adjusted:
                     muted = xbmc.getCondVisibility('Player.Muted')
 
                     if muted and Settings.get_volume() == 0:
-                        xbmc.executebuiltin('xbmc.Mute()')
+                        xbmc.executebuiltin('Mute')
                     else:
                         # TODO: Looks fishy, why not set to what it was?
 
                         current_volume = xbmc.getInfoLabel('Player.Volume')
                         current_volume = int(
                             (float(current_volume.split(' ')[0]) + 60.0) / 60.0 * 100.0)
-                        xbmc.executebuiltin(
-                            'XBMC.SetVolume(' + str(current_volume) + ')')
+                        xbmc.executebuiltin(f'SetVolume({current_volume})') 
+                '''
 
                 if logger.isEnabledFor(LazyLogger.DEBUG):
                     clz._logger.debug('Shutting down')

@@ -584,7 +584,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         if local_class._logger.isEnabledFor(DEBUG_PLAYER):
             local_class._logger.enter()
         if not self._is_finished:
-            xbmc.executebuiltin('xbmc.PlayerControl(Stop)')
+            xbmc.executebuiltin('PlayerControl(Stop)')
 
         self._is_finished = True
 

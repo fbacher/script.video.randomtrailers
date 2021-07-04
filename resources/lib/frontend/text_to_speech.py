@@ -50,4 +50,4 @@ def say_text(text, interrupt=False) -> str:
 
 
 def stop() -> None:
-    xbmc.executebuiltin('XBMC.NotifyAll(service.xbmc.tts,STOP)')
+    xbmc.executebuiltin('NotifyAll(service.xbmc.tts,STOP)')

@@ -1519,7 +1519,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                         key, 'Queue to couch potato')
                 str_couch_potato = Constants.COUCH_POTATO_URL + \
                                         f'?title={movie.get_title()}'
-                xbmc.executebuiltin('XBMC.RunPlugin(' + str_couch_potato + ')')
+                xbmc.executebuiltin('RunPlugin({str_couch_potato})')
 
         ##################################################################
         elif (action_id == xbmcgui.ACTION_PREVIOUS_MENU
