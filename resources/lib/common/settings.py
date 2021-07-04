@@ -1624,6 +1624,10 @@ class Settings:
         """
         return Settings.get_setting_bool(Settings.UPDATE_TMDB_ID)
 
+    '''
+        Not used because we can't query Kodi for current volume (needed to
+        restore to previous volume).
+        
     @staticmethod
     def get_volume() -> int:
         """
@@ -1635,7 +1639,8 @@ class Settings:
             volume = Settings.get_setting_int(Settings.VOLUME)
 
         return volume
-
+    '''
+    
     @staticmethod
     def get_tmdb_include_old_movie_trailers() -> bool:
         """
