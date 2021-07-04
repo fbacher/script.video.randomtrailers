@@ -23,7 +23,6 @@ from common.logger import LazyLogger
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 addon = xbmcaddon.Addon()
-do_fullscreen = addon.getSetting('do_fullscreen')
 
 
 def exit_randomtrailers():
