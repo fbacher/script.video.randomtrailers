@@ -11,7 +11,7 @@ You will first need to install a dependent plugin which is not yet published.
     The zip is available at:
     https://github.com/fbacher/script.module.kodi65/releases/tag/1.2.1%2Bmatrix.4
 
-The install zip can be found at: https://github.com/fbacher/Kodi-script.video.randomtrailers/releases/tag/2.0.6-beta1
+The install zip can be found at: https://github.com/fbacher/Kodi-script.video.randomtrailers/releases/tag/2.0.7-Beta1
 
 WINDOWS INSTALLATION If you use one or both "Normalize Volume *" settings, then you will need to download and install ffmpeg. In Random Trailers settings, under the "Common" tab, enter the path to ffmpeg in the "Path to ffmpeg command" field.
 
@@ -24,7 +24,7 @@ Next, configure Random Trailers plugin settings. Select "Experimental" tab, then
 
 Restart Kodi, reproduce problem. Paste the entire kodi.log, <kodi_install_dir>/userdata/addon_data/script.video.randomtrailers/settings.xml and a description of the problem to: https://paste.kodi.tv/. Report the problem and the id returned by paste.kodi.tv on the Kodi forum for randomtrailers: https://forum.kodi.tv/showthread.php?tid=346536&highlight=randomtrailers
 
-07/01/2021 2.0.6-Beta1 Focus on performance, startup time, memory use and caching issues. Major refactoring of movie data. Structure was a simple dict but this was getting increasingly sloppy with duplicative code and confusing since each trailer source (library, TFH, TMDb, etc.) required 'tweaks'. What finally forced the change was performance and caching issues. To reduce startup time, needed to change TFH & TMDb discovery to only discover minimal info needed to identify the movie/trailer that needed further discovery. Refactored to about 10 Classes wrapping around a dict with getters/setters. While a big change, it was fairly straight-forward. The result is much cleaner code.
+07/01/2021 2.0.7-Beta1 Focus on performance, startup time, memory use and caching issues. Major refactoring of movie data. Structure was a simple dict but this was getting increasingly sloppy with duplicative code and confusing since each trailer source (library, TFH, TMDb, etc.) required 'tweaks'. What finally forced the change was performance and caching issues. To reduce startup time, needed to change TFH & TMDb discovery to only discover minimal info needed to identify the movie/trailer that needed further discovery. Refactored to about 10 Classes wrapping around a dict with getters/setters. While a big change, it was fairly straight-forward. The result is much cleaner code.
 
 After the above refactor:
 

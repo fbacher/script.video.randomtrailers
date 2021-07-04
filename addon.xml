@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <addon id="script.video.randomtrailers"
        name="Random Trailers"
-       version="2.0.6-Beta1"
+       version="2.0.7-Beta1"
        provider-name="fbacher">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -68,7 +68,7 @@ Navigation:
         <website></website>
         <email>fbacher@brisbin.net</email>
         <source>https://github.com/fbacher/Kodi-script.video.randomtrailers</source>
-        <news>v2.0.6-Beta1 (07/01/2021)
+        <news>v2.0.7-Beta1 (07/04/2021)
             [new] Major Release See Readme.txt
         </news>
         <assets>
