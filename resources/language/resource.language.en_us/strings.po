@@ -1424,7 +1424,7 @@ msgstr ""
 
 # TFH License Agreement
 msgctxt "#32283"
-msgid "\"Trailers From Hell (TFH)\" provides content by a non-exclusive agreement which requires that there is no financial gain from the use of this content. TFH reserves the right to change the terms of this agreement.\n\nTrailers From Hell. All Rights Reserved.\nAll trailers appearing on TrailersFromHell.com are the property of their respective owners.\n\nTrailers From Hell\n\n© 2007-2021"
+msgid "Content provided by \"Trailers From Hell (TFH)\" is through a non-exclusive agreement requiring its use is not for profit. TFH reserves the right to change the terms of this agreement at any time.\n\nTrailers From Hell. All Rights Reserved.\nAll trailers appearing on TrailersFromHell.com are the property of their respective owners.\n\nTrailers From Hell\n\n© 2007-2021"
 msgstr ""
 
 # Not Yet Rated (Different from Unrated, can be a bit confusing).
