@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <addon id="script.video.randomtrailers"
        name="Random Trailers"
-       version="2.0.5-alpha2"
+       version="2.0.6-Beta1"
        provider-name="fbacher">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -13,8 +13,8 @@
         <!-- youtube.dl needed to for download to cache option -->
         <import addon="script.module.youtube.dl" version="21.303.0+matrix.1" optional="true"/>
         <!-- Remote trailers (that are not downloaded by youtube.dl) -->
-        <import addon="plugin.video.youtube" version="6.8.10+matrix.1" optional="true"/>
-        <import addon="script.module.requests" version="2.22.0+matrix.1"/>
+        <import addon="plugin.video.youtube" version="6.8.15+matrix.1" optional="true"/>
+        <import addon="script.module.requests" version="2.25.1+matrix.1"/>
         <import addon="script.module.six" version="1.15.0+matrix.1"/>
         <import addon="script.module.kodi65" version="1.2.1+matrix.4"/>
         <!-- <import addon="script.module.kodi-six" version="0.1.3.1"/> -->
@@ -22,6 +22,9 @@
         <import addon="script.module.dateutil" version="2.8.1+matrix.1" />
         <import addon="script.module.xmltodict" version="0.12.0+matrix.2" />
     </requires>
+       <!-- <import addon="script.module.dateutil" version="2.8.1+matrix.1" />
+dateutil 2.8.1.1 -->
+
 
     <extension point="xbmc.python.script" library="resources/lib/front_end_service.py">
         <provides>video</provides>
@@ -33,26 +36,31 @@
     <extension point="xbmc.addon.metadata">
         <reuselanguageinvoker>false</reuselanguageinvoker>
         <platform>all</platform>
-        <summary lang="en_GB">Plays Random Trailers from Multiple Sources</summary>
-        <description lang="en_GB">
-Plays random movie trailers from a variety of sources:
- - Movie Library, Themoviedb.org, TrailersFromHell.com, Specified folder
+        <summary lang="en_US">Plays Random Trailers from Multiple Sources</summary>
+        <description lang="en_US">
+Plays random movie trailers from library, Themoviedb.org, TrailersFromHell.com, Specified folder
 
-Installs as a Screensaver and a Program. There are Options to filter by genre, year and Rating, select number of trailers, hide trailers of watched movies, and display opening / closing animations.
+Installs as a Screensaver and Program. There are Options to filter, hide trailers of watched movies, etc.
 
 Navigation:
   ACTION_MOVE_LEFT previous trailer
+
   ACTION_MOVE_RIGHT or ACTION_STOP for next trailer
+
   ACTION_PREVIOUS_MENU, ACTION_NAV_BACK or
       ACTION_BUILT_IN_FUNCTION to exit
+
   ACTION_ENTER, ACTION_SELECT_ITEM or
       ACTION_SHOW_GUI to play movie from library
+
   ACTION_SHOW_INFO to toggle display of detailed info
+
   ACTION_QUEUE_ITEM queue to Coach Potato, if installed.
+
   ACTION_REMOTE_[0-9] and ACTION_JUMP_SMS[2-9] writes
      to playlist. See playlist setting for more information.
         </description>
-        <disclaimer lang="en_GB"></disclaimer>
+        <disclaimer lang="en_US"></disclaimer>
         <language></language> <!-- the language of the videos the plugin provides, may be left blank -->
         <platform>all</platform>
         <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
@@ -60,7 +68,7 @@ Navigation:
         <website></website>
         <email>fbacher@brisbin.net</email>
         <source>https://github.com/fbacher/Kodi-script.video.randomtrailers</source>
-        <news>v2.0.5-alpha2 (04/09/2021)
+        <news>v2.0.6-Beta1 (07/01/2021)
             [new] Major Release See Readme.txt
         </news>
         <assets>
@@ -68,7 +76,7 @@ Navigation:
             <fanart>resources/fanart.jpg</fanart>
             <banner></banner>
             <clearlogo></clearlogo>
-            <screenshot>resources/screenshots/Movie Details.png</screenshot>
+            <screenshot>resources/screenshots/Movie Details.jpg</screenshot>
             <screenshot>resources/screenshots/Trailer With Title.png</screenshot>
             <screenshot>resources/screenshots/Settings Common 1.png.png</screenshot>
             <screenshot>resources/screenshots/Settings Remote Trailers.png</screenshot>
