@@ -1,124 +1,85 @@
+
+
 RELEASE NOTES
 
- For the latest information see:
-  https://github.com/fbacher/Kodi-script.video.randomtrailers/wiki/Release-Notes
+For the latest information see:
+    https://github.com/fbacher/Kodi-script.video.randomtrailers/wiki/Release-Notes
 
-02/09/2021 2.0.4-alpha1
-Major Release, complete rewrite.
+Installation:
 
-The default settings will play trailers from your video library, whether
-the trailers are local or a URL. In addition, trailers from Trailers From Hell
-(TFH) and TMDb will be downloaded and played. By changing settings Random
-Trailers will search for missing trailers for movies in your library from
-TMDb and download them. Since this is expensive to run, you may want to
-configure a related setting to limit how often this is performed.
+You will first need to install a dependent plugin which is not yet published.
+    The zip is available at:
+    https://github.com/fbacher/script.module.kodi65/releases/tag/1.2.1%2Bmatrix.4
 
-Downloaded trailers will be cached by default in
- <kodi_dir>/userdata/addon_data/script.video.randomtrailers/cache.
+The install zip can be found at: https://github.com/fbacher/Kodi-script.video.randomtrailers/releases/tag/2.0.6-beta1
 
-BUGS, LIMITATIONS
-See issues on https://github.com/fbacher/Kodi-script.video.randomtrailers
+WINDOWS INSTALLATION If you use one or both "Normalize Volume *" settings, then you will need to download and install ffmpeg. In Random Trailers settings, under the "Common" tab, enter the path to ffmpeg in the "Path to ffmpeg command" field.
 
-TFH index discovery
-The current implementation requires that the entire TFH index be downloaded
-in a single session, which can take hours. Once created it will not be
-rebuilt for about 60 days (controlled by a setting).
-Before release, this will be changed to do incremental downloads.
+REPORTING BUGS See https://kodi.wiki/view/HOW-TO:Submit_a_bug_report
 
-Caching issues
-Metadata for downloaded movies as well as downloaded trailers are stored in the cache.
-The cache garbage collector works fairly well. There are several known issues:
+Enable kodi debugging. You can either do this through kodi settings (see Kodi web pages for this). Or create <kodi_isntall_dir>/userdata/advancedsettings.xml with the following:
+1 false
 
-* If you change TMDb settings, the plugin forgets about what it has downloaded
-before (although the garbage collector still works). This means, for example,
-that if you disable TMDb trailers, then re-enable them, then new, possibly different,
-trailers are downloaded, even though the previously downloaded ones are still there.
+Next, configure Random Trailers plugin settings. Select "Experimental" tab, then select "Enable Debug", Choose "Logging Level" of "EXTRA VERBOSE DEBUG", also enable other radio buttons.
+
+Restart Kodi, reproduce problem. Paste the entire kodi.log, <kodi_install_dir>/userdata/addon_data/script.video.randomtrailers/settings.xml and a description of the problem to: https://paste.kodi.tv/. Report the problem and the id returned by paste.kodi.tv on the Kodi forum for randomtrailers: https://forum.kodi.tv/showthread.php?tid=346536&highlight=randomtrailers
+
+07/01/2021 2.0.6-Beta1 Focus on performance, startup time, memory use and caching issues. Major refactoring of movie data. Structure was a simple dict but this was getting increasingly sloppy with duplicative code and confusing since each trailer source (library, TFH, TMDb, etc.) required 'tweaks'. What finally forced the change was performance and caching issues. To reduce startup time, needed to change TFH & TMDb discovery to only discover minimal info needed to identify the movie/trailer that needed further discovery. Refactored to about 10 Classes wrapping around a dict with getters/setters. While a big change, it was fairly straight-forward. The result is much cleaner code.
+
+After the above refactor:
+
+    Library startup only gets the necessary information required before placing in the (2nd phase) 'discovery queue'. Only when about to play the trailer is the final information discovered. After playing the trailer this extra info is tossed and rediscovered only when needed again. Initial discovery time cut from 20 seconds to 5. Memory footprint reduced as well (difficult to quantify with available tools).
+    Similarly, initial TMDb discovery gets not much more than the title, TMDb id and several other 'free' properties before being sent to the (2nd phase) discovery queue. This avoids a ton of information irrelevant before 2nd phase discovery from being discovered from remote TMDb servers, or loaded from local cache upfront with hacks added to keep cpu from being pegged.
+    Similar story for TFH.
+
+Caching issues: Several cache files were very large and were being read/written to frequently causing Kodi to use 100% cpu for minutes at a time, particularly during startup. Changes were: 1- Eliminate unneeded fields from cache files. Was storing raw data from TMDb/TFH. Now storing digested info. A side benefit is that the data is in format directly usable by the plugin instead of converting it in multiple places, based on format. 2- Change cache to not read/write so often. 3- Change TFH code to use TMDb cache for TMDb data instead of using separate, duplicate structure. Eliminated duplicate code as well as space/time needed for duplicate data.
+
+Front-end changes: Fixed problems with playing next and previous trailers using actions (keyboard or remote).
+
+04/17/2021 2.0.5-alpha2 Bug fixes. Focus on caching issues.
+
+TFH downloading greatly improved. Reduced time and need to download index.
+
+TMDb will always check locally cached information before querying TMDb. Before a change to settings would ignore cached information. Also, improvements to TMDb cache cleanup: purging of unused information.
+
+(Internal: pydevd debugging re-enabled, but requires Kodi patch)
+
+Resolved Youtube throttling issues.
+
+Communication errors are caught and not interpreted as failures in the data itself. Requests retried later.
+
+02/09/2021 2.0.4-alpha1 Major Release, complete rewrite.
+
+The default settings will play trailers from your video library, whether the trailers are local or a URL. In addition, trailers from Trailers From Hell (TFH) and TMDb will be downloaded and played. By changing settings Random Trailers will search for missing trailers for movies in your library from TMDb and download them. Since this is expensive to run, you may want to configure a related setting to limit how often this is performed.
+
+Downloaded trailers will be cached by default in <kodi_dir>/userdata/addon_data/script.video.randomtrailers/cache.
+
+BUGS, LIMITATIONS See issues on https://github.com/fbacher/Kodi-script.video.randomtrailers
+
+TFH index discovery The current implementation requires that the entire TFH index be downloaded in a single session, which can take hours (fixed in Alpha-2). Once created it will not be rebuilt for about 60 days (controlled by a setting). Before release, this will be changed to do incremental downloads.
+
+Caching issues Metadata for downloaded movies as well as downloaded trailers are stored in the cache. The cache garbage collector works fairly well. There are several known issues:
+
+    If you change TMDb settings, the plugin forgets about what it has downloaded before (although the garbage collector still works). This means, for example, that if you disable TMDb trailers, then re-enable them, then new, possibly different, trailers are downloaded, even though the previously downloaded ones are still there.
 
 The solution is multi-part:
-* Add setting to purge cache of data from that source (TMDb, TFH, etc.)
 
-* Any data not purged, is persisted across settings changes, without any
-"amnesia" as it is now
+    Add setting to purge cache of data from that source (TMDb, TFH, etc.)
 
-* Add setting to purge cache of anything that does not pass current filter
-settings.
+    Any data not purged, is persisted across settings changes, without any "amnesia" as it is now
 
-* Add setting to (not purge) filter cached movies based upon settings. This will
-allow one to temporarily alter what is viewed, such as genre or year range,
-without destroying cache.
+    Add setting to purge cache of anything that does not pass current filter settings.
 
-* Random Trailers can NOT be debugged with pydevd at this time. A Kodi change
-  broke this and a partial fix does not completely cure. Needs investigation.
+    Add setting to (not purge) filter cached movies based upon settings. This will allow one to temporarily alter what is viewed, such as genre or year range, without destroying cache.
 
-YouTube issues:
-If you experience trailer downloading issues, you may need to go to your browser
-and try to play any youtube video. It might prompt you to prove that you are
-a human. This can occur when too much is downloaded too fast. This is most
-likely to occur if you restart Kodi multiple times while it is initially
-building the TFH index (described above). Random Trailers has pauses between
-downloads to avoid this problem, but sometimes this is insufficient.
+    Random Trailers can NOT be debugged with pydevd at this time. A Kodi change broke this and a partial fix does not completely cure. Needs investigation.
 
-TMDb issues:
-If you have trouble downloading TMDb information it may be do to too many
-users of this plugin downloading at the same time. This can be avoided by
-getting your own TMDb API key. See
-https://github.com/fbacher/Kodi-script.video.randomtrailers/wiki/Beta-Testing
+YouTube issues (Resolved in Alpha2): If you experience trailer downloading issues, you may need to go to your browser and try to play any youtube video. It might prompt you to prove that you are a human. This can occur when too much is downloaded too fast. This is most likely to occur if you restart Kodi multiple times while it is initially building the TFH index (described above). Random Trailers has pauses between downloads to avoid this problem, but sometimes this is insufficient.
 
-TMDb Certification, language, etc. is not always correct. This can cause
-inappropriate content to be played, despite your settings.
+TMDb issues (May be resolved by recent TMDb change to not limit requests): If you have trouble downloading TMDb information it may be do to too many users of this plugin downloading at the same time. This can be avoided by getting your own TMDb API key. See https://github.com/fbacher/Kodi-script.video.randomtrailers/wiki/Beta-Testing
 
-TFH issues:
-TFH does not provide any movie details other than the title. The rest of the
-data comes from TMDb. Since there can be more than one movie with the same
-title, Random Trailers makes a best guess, but it can be wrong. In particular,
-the Certification (MPAA) rating can be wrong, resulting in inappropriate
-content being played.
+TMDb Certification, language, etc. is not always correct. This can cause inappropriate content to be played, despite your settings.
 
-TFH trailers do sometimes contain nudity, etc. Some of these may not be
-filtered out by your settings.
+TFH issues: TFH does not provide any movie details other than the title. The rest of the data comes from TMDb. Since there can be more than one movie with the same title, Random Trailers makes a best guess, but it can be wrong. In particular, the Certification (MPAA) rating can be wrong, resulting in inappropriate content being played.
 
-INSTALLATION INSTRUCTIONS
-
-Install images can be found at xxx
-This plugin depends upon other plugins which have not yet been updated in the
-repository. They are included in the location specified above.
-The installation order is:
-
-script.module.dateutil  from https://kodi.wiki/view/Add-on:Dateutil
-script.module.youtube.dl from https://kodi.wiki/view/Add-on:Youtube-dl
-script.module.kodi65     from https://kodi.wiki/view/Add-on:Kodi65_Library but
-                         latest at https://github.com/scott967/script.module.kodi65
-script.video.randomtrailers
-
-WINDOWS INSTALLATION
-If you use one or both "Normalize Volume *" settings, then you will
- need to download and install ffmpeg.
- In Random Trailers settings, under the "Common" tab, enter the path
- to ffmpeg in the "Path to ffmpeg command" field.
-
-REPORTING BUGS
-See https://kodi.wiki/view/HOW-TO:Submit_a_bug_report
-
-Enable kodi debugging. You can either do this through kodi settings (see Kodi web
-pages for this). Or create <kodi_isntall_dir>/userdata/advancedsettings.xml with
-the following:
-
-<advancedsettings>
-    <loglevel>1</loglevel>
-    <debug>
-         <extralogging>false</extralogging>
-    </debug>
-</advancedsettings>
-
-Next, configure Random Trailers plugin settings. Select "Experimental" tab,
-then select "Enable Debug", Choose "Logging Level" of "EXTRA VERBOSE DEBUG",
-also enable other radio buttons.
-
-Restart Kodi, reproduce problem.
-Paste the entire kodi.log,
- <kodi_install_dir>/userdata/addon_data/script.video.randomtrailers/settings.xml
- and a description of the problem to: https://paste.kodi.tv/.
- Report the problem and the id returned by paste.kodi.tv on the Kodi forum for
- randomtrailers:
- https://forum.kodi.tv/showthread.php?tid=346536&highlight=randomtrailers
-
+TFH trailers do sometimes contain nudity, etc. Some of these may not be filtered out by your settings.
