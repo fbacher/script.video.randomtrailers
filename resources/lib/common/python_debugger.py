@@ -18,7 +18,7 @@ class PythonDebugger:
     REMOTE_DEBUG: bool = True
     START_IN_SEPARATE_THREAD: bool = True
     SUSPEND: bool = False
-    WAIT_FOR_READY_TO_RUN: bool = SUSPEND
+    WAIT_FOR_READY_TO_RUN: bool = False
     pydevd_addon_path: str = None
     plugin_name: str = ''
     remote_debug: bool = False
