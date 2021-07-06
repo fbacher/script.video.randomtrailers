@@ -47,7 +47,7 @@ class TrailerCache:
             normalized_trailer_path = movie.get_normalized_trailer_path()
             if normalized_trailer_path is None:
                 normalized_trailer_path = ''
-            cached_trailer_path: str = movie.get_cached_movie()
+            cached_trailer_path: str = movie.get_cached_trailer()
             if cached_trailer_path is None:
                 cached_trailer_path = ''
 

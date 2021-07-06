@@ -189,8 +189,8 @@ class MovieManager:
             if not os.path.exists(trailer_path):
                 trailer.set_normalized_trailer_path('')
                 clz._logger.debug_verbose(f'Does not exist: {trailer_path}')
-        elif trailer.get_cached_movie() != '':
-            trailer_path = trailer.get_cached_movie()
+        elif trailer.get_cached_trailer() != '':
+            trailer_path = trailer.get_cached_trailer()
             if not os.path.exists(trailer_path):
                 trailer.set_cached_trailer('')
                 clz._logger.debug_verbose('Does not exist:', trailer_path)

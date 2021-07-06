@@ -457,7 +457,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     self.get_player().play_trailer(trailer_path, self._movie)
                     normalized = True
                 elif self._movie.has_cached_trailer():
-                    trailer_path = self._movie.get_cached_movie()
+                    trailer_path = self._movie.get_cached_trailer()
                     self.get_player().play_trailer(trailer_path, self._movie)
                     cached = True
                 else:

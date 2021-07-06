@@ -274,7 +274,7 @@ class MovieDetail:
             # If cached files purged, then remove references
 
             if (movie.has_cached_trailer() and
-                    not os.path.exists(movie.get_cached_movie())):
+                    not os.path.exists(movie.get_cached_trailer())):
                 movie.set_cached_trailer('')
             if (movie.has_normalized_trailer() and
                     not os.path.exists(movie.get_normalized_trailer_path())):
@@ -330,7 +330,7 @@ class MovieDetail:
                         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             cls._logger.debug_extra_verbose('time to locate movie:',
                                                             locate_time.seconds, 'path:',
-                                                            movie.get_cached_movie())
+                                                            movie.get_cached_trailer())
                 else:
                     #
                     # Not in cache, download

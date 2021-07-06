@@ -844,7 +844,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                                 f'{Cache.get_video_id(movie)} '
                                                 f'movie: {movie.get_trailer_path()} '
                                                 f'cached movie: '
-                                                f'{movie.get_cached_movie()} '
+                                                f'{movie.get_cached_trailer()} '
                                                 f'normalized movie: '
                                                 f'{movie.get_normalized_trailer_path()}')
             if movie.get_source() not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
@@ -870,7 +870,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # Verify cache was not purged
 
             if (movie.has_cached_trailer() and
-                    not os.path.exists(movie.get_cached_movie())):
+                    not os.path.exists(movie.get_cached_trailer())):
                 movie.set_cached_trailer('')
             if (movie.has_normalized_trailer() and
                     not os.path.exists(movie.get_normalized_trailer_path())):
@@ -890,7 +890,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     # If remote movie was downloaded by cache_remote_trailer,
                     # then use it.
                     #
-                    trailer_path = movie.get_cached_movie()
+                    trailer_path = movie.get_cached_trailer()
                     normalize = True
                 elif movie.has_normalized_trailer():
                     normalize = True  # Verify that we don't have to re-normalize
@@ -907,7 +907,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 clz._logger.debug_extra_verbose('movie',
                                                 movie.get_trailer_path(),
                                                 'cached trailer:',
-                                                movie.get_cached_movie())
+                                                movie.get_cached_trailer())
 
             # Populate NORMALIZED_TRAILER path, if needed.
 
@@ -962,7 +962,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # A bit redundant, but perhaps clearer.
 
             if movie.has_cached_trailer():
-                trailer_path = movie.get_cached_movie()
+                trailer_path = movie.get_cached_trailer()
             else:
                 trailer_path = movie.get_trailer_path()
 

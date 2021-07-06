@@ -48,7 +48,7 @@ class MyPlayer(AdvancedPlayer, ABC):
         if trailer.has_normalized_trailer():
             file_path = trailer.get_normalized_trailer_path()
         elif trailer.has_cached_trailer():
-            file_path = trailer.get_cached_movie()
+            file_path = trailer.get_cached_trailer()
         else:
             file_path = trailer.get_trailer_path()
 
@@ -57,7 +57,7 @@ class MyPlayer(AdvancedPlayer, ABC):
         if file_name != passed_file_name:
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'passed file name: {passed_file_name} '
-                                                f'movie file_name: {file_name}')
+                                                f'trailer file_name: {file_name}')
 
         listitem: xbmcgui.ListItem = xbmcgui.ListItem(title)
         listitem.setInfo(
@@ -119,16 +119,16 @@ class MyPlayer(AdvancedPlayer, ABC):
             player via keyboard or remote (that does not use JSON RPC)is
             detected by other means (onAction).
 
-            Compare the movie that the player is playing versus what we expect
+            Compare the video that the player is playing versus what we expect
             it to play. If they don't match, then assume that something else
-            launched the movie.
+            launched the video.
 
         :return:
         """
         clz = type(self)
         try:
             # All local trailers played by Random Trailers will have a fake genre of
-            # 'randomtrailers'. However, if a movie is from a remote source
+            # 'randomtrailers'. However, if a video is from a remote source
             # such that youtube plugin does the actual playing, then the
             # genre will NOT be set to 'randomtrailers'. The use of caching
             # of remote trailers will eliminate this issue.
@@ -141,7 +141,7 @@ class MyPlayer(AdvancedPlayer, ABC):
                     self._is_activated = False
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                         clz._logger.debug(
-                            'Player is playing movie:', playing_file)
+                            'Player is playing video:', playing_file)
                     self.notify_non_random_trailer_video()
         except Exception as e:
             pass
@@ -179,7 +179,7 @@ class MyPlayer(AdvancedPlayer, ABC):
                     clz._logger.debug('context:', context, 'title:',
                                        info_tag_video.getTitle(),
                                        'genre:', info_tag_video.getGenre(),
-                                       'movie:', info_tag_video.getTrailer())
+                                       'trailer:', info_tag_video.getTrailer())
             else:
                 if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                     clz._logger.debug('Not playing video')

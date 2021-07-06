@@ -503,11 +503,11 @@ class AbstractMovie(BaseMovie):
         self._movie_info.setdefault(MovieField.CACHED, False)
         return self._movie_info[MovieField.CACHED]
 
-    def get_cached_movie(self) -> Union[str, None]:
+    def get_cached_trailer(self) -> Union[str, None]:
         return self._movie_info.setdefault(MovieField.CACHED_TRAILER, '')
 
     def has_cached_trailer(self):
-        return self.get_cached_movie() != ''
+        return self.get_cached_trailer() != ''
 
     def set_cached_trailer(self, path: Union[str, None]) -> None:
         self._movie_info[MovieField.CACHED_TRAILER] = path
