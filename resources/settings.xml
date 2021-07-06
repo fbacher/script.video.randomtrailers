@@ -156,8 +156,8 @@
 					<control format="integer" type="edit">
 						<heading>32011</heading>
 					</control>
-				</setting>
-			</group> -->
+				</setting> -->
+			</group>
 			<group id="5" label="32280">
 				<setting help="" id="license_display_seconds" label="32279" type="integer">
 					<level>0</level>
