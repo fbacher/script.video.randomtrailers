@@ -526,8 +526,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         # discovered movies until a second page is read.
 
         movies: List[TMDbMoviePageData]
-        movies = self.process_page(page_data,
-                                   url=url)
+        movies = self.process_page(page_data, url=url)
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG):
             clz.logger.debug('Search Query type:', tmdb_search_query,
@@ -1645,9 +1644,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 movie_entry: MovieType
                 for movie_entry in movie_entries:
                     try:
-                        clz.logger.debug_extra_verbose('entry:',
-                                                       json.dumps(movie_entry,
-                                                                  indent=3, sort_keys=True))
+                        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                            clz.logger.debug_extra_verbose('entry:',
+                                                           json.dumps(movie_entry,
+                                                                      indent=3,
+                                                                      sort_keys=True))
                         self.throw_exception_on_forced_to_stop()
     
                         movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(movie_entry)
