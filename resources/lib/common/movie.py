@@ -370,8 +370,8 @@ class TMDbMoviePageData(TMDbMovieId):
         if class_type is None:
             cls._logger.warning(f'Could not deserialize: {data}')
             # TODO: Remove Hack
-            # return None
-            class_type = 'TMDbMoviePageData'
+            return None
+            # class_type = 'TMDbMoviePageData'
         if class_type == TMDbMoviePageData.__name__:
             return TMDbMoviePageData(movie_info=data)
         else:
@@ -1126,6 +1126,7 @@ class TMDbMovie(AbstractMovie):
     def set_genre_ids(self, genre_ids: List[str]) -> None:
         self._movie_info[MovieField.TMDB_GENRE_IDS] = genre_ids
 
+    '''
     def is_raw_tmdb_data(self) -> bool:
         #
         # This method distinguishes between old and new cache formats
@@ -1138,6 +1139,7 @@ class TMDbMovie(AbstractMovie):
         if MovieField.LAST_PLAYED in self._movie_info:
             return False
         return True
+    '''
 
 
 class TFHMovie(AbstractMovie):
