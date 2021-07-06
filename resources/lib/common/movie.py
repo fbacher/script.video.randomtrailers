@@ -185,29 +185,25 @@ class TMDbMovieId(AbstractMovieId):
 class TMDbMoviePageData(TMDbMovieId):
 
     def __init__(self, movie_id: str = None, movie_info: MovieType = None):
+        """
+        Sometimes called with no args, or either arg.
+
+        :param movie_id:
+        :param movie_info:
+        """
+
+        # Assume movie_id was passed
         super().__init__(movie_id)
         if movie_info is None:
             self._movie_info: MovieType = {}
         else:
             self._movie_info = movie_info
 
-        tmdb_id = movie_info.get('id', None)
-        if tmdb_id is not None:
-            tmdb_id = int(tmdb_id)
-        else:  # TODO: Temporary migration code
-            try:
-                unique_ids: Dict[str, str] = movie_info.get(MovieField.UNIQUE_ID)
-                tmdb_id_str: str = unique_ids.get(MovieField.UNIQUE_ID_TMDB)
-                if tmdb_id_str is not None:
-                    try:
-                        tmdb_id = int(tmdb_id_str)
-                    except ValueError:
-                        pass
-            except Exception as e:
-                clz = type(self)
-                clz._logger.log_exception()
+        if movie_info is not None:
+            tmdb_id = movie_info.get('id', None)
+            if tmdb_id is not None:
+                self.set_id(int(tmdb_id))
 
-        self.set_id(tmdb_id)
         self._cached: bool = False
 
     def get_certification_id(self) -> str:
