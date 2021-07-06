@@ -160,7 +160,7 @@ def kodi_hack() -> None:
     listitem.setInfo(
         'video', {'title': title, 'genre': 'randomtrailers',
                   'Genre': 'randomtrailers',
-                  'movie': title, 'path': path_to_black_video,
+                  'trailer': path_to_black_video, 'path': path_to_black_video,
                   'mediatype': 'video', 'tag': 'randomtrailers'})
     listitem.setPath(path_to_black_video)
     player.play(item=path_to_black_video, listitem=listitem)
