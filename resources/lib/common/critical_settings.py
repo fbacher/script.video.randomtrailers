@@ -17,6 +17,16 @@ class CriticalSettings:
 
     """
 
+    DISABLED = 0
+    FATAL = 50  # logging.CRITICAL
+    ERROR = 40  # logging.ERROR  # 40
+    WARNING = 30  # logging.WARNING  # 30
+    INFO = 20  # logging.INFO  # 20
+    DEBUG = 10  # logging.DEBUG  # 10
+    DEBUG_VERBOSE = 8
+    DEBUG_EXTRA_VERBOSE = 6
+    NOTSET = 0  # logging.NOTSET  # 0
+
     DEBUG_INCLUDE_THREAD_INFO: Final[str] = 'debug_include_thread_info'
     addon = None
     _plugin_name: str = ""
@@ -50,7 +60,7 @@ class CriticalSettings:
         is_debug_include_thread_info = CriticalSettings.addon.setting(
                                             CriticalSettings.DEBUG_INCLUDE_THREAD_INFO)
         return (bool(is_debug_include_thread_info)
-                and CriticalSettings.get_logging_level() >= 10)
+                and CriticalSettings.get_logging_level() <= CriticalSettings.DEBUG)
 
     @staticmethod
     def get_logging_level() -> int:
@@ -58,27 +68,27 @@ class CriticalSettings:
 
         :return:
         """
-        log_level = 30
-        # xbmc.log('get_logging_level', level=xbmc.LOGDEBUG)
+        # log_level_setting is an enum from settings.xml
+        # log_level_setting 0 -> xbmc.LOGWARNING
+        # log_level_setting 1 => xbmc.LOGINFO
+        # log_level_setting 2 => xbmc.LOGDEBUG
+        # log_level_setting 3 => DEBUG_VERBOSE
+        # log_level_setting 4 => DEBUG_EXTRA_VERBOSE
+
+        # translated_value is a transformation to values that Logger uses:
+        #
+        # Critical is most important.
+        # DISABLED is least important
+        # DEBUG_EXTRA_VERBOSE less important that DEBUG
+
+        log_level_setting: int = 0  # WARNING
         translated_value = None
 
         try:
+            # Kodi log values
+            # WARNING|INFO|DEBUG|VERBOSE DEBUG|EXTRA VERBOSE DEBUG"
 
-            # log_level is a 0-based enumeration in increasing verbosity
-            # Convert to values utilized by our Python logging library
-            # based config_logger:
-            #  FATAL = logging.CRITICAL # 50
-            #  ERROR = logging.ERROR       # 40
-            #  WARNING = logging.WARNING   # 30
-            #  INFO = logging.INFO         # 20
-            #  DEBUG_EXTRA_VERBOSE = 15
-            #  DEBUG_VERBOSE = 12
-            #  DEBUG = logging.DEBUG       # 10
-            #  NOTSET = logging.NOTSET     # 0
-
-            # WARNING|NOTICE|INFO|DEBUG|VERBOSE DEBUG|EXTRA VERBOSE DEBUG"
-
-            translated_value = 3
+            translated_value = CriticalSettings.WARNING
             try:
                 CriticalSettings.addon
             except NameError:
@@ -88,31 +98,30 @@ class CriticalSettings:
             if CriticalSettings.addon is None:
                 xbmc.log('Can not access script.video.randomtrailers',
                          level=xbmc.LOGERROR)
-                translated_value = 3
-            else:
-                log_level = CriticalSettings.addon.setting('log_level')
-                msg = 'got log_level from settings: {!s}'.format(log_level)
+                translated_value = CriticalSettings.WARNING
+            elif not CriticalSettings.is_debug_enabled():
+                log_level_setting = 0
+                translated_value = CriticalSettings.WARNING
+            else:   # Debug is enabled in Random Trailers Config Experimental Tab
+                log_level_setting = CriticalSettings.addon.setting('log_level')
+                # msg = f'got log_level_setting from settings: {log_level_setting}'
                 # xbmc.log(msg, level=xbmc.LOGDEBUG)
-                log_level = int(log_level)
-                translated_value = 50
-                if log_level <= 0:  # Warning
-                    translated_value = 30
-                elif log_level == 1:  # Info
-                    translated_value = 20
-                elif CriticalSettings.is_debug_enabled():
-                    translated_value = 0  # Not Set
-                    if log_level == 2:  # Debug
-                        translated_value = 10
-                    elif log_level == 3:  # Verbose Debug
-                        translated_value = 8
-                    elif log_level >= 4:  # Extra Verbose Debug
-                        translated_value = 6
+                log_level_setting = int(log_level_setting)
+                if log_level_setting <= 0:  # Warning
+                    translated_value = CriticalSettings.WARNING
+                elif log_level_setting == 1:  # Info
+                    translated_value = CriticalSettings.INFO
+                elif log_level_setting == 2:  # Debug
+                    translated_value = CriticalSettings.DEBUG
+                elif log_level_setting == 3:  # Verbose Debug
+                    translated_value = CriticalSettings.DEBUG_VERBOSE
+                elif log_level_setting >= 4:  # Extra Verbose Debug
+                    translated_value = CriticalSettings.DEBUG_EXTRA_VERBOSE
 
                 # prefix = '[Thread {!s} {!s}.{!s}:{!s}]'.format(
                 # record.threadName, record.name, record.funcName,
                 # record.lineno)
-                msg = 'get_logging_level got log_level: {!s}'.format(
-                    translated_value)
+                # msg = f'get_logging_level got log_level_setting: {translated_value}'
                 # xbmc.log(msg, level=xbmc.LOGDEBUG)
         except Exception:
             xbmc.log('Exception occurred in get_logging_level',
