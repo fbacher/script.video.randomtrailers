@@ -1071,7 +1071,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             title_string = self.get_title_string(self._movie)
             text_to_speech.say_text(title_string, interrupt=False)
 
-            rating: int = self._movie.get_rating()
+            rating: float = self._movie.get_rating()
 
             # convert to scale of 5 instead of 10, Round to nearest 0.5
 
