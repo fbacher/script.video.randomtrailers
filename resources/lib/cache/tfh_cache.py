@@ -221,8 +221,6 @@ class TFHCache:
                 cls._logger.exception('')
             except Exception as e:
                 cls._logger.exception('')
-                for movie in cls._cached_movies.values():
-                    Debug.dump_dictionary(movie.get_as_movie_type())
 
         Monitor.throw_exception_if_abort_requested()
 
