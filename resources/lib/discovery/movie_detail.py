@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+
+"""
+Created on July 7, 2021
+
+@author: Frank Feuerbacher
+"""
 import datetime
 import glob
 import os
@@ -26,7 +33,6 @@ from common.monitor import Monitor
 from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie, LibraryMovie
 from common.movie_constants import MovieField
 from common.playlist import Playlist
-from discovery.discover_library_movies import DiscoverLibraryMovies
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
 from discovery.utils.db_access import DBAccess
 from discovery.utils.parse_library import ParseLibrary
@@ -189,7 +195,7 @@ class MovieDetail:
                                                         f'due to Certification')
 
             if tmdb_detail_info is not None:
-                if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
@@ -210,7 +216,7 @@ class MovieDetail:
                 if movie.get_rating() == 0.0 and tmdb_detail_info.get_rating() != 0.0:
                     movie.set_rating(tmdb_detail_info.get_rating())
 
-                if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
@@ -452,8 +458,7 @@ class MovieDetail:
         if error_code == VideoDownloader.UNAVAILABLE:
             msg = 'Download permanently unavailable'
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.debug('Video Download failed',
-                              f'{movie.get_title()}')
+            cls._logger.debug(f'Video Download failed {movie.get_title()}')
         missing_trailers_playlist: Playlist = Playlist.get_playlist(
                 Playlist.MISSING_TRAILERS_PLAYLIST, append=False,
                 rotate=True)
