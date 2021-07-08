@@ -149,8 +149,7 @@ class Logger(logging.Logger):
             root_logger = logging.root
             root_logger.addHandler(MyHandler())
             logging_level = CriticalSettings.get_logging_level()
-            xbmc.log('get_root_logger logging_level: ' +
-                     str(logging_level), xbmc.LOGDEBUG)
+            xbmc.log(f'get_root_logger logging_level: {logging_level}', xbmc.LOGDEBUG)
             root_logger.setLevel(logging_level)
             Trace.enable_all()
             root_logger.addFilter(Trace())
@@ -540,6 +539,12 @@ class Logger(logging.Logger):
             xbmc.log(string_buffer, xbmc.LOGERROR)
         except Exception as e:
             Logger.log_exception()
+
+    #
+    # Logging levels are in increasing value of importance.
+    # Critical is most important.
+    # DISABLED is least important
+    # DEBUG_EXTRA_VERBOSE less important that DEBUG
 
     DISABLED = 0
     FATAL = logging.CRITICAL  # 50
