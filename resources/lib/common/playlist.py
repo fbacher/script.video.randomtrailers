@@ -98,11 +98,10 @@ class Playlist:
         self.playlist_format = kwargs.get('playlist_format', False)
 
         if self.playlist_format:
-            self.path = Constants.PLAYLIST_PATH + '/' + \
-                playlist_name + Playlist.SMART_PLAYLIST_SUFFIX
+            self.path = f'{Constants.PLAYLIST_PATH}/{playlist_name}' \
+                        f'{Playlist.SMART_PLAYLIST_SUFFIX}'
         else:
-            self.path = Constants.FRONTEND_DATA_PATH + '/' + \
-                playlist_name  # + Playlist.PLAYLIST_SUFFIX
+            self.path = f'{Constants.FRONTEND_DATA_PATH}/{playlist_name}'
         self.path = xbmcvfs.validatePath(self.path)
         self.path = xbmcvfs.translatePath(self.path)
         DiskUtils.create_path_if_needed(Constants.FRONTEND_DATA_PATH)
@@ -114,7 +113,7 @@ class Playlist:
                 self.mode = 'wt'
             if rotate:
                 try:
-                    save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
+                    save_path = f'{Constants.FRONTEND_DATA_PATH}/{playlist_name}.old'
                     save_path = xbmcvfs.validatePath(save_path)
                     try:
                         if os.path.exists(self.path):
@@ -125,12 +124,12 @@ class Playlist:
                     clz._logger.exception('')
 
             try:
-                self._file = io.open(self.path, mode=self.mode, buffering=1, newline=None,
-                                     encoding='utf-8')
+                self._file = io.open(self.path, mode=self.mode, buffering=1,
+                                     newline=None, encoding='utf-8')
             except Exception as e:
                 clz._logger.exception('')
 
-    def load_smart_playlist(self) -> None:
+    def load_smart_playlist(self) -> Union[Dict[str, Any], None]:
         clz = type(self)
         playlist_dict = None
         try:
@@ -144,9 +143,9 @@ class Playlist:
 
         return playlist_dict
 
-    def add_to_smart_playlist(self, trailer) -> bool:
+    def add_to_smart_playlist(self, movie: AbstractMovie) -> bool:
         clz = type(self)
-        movie_filename = trailer.get(Movie.FILE, None)
+        movie_filename = movie.get_movie_path()
         if movie_filename is not None:
             movie_filename = os.path.basename(movie_filename)
         playlist_dict = self.load_smart_playlist()
