@@ -383,7 +383,7 @@ class PlayableTrailerService:
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz.logger.debug_verbose('Playing:', trailer.get_detail_title(),
-                                      trace=Trace.TRACE)
+                                     trace=Trace.TRACE)
 
         # Periodically report on played movie statistics
 
