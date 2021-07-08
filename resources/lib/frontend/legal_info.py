@@ -59,8 +59,8 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         self._wait_or_interrupt_event = threading.Event()
         self._license_display_seconds = kwargs['license_display_seconds']
         Monitor.register_abort_listener(self.on_abort_event)
-        self._exit_dialog_timer = threading.Timer(self._license_display_seconds,
-                                                  self.exit_dialog)
+        self._exit_dialog_timer = threading.Timer(
+            interval=float(self._license_display_seconds), function=self.exit_dialog)
         self._exit_dialog_timer.setName('LegalInfoTimer')
         self._update_dialog_thread = None
 
@@ -77,14 +77,12 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         :return:
         """
-        # self._logger.debug_extra_verbose('In onInit')
-        self._exit_dialog_timer.start()
         self._update_dialog_thread = threading.Thread(
             target=self.update_dialog, name='LegalInfo.update_dialog')
         self._update_dialog_thread.start()
+        self._exit_dialog_timer.start()
 
     def update_dialog(self) -> None:
-        # self._logger.debug_extra_verbose('In update_dialog')
         label: Union[ControlLabel, Control] = self.getControl(38021)
         label_text = Messages.get_msg(Messages.LICENSE_LABEL)
         label.setLabel(f'[B]{label_text}[/B]')
@@ -143,9 +141,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         :return:
         """
-        # self._logger.debug_extra_verbose('In doModal')
         super().doModal()
-        # self._logger.debug_extra_verbose('Exiting doModal')
         return True
 
     def onAction(self, action: xbmcgui.Action) -> None:
@@ -162,11 +158,11 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         """
         action_id = action.getId()
 
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(LazyLogger.DISABLED):
             self._logger.debug_extra_verbose(f'In onAction id: {action_id}')
 
         if action_id != 107:  # Mouse Move
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if self._logger.isEnabledFor(LazyLogger.DISABLED):
                 self._logger.debug_extra_verbose('Action.id:', action_id,
                                                  hex(action_id),
                                                  'Action.button_code:',
@@ -179,12 +175,12 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         # Mouse Move
         if action_id != 107 and self._logger.isEnabledFor(
-                LazyLogger.DEBUG_EXTRA_VERBOSE):
+                LazyLogger.DISABLED):
             for line in matches:
                 self._logger.debug_extra_verbose(line)
 
         key = ''
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(LazyLogger.DISABLED):
             button_code = action.getButtonCode()
 
             # These return empty string if not found
@@ -226,7 +222,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         ##################################################################
         elif (action_id == xbmcgui.ACTION_STOP
               or action_id == xbmcgui.ACTION_MOVE_RIGHT):
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if self._logger.isEnabledFor(LazyLogger.DISABLED):
                 self._logger.debug_extra_verbose(
                     key, 'Exit display license at user\'s request')
             self.exit_dialog()
