@@ -92,8 +92,9 @@ class GarbageCollector:
                     cls._threads_to_join.remove(thread)
 
             if Monitor.wait_for_abort(timeout=1.0):
-                del cls._threads_to_join
+                cls._stopped = True
                 finished = True
+                del cls._threads_to_join
 
 
 GarbageCollector.init_class()
