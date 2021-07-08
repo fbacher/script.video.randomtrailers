@@ -89,6 +89,7 @@ class Messages:
     GENRE_WESTERN: Final[str] = 'Western'
     MOVIE_ADDED_TO_PLAYLIST: Final[str] = 'Movie added to playlist: {}'
     MOVIE_ALREADY_ON_PLAYLIST: Final[str] = 'Movie already in playlist: {}'
+    NOT_A_PLAYLIST: Final[str] = 'Playlist not configured'
     SETTING_INCLUDE_THREAD_INFORMATION: Final[str] = "Include thread information"
     RATING: Final[str] = 'Rating {}'
     RATING_G: Final[str] = 'G'
@@ -175,6 +176,7 @@ class Messages:
         GENRE_WESTERN: 32238,
         MOVIE_ADDED_TO_PLAYLIST: 32239,
         MOVIE_ALREADY_ON_PLAYLIST: 32240,
+        NOT_A_PLAYLIST: 32290,
         SETTING_INCLUDE_THREAD_INFORMATION: 32241,
         RATING: 32242,
         RATING_G: 32243,

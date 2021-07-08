@@ -1040,6 +1040,9 @@
 					<control format="string" type="edit">
 						<heading>32171</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_2" label="32258" type="string">
 					<level>0</level>
@@ -1047,59 +1050,83 @@
 					<control format="string" type="edit">
 						<heading>32172</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_3" label="32259" type="string">
 					<level>0</level>
-					<default>Random_Trailers_3</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32173</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_4" label="32260" type="string">
 					<level>0</level>
-					<default>Random_Trailers_4</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32174</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_5" label="32261" type="string">
 					<level>0</level>
-					<default>Random_Trailers_5</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32175</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_6" label="32262" type="string">
 					<level>0</level>
-					<default>Random_Trailers_6</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32176</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_7" label="32263" type="string">
 					<level>0</level>
-					<default>Random_Trailers_7</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32177</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_8" label="32264" type="string">
 					<level>0</level>
-					<default>Random_Trailers_8</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32178</heading>
 					</control>
 				</setting>
 				<setting help="" id="playlist_name_9" label="32265" type="string">
 					<level>0</level>
-					<default>Random_Trailers_9</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32179</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_10" label="32266" type="string">
 					<level>0</level>
-					<default>Random_Trailers_10</default>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 					<control format="string" type="edit">
 						<heading>32180</heading>
 					</control>

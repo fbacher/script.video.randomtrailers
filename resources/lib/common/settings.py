@@ -596,6 +596,7 @@ class Settings:
 
         return Settings.get_setting_int(Settings.MAX_TFH_TRAILERS)
 
+    '''
     @staticmethod
     def get_adjust_volume() -> bool:
         """
@@ -603,6 +604,7 @@ class Settings:
         :return:
         """
         return Settings.get_setting_bool(Settings.VOLUME)
+    '''
 
     @staticmethod
     def is_allow_foreign_languages() -> bool:
@@ -638,13 +640,15 @@ class Settings:
             Settings.get_media_path(), 'CurtainClosingSequence.flv'))
 
     @staticmethod
-    def get_playlist_name(playlist_number: int) -> str:
+    def get_playlist_name(playlist_number: int) -> Union[str, None]:
         """
 
         :return:
         """
-        playlist_id = "playlist_name_" + str(playlist_number)
+        playlist_id = f'playlist_name_{str(playlist_number)}'
         playlist_name = Settings.get_addon().addon.getSetting(playlist_id)
+        if playlist_name is None:
+            playlist_name = ''
 
         return playlist_name
 
@@ -1640,7 +1644,7 @@ class Settings:
 
         return volume
     '''
-    
+
     @staticmethod
     def get_tmdb_include_old_movie_trailers() -> bool:
         """
