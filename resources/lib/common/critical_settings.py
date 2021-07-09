@@ -45,8 +45,8 @@ class CriticalSettings:
         if CriticalSettings.addon is None:
             return False
 
-        is_debug_enabled = CriticalSettings.addon.setting('do_debug')
-        return bool(is_debug_enabled)
+        debug_enabled = CriticalSettings.addon.bool_setting('do_debug')
+        return debug_enabled
 
     @staticmethod
     def is_debug_include_thread_info() -> bool:
@@ -57,7 +57,7 @@ class CriticalSettings:
         if CriticalSettings.addon is None:
             return False
 
-        is_debug_include_thread_info = CriticalSettings.addon.setting(
+        is_debug_include_thread_info = CriticalSettings.addon.bool_setting(
                                             CriticalSettings.DEBUG_INCLUDE_THREAD_INFO)
         return (bool(is_debug_include_thread_info)
                 and CriticalSettings.get_logging_level() <= CriticalSettings.DEBUG)
