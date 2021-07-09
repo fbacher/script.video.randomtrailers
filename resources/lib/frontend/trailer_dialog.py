@@ -949,6 +949,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             # title.setAnimations(
             #    [('Hidden', 'effect=fade end=0 time=1000')])
 
+            control: Union[ControlLabel, Control] = self.getControl(38025)
+            control.setLabel(self.bold(Messages.get_msg(Messages.DIRECTOR_LABEL)))
+            control.setVisible(True)
+
             control: Union[ControlLabel, Control] = self.getControl(38005)
             movie_directors: List[str] = self._movie.get_directors()
             if movie_directors is None:
@@ -956,6 +960,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             else:
                 control.setLabel(', '.join(movie_directors))
                 control.setVisible(True)
+
+            control: Union[ControlLabel, Control] = self.getControl(38026)
+            control.setLabel(self.bold(Messages.get_msg(Messages.WRITER_LABEL)))
+            control.setVisible(True)
+
+            control: Union[ControlLabel, Control] = self.getControl(38027)
+            control.setLabel(self.bold(Messages.get_msg(Messages.STARS_LABEL)))
+            control.setVisible(True)
 
             movie_actors: List[str] = self._movie.get_actors()
             control: Union[ControlLabel, Control] = self.getControl(38006)
@@ -1566,7 +1578,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     'Playing movie for currently playing movie.',
                     'movie_file:', movie_file, 'source:',
                     self._movie.get_source())
-            if movie_file is None or movie_file == '':
+            if movie_file == '':
                 heading = Messages.get_msg(Messages.HEADING_INFO)
                 message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
                 self.notification(message)
@@ -1618,7 +1630,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                       ControlLabel] = self.getControl(38024)
 
         if text != '':
-            bold_text = '[B]' + text + '[/B]'
+            bold_text = self.bold(text)
             notification_control.setLabel(bold_text)
             notification_control_2.setLabel(bold_text)
             text_to_speech.say_text(text, interrupt=True)
@@ -1731,8 +1743,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 title = movie.get_title()
                 clz.logger.error('Missing DETAIL_TITLE:',
                                  Debug.dump_dictionary(movie.get_as_movie_type()))
-            title = '[B]' + title + '[/B]'
-
             if verbose:  # for debugging
                 cached = False
                 normalized = False
@@ -1752,7 +1762,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         except Exception as e:
             clz.logger.exception('')
 
-        return title
+        return self.bold(title)
 
     def bold(self, text: str) -> str:
         """

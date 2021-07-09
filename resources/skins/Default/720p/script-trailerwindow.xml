@@ -59,7 +59,7 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font14</font>
+                    <font>font24-title</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
@@ -90,7 +90,7 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font14</font>
+                    <font>font24-title</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
@@ -113,11 +113,21 @@
                         <texture background="true">solid-black.png</texture>
                     </control>
                 </control>
+                <!-- TITLE -->
+                <control type="label" id="38003">
+                    <description>Title</description>
+                    <posx>20</posx>
+                    <posy>5</posy>
+                    <width>1240</width>
+                    <font>font24-title</font>
+                    <textcolor>FFFFFFFF</textcolor>
+                    <scroll>true</scroll>
+                </control>
                 <!-- Notification -->
                 <control type="label" id="38024">
                     <description>Notification</description>
-                    <posx>0</posx>
-                    <posy>2</posy>
+                    <posx>20</posx>
+                    <posy>40</posy>
                     <width>1280</width>
                     <height>40</height>
                     <aligny>center</aligny>
@@ -126,31 +136,21 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font14</font>
+                    <font>font24-title</font>
                     <textcolor>FFFFFFFF</textcolor>
-                </control>
-                <!-- TITLE -->
-                <control type="label" id="38003">
-                    <description>Title</description>
-                    <posx>20</posx>
-                    <posy>50</posy>
-                    <width>1240</width>
-                    <font>font13</font>
-                    <textcolor>FFFFFFFF</textcolor>
-                    <scroll>true</scroll>
                 </control>
                 <!-- POSTER/COVER -->
                 <control type="group">
                     <description>Main Poster plus three horizontal lines in text area</description>
                     <posx>880</posx>
-                    <posy>119</posy>
+                    <posy>100</posy>
                     <visible>Skin.HasSetting(Info)</visible>
                     <control type="image" id="38002">
                         <description>Poster. Ratio 2h:3v</description>
                         <posx>0</posx>
                         <posy>1</posy>
                         <width>400</width>
-                        <height>600</height>
+                        <height>619</height>
                         <aspectratio>keep</aspectratio>
                         <fadetime>200</fadetime>
                         <texture background="true">noposter.png</texture>
@@ -160,7 +160,7 @@
                         <posx>-1</posx>
                         <posy>0</posy>
                         <width>1</width>
-                        <height>602</height>
+                        <height>621</height>
                         <texture>line.png</texture>
                         <aspectratio>stretch</aspectratio>
                     </control>
@@ -176,7 +176,7 @@
                 </control>
                 <control type="group">
                     <posx>0</posx>
-                    <posy>119</posy>
+                    <posy>100</posy>
                     <visible>Skin.HasSetting(Info)</visible>
                     <!-- Horizontal Lines -->
                     <control type="image">
@@ -188,11 +188,11 @@
                         <texture background="true">line.png</texture>
                     </control>
                     <control type="image">
-                        <posx>0</posx>
+                        <posx>1</posx>
                         <posy>241</posy>
                         <width>880</width>
                         <height>1</height>
-                        <aspectratio>keep</aspectratio>
+                        <aspectratio>stretch</aspectratio>
                         <texture background="true">line.png</texture>
                     </control>
                     <!-- movie fanart at upper-mid-left-->
@@ -212,59 +212,57 @@
                     <posx>428</posx>
                     <posy>119</posy>
                     <visible>Skin.HasSetting(Info)</visible>
-                    <control type="label">
+                    <control type="label" id="38025">
                         <description>Director</description>
-                        <posx>2</posx>
+                        <posx>5</posx>
                         <posy>13</posy>
-                        <width>368</width>
-                        <font>font13</font>
-                        <label>[B]Director[/B]</label>
+                        <width>365</width>
+                        <font>font24-title</font>
+                        <!-- <label>$LOCALIZE[32176]</label> -->
                         <textcolor>FFFFFFFF</textcolor>
-
                     </control>
                     <control type="label" id="38005">
                         <description>Director</description>
-                        <posx>2</posx>
+                        <posx>5</posx>
                         <posy>33</posy>
-                        <width>368</width>
+                        <width>365</width>
                         <scrollsuffix>-</scrollsuffix>
                         <font>font13</font>
                         <textcolor>FFb4b4b4</textcolor>
-
                     </control>
-                    <control type="label">
+                    <control type="label" id="38026">
                         <description>writer</description>
-                        <posx>2</posx>
+                        <posx>5</posx>
                         <posy>63</posy>
-                        <width>368</width>
-                        <font>font13</font>
+                        <width>365</width>
+                        <font>font24</font>
                         <scroll>true</scroll>
-                        <label>[B]Writer[/B]</label>
+                        <!-- <label fallback="Writer">$LOCALIZE[32177]</label> -->
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
                     <control type="label" id="38007">
                         <description>Writer</description>
-                        <posx>2</posx>
+                        <posx>5</posx>
                         <posy>83</posy>
-                        <width>368</width>
+                        <width>365</width>
                         <scrollsuffix>-</scrollsuffix>
                         <font>font13</font>
                         <textcolor>FFb4b4b4</textcolor>
                     </control>
-                    <control type="label">
+                    <control type="label" id="38027">
                         <description>Cast</description>
-                        <posx>2</posx>
+                        <posx>5</posx>
                         <posy>118</posy>
-                        <width>368</width>
-                        <label>[B]Stars[/B]</label>
-                        <font>font13</font>
+                        <width>365</width>
+                        <!-- <label>[B]$LOCALIZE[32178][/B]</label> -->
+                        <font>font24</font>
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
                     <control type="label" id="38006">
                         <description>Cast</description>
-                        <posx>2</posx>
+                        <posx>5</posx>
                         <posy>138</posy>
-                        <width>368</width>
+                        <width>365</width>
                         <wrapmultiline>true</wrapmultiline>
                         <height>100</height>
                         <font>font13</font>
@@ -273,9 +271,9 @@
                 </control>
 
                 <control type="group">
-                    <posy>400</posy>
+                    <posy>342</posy>
                     <posx>0</posx>
-                    <height>320</height>
+                    <height>378</height>
                     <width>880</width>
                     <visible>Skin.HasSetting(Info)</visible>
 
@@ -283,7 +281,7 @@
                     <control type="textbox" id="38009">
                         <description>Plot</description>
                         <posx>30</posx>
-                        <posy>10</posy>
+                        <posy>15</posy>
                         <width>820</width>
                         <height>205</height>
                         <spinposx>500</spinposx>
