@@ -11,7 +11,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import ITunesMovie
 from common.movie_constants import MovieField
-from common.rating import Certification, WorldCertifications, Certifications
+from common.certification import Certification, WorldCertifications, Certifications
 from common.settings import Settings
 from six import reraise
 

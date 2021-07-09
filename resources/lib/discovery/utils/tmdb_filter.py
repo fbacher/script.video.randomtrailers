@@ -13,7 +13,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TMDbMovie, TMDbMoviePageData
 from common.movie_constants import MovieField
-from common.rating import Certification, WorldCertifications
+from common.certification import Certification, WorldCertifications
 from common.settings import Settings
 
 from common.exceptions import AbortException, reraise
@@ -276,7 +276,7 @@ class TMDbFilter:
         except Exception as e:
             cls.logger.exception(
                 f'Error filtering tmdb movie: {movie.get_title()}')
-            
+
         cls.logger.exit(f'Finished processing movie: {movie.get_title()} year: '
                         f'{movie.get_year()} rejection_reason count:  '
                         f'{len(rejection_reasons)}')

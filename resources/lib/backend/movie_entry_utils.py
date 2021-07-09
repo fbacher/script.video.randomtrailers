@@ -14,7 +14,7 @@ from common.monitor import Monitor
 from common.logger import LazyLogger
 from common.movie import AbstractMovie, LibraryMovie, TFHMovie
 from common.movie_constants import MovieField
-from common.rating import Certifications, WorldCertifications, Certification
+from common.certification import Certifications, WorldCertifications, Certification
 from common.settings import Settings
 from backend.json_utils_basic import JsonUtilsBasic
 
@@ -106,6 +106,7 @@ class MovieEntryUtils:
                                 else:
                                     changed: bool = movie.add_tmdb_id(tmdb_id)
                                     if changed:
+                                        # Not likely from TFH
                                         if isinstance(movie, TFHMovie):
                                             from cache.tfh_cache import TFHCache
 

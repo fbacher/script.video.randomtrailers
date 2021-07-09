@@ -5,7 +5,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import LibraryMovie
 from common.movie_constants import MovieField
-from common.rating import Certification, WorldCertifications
+from common.certification import Certification, WorldCertifications
 from common.settings import Settings
 from common.exceptions import AbortException, reraise
 

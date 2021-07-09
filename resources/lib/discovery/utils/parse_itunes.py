@@ -17,7 +17,7 @@ from common.messages import Messages
 from common.monitor import Monitor
 from common.movie import ITunesMovie
 from common.movie_constants import MovieField
-from common.rating import Certification, Certifications, WorldCertifications
+from common.certification import Certification, Certifications, WorldCertifications
 from common.settings import Settings
 from common.utils import Utils
 
@@ -200,7 +200,7 @@ class ParseITunes:
                 # clz._logger.debug('post_date: ', post_date)
 
                 url: str = itunes_trailer.get('url', '')
-                
+
                 if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                     clz._logger.debug_extra_verbose('url: ', url)
 
@@ -249,7 +249,7 @@ class ParseITunes:
             except Exception as e:
                 clz._logger.exception('')
                 is_success = False
-                
+
         if is_success:
             self._itunes_movie.set_trailer_type(trailer_type)
             self._itunes_movie.set_trailer_path(url)

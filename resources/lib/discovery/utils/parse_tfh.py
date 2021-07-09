@@ -9,7 +9,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TFHMovie
 from common.movie_constants import MovieField
-from common.rating import Certification, Certifications, WorldCertifications
+from common.certification import Certification, Certifications, WorldCertifications
 from common.settings import Settings
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -51,10 +51,10 @@ class ParseTFH:
             self._logger.debug(f'Can not get tfh_id for '
                                f'{self._tfh_result.get(MovieField.TITLE)}')
             return None
-        
+
         self._tfh_movie.set_id(tfh_id)
         return tfh_id
-            
+
     def parse_title(self) -> str:
         """
             Passed title can be junk:

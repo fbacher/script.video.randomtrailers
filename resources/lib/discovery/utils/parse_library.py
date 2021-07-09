@@ -7,7 +7,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import LibraryMovie
 from common.movie_constants import MovieField
-from common.rating import Certification, WorldCertifications
+from common.certification import Certification, WorldCertifications
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 

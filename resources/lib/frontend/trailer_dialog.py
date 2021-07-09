@@ -1037,11 +1037,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             rating_control.setColorDiffuse('0xC0FFD700')
 
             control: Union[ControlImage, Control] = self.getControl(38013)
-            image_rating = self._movie.get_detail_certification_image()
-            if image_rating is None:
+            certification_image_path = self._movie.get_certification_image_path()
+            if certification_image_path is None:
                 control.setVisible(False)
             else:
-                control.setImage(image_rating)
+                certification_image_path = f'ratings/{certification_image_path}.png'
+                control.setImage(certification_image_path)
                 control.setVisible(True)
 
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):

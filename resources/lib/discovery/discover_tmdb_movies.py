@@ -33,7 +33,7 @@ from common.utils import Delay
 from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
 from backend.json_utils_basic import JsonUtilsBasic
-from common.rating import WorldCertifications
+from common.certification import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.utils.tmdb_filter import TMDbFilter
 from discovery.tmdb_movie_data import TMDBMovieData
@@ -889,74 +889,74 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 # tmdb ids. Then treat the ids as get_tmdb_ids_with_trailers,
                 # above. Later, movie fetcher will reject any that don't pass
                 # the filter.
-    
+
                 # Add wait between each movie added = 0.1 + log(# trailers_added * 2) seconds
                 # For 1,000 trailers added, the delay is 0.1 + 3.3 = 3.4 seconds
                 #
                 # The delay does not occur until when they json files are read
-    
+
                 delay = Delay(bias=0.1, call_scale_factor=2.0, scale_factor=1.0)
-    
+
                 cache_top: str = xbmcvfs.translatePath(Settings.get_remote_db_cache_path())
-    
+
                 tmdb_movie_ids: List[TMDbMovieId] = []
                 path: Path
-                file_iterable: FindFiles 
+                file_iterable: FindFiles
                 file_iterable = FindFiles(cache_top, Constants.TMDB_GLOB_JSON_PATTERN)
                 for path in file_iterable:
                     try:
                         if path.parent.name == 'index':
                             continue
-    
+
                         # clz.logger.debug(f'path: {path.absolute()} name: {path.name}')
                         match: Match = Constants.TMDB_ID_PATTERN.search(path.name)
                         if match is None:  # Just in case
                             continue
-    
+
                         tmdb_id: str = match.group(1)
-    
+
                         # Is Movie already discovered?
-    
+
                         movie: BaseMovie = self.get_by_id(tmdb_id)
                         if movie is not None:
                             continue
-    
+
                         try:
                             tmdb_movie_ids.append(TMDbMovieId(tmdb_id))
                             additional_movies_to_get -= 1
                         except ValueError:
                             clz.logger.debug(f'Could not convert tmdb_id to int: {tmdb_id}')
-    
+
                         if len(tmdb_movie_ids) > 5:
                             additional_movies_to_get -= len(tmdb_movie_ids)
                             self.add_to_discovered_movies(tmdb_movie_ids)
                             tmdb_movie_ids.clear()
-    
+
                         if additional_movies_to_get <= 0:
                             break
-    
+
                     except Exception as e:
                         clz.logger.exception()
-    
+
                     # Get leftovers
-    
+
                 # In case loop is exited early, tell it to kill
                 # file iteration thread.
-                
+
                 # file_iterable.kill()
-                
+
                 tmdb_ids_found = len(tmdb_movie_ids)
                 if tmdb_ids_found > 0:
                     additional_movies_to_get -= len(tmdb_movie_ids)
                     self.add_to_discovered_movies(tmdb_movie_ids)
                     tmdb_movie_ids.clear()
-    
+
             except Exception as e:
                 clz.logger.exception()
-    
+
             stop_time: datetime.datetime = datetime.datetime.now()
             delta_time_minutes: int = int((stop_time - start_time).total_seconds() / 60.0)
-    
+
             clz.logger.debug_extra_verbose(f'Minutes to discover {tmdb_ids_found} json files: '
                                            f'{delta_time_minutes:,d}')
 
@@ -1393,7 +1393,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 data['vote_average.gte'] = str(self._vote_value)
             else:
                 data['vote_average.lte'] = str(self._vote_value)
-             
+
             #
             # TMDB accepts iso-639-1 but adding an iso-3166- suffix
             # would be better (en_US)
@@ -1650,7 +1650,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                                                       indent=3,
                                                                       sort_keys=True))
                         self.throw_exception_on_forced_to_stop()
-    
+
                         movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(movie_entry)
                         movie_id: int = movie_summary_parser.parse_tmdb_id()
 
@@ -1659,7 +1659,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                             clz.logger.debug_verbose(
                                 'Processing:', movie_title)
-    
+
                         year: int = movie_summary_parser.parse_year()
                         popularity: float = movie_summary_parser.parse_popularity()
                         original_title = movie_summary_parser.parse_original_title()
@@ -1673,11 +1673,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         genre_ids: [int] = movie_summary_parser.parse_genre_ids()
                         original_language: str = \
                             movie_summary_parser.parse_original_language()
-    
+
                         movie: TMDbMoviePageData = movie_summary_parser.get_movie()
                         movie.set_buffer_number(page)
                         movie.set_total_pages(total_pages)
-    
+
                         if TMDbFilter.pre_filter_movie(movie):
                             movies.append(movie)
                     except Exception as e:

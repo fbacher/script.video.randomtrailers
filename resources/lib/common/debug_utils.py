@@ -28,7 +28,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import AbstractMovie, LibraryMovie
 from common.movie_constants import MovieField, MovieType
-from common.rating import WorldCertifications
+from common.certification import WorldCertifications
 from common.settings import Settings
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -218,8 +218,8 @@ class Debug:
 
         movie: MovieType
         if isinstance(movie_arg, LibraryMovie):
-            return 
-        
+            return
+
         if isinstance(movie_arg, AbstractMovie):
             movie = movie_arg.get_as_movie_type()
         else:
@@ -286,7 +286,7 @@ class Debug:
                     property_name, MovieField.DEFAULT_MOVIE[property_name])
                 is_ok = False
 
-        if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE) 
+        if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                                      and len(failing_properties) > 0):
             msg = ', '.join(failing_properties)
             if stack_trace:

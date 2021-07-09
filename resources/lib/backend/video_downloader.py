@@ -21,7 +21,7 @@ from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
-from common.rating import WorldCertifications
+from common.certification import WorldCertifications
 from common.settings import Settings
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)

@@ -14,7 +14,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TMDbMovie
 from common.movie_constants import MovieField
-from common.rating import Certification, Certifications, WorldCertifications
+from common.certification import Certification, Certifications, WorldCertifications
 from common.settings import Settings
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)

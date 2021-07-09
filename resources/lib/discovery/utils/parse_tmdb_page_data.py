@@ -6,7 +6,7 @@ from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TMDbMoviePageData
 from common.movie_constants import MovieField
-from common.rating import WorldCertifications, Certification
+from common.certification import WorldCertifications, Certification
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -110,6 +110,11 @@ class ParseTMDbPageData:
         # return is_video
 
     def parse_certification(self) -> str:
+        #
+        # TMDb Page data ONLY tells us if a movie is adult or not.
+        # This throw-away certification is therefore used to crudely filter
+        # out adult movies.
+
         clz = type(self)
         adult: str = self._movie_entry.get('adult')
         if adult is None:

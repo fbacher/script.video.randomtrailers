@@ -266,6 +266,9 @@ class Certification:
     def get_image(self) -> str:
         return self._image_id
 
+    def get_country_id(self) -> str:
+        return self.get_certifications().get_country_id()
+
     def __lt__(self, other_certification) -> bool:
         if not isinstance(other_certification, Certification):
             return False
@@ -356,9 +359,9 @@ class Certifications:
         for certification in self._certifications:
             if certification.get_rank() == rank:
                 return certification
-            
+
         # If certification not found, then requested rank is > possible
-        
+
         raise ValueError
 
     def get_unrated_certification(self) -> Certification:
@@ -463,7 +466,6 @@ class WorldCertifications:
             country_id = Settings.get_country_iso_3166_1().lower()
         return cls._certifications_by_country.get(country_id)
 
-
     @classmethod
     def get_certification_by_id(cls,
                                 certification_id: str = '',
@@ -485,12 +487,12 @@ class WorldCertifications:
                 reraise(*sys.exc_info())
 
         return certification
-    
+
     @classmethod
     def get_certification_by_rank(cls,
                                 certification_rank: int = 0, # least rank
                                 country_id: str = None) -> Certification:
-        
+
         certifications: Certifications = cls.get_certifications(country_id)
         certification: Certification
         try:
