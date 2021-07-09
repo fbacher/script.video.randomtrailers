@@ -145,9 +145,11 @@ class Playlist:
 
     def add_to_smart_playlist(self, movie: AbstractMovie) -> bool:
         clz = type(self)
-        movie_filename = movie.get_movie_path()
-        if movie_filename is not None:
-            movie_filename = os.path.basename(movie_filename)
+        movie_path: str = movie.get_movie_path() # Never returns None
+        if not os.path.exists(movie_path):
+            return False
+
+        movie_filename = os.path.basename(movie_path)
         playlist_dict = self.load_smart_playlist()
         if playlist_dict is None:
             playlist_dict = copy.deepcopy(Playlist.smart_playlist_skeleton)

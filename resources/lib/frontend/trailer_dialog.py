@@ -7,6 +7,7 @@ Created on Apr 17, 2019
 """
 
 import datetime
+import os
 import re
 import sys
 import threading
@@ -1581,9 +1582,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # Close InfoDialog and resume playing movie
 
         elif action_id in TrailerDialog._playlist_map and movie is not None:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz.logger.debug_extra_verbose(key)
-            self.add_to_playlist(action_id, movie)
+            movie_path: str = movie.get_movie_path()
+            if movie_path == '' or not os.path.exists(movie_path):
+                message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
+                self.notification(message)
+            else:
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    clz.logger.debug_extra_verbose(key)
+                self.add_to_playlist(action_id, movie)
 
     def set_title_control_label(self, text: str = '') -> None:
         """
