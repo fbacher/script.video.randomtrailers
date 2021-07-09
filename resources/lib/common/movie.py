@@ -766,10 +766,12 @@ class AbstractMovie(BaseMovie):
             WorldCertifications.get_certification_by_id(self.get_certification_id())
         return certification.get_label()
 
-    def get_detail_certification_image(self) -> str:
+    def get_certification_image_path(self) -> str:
         certification: Certification = \
             WorldCertifications.get_certification_by_id(self.get_certification_id())
-        return certification.get_image()
+
+        cert_path: str = f'{certification.get_country_id()}/{certification.get_image()}'
+        return cert_path
 
     def get_detail_genres(self) -> str:
         return ' / '.join(self.get_genre_names())
@@ -875,13 +877,13 @@ class AbstractMovie(BaseMovie):
             self.get_unique_ids()[id_type] = value
         except Exception as e:
             clz._logger.log_exception()
-            
+
         changed: bool = False
         if old_value is None and value is not None:
             changed = True
         elif old_value != value:
             changed = True
-            
+
         return changed
 
     def add_tmdb_id(self, tmdb_id: int) -> bool:
@@ -902,13 +904,13 @@ class AbstractMovie(BaseMovie):
                 imdb_id_str = self.get_unique_id(MovieField.UNIQUE_ID_UNKNOWN)
             if imdb_id_str is not None and not imdb_id_str.startswith('tt'):
                 imdb_id_str = None
-    
+
             if imdb_id_str is not None:
                 try:
                     imdb_id = int(imdb_id_str[2:])
                 except ValueError:
                     pass
-    
+
             return imdb_id
         except Exception as e:
             clz = type(self)
