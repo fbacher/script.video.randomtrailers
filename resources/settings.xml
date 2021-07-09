@@ -1110,6 +1110,9 @@
 					<control format="string" type="edit">
 						<heading>32178</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_9" label="32265" type="string">
 					<level>0</level>
