@@ -4,6 +4,7 @@ Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
 """
+from common.critical_settings import CriticalSettings
 from common.minimal_monitor import MinimalMonitor
 from common.python_debugger import PythonDebugger
 CriticalSettings.set_plugin_name('rt_screensaver')
