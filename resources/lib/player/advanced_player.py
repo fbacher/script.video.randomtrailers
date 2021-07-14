@@ -657,7 +657,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     def wait_for_is_not_playing_video(self,
                                       timeout: float = None,
                                       trace: str = None) -> bool:
-        '''
+        """
         This is a mess.
 
         The preferred way to deal with this is to monitor onPlayBackStarted/
@@ -668,7 +668,12 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
 
         Perhaps rely on onVidowWindowOpened/Closed, but that depends upon
         the actual dialog opening/closing. Not good
-        '''
+
+        :param: timeout : Maximum amount of time to wait in seconds.
+                          If zero AND paused, then wait a very long time.
+                          If otherwise zero, wait a maximum of the remaining
+                          amount of time to play.
+        """
 
         local_class = AdvancedPlayer
         try:
@@ -682,9 +687,10 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             timeout = 0
 
         timeout = timeout * 1000  # Convert to ms
-        while (self._player_window_open
-               and timeout > 0 and not Monitor.wait_for_abort(0.250)):
-            timeout -= 250
+        while (not Monitor.wait_for_abort(0.250) and self._player_window_open
+               and timeout > 0):
+            if not self.is_paused():
+                timeout -= 250
 
         if timeout > 0:
             return False
