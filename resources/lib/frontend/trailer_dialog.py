@@ -163,35 +163,47 @@ class TrailerLifeCycle:
             cls.logger = module_logger.getChild(cls.__name__)
 
     @classmethod
-    def notification(cls, message: str) -> None:
+    def notification(cls, message: str, block: bool = False) -> None:
         """
             Displays given message for a period of time, but can be
             canceled early, depending upn events.
 
         :param message: Message to display
+        :param block: Blocks if true, otherwise runs asynchronously
         :return:
         """
         try:
             if cls.logger.isEnabledFor(LazyLogger.DEBUG):
-                cls.logger.debug('message:', message,
+                cls.logger.debug(f'message: { message}',
                                  trace=Trace.TRACE_UI_CONTROLLER)
 
             with TrailerLifeCycle._lock:
                 if cls._notify_thread is not None:
                     # Unblock any prior use of timer, just in case
+                    cls.logger.debug(f'Unblocking any stray notifications '
+                                     f'by _notify_event.set',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
                     cls._notify_event.set()
 
+                TrailerStatus.get_dialog().update_notification_labels(text=message)
                 TrailerStatus.set_notification_msg(msg=message)
-                cls._notify_thread = threading.Thread(target=cls._notify_and_wait,
-                                                      name='notify_and_wait')
-                cls._notify_thread.start()
+                if block:
+                    cls.logger.debug(f'blocking on notification',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
+                    cls._notification_timer()
+                else:
+                    cls._notify_thread = threading.Thread(target=cls._notification_timer,
+                                                          name='notify_and_wait')
+                    cls.logger.debug(f'Starting notification wait thread',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
+                    cls._notify_thread.start()
         except Exception as e:
             cls.logger.exception('')
 
         return
 
     @classmethod
-    def _notify_and_wait(cls) -> None:
+    def _notification_timer(cls) -> None:
         """
             Separate thread to
               - set Notification msg visible
@@ -200,19 +212,31 @@ class TrailerLifeCycle:
         :param timeout:
         :return:
         """
-        timeout: int = Constants.MAX_PLAY_TIME_WARNING_TIME
-        with TrailerLifeCycle._lock:
-            cls._notify_event.clear()
+        try:
+            timeout: float = float(Constants.MAX_PLAY_TIME_WARNING_TIME)
+            with TrailerLifeCycle._lock:
+                cls.logger.debug(f'Clearing notify_event timeout: {timeout}',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._notify_event.clear()
 
-        # External event can cancel by setting this event
+            # External event can cancel by setting this event
 
-        cls._notify_event.wait(timeout=timeout)
+            cls.logger.debug(f'About to wait',
+                             trace=Trace.TRACE_UI_CONTROLLER)
+            result: bool = cls._notify_event.wait(timeout=timeout)
+            cls.logger.debug(f'Wait finished result: {result}',
+                             trace=Trace.TRACE_UI_CONTROLLER)
 
-        with TrailerLifeCycle._lock:
-            cls._notify_event.clear()
-            cls._notify_thread = None
+            with TrailerLifeCycle._lock:
+                cls._notify_event.clear()
+                cls._notify_thread = None
 
-        TrailerStatus.clear_notification_msg()
+            cls.logger.debug(f'Cleared event and set notify_thread = None '
+                             f'About to clear_notification_msg',
+                             trace=Trace.TRACE_UI_CONTROLLER)
+            TrailerStatus.clear_notification_msg()
+        except Exception as e:
+            cls.logger.exception()
 
     @classmethod
     def clear_notification(cls) -> None:
@@ -397,7 +421,7 @@ class TrailerLifeCycle:
                              trace=[Trace.TRACE_SCREENSAVER,
                                     Trace.TRACE_UI_CONTROLLER])
 
-        # Only access _movie_timer and _movie_event within lock
+        # Only access _movie_timer and _movie_event within lock.
 
         with TrailerLifeCycle._lock:
             # If movie_timer is None, then the timer has already gone
@@ -426,9 +450,6 @@ class TrailerLifeCycle:
                 cls.logger.debug(f'_movie_timer not None',
                                  trace=Trace.TRACE_UI_CONTROLLER)
 
-                if timer_id != cls._movie_timer_count:
-                    cls.logger.debug(f'timer ids do not match',
-                                     trace=Trace.TRACE_UI_CONTROLLER)
                 cls.logger.debug(f'movie_timer.cancel',
                                  trace=Trace.TRACE_UI_CONTROLLER)
                 cls._movie_timer.cancel()
@@ -610,7 +631,7 @@ class TrailerStatus:
                 # Show movie details
                 commands.append("Skin.Reset(ShowTrailer)")
                 if cls.scroll_plot:
-                    commands.append("Skin.set(ScrollPlot)")
+                    commands.append("Skin.SetBool(ScrollPlot)")
                 else:
                     commands.append("Skin.Reset(ScrollPlot)")
 
@@ -621,7 +642,9 @@ class TrailerStatus:
             if cls.notification_msg is None:
                 commands.append("Skin.Reset(Notification)")
             else:
-                commands.append("Skin.Set(Notification)")
+                commands.append("Skin.SetBool(Notification)")
+                commands.append("Skin.SetBool(TrailerTextOverlay)")
+                commands.append("Skin.SetBool(ShowMovieDetails)")
         elif changed_field == VisibleFields.OPAQUE:
             commands.append("Skin.Reset(Notification)")
             commands.append("Skin.Reset(ShowMovieDetails)")
@@ -629,7 +652,7 @@ class TrailerStatus:
             commands.append("Skin.Reset(TrailerTextOverlay)")
             commands.append("Skin.Reset(ShowTitle)")
 
-        commands.append('Skin.SetBool(Opaque)')   # TODO Test
+        # commands.append('Skin.SetBool(Opaque)')   # TODO Test
         for command in commands:
             if cls.logger.isEnabledFor(LazyLogger.DEBUG):
                 cls.logger.debug_extra_verbose(command,
@@ -887,7 +910,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 except HistoryEmpty:
                     msg = Messages.get_msg(
                         Messages.NO_MORE_MOVIE_HISTORY)
-                    TrailerLifeCycle.notification(msg)
+                    TrailerLifeCycle.notification(msg, block=True)
                     continue
 
                 # Are there no trailers to play now, and in the future?
@@ -1146,6 +1169,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                             self.set_random_trailers_play_state(
                                 DialogState.QUOTA_REACHED)
 
+            ##############################################
+            #
+            # End of while loop. Exiting this method
+            #
+            ##############################################
+
             if self._movie is None:
                 clz.logger.error('There will be no trailers to play')
                 TrailerLifeCycle.notification(Messages.get_msg(
@@ -1267,7 +1296,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             title = self.get_title_string(self._movie)
             self.set_title_control_label(title)
-            if not show_detail_info:
+            if show_detail_info:
+                TrailerStatus.set_show_trailer()
+            else:
                 text_to_speech.say_text(title, interrupt=True)
 
         return timer_id
@@ -1354,7 +1385,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
         clz.logger.enter()
         TrailerLifeCycle.cancel_movie_timer(usage=f'hide_detail')
-        TrailerStatus.set_show_trailer()
 
     def update_detail_view(self) -> None:
         """
@@ -1867,9 +1897,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 clz.logger.debug('DETAIL_GROUP_CONTROL is visible',
                                  trace=Trace.TRACE_UI_CONTROLLER)
                 self.hide_detail_info()
-                clz.logger.debug(f'back from hide_detail_view (which also'
-                                 f'starts play_trailer)',
+                clz.logger.debug(f'back from hide_detail_view',
                                  trace=Trace.TRACE_UI_CONTROLLER)
+                TrailerStatus.set_show_trailer()
                 self.get_player().resume_play()
                 clz.logger.debug('back from resume_play',
                                  trace=Trace.TRACE_UI_CONTROLLER)
@@ -2000,7 +2030,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             title_control.setLabel(text)
         return
 
-    def post_notification(self, text: str = None) -> None:
+    def update_notification_labels(self, text: str = None) -> None:
         """
 
         :param text:
@@ -2055,7 +2085,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz.logger.debug_extra_verbose('Queuing movie at user request:',
-                                            movie.get_title())
+                                           movie.get_title())
         self._queued_movie = movie
         self.set_random_trailers_play_state(DialogState.START_MOVIE_AND_EXIT)
 

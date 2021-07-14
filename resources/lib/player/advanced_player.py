@@ -627,29 +627,44 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         # self._dump_state()  # TODO: remove
 
     def wait_for_is_playing_video(self, timeout: float = None) -> bool:
-        '''
-        This is a mess.
+        """
+            Waits until a video is playing (or paused).
 
-        The preferred way to deal with this is to monitor onPlayBackStarted/
-        onPlayBackEnded events, but onPlayBackEnded is not reliably sent.
-        So, poll isPlayingVideo, which is True prior to the video actually
-        being played, so some method calls can throw exceptions until
-        onPlayBackStarted is issued. Sigh
+        :param: timeout: Maximum amount of time to wait, in seconds.
+                Defaults to an hour if None or <= 0
+        :return: True if playing a video
+                 False if no video was played within timeout seconds
 
-        Perhaps rely on onVidowWindowOpened/Closed, but that depends upon
-        the actual dialog opening/closing. Not good
+        """
         '''
+              This is a mess.
+
+              The preferred way to deal with this is to monitor onPlayBackStarted/
+              onPlayBackEnded events, but onPlayBackEnded is not reliably sent.
+              So, poll isPlayingVideo, which is True prior to the video actually
+              being played, so some method calls can throw exceptions until
+              onPlayBackStarted is issued. Sigh
+
+              Perhaps rely on onVidowWindowOpened/Closed, but that depends upon
+              the actual dialog opening/closing. Not good
+
+              :param: timeout: Maximum amount of time to wait, in seconds
+              '''
         local_class = AdvancedPlayer
-        if timeout is None:
-            timeout = 3600  # An hour, insane
+        if timeout is None or timeout <= 0.0:
+            timeout = 3600.0  # An hour, insane
 
-        timeout = timeout * 1000  # Convert to ms
+        timeout_ms: int = int(timeout * 1000.0)
 
         # TODO: Add check for failures: onPlabackFailed/Ended/Error
-        while not self._player_window_open and timeout > 0 and not Monitor.wait_for_abort(0.250):
-            timeout -= 250
+        while (not Monitor.wait_for_abort(0.250)
+               and not self._player_window_open
+               and timeout_ms > 0):
+            if self.is_paused():
+                break
+            timeout_ms -= 250
 
-        if timeout <= 0:
+        if timeout_ms <= 0:
             return False
 
         return True
@@ -658,43 +673,37 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
                                       timeout: float = None,
                                       trace: str = None) -> bool:
         """
-        This is a mess.
+          Waits until a video is NOT playing (or paused).
 
-        The preferred way to deal with this is to monitor onPlayBackStarted/
-        onPlayBackEnded events, but onPlayBackEnded is not reliably sent.
-        So, poll isPlayingVideo, which is True prior to the video actually
-        being played, so some method calls can throw exceptions until
-        onPlayBackStarted is issued. Sigh
+          :param: timeout: Maximum amount of time to wait, in seconds.
+                  Defaults to an hour if None or <= 0
+          :return: True if video is not playing (or paused)
+                   False if a video was playing (or paused) for
+                   entire timeout period of seconds
 
-        Perhaps rely on onVidowWindowOpened/Closed, but that depends upon
-        the actual dialog opening/closing. Not good
-
-        :param: timeout : Maximum amount of time to wait in seconds.
-                          If zero AND paused, then wait a very long time.
-                          If otherwise zero, wait a maximum of the remaining
-                          amount of time to play.
         """
+        #  This is a mess. See wait_for_is_playing_video
 
         local_class = AdvancedPlayer
         try:
-            if timeout is None:
-                timeout = 0
-                if self._player_window_open:
-                    timeout = self.getTime()
-                    timeout = self.getTotalTime() - timeout + 2
+            if timeout is None or timeout <= 0:
+                timeout = 3600.0
+
         except Exception:
             # Player must be finished
-            timeout = 0
+            return True
 
-        timeout = timeout * 1000  # Convert to ms
-        while (not Monitor.wait_for_abort(0.250) and self._player_window_open
-               and timeout > 0):
+        timeout_ms: int = int(timeout * 1000.0)
+        while (not Monitor.wait_for_abort(0.250)
+               and self._player_window_open
+               and timeout_ms > 0):
             if not self.is_paused():
-                timeout -= 250
+                timeout_ms -= 250
 
-        if timeout > 0:
-            return False
-        return True
+        if timeout_ms > 0:
+            return True
+
+        return False
 
     # Defined in xbmc.Player
     def onAVChange(self) -> None:
