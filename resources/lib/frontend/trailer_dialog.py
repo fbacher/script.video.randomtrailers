@@ -961,7 +961,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 # Determine if Movie Title is to be displayed during play of
                 # movie
 
-                show_movie_title: bool = Settings.get_show_movie_title()
+                show_title_while_playing: bool = Settings.get_show_movie_title()
 
                 # Add movie to "playlist"
 
@@ -982,7 +982,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                 if video_is_curtain:
                     show_movie_details = False
-                    show_movie_title = False
+                    show_title_while_playing = False
 
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz.logger.debug_extra_verbose(
@@ -1000,9 +1000,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 # This will block if showing Movie Details
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz.logger.debug_extra_verbose(
-                        'about to show_movie_info movie:',
-                        self._movie.get_title())
+                        f'about to show_movie_info movie: {self._movie.get_title()} '
+                        f'show_detail: {show_movie_details} block: {True}')
                 timer_id = self.show_movie_info(show_detail_info=show_movie_details,
+                                                show_title_while_playing=show_title_while_playing,
                                                 block=True)
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug_extra_verbose(
@@ -1271,13 +1272,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
     def show_movie_info(self,
                         show_detail_info: bool = False,
-                        show_brief_info: bool = False,
+                        show_title_while_playing: bool = False,
                         block: bool = False) -> int:
         """
 
         :param block:
         :param show_detail_info:
-        :param show_brief_info:
+        :param show_title_while_playing:
         :return: timer_id for MovieTimer created
         """
         clz = type(self)
@@ -1291,11 +1292,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         # shown prior to playing movie) as well as the
         # simple VideoOverlayTitle while the movie is playing.
         #
-        if show_brief_info:
+        if show_title_while_playing:
             # Don't display Movie Detail (Trailers from folders have none)
 
             title = self.get_title_string(self._movie)
-            self.set_title_control_label(title)
+            self.set_playing_trailer_title_control(title)
             if show_detail_info:
                 TrailerStatus.set_show_trailer()
             else:
@@ -2017,7 +2018,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     clz.logger.debug_extra_verbose(key)
                 self.add_to_playlist(action_id, movie)
 
-    def set_title_control_label(self, text: str = '') -> None:
+    def set_playing_trailer_title_control(self, text: str = '') -> None:
         """
 
         :param text:
