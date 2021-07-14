@@ -2,27 +2,29 @@
 <window type="window">
     <zorder>1</zorder>
     <controls>
-        <!-- First are the controls that apply when the Trailer is playing -->
+        <!-- First are the controls that apply when the Trailer is playing
+             (Text Overlay for Title and Notifications) -->
         <control type="group" id="38000">
             <control type="image">
                 <description>Black background</description>
+                <visible>true</visible>
+                <!-- <visible>Skin.HasSetting(ShowTrailer)</visible> -->
                 <posx>0</posx>
                 <posy>0</posy>
                 <width>1280</width>
                 <height>720</height>
                 <aspectratio>stretch</aspectratio>
                 <texture background="true">solid-black.png</texture>
-                <visible>Skin.HasSetting(Video)</visible>
             </control>
             <control type="videowindow">
-                <description>Private Video Window to avoid default
+                <description>Private Video Window for trailer to avoid default
                     navigation action processing
                 </description>
+                <visible>Skin.HasSetting(ShowTrailer)</visible>
                 <left>0</left>
                 <top>0</top>
                 <right>100%</right>
                 <bottom>100%</bottom>
-                <visible>Skin.HasSetting(Video)</visible>
             </control>
         </control>
         <control type="group">
@@ -31,14 +33,14 @@
             <posy>0</posy>
             <width>1280</width>
             <height>720</height>
-            <visible>Skin.HasSetting(NonVideo)</visible>
+            <visible>Skin.HasSetting(TrailerTextOverlay)</visible>
             <control type="group">
                 <description>Optional title displayed while trailer is playing</description>
                 <posx>0</posx>
                 <posy>0</posy>
                 <width>1280</width>
-                <height>40</height>
-                <visible>Skin.HasSetting(SummaryLabel)+!Skin.HasSetting(Notification)</visible>
+                <height>50</height>
+                <visible>Skin.HasSetting(ShowTitle)+!Skin.HasSetting(Notification)</visible>
                 <control type="image">
                     <description>Shadow Text background</description>
                     <posx>-0</posx>
@@ -55,11 +57,11 @@
                     <posy>2</posy>
                     <width>1240</width>
                     <aligny>center</aligny>
-                    <visible>Skin.HasSetting(SummaryLabel)+!Skin.HasSetting(Notification)</visible>
+                    <visible>Skin.HasSetting(ShowTitle)+!Skin.HasSetting(Notification)</visible>
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font24-title</font>
+                    <font>font25-title</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
@@ -68,7 +70,7 @@
                 <posx>0</posx>
                 <posy>0</posy>
                 <width>1280</width>
-                <height>45</height>
+                <height>50</height>
                 <visible>Skin.HasSetting(Notification)</visible>
                 <control type="image">
                     <description>Shadow Text background</description>
@@ -90,13 +92,13 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font24-title</font>
+                    <font>font25-title</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
 
             <control type="group" id="38001">
-                <visible>Skin.HasSetting(Info)</visible>
+                <visible>Skin.HasSetting(ShowMovieDetails)</visible>
                 <animation effect="fade" start="100" end="0" time="1000">WindowClose</animation>
                 <animation effect="fade" start="0" end="100" time="1000">WindowOpen</animation>
                 <!-- Black background for detail info must come first-->
@@ -119,7 +121,7 @@
                     <posx>20</posx>
                     <posy>5</posy>
                     <width>1240</width>
-                    <font>font24-title</font>
+                    <font>font25-title</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <scroll>true</scroll>
                 </control>
@@ -136,7 +138,7 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font24-title</font>
+                    <font>font25-title</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
                 <!-- POSTER/COVER -->
@@ -144,7 +146,7 @@
                     <description>Main Poster plus three horizontal lines in text area</description>
                     <posx>880</posx>
                     <posy>100</posy>
-                    <visible>Skin.HasSetting(Info)</visible>
+                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
                     <control type="image" id="38002">
                         <description>Poster. Ratio 2h:3v</description>
                         <posx>0</posx>
@@ -177,7 +179,7 @@
                 <control type="group">
                     <posx>0</posx>
                     <posy>100</posy>
-                    <visible>Skin.HasSetting(Info)</visible>
+                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
                     <!-- Horizontal Lines -->
                     <control type="image">
                         <posx>0</posx>
@@ -207,17 +209,17 @@
                     </control>
                 </control>
 
-                <!-- INFO MOVIES -->
+                <!-- ShowMovieDetails MOVIES -->
                 <control type="group">
                     <posx>428</posx>
                     <posy>119</posy>
-                    <visible>Skin.HasSetting(Info)</visible>
+                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
                     <control type="label" id="38025">
                         <description>Director</description>
                         <posx>5</posx>
                         <posy>13</posy>
                         <width>365</width>
-                        <font>font24-title</font>
+                        <font>font25-title</font>
                         <!-- <label>$LOCALIZE[32176]</label> -->
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
@@ -275,7 +277,7 @@
                     <posx>0</posx>
                     <height>378</height>
                     <width>880</width>
-                    <visible>Skin.HasSetting(Info)</visible>
+                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
 
                     <!-- PLOT -->
                     <control type="textbox" id="38009">
@@ -295,7 +297,7 @@
                         <texturedown flipy="true">-</texturedown>
                         <textureupfocus>-</textureupfocus>
                         <texturedownfocus flipy="true"></texturedownfocus>
-                        <autoscroll delay="6000" time="2500" repeat="5000">Skin.HasSetting(Info)</autoscroll>
+                        <autoscroll delay="6000" time="2500" repeat="5000">Skin.HasSetting(ShowMovieDetails)</autoscroll>
                     </control>
                     <control type="label" id="38011">
                         <description>Duration/Genre</description>
