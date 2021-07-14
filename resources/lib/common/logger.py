@@ -167,7 +167,7 @@ class Logger(logging.Logger):
         logger = None
         if Logger._addon_logger is None:
             if addon_name is None:
-                addon_name = Constants.CURRENT_ADDON_SHORT_NAME
+                addon_name = CriticalSettings.get_plugin_name()
             Logger._addon_logger = Logger.get_root_logger().getChild(addon_name)
             # xbmc.log('get_addon_module_logger', xbmc.LOGDEBUG)
 

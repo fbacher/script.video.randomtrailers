@@ -8,7 +8,7 @@ Created on Feb 12, 2019
 
 from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
-CriticalSettings.set_plugin_name('backend')
+CriticalSettings.set_plugin_name('rt_backend')
 REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.backend')
@@ -43,7 +43,6 @@ class MainThreadLoop:
     """
 
     profiler = None
-    # _callableTasks = Queue(maxsize=0)
 
     @classmethod
     def event_processing_loop(cls) -> None:
@@ -64,10 +63,14 @@ class MainThreadLoop:
             initial_timeout = 0.05
             switch_timeouts_count = 10 * 20
 
+            # Don't start backend for about one second after start if
+            # debugging is enabled in order for it to start.
+
             if REMOTE_DEBUG:
                 start_backend_count_down = 2.0 / initial_timeout
             else:
                 start_backend_count_down = 0.0
+
             i = 0
             timeout = initial_timeout
 
@@ -168,6 +171,7 @@ if __name__ == '__main__':
             profile = False
             if profile:
                 import cProfile
+               
                 # MainThreadLoop.profiler = cProfile.Profile()
                 # MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
         elif is_unit_test:

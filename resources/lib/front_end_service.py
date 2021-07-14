@@ -8,8 +8,9 @@ Created on Feb 12, 2019
 
 from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
-CriticalSettings.set_plugin_name('frontend')
-REMOTE_DEBUG: bool = False
+CriticalSettings.set_plugin_name('rt_frontend')
+
+REMOTE_DEBUG: bool = True
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.frontend')
 
@@ -32,10 +33,12 @@ from frontend import random_trailers_ui
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
+
 def exit_randomtrailers():
     if PythonDebugger.is_enabled():
         PythonDebugger.disable()
     sys.exit(0)
+
 
 class MainThreadLoop:
     """
@@ -63,12 +66,12 @@ class MainThreadLoop:
     def class_init(cls, screensaver: bool) -> None:
         cls._logger = module_logger.getChild(cls.__name__)
         Trace.enable_all()
+        Trace.enable(Trace.TRACE_UI_CONTROLLER)
         Settings.save_settings()
         cls._advanced_player = None
         cls._is_screensaver = screensaver
         cls._start_ui = None
         cls._callableTasks = queue.Queue(maxsize=0)
-
 
     # Calls that need to be performed on the main thread
 
@@ -221,6 +224,7 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
     for arg in sys.argv[1:]:
         if arg == 'screensaver':
             is_screensaver = True
+            xbmc.log('screensaver True', xbmc.LOGDEBUG)
         if arg == 'unittest':
             is_unit_test = True
 
