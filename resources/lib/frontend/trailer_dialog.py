@@ -7,6 +7,7 @@ Created on Apr 17, 2019
 """
 
 import datetime
+from enum import auto, Enum, IntEnum
 import os
 import re
 import sys
@@ -43,22 +44,22 @@ from frontend import text_to_speech
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class DialogState:
+class DialogState(Enum):
     """
 
     """
-    NORMAL: int = int(0)
-    SKIP_PLAYING_TRAILER: int = int(1)
-    GROUP_QUOTA_REACHED: int = int(2)
-    QUOTA_REACHED: int = int(3)
-    NO_TRAILERS_TO_PLAY: int = int(4)
-    USER_REQUESTED_EXIT: int = int(5)
-    START_MOVIE_AND_EXIT: int = int(6)
-    SHUTDOWN_CUSTOM_PLAYER: int = int(7)
-    STARTED_PLAYING_MOVIE: int = int(8)
-    SHUTDOWN: int = int(9)
+    NORMAL = 0
+    SKIP_PLAYING_TRAILER = 1
+    GROUP_QUOTA_REACHED = 2
+    QUOTA_REACHED = 3
+    NO_TRAILERS_TO_PLAY = 4
+    USER_REQUESTED_EXIT = 5
+    START_MOVIE_AND_EXIT = 6
+    SHUTDOWN_CUSTOM_PLAYER = 7
+    STARTED_PLAYING_MOVIE = 8
+    SHUTDOWN = 9
 
-    label_map: Dict[str, str] = {
+    label_map: Dict[ForwardRef('DialogState'), str] = {
         NORMAL: 'NORMAL',
         SKIP_PLAYING_TRAILER: 'SKIP_PLAYING_TRAILER',
         GROUP_QUOTA_REACHED: 'GROUP_QUOTA_REACHED',
@@ -70,14 +71,578 @@ class DialogState:
         STARTED_PLAYING_MOVIE: 'STARTED_PLAYING_MOVIE',
         SHUTDOWN: 'SHUTDOWN'}
 
-    @staticmethod
-    def get_label(dialog_state: ForwardRef('DialogState')) -> str:
+    def __ge__(self, other):
+
+        if self.__class__ is other.__class__:
+            return self.value >= other.value
+
+        return NotImplemented
+
+    def __gt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value > other.value
+        return NotImplemented
+
+    def __le__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value <= other.value
+        return NotImplemented
+
+    def __lt__(self, other):
+        if self.__class__ is other.__class__:
+            return self.value < other.value
+        return NotImplemented
+
+    @classmethod
+    def get_label(cls, dialog_state: ForwardRef('DialogState')) -> str:
         """
 
         :param dialog_state:
         :return:
         """
         return DialogState.label_map[dialog_state]
+
+
+class VisibleFields(Enum):
+    NOTIFICATION = auto()
+    TITLE = auto()
+
+    # Either Movie details are displayed or the trailer is played
+    SHOW_TRAILER = auto()
+    SHOW_CURTAIN = auto()   # Show a open/close curtain
+    NEW_TRAILER = auto()
+    OPAQUE = auto()
+    SHUTDOWN = auto()
+
+
+class TrailerLifeCycle:
+    """
+        Manages How long:
+            Movie details are displayed
+            Trailers are played
+            Notifications are displayed
+
+        Takes into account user actions which may cause any of the above
+        to be cut short or, in the case of user request to show movie
+        details to be untimed, or the pause the playing trailer to stop
+        the timer.
+
+        More specifically:
+          - There are two timers:
+            - Notification timer
+                - Controls how long a notification to be displayed
+                - Canceled by:
+                    Movie Details no longer displayed
+                    Trailer no longer displayed
+            - Movie timer
+              - Times how long to display Movie Details
+                Not used when user requests Movie Details (Show_Info)
+              - Times how long to display playing Trailer
+                - Canceled when
+                    Trailer stops playing
+                    User requests to pause
+                - Kills playing trailer when it times out
+                - New timer created when user causes trailer to play
+                  after pause. Timeout reduced by time already played
+    """
+
+    logger: LazyLogger = None
+
+    _notify_event = threading.Event()
+    _notify_thread: threading.Thread = None
+
+    _movie_event = threading.Event()
+    _movie_timer: threading.Timer = None
+    _movie_timer_count: int = 0
+
+    _lock: threading.RLock = threading.RLock()
+
+    @classmethod
+    def class_init(cls):
+        if cls.logger is None:
+            cls.logger = module_logger.getChild(cls.__name__)
+
+    @classmethod
+    def notification(cls, message: str) -> None:
+        """
+            Displays given message for a period of time, but can be
+            canceled early, depending upn events.
+
+        :param message: Message to display
+        :return:
+        """
+        try:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug('message:', message,
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+
+            with TrailerLifeCycle._lock:
+                if cls._notify_thread is not None:
+                    # Unblock any prior use of timer, just in case
+                    cls._notify_event.set()
+
+                TrailerStatus.set_notification_msg(msg=message)
+                cls._notify_thread = threading.Thread(target=cls._notify_and_wait,
+                                                      name='notify_and_wait')
+                cls._notify_thread.start()
+        except Exception as e:
+            cls.logger.exception('')
+
+        return
+
+    @classmethod
+    def _notify_and_wait(cls) -> None:
+        """
+            Separate thread to
+              - set Notification msg visible
+              - wait until a timer (or some other) event occurs
+              - set Notification msg invisible
+        :param timeout:
+        :return:
+        """
+        timeout: int = Constants.MAX_PLAY_TIME_WARNING_TIME
+        with TrailerLifeCycle._lock:
+            cls._notify_event.clear()
+
+        # External event can cancel by setting this event
+
+        cls._notify_event.wait(timeout=timeout)
+
+        with TrailerLifeCycle._lock:
+            cls._notify_event.clear()
+            cls._notify_thread = None
+
+        TrailerStatus.clear_notification_msg()
+
+    @classmethod
+    def clear_notification(cls) -> None:
+        if cls._notify_thread is not None:
+            # Unblock any prior use of timer, just in case
+            cls._notify_event.set()
+
+    @classmethod
+    def start_movie_timer(cls, max_play_time: float,
+                          playing_trailer: bool,
+                          block: bool = False) -> int:
+        """
+
+        :param max_play_time: Seconds to display detailed movie info or
+                              to play trailer.
+        :param playing_trailer: When True, then a trailer is being played,
+                                otherwise, MovieDetails are displayed
+        :param block: Block until timer expire or user action
+        :return: A unique integer that is passed back to cancel this timer.
+                 It is simply used to confirm that the correct timer is
+                 canceled.
+        """
+
+        timeout_action: Callable[[]]
+        timer_name: str
+        local_movie_timer_count: int
+        with cls._lock:
+            cls._movie_timer_count += 1
+            local_movie_timer_count = cls._movie_timer_count
+
+        if playing_trailer:
+            timeout_action = cls.kill_long_playing_trailer
+            timer_name = 'Kill Trailer Timer'
+            if max_play_time > Constants.MAX_PLAY_TIME_WARNING_TIME + 2:
+                max_play_time -= Constants.MAX_PLAY_TIME_WARNING_TIME
+                cls.logger.debug(f'adjusted max_play_time: {max_play_time}',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+        else:
+            timeout_action = cls.end_movie_details_display
+            timer_name = 'Movie Details Timer'
+
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls.logger.debug_extra_verbose(f'Trailer: {playing_trailer} '
+                                           f'max_play_time: {max_play_time} '
+                                           f'block: {block}',
+                                           trace=Trace.TRACE_UI_CONTROLLER)
+
+        # _lock is used to control access to _movie_timer & _movie_event
+        #
+        # _event.set() is used to indicate that the timer has been
+        # canceled or the time-out period has expired.
+        #
+        # After _event.set() is called, _movie_timer is set to None.
+        #
+        #
+        attempts: int = 5
+        while attempts > 0:
+            with TrailerLifeCycle._lock:
+                if cls._movie_timer is None:
+                    cls.logger.debug(f'_movie_timer is None',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
+                    break
+            cls.logger.debug(f'_movie_timer not None attempt: {attempts}',
+                             trace=Trace.TRACE_UI_CONTROLLER)
+            attempts -= 1
+            Monitor.wait_for_abort(0.1)
+
+        with TrailerLifeCycle._lock:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose(f'got lock, max_play_time: '
+                                               f'{max_play_time} ',
+                                               trace=Trace.TRACE_UI_CONTROLLER)
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._movie_timer is not None:
+                    cls.logger.debug(f'movie_timer was NOT None!',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
+                if cls._movie_event.is_set():
+                    cls.logger.debug(f'movie_event already SET',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
+
+            cls._movie_timer = None  # Should already be None
+            cls._movie_event.set()  # Free any blocked thread (should not occur)
+            cls._movie_event.clear()  # Free/clear should not be necessary
+            cls.logger.debug(f'_movie_timer None and _movie_event cleared',
+                             trace=Trace.TRACE_UI_CONTROLLER)
+            inform_user: bool = True
+            if not TrailerStatus.get_dialog().is_random_trailers_play_state(
+                    DialogState.USER_REQUESTED_EXIT):
+                cls._movie_timer = threading.Timer(max_play_time,
+                                                   timeout_action,
+                                                   kwargs={'timer_id':
+                                                           local_movie_timer_count,
+                                                           'inform_user': inform_user
+                                                           })
+                cls._movie_timer.setName(timer_name)
+                cls.logger.debug(f'Starting _movie_timer timeout in {max_play_time} '
+                                 f'seconds',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_timer.start()
+
+        if block:  # Block until either timer expires or user action
+            # Don't hog lock, so put in loop
+
+            cls.logger.debug(f'Blocking', trace=Trace.TRACE_UI_CONTROLLER)
+            while not Monitor.wait_for_abort(0.1):
+                # Always access _movie_event & movie_timer through lock
+                with TrailerLifeCycle._lock:
+                    # _movie_event is set when the timer has expired or
+                    # was canceled
+                    if cls._movie_event.is_set():
+                        cls.logger.debug(f'UnBlocked _movie_event.is_set',
+                                         trace=Trace.TRACE_UI_CONTROLLER)
+                        # When done, always clear _movie_event
+                        cls._movie_event.clear()
+
+                        # Whoever sets _movie_event is responsible
+                        # for setting _movie_timer to None
+
+                        if cls._movie_timer is not None:
+                            cls.logger.debug('UnBlocked Expected _movie_timer to be None',
+                                             trace=Trace.TRACE_UI_CONTROLLER)
+                            cls._movie_timer = None
+                            cls.logger.debug(f'UnBlocked _movie_event.clear and _movie_timer None',
+                                             trace=Trace.TRACE_UI_CONTROLLER)
+                        break
+
+            Monitor.wait_for_abort(0.1)
+        return local_movie_timer_count
+
+    @classmethod
+    def kill_long_playing_trailer(cls, timer_id: int = 0,
+                                  inform_user: bool = True) -> None:
+        """
+
+        :param timer_count: If not the same as cls._
+        :param inform_user:
+        :return:
+        """
+
+        try:
+            cls.logger.enter()
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose('Now Killing',
+                                               trace=Trace.TRACE_UI_CONTROLLER)
+
+            if inform_user:
+                cls.notification(Messages.get_msg(
+                    Messages.TRAILER_EXCEEDS_MAX_PLAY_TIME))
+
+            cls.logger.debug(f'Stopping player',
+                             trace=Trace.TRACE_UI_CONTROLLER)
+            TrailerStatus.get_dialog().get_player().stop()
+
+            # Only access _movie_timer and _movie_event within lock
+
+            with TrailerLifeCycle._lock:
+
+                # Always set movie_timer to None when calling
+                # _movie_event.set()
+
+                cls.logger.debug(f'setting _movie_timer = None and '
+                                 f'_movie_event.set',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_timer = None
+                cls._movie_event.set()  # Unblock
+        except AbortException:
+            raise sys.exc_info()
+        except Exception as e:
+            cls.logger.exception(msg='')
+
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.debug('exit', trace=Trace.TRACE_UI_CONTROLLER)
+
+    @classmethod
+    def cancel_movie_timer(cls, timer_id: int = 0, usage: str = '') -> None:
+        """
+
+        :return:
+        """
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.debug(f'Canceling movie_timer for {usage}',
+                             trace=[Trace.TRACE_SCREENSAVER,
+                                    Trace.TRACE_UI_CONTROLLER])
+
+        # Only access _movie_timer and _movie_event within lock
+
+        with TrailerLifeCycle._lock:
+            # If movie_timer is None, then the timer has already gone
+            # off or canceled (shouldn't be able to cancel twice).
+            # This code is not rock-solid. It depends upon the caller
+            # to not cancel a timer that is expired/canceled after a
+            # new one is created, thus canceling the wrong timer.
+            #
+            # Solutions to this problem:
+            # - Use new TrailerLifeCycle instance for each timer (tracking the handle
+            #   may be problematic).
+            # - Use the Timer as a unique identifier (This also looks tedious and
+            #   error-prone due to having to lug this id around in local variables).
+            # - Change model to create a new 'Trailer' instance for each trailer
+            #   played and store any timer objects needed along with it. This
+            #   would be better, but since there are generally two timers for
+            #   each trailer played, there is still some exposure.
+            # - Since there are usually two movie_timers used for each trailer
+            #   (one for display movie details and the other for the trailer
+            #   itself), then it would be an improvement to pass the timer's
+            #   use to act as a sanity check to confirm that the right timer
+            #   instance is being killed. It is easy to know this information.
+            #
+
+            if cls._movie_timer is not None:
+                cls.logger.debug(f'_movie_timer not None',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+
+                if timer_id != cls._movie_timer_count:
+                    cls.logger.debug(f'timer ids do not match',
+                                     trace=Trace.TRACE_UI_CONTROLLER)
+                cls.logger.debug(f'movie_timer.cancel',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_timer.cancel()
+                cls.logger.debug(f'movie_event.set',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_event.set()  # Unblock
+                cls.logger.debug(f'set movie_timer = None',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_timer = None
+
+    @classmethod
+    def end_movie_details_display(cls, timer_id: int = 0,
+                                  inform_user: bool = True) -> None:
+        """
+            Stops the display of movie details based on a timer.
+            Not used when user requests displays of Movie Details
+            via SHOW_INFO.
+
+        :return:
+        """
+
+        try:
+            cls.logger.enter()
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose('Stopping',
+                                               trace=Trace.TRACE_UI_CONTROLLER)
+
+            with TrailerLifeCycle._lock:
+                cls.logger.debug(f'set movie_timer = None',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_timer = None
+                cls.logger.debug(f'movie_event.set',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                cls._movie_event.set()  # Unblock
+                cls.logger.debug_extra_verbose(f'_movie_timer = None and _movie_event.set')
+
+        except AbortException:
+            raise sys.exc_info()
+        except Exception as e:
+            cls.logger.exception(msg='')
+
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            cls.logger.debug('exit', trace=Trace.TRACE_UI_CONTROLLER)
+
+
+TrailerLifeCycle.class_init()
+
+
+class TrailerStatus:
+    '''
+    Manages the visibility of information based upon changes to data and
+    events.
+
+    Note that most controls displayed when movie details is visible are
+    handled directly by Trailer_Dialog.update. However, several controls
+    that are optionally visible when playing trailers are handled here.
+
+    This class also controls visibility of movie details or the playing
+    trailer.
+    '''
+
+    # There are several fields that are displayed when movie details are shown
+    # or the trailer is being played.
+
+    FIELDS_SHOWN_WHEN_TRAILER_PLAYED = [
+        VisibleFields.NOTIFICATION,
+        VisibleFields.TITLE
+    ]
+
+    show_notification_seconds: int = 0
+    show_details_seconds: int = Settings.get_time_to_display_detail_info()
+    show_trailer_seconds: int = Settings.get_max_trailer_length()
+    remaining_trailer_seconds: int = 0
+
+    logger: LazyLogger = None
+
+    # show_title_while_playing: bool = Settings.get_show_movie_title()
+    show_notification: bool = False
+
+    show_trailer: bool = False
+    scroll_plot: bool = False
+
+    notification_msg: str = None
+
+    _dialog: ForwardRef('TrailerDialog') = None
+
+    @classmethod
+    def class_init(cls, dialog: ForwardRef('TrailerDialog')):
+        cls._dialog = dialog
+        if cls.logger is None:
+            cls.logger = module_logger.getChild(cls.__name__)
+
+    @classmethod
+    def set_notification_msg(cls, msg: str = None) -> None:
+        cls.notification_msg = msg
+        cls.value_changed(VisibleFields.NOTIFICATION)
+
+    @classmethod
+    def clear_notification_msg(cls) -> None:
+        cls.notification_msg = None
+        cls.show_notification = False
+        cls.value_changed(VisibleFields.NOTIFICATION)
+
+    @classmethod
+    def get_notification_msg(cls) -> str:
+        return cls.notification_msg
+
+    @classmethod
+    def get_show_notification(cls) -> bool:
+        return cls.show_notification
+
+    @classmethod
+    def set_show_trailer(cls) -> None:
+        cls.show_trailer = True
+        cls.reset_state()
+        cls.value_changed(VisibleFields.SHOW_TRAILER)
+
+    @classmethod
+    def set_show_curtain(cls) -> None:
+        cls.show_trailer = True
+        cls.reset_state()
+        cls.value_changed(VisibleFields.SHOW_CURTAIN)
+
+    @classmethod
+    def set_show_details(cls,  scroll_plot: bool = False) -> None:
+        cls.show_trailer = False
+        cls.scroll_plot = scroll_plot
+        cls.reset_state()
+        cls.value_changed(VisibleFields.SHOW_TRAILER)
+
+    @classmethod
+    def reset_state(cls, new_trailer: bool = False) -> None:
+        cls.show_notification = False
+        cls.notification_msg = None
+        if new_trailer:
+            cls.remaining_trailer_seconds = cls.show_trailer_seconds
+            cls._show_trailer = False
+
+    @classmethod
+    def opaque(cls) -> None:
+        cls.reset_state()
+        cls.value_changed(VisibleFields.OPAQUE)
+
+    @classmethod
+    def value_changed(cls, changed_field: VisibleFields) -> None:
+        """
+            Controls the visible elements of TrailerDialog
+        :return:
+        """
+        # First, determine if we need to shut things down
+
+        shutdown = changed_field == VisibleFields.SHUTDOWN
+        try:
+            if cls._dialog.is_random_trailers_play_state(
+                    minimum_exit_state=DialogState.SHUTDOWN_CUSTOM_PLAYER):
+                shutdown = True
+        except AbortException:
+            shutdown = True
+
+        commands = []
+        if shutdown:
+            pass
+
+        elif changed_field in (VisibleFields.SHOW_TRAILER, VisibleFields.SHOW_CURTAIN):
+            commands.append("Skin.Reset(Notification)")
+            if cls.show_trailer:
+                commands.append("Skin.Reset(ShowMovieDetails)")
+                if changed_field != VisibleFields.SHOW_CURTAIN:
+                    show_title_while_playing: bool = Settings.get_show_movie_title()
+                    if show_title_while_playing:
+                        commands.append("Skin.SetBool(TrailerTextOverlay)")
+                        commands.append("Skin.SetBool(ShowTitle)")
+                    else:
+                        commands.append("Skin.Reset(TrailerTextOverlay)")
+                        commands.append("Skin.Reset(ShowTitle)")
+
+                commands.append("Skin.SetBool(ShowTrailer)")
+            else:
+                # Show movie details
+                commands.append("Skin.Reset(ShowTrailer)")
+                if cls.scroll_plot:
+                    commands.append("Skin.set(ScrollPlot)")
+                else:
+                    commands.append("Skin.Reset(ScrollPlot)")
+
+                commands.append("Skin.SetBool(TrailerTextOverlay)")
+                commands.append("Skin.SetBool(ShowMovieDetails)")
+
+        elif changed_field == VisibleFields.NOTIFICATION:
+            if cls.notification_msg is None:
+                commands.append("Skin.Reset(Notification)")
+            else:
+                commands.append("Skin.Set(Notification)")
+        elif changed_field == VisibleFields.OPAQUE:
+            commands.append("Skin.Reset(Notification)")
+            commands.append("Skin.Reset(ShowMovieDetails)")
+            commands.append("Skin.Reset(ScrollPlot)")
+            commands.append("Skin.Reset(TrailerTextOverlay)")
+            commands.append("Skin.Reset(ShowTitle)")
+
+        commands.append('Skin.SetBool(Opaque)')   # TODO Test
+        for command in commands:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                cls.logger.debug_extra_verbose(command,
+                                               trace=Trace.TRACE_UI_CONTROLLER)
+            xbmc.executebuiltin(command, wait=False)
+
+    @classmethod
+    def cancel_movie_timer(cls, timer_id: int = 0, usage: str = '') -> None:
+        TrailerLifeCycle.cancel_movie_timer(timer_id, usage=usage)
+
+    @classmethod
+    def get_dialog(cls) -> ForwardRef('TrailerDialog'):
+        return cls._dialog
 
 
 class TrailerDialog(xbmcgui.WindowXMLDialog):
@@ -137,7 +702,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             clz.logger = module_logger.getChild(clz.__name__)
         clz.logger.enter()
 
-        self._dialog_state: int = DialogState.NORMAL
+        self._dialog_state: Enum = DialogState.NORMAL
         self._player_container: PlayerContainer = PlayerContainer.get_instance()
         self._player_container.register_exit_on_movie_playing(
             self.exit_screensaver_to_play_movie)
@@ -147,16 +712,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self._source: str = None
         self._movie: AbstractMovie = None
         self._lock: threading.RLock = threading.RLock()
-        self._long_trailer_killer: threading.Timer = None
         self._viewed_playlist: Playlist = Playlist.get_playlist(
             Playlist.VIEWED_PLAYLIST_FILE, append=False, rotate=True)
 
         self._viewed_playlist.add_timestamp()
         self._thread: threading.Thread = None
-        self._wait_or_interrupt_event = threading.Event()
 
         # Used mostly as a timer
-        self._show_details_event: threading.Event = threading.Event()
         self._wait_event: ReasonEvent = ReasonEvent()
         Monitor.register_abort_listener(self.on_abort_event)
 
@@ -168,12 +730,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.total_trailers_to_play: int = None
         self.delay_between_groups: int = None
         self.exiting_playing_movie: bool = False
+        TrailerStatus.class_init(self)
 
         #
         # Prevent flash of grid
         #
-        self.set_visibility(video_window=False, info=False, brief_info=False,
-                            notification=False, information=False)
+        TrailerStatus.opaque()
 
     def onInit(self) -> None:
         """
@@ -185,8 +747,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         # Prevent flash of grid
         #
-        self.set_visibility(video_window=False, info=False, brief_info=False,
-                            notification=False, information=False)
+        TrailerStatus.opaque()
+
         if self._thread is None:
             # noinspection PyTypeChecker
             self._thread = threading.Thread(
@@ -238,7 +800,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 self._player_container.get_player().wait_for_is_not_playing_video()
 
                 # Pre-seed all fields with empty values so that if display of
-                # detailed movie information occurs prior to download of external
+                # detailed movie text occurs prior to download of external
                 # images, etc. This way default values are shown instead of
                 # leftovers from previous movie.
 
@@ -275,7 +837,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 clz.logger.debug_extra_verbose(
                     'About to close TrailerDialog')
 
-            self.cancel_long_playing_trailer_killer()
+            clz.logger.debug_extra_verbose(f'Canceling Trailer Dialog to exit'
+                                           f' randomtrailers',
+                                           trace=Trace.TRACE_UI_CONTROLLER)
+            TrailerStatus.cancel_movie_timer(usage=f'Canceling Trailer Dialog to exit '
+                                                   f'randomtrailers')
             # clz.logger.debug('Stopped xbmc.Player')
 
             self._viewed_playlist.close()
@@ -290,9 +856,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         :return:
         """
         clz = type(self)
-        self.set_visibility(video_window=False, info=False, brief_info=False,
-                            notification=False, information=False)
+        TrailerStatus.opaque()
+
         number_of_trailers_played = 0
+        timer_id: int = 0
         try:
             # Main movie playing loop
 
@@ -306,8 +873,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                 # Blank the screen
 
-                self.set_visibility(video_window=False, info=False, brief_info=False,
-                                    notification=False, information=False)
+                TrailerStatus.opaque()
 
                 # Get the video (or curtain) to display
                 try:
@@ -317,11 +883,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     #     msg = Messages.get_msg(
                     #         Messages.PLAYING_PREVIOUS_MOVIE)
                     #     msg = msg % self._movie.get_title()
-                    #     self.notification(msg)
+                    #     self.show_notification(msg)
                 except HistoryEmpty:
                     msg = Messages.get_msg(
                         Messages.NO_MORE_MOVIE_HISTORY)
-                    self.notification(msg)
+                    TrailerLifeCycle.notification(msg)
                     continue
 
                 # Are there no trailers to play now, and in the future?
@@ -369,21 +935,21 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                         'wait for not playing 1')
                 self.get_player().wait_for_is_not_playing_video()
 
-                # Determine if Movie Information is displayed prior to movie
-
-                self._source = self._movie.get_source()
-                show_movie_details = (
-                    Settings.get_time_to_display_detail_info() > 0)
-
                 # Determine if Movie Title is to be displayed during play of
                 # movie
 
-                show_movie_title = Settings.get_show_movie_title()
+                show_movie_title: bool = Settings.get_show_movie_title()
 
                 # Add movie to "playlist"
 
                 if not video_is_curtain:
                     self._viewed_playlist.record_played_trailer(self._movie)
+
+                    # Determine if Movie Information is displayed prior to movie
+
+                self._source = self._movie.get_source()
+                show_movie_details = (
+                        Settings.get_time_to_display_detail_info() > 0)
 
                 # Trailers from a folder are ill-structured and have no
                 # identifying information.
@@ -402,7 +968,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                                       exact_match=True):
                     continue
                 if self.is_random_trailers_play_state():
-                    if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug_extra_verbose(
                             'breaking due to play_state 1 movie:',
                             self._movie.get_title())
@@ -413,9 +979,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     clz.logger.debug_extra_verbose(
                         'about to show_movie_info movie:',
                         self._movie.get_title())
-                self.show_movie_info(show_detail_info=show_movie_details,
-                                     show_brief_info=show_movie_title)
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                timer_id = self.show_movie_info(show_detail_info=show_movie_details,
+                                                block=True)
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug_extra_verbose(
                         'finished show_movie_info, movie:',
                         self._movie.get_title())
@@ -439,16 +1005,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                             self._movie.get_title())
                     break
 
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug_extra_verbose('About to play:',
                                                    self._movie.get_trailer_path())
 
-                self.set_visibility(video_window=True, info=False,
-                                    brief_info=show_movie_title,
-                                    notification=False,
-                                    information=show_movie_title)
+                TrailerStatus.set_show_trailer()
+
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz.logger.debug_extra_verbose('About to play movie:',
+                    clz.logger.debug_extra_verbose('About to play trailer:',
                                                    self._movie.get_title())
                 normalized = False
                 cached = False
@@ -523,6 +1087,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                 self._movie.get_title())
                         break
 
+                    '''
                     # Now that the movie has started, see if it will run too long so
                     # that we need to set up to kill it playing.
 
@@ -534,20 +1099,22 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                 'Killing long movie:',
                                 self._movie.get_title(), 'limit:',
                                 max_play_time)
-                        self.start_long_trailer_killer(max_play_time)
+                        timer_id = TrailerLifeCycle.start_movie_timer(
+                            max_play_time, playing_trailer=True)
+                    '''
                 except AbortException:
                     raise sys.exc_info()
                 except Exception as e:
                     clz.logger.exception('')
 
-                # Again, we rely on our listeners to  stop the player, as
+                # Again, we rely on our listeners to stop the player, as
                 # appropriate
 
                 self.get_player().wait_for_is_not_playing_video()
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz.logger.debug_extra_verbose(
-                        'checking play_state 5 movie:',
-                        self._movie.get_title())
+                        f'Trailer not playing; checking play_state 5 movie:'
+                        f' {self._movie.get_title()}')
                 if self.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
                                                       exact_match=True):
                     continue
@@ -559,13 +1126,15 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                             self._movie.get_title())
                     break
 
-                self.cancel_long_playing_trailer_killer()
+                TrailerStatus.cancel_movie_timer(timer_id,
+                                                 usage=f'Trailer finished '
+                                                       'playing')
 
                 # Again, we rely on our listeners to  stop this display, as
                 # appropriate
 
-                self.set_visibility(video_window=False, info=False, brief_info=False,
-                                    notification=False, information=False)
+                TrailerStatus.opaque()
+
                 self.configure_trailer_play_parameters()
                 if self.trailers_per_iteration != 0 and not video_is_curtain:
                     number_of_trailers_played += 1
@@ -579,7 +1148,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             if self._movie is None:
                 clz.logger.error('There will be no trailers to play')
-                self.notification(Messages.get_msg(
+                TrailerLifeCycle.notification(Messages.get_msg(
                     Messages.NO_TRAILERS_TO_PLAY))
                 self.set_random_trailers_play_state(
                     DialogState.NO_TRAILERS_TO_PLAY)
@@ -593,8 +1162,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 self._movie_manager.play_curtain_next(MovieManager.CLOSE_CURTAIN)
 
                 _, curtain = self._movie_manager.get_next_trailer()
-                self.set_visibility(video_window=True, info=False, brief_info=False,
-                                    notification=False, information=False)
+                TrailerStatus.set_show_curtain()
+
                 self.get_player().play_trailer(curtain.get_trailer_path(),
                                                curtain)
                 if not self.get_player().wait_for_is_playing_video(timeout=5.0):
@@ -613,17 +1182,16 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         try:
             if self._movie is not None:
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug_extra_verbose(
                         'Checking to see if there is a movie to play:',
                         self._movie.get_title())
             if self.is_random_trailers_play_state(DialogState.START_MOVIE_AND_EXIT,
                                                   exact_match=True):
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug_extra_verbose(
                         'about to play movie:', self._queued_movie)
-                self.set_visibility(video_window=True, info=False, brief_info=False,
-                                    notification=False, information=False)
+                TrailerStatus.opaque()
                 self.play_movie(self._queued_movie)
 
         except AbortException:
@@ -635,7 +1203,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         return self._player_container.get_player()
 
     def is_random_trailers_play_state(self,
-                                      minimum_exit_state: int =
+                                      minimum_exit_state: DialogState =
                                       DialogState.GROUP_QUOTA_REACHED,
                                       exact_match: bool = False,
                                       throw_exception_on_abort: bool = True
@@ -674,241 +1242,119 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
     def show_movie_info(self,
                         show_detail_info: bool = False,
-                        show_brief_info: bool = False) -> None:
+                        show_brief_info: bool = False,
+                        block: bool = False) -> int:
         """
 
+        :param block:
         :param show_detail_info:
         :param show_brief_info:
-        :return:
+        :return: timer_id for MovieTimer created
         """
         clz = type(self)
+        timer_id: int = 0
         if show_detail_info:
-            self.show_detailed_info()
+            timer_id = self.show_detailed_info(block=block)
         else:
             self.hide_detail_info()
         #
         # You can have both showMovieDetails (movie details screen
         # shown prior to playing movie) as well as the
-        # simple ShowTrailerTitle while the movie is playing.
+        # simple VideoOverlayTitle while the movie is playing.
         #
         if show_brief_info:
+            # Don't display Movie Detail (Trailers from folders have none)
+
             title = self.get_title_string(self._movie)
             self.set_title_control_label(title)
             if not show_detail_info:
                 text_to_speech.say_text(title, interrupt=True)
 
-        self.set_visibility(video_window=False, info=show_detail_info,
-                            brief_info=show_brief_info,
-                            notification=False,
-                            information=show_brief_info | show_detail_info)
-        pass
+        return timer_id
 
-    def notification(self, message: str) -> None:
+    def show_detailed_info(self, from_user_request: bool = False,
+                           block: bool = False) -> int:
         """
 
-        :param message: Message to display
-        :return:
-        """
-        clz = type(self)
-        try:
-            # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            #    clz.logger.debug('message:', message)
-            self.post_notification(text=message)
-            self.set_visibility(notification=True, information=True)
-            self.wait_or_interrupt(
-                timeout=Constants.MAX_PLAY_TIME_WARNING_TIME)
-            self.set_visibility(notification=False)
-        except Exception as e:
-            clz.logger.exception('')
-
-        return
-
-    def wait_or_interrupt(self, timeout: float = 0.0) -> None:
-        """
-
-        :param timeout:
-        :return:
-        """
-        clz = type(self)
-
-        # During Abort, Monitor deletes itself, so to avoid a silly error in
-        # the log, avoid calling it.
-
-        self._wait_or_interrupt_event.clear()
-        self._wait_or_interrupt_event.wait(timeout=timeout)
-        self._wait_or_interrupt_event.clear()
-
-        return
-
-    def show_detailed_info(self, from_user_request: bool = False) -> None:
-        """
-
+        :param block:
         :param from_user_request:
-        :return:
+        :return: timer_id of created timer
         """
         clz = type(self)
 
         if self._source != MovieField.FOLDER_SOURCE:
-            if (clz.logger.isEnabledFor(LazyLogger.DISABLED)
+            if (clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                     and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-                clz.logger.debug('about to show_detailed_info')
+                clz.logger.debug(f'about to show_detailed_info: from_user_request: '
+                                 f'{from_user_request}')
             display_seconds = Settings.get_time_to_display_detail_info()
             if from_user_request:
-                display_seconds = 0
-            else:
-                if self.get_player() is not None:
-                    self.get_player().pause_play()
+                # User must perform some action to unblock
+                display_seconds = 60 * 60 * 24 * 365  # One year
+
+            if self.get_player() is not None:
+                # Pause playing trailer
+                clz.logger.debug(f'Pausing Player', trace=Trace.TRACE_UI_CONTROLLER)
+                self.get_player().pause_play()
 
             self.update_detail_view()
             self.voice_detail_view()
-            self.show_detail_info(self._movie, display_seconds)
+            timer_id: int = self._show_detail_info(self._movie, display_seconds,
+                                                   block=block)
+            return timer_id
 
-    def show_detail_info(self, movie: AbstractMovie, display_seconds: int = 0) -> None:
+        #  TODO: Add msg if folder source
+
+    def _show_detail_info(self, movie: AbstractMovie,
+                          display_seconds: int = 0,
+                          block: bool = False) -> int:
         """
+        Shows the already updated detail view.
+
+        Primarily called from the thread which plays trailers. In this case,
+        after making the detail view visibile, this method blocks for display_seconds
+        (or an action cancels).
+
+        This method can also be called as the result of an action from the gui
+        thread. In this case, display_seconds is 0 and no blocking occurs after
+        making the detail view visible. It is up to some other action (or event)
+        to change the visibility.
 
         :param movie:
         :param display_seconds:
-        :return:
+        :return: unique identifier for the created movie_timer
         """
         clz = type(self)
-        self.set_visibility(video_window=False, info=True, brief_info=False,
-                            notification=False, information=True)
 
-        if display_seconds == 0:
-            # One year
-            display_seconds = 365 * 24 * 60 * 60
-        Monitor.throw_exception_if_abort_requested()
-        self._show_details_event.clear()  # In case it was set
-        #
-        # A Monitor abort event should set (and unblock) the wait.
-        # Also, hide detail view will unblock.
-        #
-        self._show_details_event.wait(float(display_seconds))
-        Monitor.throw_exception_if_abort_requested()
-        self._show_details_event.clear()  # In case it was set
-        # self.hide_detail_info()
-        self._show_details_event.set()  # Force show_detail_info to unblock
+        # TFH tend to have a LOT of boilerplate after the movie specific info
+
         if isinstance(movie, TFHMovie):
             scroll_plot = False
         else:
             scroll_plot = True
-        self.set_visibility(video_window=False, info=False, brief_info=False,
-                            notification=False, information=False,
-                            scroll_plot=scroll_plot)
-        text_to_speech.say_text('.', interrupt=True)
 
-    def hide_detail_info(self, reason: str = '') -> None:
+        TrailerStatus.set_show_details(scroll_plot=scroll_plot)
+
+        Monitor.throw_exception_if_abort_requested()
+        timer_id: int = TrailerLifeCycle.start_movie_timer(
+            max_play_time=display_seconds, playing_trailer=False,
+            block=block)
+        if block:
+            Monitor.throw_exception_if_abort_requested()
+            timer_id = 0
+
+        text_to_speech.say_text('.', interrupt=True)
+        return timer_id
+
+    def hide_detail_info(self) -> None:
         """
 
-        :param reason:
         :return:
         """
         clz = type(self)
         clz.logger.enter()
-        self._show_details_event.set()  # Force show_detail_info to unblock
-        self.set_visibility(info=False, information=False)
-
-    def set_visibility(self,
-                       video_window: bool = None,
-                       info: bool = None,
-                       brief_info: bool = None,
-                       notification: bool = None,
-                       information: bool = None,
-                       scroll_plot: bool = None
-                       ) -> None:
-        """
-            Controls the visible elements of TrailerDialog
-
-        :param video_window:
-        :param info:
-        :param brief_info:
-        :param notification:
-        :param information:
-        :param scroll_plot: If True, then scroll plot text
-        :return:
-        """
-        clz = type(self)
-        # self.wait_or_interrupt(timeout=0)
-        shutdown = False
-        try:
-            if self.is_random_trailers_play_state(
-                    minimum_exit_state=DialogState.SHUTDOWN_CUSTOM_PLAYER):
-                shutdown = True
-        except AbortException:
-            shutdown = True
-
-        if shutdown:
-            video_window = True
-            info = False
-            brief_info = False
-            notification = False
-            information = False
-
-        commands = []
-
-        nested_controls = [info, brief_info, notification]
-        if True in nested_controls:
-            # If any of the textual information controls change visibility, then
-            # black out before
-            # changes within the control are changed and then make visible
-            # again at the end, if requested.
-
-            info_command = "Skin.Reset(NonVideo)"
-            commands.append(info_command)
-
-        if video_window is not None:
-            if video_window:
-                video_command = "Skin.SetBool(Video)"
-            else:
-                video_command = "Skin.Reset(Video)"
-            commands.append(video_command)
-        if info is not None:
-            title = None
-            if info:
-                title = self.getControl(38003)
-                info_command = "Skin.SetBool(Info)"
-            else:
-                info_command = "Skin.Reset(Info)"
-            commands.append(info_command)
-
-        if brief_info is not None:
-            title = None
-            if brief_info:
-                title = self.getControl(38021)
-                info_command = "Skin.SetBool(SummaryLabel)"
-            else:
-                info_command = "Skin.Reset(SummaryLabel)"
-            commands.append(info_command)
-
-        if notification is not None:
-            if notification:
-                info_command = "Skin.SetBool(Notification)"
-            else:
-                info_command = "Skin.Reset(Notification)"
-            commands.append(info_command)
-
-        # The disable case was taken care of above. Handle enable here after
-        # everything contained within the group is set
-
-        if information is not None:
-            if information:
-                info_command = "Skin.SetBool(NonVideo)"
-            else:
-                info_command = "Skin.Reset(NonVideo)"
-            commands.append(info_command)
-
-        if scroll_plot is not None:
-            if scroll_plot:
-                scroll_plot_command = "Skin.SetBool(ScrollPlot)"
-            else:
-                scroll_plot_command = "Skin.Reset(ScrollPlot)"
-            commands.append(scroll_plot_command)
-
-        for command in commands:
-            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                clz.logger.debug_extra_verbose(command)
-            # noinspection PyTypeChecker
-            xbmc.executebuiltin(command)
+        TrailerLifeCycle.cancel_movie_timer(usage=f'hide_detail')
+        TrailerStatus.set_show_trailer()
 
     def update_detail_view(self) -> None:
         """
@@ -1076,7 +1522,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
         try:
             Monitor.throw_exception_if_abort_requested()
-            if self.logger.isEnabledFor(LazyLogger.DISABLED):
+            if self.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.enter()
 
             title_label = Messages.get_formatted_msg(Messages.TITLE_LABEL)
@@ -1212,7 +1658,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         """
         super().close()
 
-    def set_random_trailers_play_state(self, dialog_state: int) -> None:
+    def set_random_trailers_play_state(self, dialog_state: DialogState) -> None:
         # TODO: Change to use named int type
         """
 
@@ -1222,8 +1668,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.debug_extra_verbose('state:',
-                                           DialogState.get_label(dialog_state),
+            clz.logger.debug_extra_verbose(f'state: {dialog_state}',
                                            trace=Trace.TRACE_SCREENSAVER)
 
         if dialog_state > self._dialog_state:
@@ -1233,15 +1678,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             self.get_player().set_callbacks(on_show_info=None)
             self.get_player().disable_advanced_monitoring()
             self._player_container.use_dummy_player()
-            self.set_visibility(video_window=False, info=False,
-                                brief_info=False, notification=False)
+            TrailerStatus.opaque()
 
         if dialog_state >= DialogState.USER_REQUESTED_EXIT:
             # Stop playing movie.
 
             # Just in case we are paused
             self.get_player().resume_play()
-            self.kill_long_playing_trailer(inform_user=False)
+            TrailerLifeCycle.kill_long_playing_trailer(inform_user=False)
 
         # Multiple groups can be played before exiting. Allow
         # them to be reset back to normal.
@@ -1271,7 +1715,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         self.exiting_playing_movie = True
         self.close()
-        # noinspection PyTypeChecker
         xbmc.executebuiltin('Action(FullScreen,12005)')
 
     def on_abort_event(self) -> None:
@@ -1282,82 +1725,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
 
         clz.logger.enter()
-        self._show_details_event.set()  # Unblock waits
+        # Only do this for abort, since both events should not be set at same time
+        TrailerLifeCycle.cancel_movie_timer(usage='aborting')  # Unblock waits
+        TrailerLifeCycle.clear_notification()
         self.set_random_trailers_play_state(DialogState.SHUTDOWN)
         self._wait_event.set(ReasonEvent.SHUTDOWN)
-
-       # TODO: put this in own class
-
-    def start_long_trailer_killer(self, max_play_time: int) -> None:
-        """
-
-        :param max_play_time:
-        :return:
-        """
-        clz = type(self)
-
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.debug_extra_verbose('waiting on lock',
-                                                   trace=Trace.TRACE_UI_CONTROLLER)
-        with self._lock:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz.logger.debug_extra_verbose('got lock, max_play_time:',
-                                                       max_play_time,
-                                                       trace=Trace.TRACE_UI_CONTROLLER)
-            self._long_trailer_killer = None
-            if not self.is_random_trailers_play_state(DialogState.USER_REQUESTED_EXIT):
-                if max_play_time > Constants.MAX_PLAY_TIME_WARNING_TIME + 2:
-                    max_play_time -= Constants.MAX_PLAY_TIME_WARNING_TIME
-                    clz.logger.debug('adjusted max_play_time:', max_play_time,
-                                     trace=Trace.TRACE_UI_CONTROLLER)
-                self._long_trailer_killer = threading.Timer(max_play_time,
-                                                            self.kill_long_playing_trailer)
-                self._long_trailer_killer.setName('TrailerKiller')
-                self._long_trailer_killer.start()
-
-    def kill_long_playing_trailer(self, inform_user: bool = True) -> None:
-        """
-
-        :param inform_user:
-        :return:
-        """
-        clz = type(self)
-
-        try:
-            clz.logger.enter()
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz.logger.debug_extra_verbose('Now Killing',
-                                               trace=Trace.TRACE_UI_CONTROLLER)
-
-            if inform_user:
-                self.notification(Messages.get_msg(
-                    Messages.TRAILER_EXCEEDS_MAX_PLAY_TIME))
-
-            self.get_player().stop()
-
-            with self._lock:
-                self._long_trailer_killer = None
-        except AbortException:
-            raise sys.exc_info()
-        except Exception as e:
-            clz.logger.exception(msg='')
-
-        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-            clz.logger.debug('exit', trace=Trace.TRACE_SCREENSAVER)
-
-    def cancel_long_playing_trailer_killer(self) -> None:
-        """
-
-        :return:
-        """
-        clz = type(self)
-        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-            clz.logger.debug('enter, waiting on lock',
-                             trace=[Trace.TRACE_SCREENSAVER,
-                                    Trace.TRACE_UI_CONTROLLER])
-        with self._lock:
-            if self._long_trailer_killer is not None:
-                self._long_trailer_killer.cancel()
 
     def play_next_trailer(self) -> None:
         """
@@ -1375,7 +1747,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             # Wake up wait in between groups
             self.set_random_trailers_play_state(DialogState.NORMAL)
 
-        self.cancel_long_playing_trailer_killer()
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose(f'About to play next trailer: will '
+                                           f'hide_detail and stop player')
         self.hide_detail_info()
         if self.get_player() is not None:
             self.get_player().stop()
@@ -1421,12 +1795,14 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             ACTION_QUEUE_ITEM -> Add movie to Couch Potato
         """
         clz = type(self)
+        action_id: int = action.getId()
+        key: str = 'key not set'  # Debug use only
 
         # Grab handle to movie, it might go away.
 
         movie: AbstractMovie = self._movie
-        if action.getId() != 107:  # Mouse Move
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if action.getId() != 107:  # Mouse Move
                 clz.logger.debug_extra_verbose('Action.id:', action.getId(),
                                                hex(action.getId()),
                                                'Action.button_code:',
@@ -1434,42 +1810,37 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                                                hex(action.getButtonCode()),
                                                trace=Trace.TRACE)
 
-        action_mapper: Action = Action.get_instance()
-        matches: List[str] = action_mapper.getKeyIDInfo(action)
+                action_mapper: Action = Action.get_instance()
+                matches: List[str] = action_mapper.getKeyIDInfo(action)
 
-        # Mouse Move
-        if action.getId() != 107 and clz.logger.isEnabledFor(
-                LazyLogger.DEBUG_EXTRA_VERBOSE):
-            for line in matches:
-                clz.logger.debug_extra_verbose(line)
+                # Mouse Move
+                if action_id != 107:
+                    for line in matches:
+                        clz.logger.debug_extra_verbose(line)
 
-        action_id: int = action.getId()
-        button_code: int = action.getButtonCode()
+                button_code: int = action.getButtonCode()
 
-        # These return empty string if not found
-        action_key: str = action_mapper.getActionIDInfo(action)
-        remote_button: str = action_mapper.getRemoteKeyButtonInfo(action)
-        remote_key_id: str = action_mapper.getRemoteKeyIDInfo(action)
+                # These return empty string if not found
+                action_key: str = action_mapper.getActionIDInfo(action)
+                remote_button: str = action_mapper.getRemoteKeyButtonInfo(action)
+                remote_key_id: str = action_mapper.getRemoteKeyIDInfo(action)
 
-        # Returns found button_code, or 'key_' +  action_button
-        action_button = action_mapper.getButtonCodeId(action)
+                # Returns found button_code, or 'key_' +  action_button
+                action_button = action_mapper.getButtonCodeId(action)
 
-        separator: str = ''
-        key: str = ''
-        if action_key != '':
-            key = action_key
-            separator = ', '
-        if remote_button != '':
-            key = key + separator + remote_button
-            separator = ', '
-        if remote_key_id != '':
-            key = key + separator + remote_key_id
-        if key == '':
-            key = action_button
-        # Mouse Move
-        if action.getId() != 107 and clz.logger.isEnabledFor(
-                LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.debug_extra_verbose('Key found:', key)
+                separator: str = ''
+                key: str = ''
+                if action_key != '':
+                    key = action_key
+                    separator = ', '
+                if remote_button != '':
+                    key = key + separator + remote_button
+                    separator = ', '
+                if remote_key_id != '':
+                    key = key + separator + remote_key_id
+                if key == '':
+                    key = action_button
+                clz.logger.debug_extra_verbose('Key found:', key)
 
         #################################################################
         #   ACTIONS
@@ -1486,25 +1857,38 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         if action_id == xbmcgui.ACTION_SHOW_INFO:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz.logger.debug_extra_verbose(key, 'Toggle Show_Info')
+                clz.logger.debug_extra_verbose(key, 'Toggle Show_Info',
+                                               trace=Trace.TRACE_UI_CONTROLLER)
 
             if not self.is_random_trailers_play_state(DialogState.NORMAL):
-                heading = Messages.get_msg(Messages.HEADER_IDLE)
                 message = Messages.get_msg(Messages.PLAYER_IDLE)
-                self.notification(message)
+                TrailerLifeCycle.notification(message)
             elif self.getControl(TrailerDialog.DETAIL_GROUP_CONTROL).isVisible():
+                clz.logger.debug('DETAIL_GROUP_CONTROL is visible',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
                 self.hide_detail_info()
+                clz.logger.debug(f'back from hide_detail_view (which also'
+                                 f'starts play_trailer)',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
                 self.get_player().resume_play()
+                clz.logger.debug('back from resume_play',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
             else:
-                self.show_detailed_info(from_user_request=True)
+                # TODO: WRONG! Don't block thread
+                # This will block until user action (SHOW_INFO, RIGHT, LEFT, ENTER,
+                # etc.)
+                clz.logger.debug(f'calling show_detailed_info',
+                                 trace=Trace.TRACE_UI_CONTROLLER)
+                ignore_timer_id = self.show_detailed_info(from_user_request=True)
 
         ##################################################################
         elif (action_id == xbmcgui.ACTION_STOP
               or action_id == xbmcgui.ACTION_MOVE_RIGHT):
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz.logger.debug_extra_verbose(
-                    key, 'Play next trailer at user\'s request')
-            self._wait_or_interrupt_event.set()
+                    key, 'Play next trailer at user\'s request',
+                    trace=Trace.TRACE_UI_CONTROLLER)
+            TrailerLifeCycle.clear_notification()
             self._movie_manager.play_next_trailer()
             self.set_random_trailers_play_state(
                 DialogState.SKIP_PLAYING_TRAILER)
@@ -1515,8 +1899,9 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         elif action_id == xbmcgui.ACTION_MOVE_LEFT:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz.logger.debug_extra_verbose(key,
-                                               'Play previous trailer at user\'s request')
-            self._wait_or_interrupt_event.set()
+                                               'Play previous trailer at user\'s request',
+                                               trace=Trace.TRACE_UI_CONTROLLER)
+            TrailerLifeCycle.clear_notification()
             self._movie_manager.play_previous_trailer()
             self.set_random_trailers_play_state(
                 DialogState.SKIP_PLAYING_TRAILER)
@@ -1530,7 +1915,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if Utils.is_couch_potato_installed() and movie is not None:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz.logger.debug_extra_verbose(
-                        key, 'Queue to couch potato')
+                        key, 'Queue to couch potato',
+                        trace=Trace.TRACE_UI_CONTROLLER)
                 str_couch_potato = Constants.COUCH_POTATO_URL + \
                                         f'?title={movie.get_title()}'
                 xbmc.executebuiltin('RunPlugin({str_couch_potato})')
@@ -1579,13 +1965,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                     'movie_file:', movie_file, 'source:',
                     self._movie.get_source())
             if movie_file == '':
-                heading = Messages.get_msg(Messages.HEADING_INFO)
                 message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
-                self.notification(message)
+                TrailerLifeCycle.notification(message)
             elif not self.is_random_trailers_play_state(DialogState.NORMAL):
-                heading = Messages.get_msg(Messages.HEADER_IDLE)
                 message = Messages.get_msg(Messages.PLAYER_IDLE)
-                self.notification(message)
+                TrailerLifeCycle.notification(message)
             else:
                 self.queue_movie(movie)
 
@@ -1597,7 +1981,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             movie_path: str = movie.get_movie_path()
             if movie_path == '' or not os.path.exists(movie_path):
                 message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
-                self.notification(message)
+                TrailerLifeCycle.notification(message)
             else:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     clz.logger.debug_extra_verbose(key)
@@ -1611,7 +1995,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         """
         clz = type(self)
 
-        title_control = self.getControl(38021)
+        title_control: xbmcgui.ControlLabel = self.getControl(38021)
         if text != '':
             title_control.setLabel(text)
         return
@@ -1653,10 +2037,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             added = Playlist.get_playlist(playlist_name, playlist_format=True).\
                 add_to_smart_playlist(movie)
             if added:
-                self.notification(Messages.get_formatted_msg(
+                TrailerLifeCycle.notification(Messages.get_formatted_msg(
                     Messages.MOVIE_ADDED_TO_PLAYLIST, playlist_name))
             else:
-                self.notification(Messages.get_formatted_msg(
+                TrailerLifeCycle.notification(Messages.get_formatted_msg(
                     Messages.MOVIE_ALREADY_ON_PLAYLIST, playlist_name))
 
     def queue_movie(self, movie: AbstractMovie) -> None:
@@ -1704,8 +2088,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             movie_file = movie.get_movie_path()
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz.logger.debug_extra_verbose('Playing movie at user request:',
-                                                       movie.get_title(),
-                                                       'path:', movie_file)
+                                               movie.get_title(),
+                                               'path:', movie_file)
 
             self.set_random_trailers_play_state(
                 DialogState.SHUTDOWN_CUSTOM_PLAYER)
@@ -1751,7 +2135,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 elif movie.has_cached_trailer():
                     cached = True
 
-                title += ' - ' + movie.get_detail_certification()
                 if normalized:
                     title = title + ' Normalized'
                 elif cached:
@@ -1788,7 +2171,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
 
         clz.logger.enter()
-        self._wait_or_interrupt_event.set()
+        TrailerLifeCycle.clear_notification()
         self.close()
         delete_player = False
         try:
