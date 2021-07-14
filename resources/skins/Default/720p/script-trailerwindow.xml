@@ -61,7 +61,7 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font25-title</font>
+                    <font>font25</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
@@ -92,7 +92,7 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font25-title</font>
+                    <font>font30</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
             </control>
@@ -121,7 +121,7 @@
                     <posx>20</posx>
                     <posy>5</posy>
                     <width>1240</width>
-                    <font>font25-title</font>
+                    <font>font25</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <scroll>true</scroll>
                 </control>
@@ -138,7 +138,7 @@
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
-                    <font>font25-title</font>
+                    <font>font30</font>
                     <textcolor>FFFFFFFF</textcolor>
                 </control>
                 <!-- POSTER/COVER -->
@@ -219,7 +219,7 @@
                         <posx>5</posx>
                         <posy>13</posy>
                         <width>365</width>
-                        <font>font25-title</font>
+                        <font>font25</font>
                         <!-- <label>$LOCALIZE[32176]</label> -->
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
