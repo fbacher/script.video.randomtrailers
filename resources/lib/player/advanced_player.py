@@ -21,7 +21,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     """
 
     """
-    DEBUG_MONITOR: Final[bool] = False
+    DEBUG_MONITOR: Final[bool] = True
     _logger: LazyLogger = None
 
     def __init__(self):
@@ -47,7 +47,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
                       on_video_window_closed: Callable[[Any], Any] = None,
                       on_show_osd: Callable[[Any], Any] = None,
                       on_show_info: Callable[[Any], Any] = None) -> None:
-        self._call_back_on_show_info = on_show_info
+        #  self._call_back_on_show_info = on_show_info
+        pass
 
     def enable_advanced_monitoring(self) -> None:
         self._closed = False
@@ -624,9 +625,12 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             local_class._logger.debug_verbose(
                 self.get_playing_title(), trace=Trace.TRACE)
 
+        self._player_state = PlayerState.STATE_PLAYING
+
         # self._dump_state()  # TODO: remove
 
-    def wait_for_is_playing_video(self, timeout: float = None) -> bool:
+    def wait_for_is_playing_video(self, path:str = None,
+                                  timeout: float = None) -> bool:
         """
             Waits until a video is playing (or paused).
 
@@ -657,6 +661,19 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         timeout_ms: int = int(timeout * 1000.0)
 
         # TODO: Add check for failures: onPlabackFailed/Ended/Error
+        while not Monitor.wait_for_abort(0.250):
+            if (self.getPlayingFile() == path and
+                self._player_state == PlayerState.STATE_PLAYING or self.is_paused()):
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    self._logger.debug_extra_verbose(f'Playing: {path} '
+                                                     f'paused: {self.is_paused()}')
+                break
+
+            timeout_ms -= 250
+
+            if timeout_ms <= 0:
+                return False
+        '''
         while (not Monitor.wait_for_abort(0.250)
                and not self._player_window_open
                and timeout_ms > 0):
@@ -666,7 +683,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
 
         if timeout_ms <= 0:
             return False
-
+        '''
         return True
 
     def wait_for_is_not_playing_video(self,

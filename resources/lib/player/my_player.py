@@ -8,6 +8,7 @@ import xbmcgui
 from common.imports import *
 from common.movie import AbstractMovie
 from player.advanced_player import AdvancedPlayer
+from player.advanced_player import PlayerState
 from common.logger import LazyLogger, Trace
 from common.disk_utils import DiskUtils
 
@@ -112,6 +113,12 @@ class MyPlayer(AdvancedPlayer, ABC):
         self._is_url = DiskUtils.is_url(file_path)
         self._expected_file_path = file_path
 
+    def is_playing_trailer(self, path: str) -> bool:
+        if (self._player_state == PlayerState.STATE_PLAYING
+                and self._expected_file_path == path):
+            return True
+        return False
+
     def onAVStarted(self) -> None:
         """
             Detect when the player is playing something not initiated by this
@@ -133,6 +140,7 @@ class MyPlayer(AdvancedPlayer, ABC):
             # genre will NOT be set to 'randomtrailers'. The use of caching
             # of remote trailers will eliminate this issue.
 
+            super().onAVStarted()
             genre: str = self.getVideoInfoTag().getGenre()
             # clz._logger.debug('genre:', genre)
             if genre != 'randomtrailers':
