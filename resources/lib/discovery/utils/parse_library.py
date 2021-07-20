@@ -67,7 +67,11 @@ class ParseLibrary:
         self._movie.set_trailer(trailer_path)
 
     def parse_trailer_type(self) -> None:
-        trailer_type: str = self._library_entry.get(MovieField.TRAILER_TYPE, '')
+        trailer_type: str = self._library_entry.get(MovieField.TRAILER_TYPE,
+                                                    MovieField.TRAILER_TYPE_TRAILER)
+        if len(trailer_type) == 0:
+            trailer_type = MovieField.TRAILER_TYPE_TRAILER
+
         self._movie.set_trailer_type(trailer_type)
 
     def parse_plot(self) -> None:
