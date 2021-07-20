@@ -113,10 +113,10 @@ class Monitor(MinimalMonitor):
         thread_name = CriticalSettings.get_plugin_name() + "_monitorSettingsChanges"
         threading.current_thread().setName(thread_name)
         iterations: int = 600
-        
+
         # We know that settings have not changed when we first start up,
         # so ignore first false change.
-        
+
         while not cls.wait_for_abort(timeout=0.1):
             iterations -= 1
             if iterations < 0:
@@ -137,24 +137,24 @@ class Monitor(MinimalMonitor):
                 # after the initial one. However, the Settings code should
                 # detect that nothing has actually changed and no harm should be
                 # done.
-                                
+
                 if last_time_changed == mod_time:
                     continue
 
                 now: datetime.datetime = datetime.datetime.now()
-                
+
                 #
                 # Was file modified at least a minute ago?
                 #
-                
+
                 delta: datetime.timedelta = now - mod_time
-                
+
                 if delta.total_seconds() > 60:
                     if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
                         cls._logger.debug_verbose('Settings Changed!')
                     last_time_changed = mod_time
                     cls.on_settings_changed()
-                        
+
                     # Here we go again
 
     @classmethod
@@ -449,7 +449,14 @@ class Monitor(MinimalMonitor):
             timeout = None
 
         cls.track_wait_call_counts()
-        abort = cls._abort_received.wait(timeout=timeout)
+        abort = False
+        while timeout > 0.0:
+            if cls._abort_received.is_set():
+                abort = True
+                break
+            cls.real_waitForAbort(timeout=0.1)
+            timeout -= 0.1
+
         cls.track_wait_return_counts()
 
         return abort
