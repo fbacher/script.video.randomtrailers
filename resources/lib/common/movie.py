@@ -679,7 +679,8 @@ class AbstractMovie(BaseMovie):
         self._movie_info[MovieField.TRAILER] = path
 
     def get_trailer_type(self) -> str:  # TODO: Change to TrailerType
-        return self._movie_info.get(MovieField.TRAILER_TYPE, None)
+        return self._movie_info.get(MovieField.TRAILER_TYPE,
+                                    MovieField.TRAILER_TYPE_TRAILER)
 
     def set_trailer_type(self, trailer_type: str) -> None:
         clz = type(self)
