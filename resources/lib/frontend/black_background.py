@@ -87,6 +87,7 @@ class BlackBackground(xbmcgui.WindowXML):
             command = "Skin.SetBool(Opaque)"
         else:
             command = "Skin.Reset(Opaque)"
+        self._logger.debug(f'Setting Opaque: {command}')
         xbmc.executebuiltin(command)
 
     @classmethod
