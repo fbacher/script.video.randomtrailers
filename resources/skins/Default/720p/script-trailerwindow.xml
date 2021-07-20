@@ -7,8 +7,8 @@
         <control type="group" id="38000">
             <control type="image">
                 <description>Black background</description>
+                <!-- <visible>true</visible> -->
                 <visible>true</visible>
-                <!-- <visible>Skin.HasSetting(ShowTrailer)</visible> -->
                 <posx>0</posx>
                 <posy>0</posy>
                 <width>1280</width>
@@ -16,91 +16,106 @@
                 <aspectratio>stretch</aspectratio>
                 <texture background="true">solid-black.png</texture>
             </control>
+
+        </control>
+        <control type="group" id="38028">
+            <description>Play Trailer Window</description>
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1280</width>
+            <height>720</height>
             <control type="videowindow">
                 <description>Private Video Window for trailer to avoid default
                     navigation action processing
                 </description>
-                <visible>Skin.HasSetting(ShowTrailer)</visible>
+                <visible>true</visible>
                 <left>0</left>
                 <top>0</top>
                 <right>100%</right>
                 <bottom>100%</bottom>
             </control>
+            <control type="group" id="38029">
+                <!-- Invisible when Notification is displayed -->
+                <visible>!Control.IsVisible(38030)</visible>
+                <control type="group">
+                    <description>Optional title displayed while trailer is playing</description>
+                    <posx>0</posx>
+                    <posy>0</posy>
+                    <width>1280</width>
+                    <height>50</height>
+                    <control type="image">
+                        <description>Shadow Text background</description>
+                        <posx>-0</posx>
+                        <posy>0</posy>
+                        <width>1280</width>
+                        <height>45</height>
+                        <visible>true</visible>
+                        <aspectratio>stretch</aspectratio>
+                        <texture>gray-back.png</texture>
+                    </control>
+                    <control type="label" id="38021">
+                        <description>Movie Title</description>
+                        <posx>20</posx>
+                        <posy>2</posy>
+                        <width>1240</width>
+                        <aligny>center</aligny>
+                        <visible>true</visible>
+                        <scroll>false</scroll>
+                        <haspath>false</haspath>
+                        <wrapmultiline>false</wrapmultiline>
+                        <font>font25</font>
+                        <textcolor>FFFFFFFF</textcolor>
+                    </control>
+                </control>
+            </control>
+            <control type="group" id="38030">
+                <description>Controls Notification Visibility</description>
+                <control type="group" id="38022">
+                    <description>Notification that may appear while trailer is playing</description>
+                    <posx>0</posx>
+                    <posy>0</posy>
+                    <width>1280</width>
+                    <height>50</height>
+                    <control type="image">
+                        <description>Shadow Text background</description>
+                        <posx>0</posx>
+                        <width>1280</width>
+                        <visible>true</visible>
+                        <aspectratio>stretch</aspectratio>
+                        <texture>gray-back.png</texture>
+                    </control>
+                    <control type="label" id="38023">
+                        <description>Notification</description>
+                        <posx>20</posx>
+                        <posy>2</posy>
+                        <width>1240</width>
+                        <height>40</height>
+                        <aligny>center</aligny>
+                        <alignx>center</alignx>
+                        <visible>true</visible>
+                        <scroll>false</scroll>
+                        <haspath>false</haspath>
+                        <wrapmultiline>false</wrapmultiline>
+                        <font>font30</font>
+                        <textcolor>FFFFFFFF</textcolor>
+                    </control>
+                </control>
+            </control>
         </control>
-        <control type="group">
-            <description>Wrapper group around everything except video window</description>
+
+        <control type="group" id="38001">
+            <description>Movie Details View</description>
             <posx>0</posx>
             <posy>0</posy>
             <width>1280</width>
             <height>720</height>
-            <visible>Skin.HasSetting(TrailerTextOverlay)</visible>
-            <control type="group">
-                <description>Optional title displayed while trailer is playing</description>
-                <posx>0</posx>
-                <posy>0</posy>
-                <width>1280</width>
-                <height>50</height>
-                <visible>Skin.HasSetting(ShowTitle)+!Skin.HasSetting(Notification)</visible>
-                <control type="image">
-                    <description>Shadow Text background</description>
-                    <posx>-0</posx>
-                    <posy>0</posy>
-                    <width>1280</width>
-                    <height>45</height>
-                    <visible>true</visible>
-                    <aspectratio>stretch</aspectratio>
-                    <texture>gray-back.png</texture>
-                </control>
-                <control type="label" id="38021">
-                    <description>Title</description>
-                    <posx>20</posx>
-                    <posy>2</posy>
-                    <width>1240</width>
-                    <aligny>center</aligny>
-                    <visible>Skin.HasSetting(ShowTitle)+!Skin.HasSetting(Notification)</visible>
-                    <scroll>false</scroll>
-                    <haspath>false</haspath>
-                    <wrapmultiline>false</wrapmultiline>
-                    <font>font25</font>
-                    <textcolor>FFFFFFFF</textcolor>
-                </control>
-            </control>
-            <control type="group" id="38022">
-                <description>Notification that may appear while trailer is playing</description>
-                <posx>0</posx>
-                <posy>0</posy>
-                <width>1280</width>
-                <height>50</height>
-                <visible>Skin.HasSetting(Notification)</visible>
-                <control type="image">
-                    <description>Shadow Text background</description>
-                    <posx>0</posx>
-                    <width>1280</width>
-                    <visible>true</visible>
-                    <aspectratio>stretch</aspectratio>
-                    <texture>gray-back.png</texture>
-                </control>
-                <control type="label" id="38023">
-                    <description>Notification</description>
-                    <posx>20</posx>
-                    <posy>2</posy>
-                    <width>1240</width>
-                    <height>40</height>
-                    <aligny>center</aligny>
-                    <alignx>center</alignx>
-                    <visible>Skin.HasSetting(Notification)</visible>
-                    <scroll>false</scroll>
-                    <haspath>false</haspath>
-                    <wrapmultiline>false</wrapmultiline>
-                    <font>font30</font>
-                    <textcolor>FFFFFFFF</textcolor>
-                </control>
-            </control>
+            <visible>true</visible>
+            <!-- Everything below is for Movie Details while Trailer is NOT playing -->
 
-            <control type="group" id="38001">
-                <visible>Skin.HasSetting(ShowMovieDetails)</visible>
+            <control type="group">
                 <animation effect="fade" start="100" end="0" time="1000">WindowClose</animation>
                 <animation effect="fade" start="0" end="100" time="1000">WindowOpen</animation>
+                <visible>true</visible>
                 <!-- Black background for detail info must come first-->
                 <control type="group">
                     <posx>0</posx>
@@ -113,6 +128,7 @@
                         <height>720</height>
                         <aspectratio>stretch</aspectratio>
                         <texture background="true">solid-black.png</texture>
+                        <visible>false</visible>
                     </control>
                 </control>
                 <!-- TITLE -->
@@ -123,7 +139,7 @@
                     <width>1240</width>
                     <font>font25</font>
                     <textcolor>FFFFFFFF</textcolor>
-                    <scroll>true</scroll>
+                    <visible>true</visible>
                 </control>
                 <!-- Notification -->
                 <control type="label" id="38024">
@@ -134,7 +150,6 @@
                     <height>40</height>
                     <aligny>center</aligny>
                     <alignx>center</alignx>
-                    <visible>Skin.HasSetting(Notification)</visible>
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
@@ -146,7 +161,7 @@
                     <description>Main Poster plus three horizontal lines in text area</description>
                     <posx>880</posx>
                     <posy>100</posy>
-                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
+                    <visible>true</visible>
                     <control type="image" id="38002">
                         <description>Poster. Ratio 2h:3v</description>
                         <posx>0</posx>
@@ -156,6 +171,7 @@
                         <aspectratio>keep</aspectratio>
                         <fadetime>200</fadetime>
                         <texture background="true">noposter.png</texture>
+                        <visible>true</visible>
                     </control>
                     <!-- Vertical Left border -->
                     <control type="image">
@@ -179,7 +195,7 @@
                 <control type="group">
                     <posx>0</posx>
                     <posy>100</posy>
-                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
+                    <visible>true</visible>
                     <!-- Horizontal Lines -->
                     <control type="image">
                         <posx>0</posx>
@@ -209,18 +225,17 @@
                     </control>
                 </control>
 
-                <!-- ShowMovieDetails MOVIES -->
+                <!-- Display the details: Director, Writer, Cast, etc. -->
                 <control type="group">
                     <posx>428</posx>
                     <posy>119</posy>
-                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
+                    <visible>true</visible>
                     <control type="label" id="38025">
                         <description>Director</description>
                         <posx>5</posx>
                         <posy>13</posy>
                         <width>365</width>
                         <font>font25</font>
-                        <!-- <label>$LOCALIZE[32176]</label> -->
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
                     <control type="label" id="38005">
@@ -228,7 +243,6 @@
                         <posx>5</posx>
                         <posy>33</posy>
                         <width>365</width>
-                        <scrollsuffix>-</scrollsuffix>
                         <font>font13</font>
                         <textcolor>FFb4b4b4</textcolor>
                     </control>
@@ -237,9 +251,7 @@
                         <posx>5</posx>
                         <posy>63</posy>
                         <width>365</width>
-                        <font>font24</font>
-                        <scroll>true</scroll>
-                        <!-- <label fallback="Writer">$LOCALIZE[32177]</label> -->
+                        <font>font25</font>
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
                     <control type="label" id="38007">
@@ -247,7 +259,6 @@
                         <posx>5</posx>
                         <posy>83</posy>
                         <width>365</width>
-                        <scrollsuffix>-</scrollsuffix>
                         <font>font13</font>
                         <textcolor>FFb4b4b4</textcolor>
                     </control>
@@ -256,8 +267,7 @@
                         <posx>5</posx>
                         <posy>118</posy>
                         <width>365</width>
-                        <!-- <label>[B]$LOCALIZE[32178][/B]</label> -->
-                        <font>font24</font>
+                        <font>font25</font>
                         <textcolor>FFFFFFFF</textcolor>
                     </control>
                     <control type="label" id="38006">
@@ -273,11 +283,12 @@
                 </control>
 
                 <control type="group">
-                    <posy>342</posy>
+                    <description>Plot, Studio, Certification, Rating/</description>
+                    <posy>342</posy>S
                     <posx>0</posx>
                     <height>378</height>
                     <width>880</width>
-                    <visible>Skin.HasSetting(ShowMovieDetails)</visible>
+                    <visible>true</visible>
 
                     <!-- PLOT -->
                     <control type="textbox" id="38009">
@@ -297,7 +308,7 @@
                         <texturedown flipy="true">-</texturedown>
                         <textureupfocus>-</textureupfocus>
                         <texturedownfocus flipy="true"></texturedownfocus>
-                        <autoscroll delay="6000" time="2500" repeat="5000">Skin.HasSetting(ShowMovieDetails)</autoscroll>
+                        <autoscroll delay="6000" time="2500" repeat="5000">Skin.HasSetting(ScrollPlot)</autoscroll>
                     </control>
                     <control type="label" id="38011">
                         <description>Duration/Genre</description>

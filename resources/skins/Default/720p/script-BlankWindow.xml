@@ -2,10 +2,11 @@
 <window type="window">
     <zorder>1</zorder>
     <controls>
-        <control type="group" id="38020">
+        <control type="group" id="38050">
             <posx>0</posx>
             <posy>0</posy>
-            <visible>Skin.HasSetting(Opaque)</visible>
+            <!-- <visible>Skin.HasSetting(Opaque)</visible> -->
+            <visible>false</visible>
             <control type="image">
                 <description>Black background</description>
                 <posx>0</posx>
@@ -16,7 +17,7 @@
                 <texture background="true">solid-black.png</texture>
             </control>
         </control>
-        <control type="group" id="38021">
+        <control type="group" id="38051">
             <posx>0</posx>
             <posy>0</posy>
             <visible>!Skin.HasSetting(Opaque)</visible>
