@@ -22,6 +22,7 @@ from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import TrailerUnavailableCache
 # from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.constants import Constants
+from common.debug_utils import Debug
 from common.imports import *
 
 from backend.video_downloader import VideoDownloader
@@ -458,7 +459,10 @@ class MovieDetail:
         if error_code == VideoDownloader.UNAVAILABLE:
             msg = 'Download permanently unavailable'
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-            cls._logger.debug(f'Video Download failed {movie.get_title()}')
+            cls._logger.debug(f'Video Download failed {movie.get_title()} '
+                              f'class: {type(movie)}')
+            Debug.dump_dictionary(movie.get_as_movie_type(),
+                                  log_level=LazyLogger.DISABLED)
         missing_trailers_playlist: Playlist = Playlist.get_playlist(
                 Playlist.MISSING_TRAILERS_PLAYLIST, append=False,
                 rotate=True)
