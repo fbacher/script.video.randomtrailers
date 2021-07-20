@@ -314,6 +314,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     "generic",
                     additional_movies=movies)
 
+            clz.logger.debug_verbose('Completed second phase discovery')
             finished = False
             while not finished:
                 finished = True
@@ -351,6 +352,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         tmdb_trailer_type,  # type: str
                         tmdb_search_query=tmdb_search_query  # type: str
                     )
+            clz.logger.debug_verbose(f'Completed creating all search pages')
 
         except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
@@ -845,13 +847,15 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                           - self.get_number_of_known_trailers())
             tmdb_movies: Set[TMDbMovieId] = \
                 CacheIndex.get_tmdb_ids_with_trailers()
+            additional_movies_to_get -= len(tmdb_movies)
 
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz.logger.debug_verbose(
-                    f"Sending cached {len(tmdb_movies)} TMDb trailers to discovered list")
+                    f"Sending {len(tmdb_movies)} TMDb movies with trailers to "
+                    f"discovery. Additional to get: {additional_movies_to_get} "
+                    f"# known trailers: {self.get_number_of_known_trailers()}")
 
             self.add_to_discovered_movies(tmdb_movies)
-            additional_movies_to_get -= len(tmdb_movies)
 
         except Exception as e:
             clz.logger.exception('')
@@ -866,8 +870,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     del unprocessed_movies[additional_movies_to_get:]
 
                 self.add_to_discovered_movies(unprocessed_movies)
-                clz.logger.debug_extra_verbose(f'Sending {len(unprocessed_movies)} '
-                                               f'unprocessed movies to discovery')
+                clz.logger.debug_verbose(f'Sending {len(unprocessed_movies)} '
+                                         f'unprocessed movies to discovery')
 
             except Exception as e:
                 clz.logger.exception('')
@@ -946,6 +950,12 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 # file_iterable.kill()
 
                 tmdb_ids_found = len(tmdb_movie_ids)
+                stop_time: datetime.datetime = datetime.datetime.now()
+                delta_time_minutes: int = int((stop_time - start_time).total_seconds() / 60.0)
+
+                clz.logger.debug_extra_verbose(f'Minutes to discover {tmdb_ids_found} json files: '
+                                               f'{delta_time_minutes:,d}')
+
                 if tmdb_ids_found > 0:
                     additional_movies_to_get -= len(tmdb_movie_ids)
                     self.add_to_discovered_movies(tmdb_movie_ids)
@@ -953,12 +963,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             except Exception as e:
                 clz.logger.exception()
-
-            stop_time: datetime.datetime = datetime.datetime.now()
-            delta_time_minutes: int = int((stop_time - start_time).total_seconds() / 60.0)
-
-            clz.logger.debug_extra_verbose(f'Minutes to discover {tmdb_ids_found} json files: '
-                                           f'{delta_time_minutes:,d}')
 
     def discover_movies_using_search_pages(self,
                                            tmdb_trailer_type: str,
@@ -1717,7 +1721,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         elif number_of_unprocessed_movies < 1000:
             delay = 120.0
         elif number_of_unprocessed_movies > 1000:
-            # Delay ten minutes per /100 read
+            # Delay ten minutes per /1000 read
             delay = float(10 * 60 * number_of_unprocessed_movies / 1000)
         else:
             delay = 5.0
