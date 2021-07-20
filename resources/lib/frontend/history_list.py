@@ -54,6 +54,13 @@ class HistoryList:
                             len(cls._buffer), 'cursor:', cls._cursor)
 
     @classmethod
+    def has_previous_trailer(cls) -> bool:
+        has_previous = True
+        if cls._cursor < 1:
+            has_previous = False
+        return has_previous
+
+    @classmethod
     def get_previous_trailer(cls) -> AbstractMovie:
         """
 
