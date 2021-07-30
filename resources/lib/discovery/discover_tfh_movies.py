@@ -310,6 +310,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         if (TFHCache.get_creation_date() < cache_expiration_time
                 or not TFHCache.is_complete()):
+            clz.logger.debug_verbose(f'Rediscovering TFH Index')
             video_downloader = VideoDownloader()
             url = 'https://www.youtube.com/user/trailersfromhell/videos'
 
@@ -323,7 +324,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                     TFHCache.save_cache(flush=True, complete=True)
                     finished = True
 
-        clz.logger.debug(f'TFH Discovery Complete')
+        clz.logger.debug(f'TFH Discovery Complete rc: {rc}')
 
     def fix_title(self, tfh_movie: TFHMovie) -> str:
         clz = type(self)
