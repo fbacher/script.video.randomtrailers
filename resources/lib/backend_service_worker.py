@@ -25,12 +25,12 @@ def startup_non_main_thread() -> None:
 
     :return:
     """
-
     post_install()
 
     Trace.enable_all()
     try:
-        # Trace.enable(Trace.TRACE_NETWORK)
+        pass
+        #  Trace.enable(Trace.TRACE_NETWORK)
     except Exception as e:
         module_logger.exception(e)
 
