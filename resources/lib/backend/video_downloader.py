@@ -23,6 +23,7 @@ from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
 from common.certification import WorldCertifications
 from common.settings import Settings
+from youtube_dl import DownloadError
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -292,7 +293,10 @@ class VideoDownloader:
             # clz._logger.debug_extra_verbose(f'title: {title} starting download')
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+                try:
+                    ydl.download([url])
+                except DownloadError as e:
+                    clz._logger.error(e.args)
 
             while (video_logger.data is None and self._error == 0 and not
                     self._download_finished):
@@ -414,7 +418,10 @@ class VideoDownloader:
             # Start Download
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+                try:
+                    ydl.download([url])
+                except DownloadError as e:
+                    clz._logger.error(e.args)
 
             # Wait for download
 
@@ -483,7 +490,8 @@ class VideoDownloader:
             # HAVE LOCK
 
             if not block:
-                too_many_requests = clz.check_too_many_requests(url, MovieField.TFH_SOURCE)
+                too_many_requests = clz.check_too_many_requests(url,
+                                                                MovieField.TFH_SOURCE)
                 if too_many_requests != 0:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz._logger.debug_verbose(
@@ -546,7 +554,10 @@ class VideoDownloader:
             Monitor.throw_exception_if_abort_requested()
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+                try:
+                    ydl.download([url])
+                except DownloadError as e:
+                    clz._logger.error(e.args)
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -572,6 +583,8 @@ class VideoDownloader:
             tfh_index_logger.log_warning()
 
         Monitor.throw_exception_if_abort_requested()
+        if self._error != 0:
+            clz._logger.debug(f'self._error: {self._error}')
         return self._error
 
     @classmethod
