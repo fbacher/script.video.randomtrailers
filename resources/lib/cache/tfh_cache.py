@@ -107,7 +107,7 @@ class TFHCache:
         return cls._logger
 
     @classmethod
-    def save_cache(cls, flush: bool = False, complete: bool = False) -> None:
+    def save_cache(cls, flush: bool = False, complete: bool = None) -> None:
         """
         :param flush:
         :param complete:
@@ -120,15 +120,18 @@ class TFHCache:
             seconds_since_last_save = (datetime.datetime.now() -
                                     cls._last_saved_movie_timestamp).total_seconds()
             minutes_since_last_save: int = int(seconds_since_last_save / 60)
+            do_flush = False
             if (flush or
                     (cls._unsaved_changes > cls.MAX_UNSAVED_CHANGES)
                     or (minutes_since_last_save > cls.MIN_MINUTES_BETWEEN_SAVES)):
-                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                do_flush = True
+                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     delta = int((datetime.datetime.now() -
                                 cls._last_saved_movie_timestamp).total_seconds() / 60)
                     cls._logger.debug_extra_verbose(f'flush: {flush} '
                                                     f'changes: {cls._unsaved_changes} '
                                                     f'time: {delta}' )
+            if not do_flush:
                 return
 
             try:
@@ -148,12 +151,13 @@ class TFHCache:
                 with io.open(tmp_path, mode='at', newline=None,
                              encoding='utf-8', ) as cacheFile:
 
-                    if complete:
-                        cls._set_creation_date()
-                        # Set to True when complete, but don't set to False
-                        # when not complete.
-
+                    cls._logger.debug(f'complete: {complete} cache_complete: '
+                                      f'{cls._cache_complete}')
+                    if (complete is None and cls._cache_complete) or complete:
                         cls._cache_complete = True
+                        cls._logger.debug(f'complete2: {complete} cache_complete: '
+                                          f'{cls._cache_complete}')
+                        cls._set_creation_date()
 
                     creation_date_str = datetime.datetime.strftime(
                         cls._time_of_index_creation, '%Y:%m:%d')
@@ -163,8 +167,10 @@ class TFHCache:
                     dummy_tfh_movie.set_title('cache complete marker')
                     dummy_tfh_movie.set_property(cls.INDEX_CREATION_DATE,
                                                  creation_date_str)
+                    cls._logger.debug(f'complete3: {complete} cache_complete: '
+                                      f'{cls._cache_complete}')
                     dummy_tfh_movie.set_property(cls.CACHE_COMPLETE, cls._cache_complete)
-                    
+
                     movie: TFHMovie
 
                     #
@@ -229,8 +235,8 @@ class TFHCache:
         """
 
         :return: True if cache is full and no further discovery needed
-        """ 
-        
+        """
+
         with cls.lock:
             cls._initialized.set()
             try:
@@ -247,13 +253,15 @@ class TFHCache:
                         cls._cached_movies = json.load(
                             cacheFile,
                             object_hook=TFHCache.decoder)
-                                                   
+
                     movie: TFHMovie
                     movie_ids_to_delete: List[str] = []
+                    #
+                    # Read and delete INDEX_CREATION_DATE entry
+                    # to set state of the cache
+                    #
+                    cls.load_creation_date()
                     for key, movie in cls._cached_movies.items():
-                        if key == cls.INDEX_CREATION_DATE:
-                            continue  # Skip marker entry
-
                         if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
                             movie_ids_to_delete.append(movie.get_id())
                         elif not isinstance(movie, TFHMovie):
@@ -261,21 +269,13 @@ class TFHCache:
 
                     if len(movie_ids_to_delete) > 0:
                         cls.remove_movies(movie_ids_to_delete, flush=True)
-                        
-                    # After dummy entry written to cache, remove from 
-                    # local cache
-                    
-                    if cls.INDEX_CREATION_DATE in cls._cached_movies:
-                        del cls._cached_movies[cls.INDEX_CREATION_DATE]
-                                                                       
+
                     cls._last_saved_movie_timestamp = datetime.datetime.now()
                     cls._unsaved_changes = 0
-                    cls.load_creation_date()
                 else:
                     cls._cached_movies = dict()
                     # Set to an old time so that cache is expired
                     cls._time_of_index_creation = datetime.datetime(2000, 1, 1)
-
 
             except IOError as e:
                 cls._logger.exception('')
