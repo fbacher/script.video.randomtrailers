@@ -10,6 +10,9 @@ from math import sqrt
 import re
 import sys
 
+import simplejson
+
+from common.debug_utils import Debug
 from common.imports import *
 
 from common.exceptions import AbortException, CommunicationException
@@ -21,6 +24,7 @@ from common.logger import LazyLogger
 from common.certification import WorldCertifications
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
+from discovery.utils.db_access import DBAccess
 from discovery.utils.parse_library import ParseLibrary
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -180,7 +184,7 @@ class TMDBMatcher:
                     status_code, _info_string = \
                         JsonUtilsBasic.get_json(url, params=data,
                                                 dump_msg='get_tmdb_id_from_title_year',
-                                                dump_results=True,
+                                                dump_results=False,
                                                 error_msg=title +
                                                 f' ({year})')
                     if status_code == 0:
@@ -333,8 +337,8 @@ class TMDBUtils:
         For movies that do not include the TMDb_id,
 
     """
-    kodi_data_for_tmdb_id: Dict[int, TMDbIdForKodiId] = {}
-    _logger = None
+    _logger: LazyLogger = None
+    kodi_data_for_tmdb_id: Dict[int, TMDbIdForKodiId] = None  # Must be None!
 
     def __init__(self,
                  kodi_id: int,
@@ -365,6 +369,8 @@ class TMDBUtils:
         if cls.kodi_data_for_tmdb_id is not None:
             return
 
+        cls.kodi_data_for_tmdb_id = {}
+
         query: str = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
                      "params": {\
                      "properties": \
@@ -381,6 +387,12 @@ class TMDBUtils:
                 # Create partially populated LibraryMove to unify access.
                 # Remember that it is only partially populated!
 
+                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                    cls._logger.debug_extra_verbose('Movie DUMP:',
+                                                    simplejson.dumps(
+                                                            movie_entry, indent=3,
+                                                            sort_keys=True))
+                # Debug.dump_dictionary(d=movie_entry, log_level=LazyLogger.DEBUG)
                 lib_parser = ParseLibrary(movie_entry)
                 title: str = lib_parser.parse_title()
                 kodi_file: str = lib_parser.parse_movie_path()
@@ -391,6 +403,17 @@ class TMDBUtils:
                 movie: LibraryMovie = lib_parser.get_movie()
                 tmdb_id: int = movie.get_tmdb_id()
                 kodi_id: int = movie.get_library_id()
+                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                    cls._logger.debug_extra_verbose(f'title: {title} - {movie.get_title()} '
+                                                    f'year: {year} - {movie.get_year()} '
+                                                    f'tmdb_id: {tmdb_id} kodi-id: {kodi_id}')
+
+                # Movie entries that have not been scraped?
+
+                if title is None or len(title) == 0 or year == 0:
+                    cls._logger.debug(
+                        f'The movie: {kodi_file} does not appear to be scraped')
+                    continue
 
                 # If we can't talk to TMDb we just won't get the tmdb_id
                 # this time around.
