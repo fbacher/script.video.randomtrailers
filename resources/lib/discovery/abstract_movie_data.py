@@ -420,7 +420,7 @@ class AbstractMovieData:
         self._movie_source: str = movie_source
 
         from discovery.trailer_fetcher import TrailerFetcher
-        fetcher_thread_name: Final[str] = 'Fetcher_' + movie_source
+        fetcher_thread_name: Final[str] = f'{movie_source}_fetcher'
         self._parent_trailer_fetcher: TrailerFetcher = \
             TrailerFetcher(self, fetcher_thread_name)
         self._minimum_shuffle_seconds: int = 10
