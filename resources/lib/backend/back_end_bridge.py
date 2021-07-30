@@ -11,6 +11,7 @@ import sys
 import threading
 
 from common.constants import Constants
+from common.debug_utils import Debug
 from common.exceptions import AbortException
 from common.garbage_collector import GarbageCollector
 from common.imports import *
@@ -83,7 +84,7 @@ class BackendBridge(PluginBridge):
         try:
             thread = threading.Thread(
                 target=cls.get_trailer_worker,
-                name='BackendBridge.get_trailer')
+                name='BackendBridge')
 
             thread.start()
             GarbageCollector.add_thread(thread)
@@ -124,12 +125,12 @@ class BackendBridge(PluginBridge):
         cls._busy_getting_trailer = False
 
     @classmethod
-    def send_trailer(cls, status: str, trailer: AbstractMovie) -> None:
+    def send_trailer(cls, status: str, movie: AbstractMovie) -> None:
         """
             Send movie to front-end
         """
         try:
-            pickled: bytes = pickle.dumps(trailer)
+            pickled: bytes = pickle.dumps(movie)
             pickled_str: str = pickled.hex()
             cls.send_signal('nextTrailer',
                             data={'movie': pickled_str,
@@ -140,6 +141,7 @@ class BackendBridge(PluginBridge):
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('')
+            Debug.dump_dictionary(movie, include_type=True, log_level=LazyLogger.ERROR)
 
     @classmethod
     def register_listeners(cls) -> None:
@@ -157,4 +159,3 @@ class BackendBridge(PluginBridge):
         #
         cls.register_slot(Constants.BACKEND_ID,
                           'get_next_trailer', cls.get_trailer)
-
