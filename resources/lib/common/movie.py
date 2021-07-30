@@ -518,7 +518,8 @@ class AbstractMovie(BaseMovie):
         self._movie_info[MovieField.NORMALIZED_TRAILER] = path
 
     def get_certification_id(self) -> str:
-        return self._movie_info[MovieField.CERTIFICATION_ID]
+        certification_id: str = self._movie_info.get(MovieField.CERTIFICATION_ID, '')
+        return certification_id
 
     def set_certification_id(self, certification: str) -> None:
         self._movie_info[MovieField.CERTIFICATION_ID] = certification
@@ -661,12 +662,41 @@ class AbstractMovie(BaseMovie):
     def set_trailer_path(self, path: str) -> None:
         self._movie_info[MovieField.TRAILER] = path
 
+    def get_optimal_trailer_path(self) -> Tuple[bool, bool, str]:
+        """
+        Get the best path available, in order of preference:
+            - normalized path
+            - cached path
+            - path
+
+        :return: (is_normalized, is_cached, path)
+        """
+        is_normalized: bool = False
+        is_cached: bool = False
+        trailer_path: str = None
+        if self.has_normalized_trailer():
+            trailer_path = self.get_normalized_trailer_path()
+            is_normalized = True
+        elif self.has_cached_trailer():
+            trailer_path = self.get_cached_trailer()
+            is_cached = True
+        else:
+            trailer_path = self.get_trailer_path()
+
+        return (is_normalized, is_cached, trailer_path)
+
     def is_trailer_url(self) -> bool:
         trailer_path = self.get_trailer_path()
         return trailer_path.startswith('plugin://') or trailer_path.startswith('http')
 
     def is_trailer_played(self) -> bool:
         return self._movie_info[MovieField.TRAILER_PLAYED]
+
+    def is_tfh(self) -> bool:
+        return isinstance(self, TFHMovie)
+
+    def is_folder_source(self) -> bool:
+        return isinstance(self, FolderMovie)
 
     def set_trailer_played(self, value: bool) -> None:
         self._movie_info[MovieField.TRAILER_PLAYED] = value
@@ -769,7 +799,8 @@ class AbstractMovie(BaseMovie):
 
     def get_certification_image_path(self) -> str:
         certification: Certification = \
-            WorldCertifications.get_certification_by_id(self.get_certification_id())
+            WorldCertifications.get_certification_by_id(
+                self.get_certification_id(), default_unrated=True)
 
         cert_path: str = f'{certification.get_country_id()}/{certification.get_image()}'
         return cert_path
@@ -1201,7 +1232,7 @@ class ITunesMovie(AbstractMovie):
     def set_release_date(self, release_date: datetime.date) -> None:
         self._movie_info[MovieField.RELEASE_DATE] = release_date
 
-    def get_release_date(self) -> datetime.datetime:
+    def get_release_date(self) -> datetime.date:
         return self._movie_info.setdefault(MovieField.RELEASE_DATE,
                                            datetime.datetime.today())
 
