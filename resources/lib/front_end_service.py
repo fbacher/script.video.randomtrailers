@@ -10,7 +10,7 @@ from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
 CriticalSettings.set_plugin_name('rt_frontend')
 
-REMOTE_DEBUG: bool = True
+REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.frontend')
 
