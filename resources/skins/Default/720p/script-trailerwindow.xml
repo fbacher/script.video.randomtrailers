@@ -2,12 +2,11 @@
 <window type="window">
     <zorder>1</zorder>
     <controls>
-        <!-- First are the controls that apply when the Trailer is playing
-             (Text Overlay for Title and Notifications) -->
+        <!-- First is the Black Mask to hide every window below, particularly
+             the default player -->
         <control type="group" id="38000">
             <control type="image">
                 <description>Black background</description>
-                <!-- <visible>true</visible> -->
                 <visible>true</visible>
                 <posx>0</posx>
                 <posy>0</posy>
@@ -16,8 +15,8 @@
                 <aspectratio>stretch</aspectratio>
                 <texture background="true">solid-black.png</texture>
             </control>
-
         </control>
+
         <control type="group" id="38028">
             <description>Play Trailer Window</description>
             <posx>0</posx>
@@ -45,7 +44,7 @@
                     <height>50</height>
                     <control type="image">
                         <description>Shadow Text background</description>
-                        <posx>-0</posx>
+                        <posx>0</posx>
                         <posy>0</posy>
                         <width>1280</width>
                         <height>45</height>
@@ -56,9 +55,9 @@
                     <control type="label" id="38021">
                         <description>Movie Title</description>
                         <posx>20</posx>
-                        <posy>2</posy>
+                        <posy>5</posy>
                         <width>1240</width>
-                        <aligny>center</aligny>
+                        <aligny>top</aligny>
                         <visible>true</visible>
                         <scroll>false</scroll>
                         <haspath>false</haspath>
@@ -87,11 +86,10 @@
                     <control type="label" id="38023">
                         <description>Notification</description>
                         <posx>20</posx>
-                        <posy>2</posy>
+                        <posy>5</posy>
                         <width>1240</width>
                         <height>40</height>
-                        <aligny>center</aligny>
-                        <alignx>center</alignx>
+                        <aligny>top</aligny>
                         <visible>true</visible>
                         <scroll>false</scroll>
                         <haspath>false</haspath>
@@ -136,7 +134,9 @@
                     <description>Title</description>
                     <posx>20</posx>
                     <posy>5</posy>
+                    <height>35</height>
                     <width>1240</width>
+                    <aligny>top</aligny>
                     <font>font25</font>
                     <textcolor>FFFFFFFF</textcolor>
                     <visible>true</visible>
@@ -146,10 +146,9 @@
                     <description>Notification</description>
                     <posx>20</posx>
                     <posy>40</posy>
-                    <width>1280</width>
+                    <width>1240</width>
                     <height>40</height>
-                    <aligny>center</aligny>
-                    <alignx>center</alignx>
+                    <aligny>top</aligny>
                     <scroll>false</scroll>
                     <haspath>false</haspath>
                     <wrapmultiline>false</wrapmultiline>
