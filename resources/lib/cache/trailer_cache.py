@@ -93,7 +93,8 @@ class TrailerCache:
 
         if more_discovery_needed:
             movie.set_discovery_state(MovieField.DISCOVERY_NEARLY_COMPLETE)
-            cls._logger.debug(f'More discovery needed: {title}')
+
+        cls._logger.debug(f'More discovery needed: {more_discovery_needed} {title}')
 
         return more_discovery_needed
 

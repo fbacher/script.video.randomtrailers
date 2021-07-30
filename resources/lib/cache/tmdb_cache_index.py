@@ -6,7 +6,6 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-#from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.imports import *
 
 import datetime
@@ -1119,12 +1118,13 @@ class CacheIndex:
                     cls._found_tmdb_trailer_ids: Set[int] = set(
                         found_trailers_list)
                     cls._unsaved_movie_changes = 0
+                    cls._unprocessed_tmdb_trailer_ids.difference_update(
+                        cls._found_tmdb_trailer_ids)
             else:
                 cls._found_tmdb_trailer_ids: Set[int] = set()
 
             Monitor.throw_exception_if_abort_requested()
-            cls._unprocessed_tmdb_trailer_ids.difference_update(
-                cls._found_tmdb_trailer_ids)
+
         except AbortException:
             reraise(*sys.exc_info())
         except IOError as e:
