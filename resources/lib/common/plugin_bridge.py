@@ -9,6 +9,7 @@ Created on Mar 21, 2019
 import sys
 import threading
 
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 import AddonSignals as AddonSignals
 
@@ -85,9 +86,10 @@ class PluginBridge:
                 target=PluginBridge.send_signal_worker,
                 args=(signal,),
                 kwargs={'data': data, 'source_id': source_id},
-                name='BackendBridge.' + signal)
+                name='PluginBridge.' + signal)
 
             thread.start()
+            GarbageCollector.add_thread(thread)
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
