@@ -48,7 +48,7 @@ class GarbageCollector:
 
         garbage_collector = threading.Thread(
             target=cls.join_dead_threads,
-            name='Thread garbage collection',
+            name='thread_gc',
             daemon=False)
 
         garbage_collector.start()
