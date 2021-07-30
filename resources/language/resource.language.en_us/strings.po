@@ -1467,5 +1467,5 @@ msgid "Behind the Scenes"
 msgstr ""
 
 msgctxt "#32290"
-msgid "Playlist not configured"
+msgid "Playlist {} not configured"
 msgstr ""

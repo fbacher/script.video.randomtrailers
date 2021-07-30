@@ -89,7 +89,7 @@ class Messages:
     GENRE_WESTERN: Final[str] = 'Western'
     MOVIE_ADDED_TO_PLAYLIST: Final[str] = 'Movie added to playlist: {}'
     MOVIE_ALREADY_ON_PLAYLIST: Final[str] = 'Movie already in playlist: {}'
-    NOT_A_PLAYLIST: Final[str] = 'Playlist not configured'
+    NOT_A_PLAYLIST: Final[str] = 'Playlist {} not configured'
     SETTING_INCLUDE_THREAD_INFORMATION: Final[str] = "Include thread information"
     RATING: Final[str] = 'Rating {}'
     RATING_G: Final[str] = 'G'
@@ -273,5 +273,3 @@ class Messages:
             msg = unformatted_msg
 
         return msg
-
-
