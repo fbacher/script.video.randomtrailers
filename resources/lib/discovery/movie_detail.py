@@ -111,8 +111,28 @@ class MovieDetail:
                     if kodi_movie is not None:
                         movie.set_library_id(kodi_movie.get_kodi_id())
                         movie.set_movie_path(kodi_movie.get_kodi_file())
+                    elif movie.get_year() is not None:
+                        try:
+                            query = DBAccess.create_title_date_query(title=movie.get_title(),
+                                                                    year=str(movie.get_year()))
+                            raw_movies: List[MovieType] = DBAccess.get_movie_details(query)
+                            if len(raw_movies) > 0:
+                                if len(raw_movies) > 1:
+                                    # Bad decision, but always take the first entry.
+                                    cls._logger.debug_verbose(f'multiple movies returned from query '
+                                                              f'title: {movie.get_title()} '
+                                                              f'year: {movie.get_year()}')
 
-                    if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                                kodi_movie = ParseLibrary.parse_movie(is_sparse=True,
+                                                                      raw_movie=raw_movies[0])
+                            if kodi_movie is not None:
+                                cls._logger.debug(f'Kodi movie found!')
+                            else:
+                                cls._logger.debug(f'Kodi movie NOT found')
+                        except Exception:
+                            cls._logger.exception()
+
+                if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                             and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                         cls._logger.debug_extra_verbose(
                             f'{movie.get_title()}: '
@@ -251,7 +271,7 @@ class MovieDetail:
             cls._logger.exception('')
 
     @classmethod
-    def cache_remote_trailer(cls, movie: AbstractMovie) -> int:
+    def download_and_cache(cls, movie: AbstractMovie) -> int:
         """
 
         :param cls:
@@ -296,6 +316,7 @@ class MovieDetail:
             if trailer_path.startswith('plugin'):
                 video_id = re.sub(r'^.*video_?id=', '', trailer_path)
                 # plugin://plugin.video.youtube/play/?video_id=
+                # DEPRECATED plugin://plugin.video.youtube/?action=play_video&videoid=
                 new_path = 'https://youtu.be/' + video_id
                 trailer_path = new_path
 

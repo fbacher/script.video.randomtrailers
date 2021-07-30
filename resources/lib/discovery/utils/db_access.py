@@ -7,6 +7,8 @@ Created on 6/12/21
 Provides methods to create and execute queries to Kodi database
 
 """
+import simplejson
+
 from backend.json_utils_basic import JsonUtilsBasic
 from common.imports import *
 from common.logger import LazyLogger
@@ -163,7 +165,7 @@ class DBAccess:
             query_filter = f'{{"and": [{", ".join(combined_filter)}]}}'
         elif len(combined_filter) == 1:
             query_filter = combined_filter[0]
-      
+
         query = f'{query_prefix}[{query_properties}]' \
                 f'{query_filter_prefix}{query_filter}{query_suffix}'
 
@@ -202,7 +204,8 @@ class DBAccess:
         return query
 
     @classmethod
-    def get_movie_details(cls, query: str) -> MovieType:
+    def get_movie_details(cls, query: str) -> List[MovieType]:
+        movies: Dict[str, Any] = []
         try:
             import simplejson as json
             # json_encoded: Dict = json.loads(query)
@@ -213,7 +216,6 @@ class DBAccess:
             pass
 
         query_result: Dict[str, Any] = {}
-        movie: MovieType
         try:
             query_result: Dict[str, Any] = JsonUtilsBasic.get_kodi_json(query,
                                                                         dump_results=False)
@@ -222,8 +224,12 @@ class DBAccess:
 
             Monitor.throw_exception_if_abort_requested()
             result: Dict[str, Any] = query_result.get('result', {})
-            movie: Dict[str, Any] = result.get('moviedetails', [])
+            movies: Dict[str, Any] = result.get('moviedetails', None)
+            if movies is None:
+                movies = result.get('movies', [])
+
         except Exception as e:
+            movies = []
             message: str = ''
             if query_result is not None:
                 error = query_result.get('error')
@@ -237,9 +243,63 @@ class DBAccess:
                                                json.dumps(
                                                    query, indent=3, sort_keys=True))
             except Exception:
-                movie = None
+                movies = []
 
-        return movie
+        return movies
+
+    @classmethod
+    def create_title_date_query(cls, title: str, year: str) -> str:
+        """
+
+
+        :return:
+        """
+        '''
+  {"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "properties": [ 
+  "title", "lastplayed", "studio", "cast", "plot", "writer", "director", "fanart", 
+  "runtime", "mpaa", "thumbnail", "file","year", "genre", "tag", "trailer" ], "filter": 
+  { "or": [ { "field": "genre", "operator": "contains", "value": [ "Film-Noir" ] }, 
+  { "field": "tag", "operator": "contains", "value": [ "classic noir", "film noir", 
+  "french noir", "brit noir" ] } ] } }, "id": 1 }
+  
+"{\"jsonrpc\": \"2.0\", \"method\": \"VideoLibrary.GetMovies\", \"params\": { 
+\"properties\": [ \"title\", \"lastplayed\", \"rating\", \"mpaa\", \"year\", 
+\"trailer\", \"uniqueid\" ], \"filter\": { \"and\": [ { \"field\": \"title\", 
+\"operator\", \"is\", \"value\": \"Cash on Demand\" }, { \"field\": \"year\", 
+\"operator\": \"is\", \"value\": \"1961\" } ] } }, \"id\": 1}"
+
+'{
+"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "properties": [ 
+"title", "lastplayed", "rating", "mpaa", "year", "trailer", "uniqueid" ], "filter": { 
+"and": [ { "field": "title", "operator", "is", "value": "Cash on Demand" }, { "field": 
+"year", "operator": "is", "value": "1961" } ] } }, "id": 1}'
+
+
+'''
+
+        props: List[str]
+        props = cls.MINIMAL_PROPERTIES
+
+        query_properties: str = ', '.join(f'"{prop}"' for prop in props)
+        query = f'{{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", ' \
+                       f'"params": {{ "properties": [ {query_properties} ], ' \
+                       f'"filter": {{ "and": [ ' \
+                       f'{{ "field": "title", "operator": ' \
+                       f'"is", "value": "{title}" }}, ' \
+                       f'{{ "field": "year", "operator": "is", "value": "{year}" }} ' \
+                       f'] }} }}, "id": 1}}'
+
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+            cls.logger.debug_verbose(f'title: {title} year: {year}')
+            cls.logger.debug_verbose(f'query: {query}')
+            try:
+                x = simplejson.loads(query)
+                query_str = simplejson.dumps(x, indent=4, sort_keys=True)
+                cls.logger.debug_extra_verbose(f'query: {query_str}')
+            except Exception:
+                pass
+
+        return query
 
 
 DBAccess._class_init_()

@@ -11,7 +11,6 @@ import datetime
 import glob
 import os
 
-# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.garbage_collector import GarbageCollector
 from common.monitor import Monitor
 from common.constants import Constants
@@ -188,13 +187,13 @@ class TrailerFetcher(TrailerFetcherInterface):
                                       f'id: {self.ident}')
             self.run_worker()
         except AbortException:
-            pass 
+            pass
         except StopDiscoveryException:
             clz._logger.debug_extra_verbose(f'Exiting {self.getName()} '
                                             f'ident: {self.ident}')
         except Exception:
             clz._logger.exception('')
-            
+
         finally:
             GarbageCollector.add_thread(self)
 
@@ -565,7 +564,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                                     f'Can not get TMDB id for {source} movie: '
                                     f'{movie.get_title()} year: '
                                     f'[{movie.get_year()}')
-                            if not isinstance(movie, TFHMovie):    
+                            if not isinstance(movie, TFHMovie):
                                 self._missing_trailers_playlist.record_played_trailer(
                                     movie, use_movie_path=True,
                                     msg=' Movie not found at TMDB')
@@ -787,7 +786,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     == Constants.HTTP_TOO_MANY_REQUESTS):
                 return trailer_ok
 
-            rc = MovieDetail.cache_remote_trailer(movie)
+            rc = MovieDetail.download_and_cache(movie)
             if rc != 0 and rc != Constants.HTTP_TOO_MANY_REQUESTS:
                 trailer_ok = False
 
@@ -806,11 +805,11 @@ class TrailerFetcher(TrailerFetcherInterface):
                 normalized = self.normalize_trailer_sound(movie)
 
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz._logger.debug_verbose(movie.get_title(), 'audio normalized:',
-                                          normalized,
-                                          'movie:',
-                                          movie.get_normalized_trailer_path(),
-                                          'type:', type(movie).__name__)
+                clz._logger.debug_verbose(movie.get_title(), f'audio normalized: '
+                                          f'normalized movie: ' 
+                                          f'{movie.get_normalized_trailer_path()} '
+                                          f'type: {type(movie).__name__} '
+                                                             f'RC: {trailer_ok}')
         return trailer_ok
 
     def normalize_trailer_sound(self, movie: AbstractMovie) -> bool:
@@ -865,7 +864,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 return False
 
             # Can not normalize remote files. MovieField.CACHED_TRAILER contains
-            # the path to any downloaded trailers (by cache_remote_trailer)
+            # the path to any downloaded trailers (by download_and_cache)
 
             # Verify cache was not purged
 
@@ -887,7 +886,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             if Settings.is_normalize_volume_of_downloaded_trailers():
                 if movie.has_cached_trailer():
                     #
-                    # If remote movie was downloaded by cache_remote_trailer,
+                    # If remote movie was downloaded by download_and_cache,
                     # then use it.
                     #
                     trailer_path = movie.get_cached_trailer()
@@ -928,7 +927,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 # Not quite sure of value of this. Seems that a simple
                 # normalized_trailer_path_path = normalized_trailer_path_pattern
                 # would do.
-                
+
                 cached_normalized_trailers: List[str] = \
                     glob.glob(normalized_trailer_path_pattern)
                 if len(cached_normalized_trailers) > 0:
