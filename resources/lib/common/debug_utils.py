@@ -44,6 +44,7 @@ class Debug:
     @classmethod
     def dump_dictionary(cls, d: Dict[str, Any], prefix: str = '',
                         heading: str = '',
+                        include_type: bool = False,
                         log_level=LazyLogger.DISABLED) -> None:
         """
             Dump key and value fields of a dictionary in human
@@ -65,7 +66,10 @@ class Debug:
                         child_prefix = f'{prefix}{k}: '
                         cls.dump_dictionary(v, prefix=child_prefix)
                     else:
-                        cls._logger.debug(f'{prefix}{k} : {v}',
+                        the_type = ''
+                        if include_type:
+                            the_type = f'{type(v)} -'
+                        cls._logger.debug(f'{prefix}{k} : {the_type}{v}',
                                           log_level=log_level)
 
     @classmethod
