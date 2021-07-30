@@ -45,12 +45,15 @@ class MovieManager:
     CLOSE_CURTAIN: Final[bool] = False
 
     _logger: LazyLogger = None
+    instance: ForwardRef('MovieManager') = None
 
     def __init__(self) -> None:
         """
         """
         clz = type(self)
-        clz._logger = module_logger.getChild(self.__class__.__name__)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(self.__class__.__name__)
+
         super().__init__()
         self._movie_history_cursor: bool = None
         FrontendBridge()
@@ -61,6 +64,19 @@ class MovieManager:
         self.pre_fetch_trailer()
         self._play_state: TrailerPlayState = TrailerPlayState.NOTHING
         self._changed = False
+        self._instance = self
+
+    def has_next_trailer(self) -> bool:
+        """
+        Returns True unless:
+            1) set to return Previous Trailer
+            2) there is no previous trailer
+
+        :return:
+        """
+        if self._play_state == TrailerPlayState.PLAY_PREVIOUS_TRAILER:
+            return HistoryList.has_previous_trailer()
+        return True
 
     def get_next_trailer(self) -> (str, AbstractMovie):
         """
@@ -83,7 +99,7 @@ class MovieManager:
         # recent action. Likely this will only impact expensive operations, such
         # as get next trailer.
 
-        if self._logger.isEnabledFor(LazyLogger.DISABLED):
+        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             self._logger.debug(f'play_state: {self._play_state}')
         while self._changed:
             self._changed = False  # Flip to True if additional user event occurs
@@ -122,7 +138,7 @@ class MovieManager:
                             trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
                         Monitor.throw_exception_if_abort_requested(timeout=0.001)
 
-                    if self._logger.isEnabledFor(LazyLogger.DISABLED):
+                    if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         self._logger.debug(f'play_state: {self._play_state} '
                                            f'trailer: {trailer is not None} '
                                            f'changed: {self._changed}')
@@ -143,7 +159,7 @@ class MovieManager:
                         trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
                     Monitor.throw_exception_if_abort_requested(timeout=0.001)
 
-                if self._logger.isEnabledFor(LazyLogger.DISABLED):
+                if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     self._logger.debug(f'play_state: {self._play_state} '
                                        f'trailer: {trailer is not None} '
                                        f'changed: {self._changed}')
@@ -233,9 +249,10 @@ class MovieManager:
     # entry. User can traverse backwards through shown
     # trailers
 
-    def play_previous_trailer(self) -> None:
+    def queue_previous_trailer(self) -> None:
         """
-
+        The next trailer returned by get_next_trailer will be the
+        logically previous trailer from our queue of trailers
         :return:
         """
 
@@ -245,9 +262,10 @@ class MovieManager:
         self._play_state = TrailerPlayState.PLAY_PREVIOUS_TRAILER
         self._changed = True
 
-    def play_next_trailer(self) -> None:
+    def queue_next_trailer(self) -> None:
         """
-
+         The next trailer returned by get_next_trailer
+         will be the logically next trailer from our queue of trailers
         :return:
         """
 
@@ -257,7 +275,7 @@ class MovieManager:
         self._play_state = TrailerPlayState.PLAY_NEXT_TRAILER
         self._changed = True
 
-    def play_curtain_next(self, curtain_type):
+    def queue_curtain(self, curtain_type):
         clz = type(self)
         if curtain_type == MovieManager.OPEN_CURTAIN:
             self._play_state = TrailerPlayState.PLAY_OPEN_CURTAIN_NEXT
@@ -280,4 +298,3 @@ class TrailerPlayEvent(threading.Thread):
 
     def cancel_event(self):
         pass
-

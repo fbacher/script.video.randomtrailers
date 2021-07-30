@@ -44,7 +44,7 @@ class Constants:
     TRAILER_INFO_DISPLAY_MILLISECONDS: Final[int] = 6000
     SECONDS_BEFORE_RESHUFFLE: Final[int] = 1 * 60
     PLAY_LIST_LOOKBACK_WINDOW_SIZE: Final[int] = 10
-    MAX_PLAY_TIME_WARNING_TIME: Final[int] = 5  # seconds
+    NOTIFICATION_SECONDS: Final[int] = 5  # seconds
     # BACKEND_SERVICE = 'randomTrailers.backend'
     FRONTEND_SERVICE: Final[str] = 'randomTrailers'
     BACKEND_SERVICE: Final[str] = FRONTEND_SERVICE

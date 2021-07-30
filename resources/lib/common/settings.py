@@ -1295,9 +1295,9 @@ class Settings:
         return Settings.get_setting_bool(Settings.REPORT_TAG_STATS)
 
     @staticmethod
-    def get_max_trailer_length() -> int:
+    def get_max_trailer_play_seconds() -> int:
         """
-
+            Maximum seconds to play a trailer
         :return:
         """
         return Settings.get_setting_int(Settings.MAXIMUM_TRAILER_LENGTH)
