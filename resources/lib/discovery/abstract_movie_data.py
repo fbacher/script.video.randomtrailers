@@ -576,7 +576,7 @@ class AbstractMovieData:
             reshuffle = True
 
         if reshuffle:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                 clz.logger.debug_extra_verbose(
                     f'seconds_since_last_shuffle: {seconds_since_last_shuffle} '
                     f'current size: {current_size} '
@@ -653,11 +653,18 @@ class AbstractMovieData:
                     #                      'state:', movie[Movie.DISCOVERY_STATE])
                     self._discovered_movies_queue.put(movie)
 
-            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                clz.logger.debug_extra_verbose('_discoveredTrailerQueue length:',
-                                               self._discovered_movies_queue.qsize(),
-                                               '_discovered_movies length:',
-                                               len(self._discovered_movies))
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                seconds_since_last_shuffle: int = (
+                        datetime.datetime.now() - self._last_shuffle_time).seconds
+                last_shuffled_at_size = self._last_shuffled_index
+                current_size = len(self._discovered_movies)
+                clz.logger.debug_extra_verbose(
+                    f'seconds_since_last_shuffle: {seconds_since_last_shuffle} '
+                    f'current size: {current_size} '
+                    f'previous size: {last_shuffled_at_size}'
+                    f'_discoveredTrailerQueue length: '
+                    f'{self._discovered_movies_queue.qsize()}',
+                    trace=Trace.TRACE_DISCOVERY)
 
     def get_number_of_movies(self) -> int:
         """
