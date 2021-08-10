@@ -25,7 +25,7 @@ from common.exceptions import AbortException
 from common.logger import LazyLogger
 from common.messages import Messages
 from common.monitor import Monitor
-from common.movie import TMDbMovieId, BaseMovie
+from common.movie import AbstractMovie, TMDbMovieId, BaseMovie
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
@@ -1225,13 +1225,27 @@ class CacheIndex:
         :return:
          """
         tmdb_id: int
-        if isinstance(arg_tmdb_id, BaseMovie):
-            tmdb_id = int(arg_tmdb_id.get_id())
-        else:
+
+        if arg_tmdb_id is None:
+            cls._logger.debug(f'arg_tmdb_id is None')
+
+        cls._logger.debug(f'arg_tmdb_id: {type(arg_tmdb_id)}')
+        tmdb_id: int = None
+        if isinstance(arg_tmdb_id, TMDbMovieId):
+            tmdb_id = int(arg_tmdb_id.get_tmdb_id())
+        elif isinstance(arg_tmdb_id, AbstractMovie):
+            abstract_movie: AbstractMovie = arg_tmdb_id
+            tmdb_id = abstract_movie.get_tmdb_id()
+        elif isinstance(arg_tmdb_id, int) or isinstance(arg_tmdb_id, str):
             tmdb_id = int(arg_tmdb_id)
+        else:
+            cls._logger.debug(f'Unexpected tmdb_id argument')
+            return
+        if tmdb_id is None:
+            cls._logger.debug('tmdb_id is None')
+            return
         with CacheIndex.lock:
             try:
-
                 cls._unprocessed_tmdb_trailer_ids.remove(tmdb_id)
                 cls._unprocesseed_movie_changes += 1
             except KeyError:
