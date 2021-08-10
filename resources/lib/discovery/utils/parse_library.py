@@ -13,6 +13,8 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
 
 
 class ParseLibrary:
+    DEFAULT_LAST_PLAYED_DATE: str = '1900-01-01 01:01:01'
+
     _logger: LazyLogger = None
 
     def __init__(self, library_entry: Dict[str, Any]) -> None:
@@ -37,14 +39,22 @@ class ParseLibrary:
         return title
 
     def parse_last_played(self) -> None:
+        clz = type(self)
         last_played: str = self._library_entry.get(MovieField.LAST_PLAYED,
-                                                   '1900-01-01 01:01:01')
+                                                   clz.DEFAULT_LAST_PLAYED_DATE)
 
         if last_played == '':
-            last_played = '1900-01-01 01:01:01'
+            last_played = clz.DEFAULT_LAST_PLAYED_DATE
+
         pd = time.strptime(last_played, '%Y-%m-%d %H:%M:%S')
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug(f'last_played type: {type(pd)} xform: {pd}')
         pd = time.mktime(pd)
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug(f'last_played mktime: {pd}')
         last_played_time: datetime = datetime.fromtimestamp(pd)
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug(f'last_played final: {type(last_played_time)} {last_played_time}')
         self._movie.set_last_played(last_played_time)
 
     def parse_certification(self) -> None:
