@@ -823,7 +823,7 @@ msgid "Configure Settings on Manual Startup"
 msgstr ""
 
 msgctxt "#32151"
-msgid "Maximum Trailer Length (seconds)"
+msgid "Maximum Seconds to Play Trailer"
 msgstr ""
 
 msgctxt "#32152"
