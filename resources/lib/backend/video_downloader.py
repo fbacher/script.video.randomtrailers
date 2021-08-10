@@ -3,7 +3,9 @@ Created on Apr 5, 2019
 
 @author: Frank Feuerbacher
 """
+import xbmc
 
+from common.debug_utils import Debug
 from common.imports import *
 
 import datetime
@@ -52,8 +54,8 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 # Delay two hours after encountering 429 (too many requests)
 RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
-LOG_ALL = False
-LOGGER_ENABLE_LEVEL = LazyLogger.DISABLED
+LOG_ALL = True # False
+LOGGER_ENABLE_LEVEL = LazyLogger.DEBUG_EXTRA_VERBOSE # LazyLogger.DISABLED
 
 
 class VideoDownloader:
@@ -69,6 +71,7 @@ class VideoDownloader:
     FORBIDDEN = 403
     NOT_FOUND = 404
     ADULT = 14
+    ABORT_REQUESTED = 99
 
     # Initialize to a year ago
     # Is an estimate of when the Too Many Requests will expire
@@ -106,7 +109,7 @@ class VideoDownloader:
 
     _youtube_lock: threading.RLock = threading.RLock()
     _itunes_lock: threading.RLock = threading.RLock()
-    locks = {
+    locks: Dict[str, threading.RLock] = {
         MovieField.ITUNES_SOURCE: _itunes_lock,
         MovieField.LIBRARY_SOURCE: _youtube_lock,
         MovieField.TMDB_SOURCE: _youtube_lock,
@@ -193,6 +196,10 @@ class VideoDownloader:
         try:
             cls.get_lock(source)  # Block new transaction
             # HAVE LOCK
+            cls._logger.debug(f'HAVE LOCK: '
+                              f'{cls.get_lock_source(source)} '
+                              f'for {source}')
+
             if source == MovieField.ITUNES_SOURCE:
                 waited: datetime.timedelta = (
                         datetime.datetime.now() - cls._last_itunes_request_timestamp)
@@ -205,6 +212,9 @@ class VideoDownloader:
 
         finally:
             cls.release_lock(source)
+            cls._logger.debug(f'RELEASED LOCK '
+                              f'{cls.get_lock_source(source)} '
+                              f'for {source}')
 
         # LOCK RELEASED
 
@@ -247,6 +257,9 @@ class VideoDownloader:
         try:
             clz.get_lock(source)
             # HAVE LOCK
+            clz._logger.debug(f'HAVE LOCK: '
+                              f'{clz.get_lock_source(source)} '
+                              f'for {source}')
 
             if not block:
                 too_many_requests = clz.check_too_many_requests(url, source)
@@ -287,24 +300,37 @@ class VideoDownloader:
                 ydl_opts['cookiefile'] = cookie_path
 
             # Start download
-            # Sometimes fail with Nonetype or other errors because of a URL that
+            # Sometimes fail with None type or other errors because of a URL that
             # requires a login, is for an ADULT movie, etc.
 
             # clz._logger.debug_extra_verbose(f'title: {title} starting download')
 
+            rc: int = 0
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 try:
-                    ydl.download([url])
+                    rc = ydl.download([url])
                 except DownloadError as e:
-                    clz._logger.error(e.args)
+                    for arg in e.args:
+                        if 'Video unavailable' in arg:
+                            self.set_error(VideoDownloader.UNAVAILABLE)
+                            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                clz._logger.debug_extra_verbose(f'error UNAVAILABLE arg: '
+                                                                f'{arg}')
+                        elif clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            clz._logger.debug_verbose(f'error GENERIC DOWNLOAD arg: '
+                                                      f'{arg}')
 
+            clz._logger.debug(f'ydl.download rc: {rc} error: {self._error}')
+            wait_attempts: int = 0
+            ten_minutes: int = 10 * 60 * 2
             while (video_logger.data is None and self._error == 0 and not
                     self._download_finished):
+                if wait_attempts > ten_minutes:
+                    clz._logger.error(f'VideoDownloader appears stuck. Exiting')
+                    self.set_error(VideoDownloader.DOWNLOAD_ERROR)
                 Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
             movie: MovieType = video_logger.data
-            if movie is None:
-                self._error = VideoDownloader.DOWNLOAD_ERROR
             if self._error == 0:
                 trailer_file = os.path.join(folder, f'_rt_{movie_id}*')
                 trailer_file = glob.glob(trailer_file)
@@ -313,7 +339,18 @@ class VideoDownloader:
                         trailer_file = trailer_file[0]
                     #
                     # Don't know why, but sometimes youtube_dl returns incorrect
-                    # file extension
+                    # file extension.
+                    #
+                    # Also, sometimes youtube_dl does not always inform the
+                    # VideoLogger of the download. In this case we generate
+                    # the expected return structure here
+                    #
+                    if movie is None:
+                        # The only field expected
+                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz._logger.debug_extra_verbose(f'movie is None: {title}')
+
+                        movie = {MovieField.TRAILER: trailer_file}
 
                     movie.setdefault(MovieField.TRAILER, trailer_file)
                     if trailer_file != movie[MovieField.TRAILER]:
@@ -325,7 +362,7 @@ class VideoDownloader:
 
                         movie[MovieField.TRAILER] = trailer_file
         except AbortException:
-            self.set_error(99, force=True)
+            self.set_error(VideoDownloader.ABORT_REQUESTED, force=True)
             movie = None
             to_delete = os.path.join(folder, f'_rt_{movie_id}*')
             to_delete = glob.glob(to_delete)
@@ -342,6 +379,9 @@ class VideoDownloader:
         finally:
             clz.release_lock(source)
             # LOCK RELEASED
+            clz._logger.debug(f'RELEASED LOCK: '
+                              f'{clz.get_lock_source(source)} '
+                              f'for {source}')
 
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
@@ -392,6 +432,9 @@ class VideoDownloader:
         try:
             clz.get_lock(movie_source)
             # HAVE LOCK
+            clz._logger.debug(f'HAVE LOCK '
+                              f'{clz.get_lock_source(movie_source)} '
+                              f'for {movie_source}')
 
             if not block:
                 too_many_requests = clz.check_too_many_requests(url, movie_source)
@@ -421,7 +464,12 @@ class VideoDownloader:
                 try:
                     ydl.download([url])
                 except DownloadError as e:
-                    clz._logger.error(e.args)
+                    for arg in e.args:
+                        if arg in 'ERROR: Video unavailable':
+                            self.set_error(VideoDownloader.UNAVAILABLE)
+                            clz._logger.debug(f'error? {arg}')
+                        else:
+                            clz._logger.error(f'error? {arg}')
 
             # Wait for download
 
@@ -443,6 +491,10 @@ class VideoDownloader:
             trailer_info = []
         finally:
             clz.release_lock(movie_source)  # LOCK RELEASED
+            clz._logger.debug(f'RELEASED LOCK '
+                              f'{clz.get_lock_source(movie_source)} '
+                              f'for {movie_source}')
+
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
             else:
@@ -451,7 +503,7 @@ class VideoDownloader:
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
 
-        if LOG_ALL or self._error not in (0, 99):
+        if LOG_ALL or self._error not in (0, VideoDownloader.ABORT_REQUESTED):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
             info_logger.log_debug()
             info_logger.log_warning()
@@ -488,6 +540,9 @@ class VideoDownloader:
         try:
             clz.get_lock(MovieField.TFH_SOURCE)
             # HAVE LOCK
+            clz._logger.debug(f'HAVE LOCK '
+                              f'{clz.get_lock_source(MovieField.TFH_SOURCE)} '
+                              f'for {MovieField.TFH_SOURCE}')
 
             if not block:
                 too_many_requests = clz.check_too_many_requests(url,
@@ -557,8 +612,12 @@ class VideoDownloader:
                 try:
                     ydl.download([url])
                 except DownloadError as e:
-                    clz._logger.error(e.args)
-
+                    for arg in e.args:
+                        if arg in 'ERROR: Video unavailable':
+                            self.set_error(VideoDownloader.UNAVAILABLE)
+                            clz._logger.debug(f'error? {arg}')
+                        else:
+                            clz._logger.error(f'error? {arg}')
         except AbortException:
             reraise(*sys.exc_info())
 
@@ -567,6 +626,9 @@ class VideoDownloader:
                 clz._logger.exception(f'Error downloading: url: {url}')
         finally:
             clz.release_lock(MovieField.TFH_SOURCE)
+            clz._logger.debug(f'RELEASED LOCK '
+                              f'{clz.get_lock_source(MovieField.TFH_SOURCE)} '
+                              f'for {MovieField.TFH_SOURCE}')
 
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
@@ -576,7 +638,7 @@ class VideoDownloader:
                         datetime.datetime.now() + (
                             RETRY_DELAY * VideoDownloader._retry_attempts))
 
-        if LOG_ALL or self._error not in (0, 99):
+        if LOG_ALL or self._error not in (0, VideoDownloader.ABORT_REQUESTED):
             clz._logger.debug('Results for url:', url, 'error:', self._error)
             tfh_index_logger.log_error()
             tfh_index_logger.log_debug()
@@ -590,28 +652,33 @@ class VideoDownloader:
     @classmethod
     def get_lock(cls, source: str):
         lock_source = cls.get_lock_source(source)
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_extra_verbose(f'Getting Lock: {lock_source} '
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls._logger.debug_extra_verbose(f'GETTING LOCK: {lock_source} '
                                             f'for {source}')
+            LazyLogger.dump_stack('Getting Lock',
+                                  heading='VideoDownloader Getting Lock',
+                                  xbmc_log_level=xbmc.LOGDEBUG)
 
         while not cls.locks[source].acquire(blocking=False):
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_extra_verbose(f'Got Lock: {source}')
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls._logger.debug_extra_verbose(f'HAVE LOCK: {lock_source} for {source}')
 
     @classmethod
     def release_lock(cls, source: str):
         lock_source = cls.get_lock_source(source)
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_extra_verbose(f'Releasing Lock: {lock_source} '
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls._logger.debug_extra_verbose(f'RELEASING LOCK: {lock_source} '
                                             f'for {source}')
+            LazyLogger.dump_stack(heading='VideoDowloader Releasing Lock',
+                                  xbmc_log_level=xbmc.LOGDEBUG)
 
         cls.locks[source].release()
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_extra_verbose(f'Released Lock {source}')
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls._logger.debug_extra_verbose(f'RELEASED LOCK {lock_source} for {source}')
 
     @classmethod
     def get_lock_source(cls, source: str) -> str:
@@ -627,12 +694,12 @@ class BaseYDLogger:
       - to scan and respond to events, such as json-text or diagnostic msgs
     """
 
-    logger = None
+    _logger: LazyLogger = None
 
     def __init__(self, downloader: VideoDownloader, url: str,
                  parse_json_as_youtube: bool = True) -> None:
         clz = type(self)
-        clz.logger = module_logger.getChild(clz.__name__)
+        clz._logger = module_logger.getChild(clz.__name__)
         self.debug_lines: List[str] = []
         self.warning_lines: List[str] = []
         self.error_lines: List[str] = []
@@ -646,16 +713,17 @@ class BaseYDLogger:
 
     def set_error(self, rc: int, force: bool = False) -> None:
         clz = BaseYDLogger
+
         if self._downloader._error == 0 or force:
             self._downloader._error = rc
             if (rc == Constants.HTTP_TOO_MANY_REQUESTS
-                and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-                type(self).logger.debug_extra_verbose(
+                and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                type(self)._logger.debug_extra_verbose(
                     f'Abandoning download of {self.url}. Too Many Requests')
         if rc == Constants.HTTP_UNAUTHORIZED:
-            clz.logger.info(f'Not authorized to download {self.url}.')
+            clz._logger.info(f'Not authorized to download {self.url}.')
         if rc != 0:
-            clz.logger.debug(f'RC: {rc:d}')
+            clz._logger.debug(f'RC: {rc:d}')
 
     def debug(self, line: str) -> None:
         """
@@ -696,13 +764,15 @@ class BaseYDLogger:
         :return:
         """
         clz = type(self)
+        self.debug_lines.append(line)
+        clz._logger.debug(f'line: {line}')
+
         # self._parsed_movie = None
         if Monitor.is_abort_requested():
-            self.set_error(99, force=True)
+            self.set_error(VideoDownloader.ABORT_REQUESTED, force=True)
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
-        self.debug_lines.append(line)
         '''
         if line.startswith('[download] Downloading video'):
             try:
@@ -710,7 +780,7 @@ class BaseYDLogger:
                 self.index = int(index_str)
                 self.total = int(total_str)
             except Exception as e:
-                clz.logger.exception(f'url: {self.url}')
+                clz._logger.exception(f'url: {self.url}')
                 self.set_error(1)
         '''
 
@@ -718,24 +788,39 @@ class BaseYDLogger:
             # "_type playlist" lists summary information for each movie in playlist
             try:
                 self.raw_data = json.loads(line)
+                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    try:
+                        json_text = json.dumps(self.raw_data,
+                                               ensure_ascii=False,
+                                               indent=3, sort_keys=True)
+                        self._logger.debug(f'JSON DUMP: {json_text}')
+                    except Exception:
+                        self._logger.exception(f'dumping JSON')
+
                 if self._parse_json_as_youtube:
                     self._parsed_movie = clz.populate_youtube_movie_info(self.raw_data,
                                                                          self.url)
             except Exception as e:
-                clz.logger.exception(f'url: {self.url}')
+                clz._logger.exception(f'url: {self.url} line: {line}')
                 self.set_error(VideoDownloader.PARSE_ERROR)
         elif line.startswith('{"id":'):
             # "id" describes single downloaded movie
             try:
                 self.raw_data = json.loads(line)
-                # VideoDownloader._retry_attempts = 0
+                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    try:
+                        json_text = json.dumps(self.raw_data,
+                                               ensure_ascii=False,
+                                               indent=3, sort_keys=True)
+                        self._logger.debug(f'JSON DUMP: {json_text}')
+                    except Exception:
+                        self._logger.exception(f'dumping JSON')
+
                 if self._parse_json_as_youtube:
                     self._parsed_movie = clz.populate_youtube_movie_info(self.raw_data,
                                                                          self.url)
-
-                # self._trailer_handler(movie_data)
             except Exception as e:
-                clz.logger.exception(f'url: {self.url}')
+                clz._logger.exception(f'url: {self.url} line: {line}')
                 self.set_error(2)
 
     @classmethod
@@ -749,6 +834,9 @@ class BaseYDLogger:
         dump_json = False
         missing_keywords = []
         try:
+            Debug.dump_dictionary(movie_data, heading='VideoLogger Dump',
+                                  log_level=LazyLogger.DEBUG)
+            dump_json = True
             trailer_id = movie_data.get('id')
             if trailer_id is None:
                 missing_keywords.append('id')
@@ -808,10 +896,10 @@ class BaseYDLogger:
                      }
         except Exception as e:
             dump_json = True
-            cls.logger.exception(f'url: {url}')
+            cls._logger.exception(f'url: {url}')
         if dump_json:
-            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
-                cls.logger.debug('Missing json data. Missing keywords:',
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                cls._logger.debug('Missing json data. Missing keywords:',
                                  ', '.join(missing_keywords), 'URL:', url,
                                  '\njson:',
                                  json.dumps(movie_data,
@@ -820,14 +908,18 @@ class BaseYDLogger:
         return movie
 
     def warning(self, line: str) -> None:
+        clz = type(self)
+        clz._logger.debug(f'line: {line}')
+
+        self.warning_lines.append(line)
+
         if 'HTTP Error 403' in line:
             self.set_error(VideoDownloader.FORBIDDEN)
         elif 'HTTP Error 404' in line:
             self.set_error(VideoDownloader.NOT_FOUND)
 
-
         if Monitor.is_abort_requested():
-            self.set_error(99, force=True)
+            self.set_error(VideoDownloader.ABORT_REQUESTED, force=True)
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
@@ -835,19 +927,24 @@ class BaseYDLogger:
             # str: Requested formats are incompatible for merge and will be merged into
             # mkv.
             pass
-        else:
-            self.warning_lines.append(line)
+        # else:
+        #     self.warning_lines.append(line)
 
     def error(self, line: str) -> None:
+        clz = type(self)
+
+        clz._logger.debug(f'line: {line}')
+
+        self.error_lines.append(line)
         if Monitor.is_abort_requested():
-            self.set_error(99, force=True)
+            self.set_error(VideoDownloader.ABORT_REQUESTED, force=True)
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
         clz = BaseYDLogger
         if 'Error Constants.HTTP_TOO_MANY_REQUESTS' in line:
             self.set_error(Constants.HTTP_TOO_MANY_REQUESTS, force=True)
-            type(self).logger.info(
+            type(self)._logger.info(
                 'Abandoning download. Too Many Requests')
         # str: ERROR: (ExtractorError(...), 'wySw1lhMt1s: YouTube said: Unable
         # to extract video data')
@@ -857,10 +954,10 @@ class BaseYDLogger:
             self.set_error(VideoDownloader.BLOCKED_ERROR)
         elif 'unavailable' in line:
             self.set_error(VideoDownloader.UNAVAILABLE)
-        elif 'ERROR: Sign in to confirm your age':
+        elif 'ERROR: Sign in to confirm your age' in line:
             self.set_error(VideoDownloader.ADULT)
         else:
-            self.error_lines.append(line)
+            clz._logger.error(f'error? {line}')
 
     def get_debug(self) -> List[str]:
         """
@@ -884,13 +981,13 @@ class BaseYDLogger:
         return self.error_lines
 
     def log_lines(self, lines: List[str], label: str) -> None:
-        if self._downloader._error == 99:
+        if self._downloader._error == VideoDownloader.ABORT_REQUESTED:
             return
 
         clz = BaseYDLogger
         text = '\n'.join(lines)
-        if type(self).logger.isEnabledFor(LOGGER_ENABLE_LEVEL):
-            type(self).logger.debug_extra_verbose(label, text)
+        if type(self)._logger.isEnabledFor(LOGGER_ENABLE_LEVEL):
+            type(self)._logger.debug_extra_verbose(label, text)
 
     def log_debug(self) -> None:
         self.log_lines(self.debug_lines, 'DEBUG:')
@@ -903,13 +1000,13 @@ class BaseYDLogger:
 
 
 class TfhIndexLogger(BaseYDLogger):
-    logger = None
+    _logger = None
 
     def __init__(self, downloader: VideoDownloader,
                  trailer_handler, url: str) -> None:
         super().__init__(downloader, url, parse_json_as_youtube=True)
         clz = type(self)
-        clz.logger = module_logger.getChild(clz.__name__)
+        clz._logger = module_logger.getChild(clz.__name__)
         self._trailer_handler = trailer_handler
 
     def debug(self, line: str) -> None:
@@ -959,15 +1056,21 @@ class TfhIndexLogger(BaseYDLogger):
                 #
                 self._downloader.release_lock(MovieField.TFH_SOURCE)
                 # LOCK RELEASED
+                clz._logger.debug(f'RELEASED LOCK '
+                                  f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
+                                  f'for {MovieField.TFH_SOURCE}')
 
                 # ..... Some other thread can get video
 
                 # GET LOCK
                 self._downloader.get_lock(MovieField.TFH_SOURCE)
                 # HAVE LOCK
+                clz._logger.debug(f'HAVE LOCK '
+                                  f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
+                                  f'for {MovieField.TFH_SOURCE}')
 
             except Exception as e:
-                type(self).logger.exception(f'url: {self.url}')
+                type(self)._logger.exception(f'url: {self.url}')
 
     @classmethod
     def populate_youtube_movie_info(cls, movie_data: MovieType,
@@ -1042,10 +1145,10 @@ class TfhIndexLogger(BaseYDLogger):
                      }
         except Exception as e:
             dump_json = True
-            cls.logger.exception(f'url: {url}')
+            cls._logger.exception(f'url: {url}')
         if dump_json:
-            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
-                cls.logger.debug('Missing json data. Missing keywords:',
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                cls._logger.debug('Missing json data. Missing keywords:',
                                  ', '.join(missing_keywords), 'URL:', url,
                                  '\njson:',
                                  json.dumps(movie_data,
@@ -1055,15 +1158,15 @@ class TfhIndexLogger(BaseYDLogger):
 
 
 class VideoLogger(BaseYDLogger):
-    logger = None
+    _logger = None
 
     def __init__(self, downloader: VideoDownloader, url: str,
                  parse_json_as_youtube: bool) -> None:
         super().__init__(downloader, url,
                          parse_json_as_youtube=parse_json_as_youtube)
         clz = type(self)
-        if clz.logger is None:
-            clz.logger = module_logger.getChild(clz.__name__)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
         self.data: MovieType = None
 
     def debug(self, line: str) -> None:
@@ -1080,7 +1183,7 @@ class VideoLogger(BaseYDLogger):
 
 
 class TfhInfoLogger(BaseYDLogger):
-    logger = None
+    _logger = None
     country_id = None
     certifications = None
     unrated_id = None
@@ -1089,8 +1192,8 @@ class TfhInfoLogger(BaseYDLogger):
                  parse_json_as_youtube: bool = False) -> None:
         super().__init__(downloader, url, parse_json_as_youtube=parse_json_as_youtube)
         clz = type(self)
-        if clz.logger is None:
-            clz.logger = module_logger.getChild(clz.__name__)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
             clz.country_id = Settings.get_country_iso_3166_1().lower()
             clz.certifications = WorldCertifications.get_certifications(clz.country_id)
             clz.unrated_id = clz.certifications.get_unrated_certification().get_preferred_id()
@@ -1135,11 +1238,11 @@ class BaseInfoHook:
     def status_hook(self, status: Dict[str, str]) -> None:
         clz = type(self)
         if Monitor.is_abort_requested():
-            self.set_error(99)
+            self.set_error(VideoDownloader.ABORT_REQUESTED)
             # Kill YoutubeDL
             Monitor.throw_exception_if_abort_requested()
 
-        status_str = status.get('status', 'missing status')
+        status_str = status.get('status', None)
         if status_str is None:
             clz._logger.debug('Missing status indication')
         elif status_str == 'downloading':
@@ -1163,7 +1266,14 @@ class BaseInfoHook:
             self._downloader._download_finished = True
             VideoDownloader._retry_attempts = 0
 
-            clz._logger.debug('Finished')
+            '''
+             /home/fbacher/.kodi/temp/_rt_tmdb_27972_Dark Victory (1939) Official Trailer - Bette Davis, Humphrey Bogart Drama Movie HD.f140.m4a
+            [ffmpeg] Merging formats into "/home/fbacher/.kodi/temp/_rt_tmdb_27972_Dark Victory (1939) Official Trailer - Bette Davis, Humphrey Bogart Drama Movie HD.mkv"
+            '''
+            clz._logger.debug(f'Finished file: {filename} fragment: {fragment_index} '
+                              f'fragment_count: {fragment_count}')
+        else:
+            clz._logger.debug(f'status_str: {status_str} status: {str(status)}')
 
 
 class TrailerInfoProgressHook(BaseInfoHook):
