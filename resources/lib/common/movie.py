@@ -429,13 +429,15 @@ class AbstractMovie(BaseMovie):
         return self.get_title()
 
     def null_check(self) -> None:
+        clz = type(self)
         nulls_found: List[str] = []
         for (key, value) in self._movie_info.items():
             if value is None:
                 nulls_found.append(key)
 
-        if len(nulls_found) > 0:
-            type(self)._logger.debug_extra_verbose(', '.join(nulls_found))
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if len(nulls_found) > 0:
+                clz._logger.debug_extra_verbose(', '.join(nulls_found))
 
     @classmethod
     def class_init(cls):
@@ -500,19 +502,41 @@ class AbstractMovie(BaseMovie):
         return self._movie_info[MovieField.CACHED]
 
     def get_cached_trailer(self) -> Union[str, None]:
-        return self._movie_info.setdefault(MovieField.CACHED_TRAILER, '')
+        clz = type(self)
+        cached_path: str = self._movie_info.setdefault(MovieField.CACHED_TRAILER, '')
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(f'movie: {self.get_title()} source: '
+                                            f'{self.get_source()} '
+                                            f'cached_path: {cached_path}')
+        return cached_path
 
     def has_cached_trailer(self):
-        return self.get_cached_trailer() != ''
+        clz = type(self)
+        is_cached: bool = self.get_cached_trailer() != ''
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(f'cached: {is_cached}')
+        return is_cached
 
     def set_cached_trailer(self, path: Union[str, None]) -> None:
         self._movie_info[MovieField.CACHED_TRAILER] = path
 
     def get_normalized_trailer_path(self) -> Union[str, None]:
-        return self._movie_info.setdefault(MovieField.NORMALIZED_TRAILER, '')
+        norm_path: str = self._movie_info.setdefault(MovieField.NORMALIZED_TRAILER, '')
+        clz = type(self)
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(f'movie: {self.get_title()} source: '
+                                            f'{self.get_source()} '
+                                            f'normalized path: {norm_path}')
+        return norm_path
 
     def has_normalized_trailer(self) -> bool:
-        return self.get_normalized_trailer_path() != ''
+        clz = type(self)
+        is_normalized = self.get_normalized_trailer_path() != ''
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(f'movie: {self.get_title()} source: '
+                                            f'{self.get_source()} '
+                                            f'is_normalized: {is_normalized}')
+        return is_normalized
 
     def set_normalized_trailer_path(self, path: str) -> None:
         self._movie_info[MovieField.NORMALIZED_TRAILER] = path
@@ -671,6 +695,7 @@ class AbstractMovie(BaseMovie):
 
         :return: (is_normalized, is_cached, path)
         """
+        clz = type(self)
         is_normalized: bool = False
         is_cached: bool = False
         trailer_path: str = None
@@ -683,7 +708,10 @@ class AbstractMovie(BaseMovie):
         else:
             trailer_path = self.get_trailer_path()
 
-        return (is_normalized, is_cached, trailer_path)
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'normalized: {is_normalized} cached: '
+                                            f'{is_cached} path: {trailer_path}')
+        return is_normalized, is_cached, trailer_path
 
     def is_trailer_url(self) -> bool:
         trailer_path = self.get_trailer_path()
@@ -903,7 +931,7 @@ class AbstractMovie(BaseMovie):
 
     def add_unique_id(self, id_type: str, value: str) -> bool:
         clz = type(self)
-        old_value: Any
+        old_value: Any = None
         try:
             old_value: Union[str, None] = self.get_unique_ids().get(id_type, None)
             self.get_unique_ids()[id_type] = value
@@ -946,7 +974,7 @@ class AbstractMovie(BaseMovie):
             return imdb_id
         except Exception as e:
             clz = type(self)
-            clz.logger.log_exception()
+            clz._logger.log_exception()
 
     def get_serializable(self) -> Dict[str, Any]:
         data: Dict[str, Any] = self.get_as_movie_type().copy()
@@ -975,6 +1003,9 @@ class AbstractMovie(BaseMovie):
 
     def is_sane(self, sane_values: MovieType) -> bool:
         clz = type(self)
+        if not clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            return True
+
         sane = True
         title: str = self.get_title()
         missing_keys: List[str] = []
