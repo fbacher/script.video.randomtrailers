@@ -229,7 +229,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 JsonUtilsBasic.get_kodi_json(query, dump_results=False)
             if query_result.get('error') is not None:
                 raise ValueError
-                
+
             Monitor.throw_exception_if_abort_requested()
             elapsed_time = datetime.datetime.now() - start_time
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -274,8 +274,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         if Settings.is_enable_movie_stats():
             movie_data = LibraryMovieStats()
 
-        movie: Dict[str, Any]
-
         movies_found: int = 0
         movies_with_trailer_urls: int = 0
         movies_with_local_trailers: int = 0
@@ -311,7 +309,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                         library_no_trailer_movies.append(movie)
 
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    if len(rejection_reasons) > 0: 
+                    if len(rejection_reasons) > 0:
                         rejection_reasons_str: List[str] = \
                             BaseMovie.get_rejection_reasons_str(rejection_reasons)
                         clz.logger.debug_extra_verbose(
@@ -528,4 +526,3 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                 return  # Just exit thread
             except Exception as e:
                 clz.logger.exception('')
-
