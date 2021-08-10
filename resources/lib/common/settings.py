@@ -111,7 +111,7 @@ class Settings:
     REPORT_TAG_STATS = 'report_tag_stats'
     REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS = 'max_report_top_actors'
     REPORT_GENRE_STATS = 'report_genre_stats'
-    MAXIMUM_TRAILER_LENGTH = 'max_trailer_length'
+    MAXIMUM_TRAILER_PLAY_SECONDS = 'maximum_trailer_play_seconds'
     MINIMUM_DAYS_SINCE_WATCHED = 'watched_days'
     NORMALIZE_VOLUME_OF_DOWNLOADED_TRAILERS = 'normalize_volume_of_downloaded_trailers'
     NORMALIZE_VOLUME_OF_LOCAL_TRAILERS = 'normalize_volume_of_local_trailers'
@@ -239,7 +239,7 @@ class Settings:
         REPORT_TAG_STATS,
         REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS,
         REPORT_GENRE_STATS,
-        MAXIMUM_TRAILER_LENGTH,
+        MAXIMUM_TRAILER_PLAY_SECONDS,
         MINIMUM_DAYS_SINCE_WATCHED,
         NORMALIZE_VOLUME_OF_DOWNLOADED_TRAILERS,
         NORMALIZE_VOLUME_OF_LOCAL_TRAILERS,
@@ -1295,12 +1295,12 @@ class Settings:
         return Settings.get_setting_bool(Settings.REPORT_TAG_STATS)
 
     @staticmethod
-    def get_max_trailer_play_seconds() -> int:
+    def get_max_trailer_play_seconds() -> float:
         """
             Maximum seconds to play a trailer
         :return:
         """
-        return Settings.get_setting_int(Settings.MAXIMUM_TRAILER_LENGTH)
+        return Settings.get_setting_float(Settings.MAXIMUM_TRAILER_PLAY_SECONDS)
 
     @staticmethod
     def get_media_path() -> str:

@@ -77,6 +77,8 @@ class BaseDialogStateMgr:
 
     @classmethod
     def get_instance(cls) -> ForwardRef('BaseDialogStateMgr'):
+        from frontend.dialog_controller import DialogStateMgr
+        DialogStateMgr.class_init()
         return BaseDialogStateMgr._real_manager
 
     @classmethod

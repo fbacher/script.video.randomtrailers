@@ -19,8 +19,8 @@ from common.logger import LazyLogger, Trace
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
-from frontend.dialog_utils import (MovieTimer, NotificationTimer, TrailerPlayer,
-                                   TrailerStatus)
+from frontend.dialog_utils import (MovieDetailsTimer, NotificationTimer, TrailerPlayer,
+                                   TrailerStatus, TrailerTimer)
 from frontend.front_end_exceptions import (SkipMovieException, StopPlayingGroup,
                                            UserExitException)
 from frontend.history_list import HistoryList
@@ -113,8 +113,9 @@ class DialogStateMgr(BaseDialogStateMgr):
 
             # TODO: There may be more to this...
 
-            MovieTimer.cancel_movie_timer('User Requested Exit', callback=None)
-            TaskLoop.get_player().stop()
+            MovieDetailsTimer.cancel('User Requested Exit', callback=None)
+            TrailerTimer.cancel('User Requested Exit', callback=None,
+                                stop_play=True)
 
         # Multiple groups can be played before exiting. Allow
         # them to be reset back to normal.
@@ -230,6 +231,10 @@ class TaskLoop(threading.Thread):
         cls._worker_thread = TaskLoop(name='TaskLoop')
         cls._worker_thread.start()
         cls._worker_thread._finished.wait()
+
+    @classmethod
+    def get_worker_thread(cls) -> ForwardRef('TaskLoop'):
+        return cls._worker_thread
 
     @classmethod
     def add_task(cls, *args: Task, **kwargs) -> None:
@@ -357,6 +362,12 @@ class TaskLoop(threading.Thread):
 
                     elif task == Task.SHOW_DETAILS_FINISHED:
                         clz._logger.debug('popped request for show_details_finished')
+
+                        # TODO: Had to disable due to manual cursor_right
+                        # broke this.
+
+                        self.playing_trailer(about_to_play=True,
+                                             playing=False)
                         if not self.is_playing_trailer(actively_playing=True):
                             # Actually play trailer now that display of details
                             # is over
@@ -401,7 +412,7 @@ class TaskLoop(threading.Thread):
                     elif task == Task.PAUSE_PLAY_MOVIE:
                         # Immediate action
                         clz._logger.debug('popped request for pause_play_movie')
-                        self._play_pause()
+                        self._pause()
 
                     elif task == Task.EXIT:
                         # Immediate action
@@ -490,19 +501,33 @@ class TaskLoop(threading.Thread):
                 self._movie.get_source())
         if movie_file == '':
             message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
-            NotificationTimer.add_notification(msg=message)
+            NotificationTimer.config(msg=message)
+            NotificationTimer.start()
         elif not DialogStateMgr.is_random_trailers_play_state(DialogState.NORMAL):
             message = Messages.get_msg(Messages.PLAYER_IDLE)
-            NotificationTimer.add_notification(msg=message)
+            NotificationTimer.config(msg=message)
+            NotificationTimer.start()
         else:
             clz._trailer_dialog.queue_movie(self._movie)
             DialogStateMgr.set_random_trailers_play_state(
                 DialogState.START_MOVIE_AND_EXIT)
-            MovieTimer.cancel_movie_timer(usage=f'Cancel playing trailer to play movie')
+            MovieDetailsTimer.cancel(f'Cancel playing trailer to play movie',
+                                     callback=None)
+            TrailerTimer.cancel(f'Cancel playing trailer to play movie',
+                                callback=None, stop_play=True)
 
-    def _play_pause(self) -> None:
-        # Immediate action
-        pass
+    def _play(self) -> None:
+        clz = type(self)
+        if self.get_player() is not None and self.get_player().is_paused():
+            clz._logger.debug(f'Resuming Play', trace=Trace.TRACE_UI_CONTROLLER)
+            self.get_player().resume_play()
+
+    def _pause(self) -> None:
+        clz = type(self)
+        if self.get_player() is not None and self.get_player().isPlaying():
+            # Pause playing trailer
+            clz._logger.debug(f'Pausing Player', trace=Trace.TRACE_UI_CONTROLLER)
+            self.get_player().pause_play()
 
     def _show_details(self):
         clz = type(self)
@@ -513,6 +538,8 @@ class TaskLoop(threading.Thread):
             clz._logger.debug(f'Not re-displaying unchanged movie details.')
             return
 
+        self._pause()
+        TrailerTimer.cancel(usage='to show details')
         missing_movie_details: bool = self._movie.is_folder_source()
         detail_info_display_time: int
         if self._future_details_timed:
@@ -524,22 +551,18 @@ class TaskLoop(threading.Thread):
                               detail_info_display_time > 0)
         if show_movie_details:
             scroll_plot = not self._movie.is_tfh()
-            player = clz.get_player()
-            if player is not None and player.isPlaying():
-                # Pause playing trailer
-                clz._logger.debug(f'Pausing Player',
-                                  trace=Trace.TRACE_UI_CONTROLLER)
-                player.pause_play()
 
+            #  TODO: this appears to be incorrect
+            #
             # Kill movie player timer 1) because time is paused on player
             #                         2) timer will interfere with show details
             #
-            MovieTimer.cancel_movie_timer(usage=f'hide_trailer')
-            MovieTimer.display_movie_details(scroll_plot=scroll_plot,
-                                             max_display_time=detail_info_display_time,
-                                             from_user_request=False,
-                                             wait_for_idle=True,
-                                             callback=self.show_details_finished)
+            MovieDetailsTimer.cancel(usage=f'Cancel any previous movie')
+            # TrailerTimer.cancel(usage=f'Cancel any previous movie')
+            MovieDetailsTimer.config(scroll_plot=scroll_plot,
+                                     display_seconds=detail_info_display_time,
+                                     callback_on_stop=self.show_details_finished)
+            MovieDetailsTimer.start()
 
     def show_details_finished(self):
         clz = type(self)
@@ -552,15 +575,26 @@ class TaskLoop(threading.Thread):
         TrailerPlayer.play_trailer(movie=self._movie,
                                    callback=self.play_trailer_finished)
 
-    def play_trailer_finished(self):
+    def play_trailer_finished(self, stop_play: bool = False):
         clz = type(self)
         clz._logger.debug(f'enter')
         clz.add_task(Task.PLAY_TRAILER_FINISHED)
 
     def _resume_play(self):
         clz = type(self)
-        TrailerStatus.set_show_trailer()
+        trailer_play_time: float
+        trailer_play_time = float(Settings.get_max_trailer_play_seconds())
+        trailer_play_time -= clz.get_player().getTime()
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'played time: {clz.get_player().getTime()} '
+                                            f'remaining_time: {trailer_play_time}',
+                                            trace=Trace.TRACE_UI_CONTROLLER)
+
+        MovieDetailsTimer.cancel(usage='SHOW_INFO, resume play')
+        TrailerTimer.config(callback_on_stop=self.play_trailer_finished,
+                            display_seconds=trailer_play_time)
         clz.get_player().resume_play()
+        TrailerTimer.start()
 
     def _exit_frontend(self) -> None:
         clz = type(self)
@@ -572,7 +606,8 @@ class TaskLoop(threading.Thread):
 
         DialogStateMgr.set_random_trailers_play_state(
                 DialogState.USER_REQUESTED_EXIT)
-        MovieTimer.cancel_movie_timer(usage=f'exit plugin')
+        MovieDetailsTimer.cancel(usage=f'exit plugin')
+        TrailerTimer.cancel(f'exit plugin', stop_play=True)
 
     def _add_to_playlist(self, playlist_number: int) -> None:
         """
@@ -586,22 +621,24 @@ class TaskLoop(threading.Thread):
         if playlist_name is None or playlist_name == '':
             message: str = Messages.get_formatted_msg(Messages.NOT_A_PLAYLIST,
                                                       str(playlist_number))
-            NotificationTimer.add_notification(msg=message)
+            NotificationTimer.config(msg=message)
         else:
             added = Playlist.get_playlist(playlist_name, playlist_format=True). \
                 add_to_smart_playlist(self._movie)
             if added:
                 message: str = Messages.get_formatted_msg(
                         Messages.MOVIE_ADDED_TO_PLAYLIST, playlist_name)
-                NotificationTimer.add_notification(msg=message)
             else:
                 message: str = Messages.get_formatted_msg(
                         Messages.MOVIE_ALREADY_ON_PLAYLIST, playlist_name)
-                NotificationTimer.add_notification(msg=message)
+            NotificationTimer.config(msg=message)
+
+        NotificationTimer.start()
 
     def _notify(self, msg: str = None) -> None:
         self._notification_msg = msg
-        NotificationTimer.add_notification(msg=msg)
+        NotificationTimer.config(msg=msg)
+        NotificationTimer.start()
 
     def _add_to_couch_potato(self) -> None:
         # Immediate Action
@@ -687,6 +724,7 @@ class TaskLoop(threading.Thread):
                     reraise(*sys.exc_info())
 
                 except SkipMovieException:
+                    clz._logger.debug_extra_verbose(f'Skipping Movie')
                     self._notify(msg="Skipping Movie")
                     reraise(*sys.exc_info())
 
@@ -696,7 +734,8 @@ class TaskLoop(threading.Thread):
                 Monitor.throw_exception_if_abort_requested(timeout=timeout)
                 attempts += 1
                 if attempts == 20:
-                    NotificationTimer.add_notification(msg='Waiting for movie data.')
+                    NotificationTimer.config(msg='Waiting for movie data.')
+                    NotificationTimer.start()
                     timeout = 0.5
         finally:
             if next_movie is None:
@@ -743,300 +782,5 @@ class TaskLoop(threading.Thread):
                 exact_match=True)
 
     @classmethod
-    def get_player(clz) -> MyPlayer:
+    def get_player(cls) -> MyPlayer:
         return DialogStateMgr.get_trailer_dialog().get_player()
-
-'''
-    def xxx(self) -> None:
-        """
-
-        :return:
-        """
-        clz = type(self)
-
-        number_of_trailers_played = 0
-        try:
-            # Main movie playing loop
-            while not clz.trailer_dialog.is_random_trailers_play_state():
-
-                # Get the video (or curtain) to display
-                try:
-                    self._get_next_trailer_start = datetime.datetime.now()
-                    status, self._movie = self._movie_manager.get_next_trailer()
-                    # if status == MovieStatus.PREVIOUS_MOVIE:
-                    #     msg = Messages.get_msg(
-                    #         Messages.PLAYING_PREVIOUS_MOVIE)
-                    #     msg = msg % self._movie.get_title()
-                    #     self.show_notification(msg)
-                except HistoryEmpty:
-                    msg = Messages.get_msg(
-                            Messages.NO_MORE_MOVIE_HISTORY)
-                    NotificationTimer.add_notification(msg=msg)
-                    continue
-
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz._logger.debug_verbose(f'got trailer to play: '
-                                              f'{self._movie.get_title()}')
-
-                video_is_curtain = (self._movie.get_source() == 'curtain')
-
-                # TODO: fix comment
-                # Screen will be black since both
-                # TrailerDialog.PLAYER_GROUP_CONTROL and
-                # ControlId.SHOW_DETAILS are, by default,
-                # not visible in script-trailerwindow.xml
-
-                # Wait until previous video is complete.
-                # Our event listeners will stop the player, as appropriate.
-
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose('wait for not playing 1')
-                self.get_player().wait_for_is_not_playing_video()
-
-                # Determine if Movie Title is to be displayed during play of
-                # movie
-
-                show_title_while_playing: bool = Settings.get_show_movie_title()
-
-                # Add movie to "playlist"
-
-                if not video_is_curtain:
-                    self._viewed_playlist.record_played_trailer(self._movie)
-
-                    # Determine if Movie Information is displayed prior to movie
-
-                self._source = self._movie.get_source()
-                show_movie_details = (
-                        Settings.get_time_to_display_detail_info() > 0)
-
-                # Trailers from a folder are ill-structured and have no
-                # identifying information.
-
-                show_movie_details = not self._movie.is_folder_source()
-
-                if video_is_curtain:
-                    show_movie_details = False
-                    show_title_while_playing = False
-
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose(
-                            'checking play_state 1')
-
-                # This will block if showing Movie Details
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose(
-                            f'about to show_movie_info movie: {self._movie.get_title()} '
-                            f'show_detail: {show_movie_details} '
-                            f'show title while playing: {show_title_while_playing} '
-                            f'block: {True}',
-                            trace=Trace.TRACE_UI_CONTROLLER)
-
-                scroll_plot = not self._movie.is_tfh()
-                missing_movie_details: bool = self._movie.is_folder_source()
-
-                TrailerPlayer.show_details_and_play(scroll_plot=scroll_plot,
-                                                    block_after_display_details=True,
-                                                    missing_movie_details=
-                                                    missing_movie_details,
-                                                    from_user_request=False)
-
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz._logger.debug_extra_verbose(
-                            f'finished show_details_and_play, movie: '
-                            f'{self._movie.get_title()}',
-                            trace=Trace.TRACE_UI_CONTROLLER)
-
-                # Play Trailer
-
-                # TODO: change to asynchronous so that it can occur while
-                # showing details
-
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose('checking play_state 2 movie:',
-                                                    self._movie.get_title())
-
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose(f'About to play: '
-                                                    f'{self._movie.get_title()} '
-                                                    f'path: '
-                                                    f'{self._movie.get_trailer_path()}',
-                                                    trace=Trace.TRACE_UI_CONTROLLER)
-
-                # show_movie_info, above, already calls this
-                # TrailerStatus.set_show_trailer()
-
-                (is_normalized, is_cached, trailer_path) = self._movie.get_optimal_trailer_path()
-                self.get_player().play_trailer(trailer_path, self._movie)
-
-                time_to_play_trailer = (datetime.datetime.now() -
-                                        self._get_next_trailer_start)
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose('started play_trailer:',
-                                                    self._movie.get_title(),
-                                                    'elapsed seconds:',
-                                                    time_to_play_trailer.total_seconds(),
-                                                    'source:', self._movie.get_source(),
-                                                    'normalized:', is_normalized,
-                                                    'cached:', is_cached,
-                                                    'path:', trailer_path)
-
-                # Again, we rely on our listeners to interrupt, as
-                # appropriate. Trailer/Movie should be about to be played or
-                # playing.
-
-                try:
-
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz._logger.debug_extra_verbose(
-                                'wait_for_is_playing_video 2 movie:',
-                                self._movie.get_title(),
-                                trace=Trace.TRACE_UI_CONTROLLER)
-                    if not self.get_player().wait_for_is_playing_video(path=trailer_path,
-                                                                       timeout=5.0):
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                            clz._logger.debug_extra_verbose(
-                                    'Timed out Waiting for Player.',
-                                    trace=Trace.TRACE_UI_CONTROLLER)
-
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz._logger.debug_extra_verbose(
-                                'checking play_state 4 movie:',
-                                self._movie.get_title())
-                    if self.is_random_trailers_play_state(
-                            DialogState.SKIP_PLAYING_TRAILER,
-                            exact_match=True):
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                            clz._logger.debug_extra_verbose(f'SKIP_PLAYING_TRAILER: '
-                                                            f'{self._movie.get_title()},'
-                                                            f'trace=Trace.TRACE_UI_CONTROLLER')
-                        continue
-                    if self.is_random_trailers_play_state(
-                            minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                            clz._logger.debug_extra_verbose(
-                                    'breaking at play_state 4 movie:',
-                                    self._movie.get_title(),
-                                    trace=Trace.TRACE_UI_CONTROLLER)
-                        break
-
-                    # Now that the movie has started, see if it will run too long so
-                    # that we need to set up to kill it playing.
-
-                    # trailer_total_time = self.get_player().getTotalTime()
-                    # max_display_time = Settings.get_max_trailer_play_seconds()
-                    # if trailer_total_time > max_display_time:
-                    #     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    #         clz._logger.debug_verbose(
-                    #             'Killing long movie:',
-                    #             self._movie.get_title(), 'limit:',
-                    #             max_display_time)
-
-                    # MovieTimer.display_movie_info(max_display_time, play_trailer=True)
-
-                except AbortException:
-                    raise sys.exc_info()
-                except Exception as e:
-                    clz._logger.exception('')
-
-                # Again, we rely on our listeners to stop the player, as
-                # appropriate
-
-                self.get_player().wait_for_is_not_playing_video()
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose(
-                            f'Trailer not playing; checking play_state 5 movie:'
-                            f' {self._movie.get_title()}',
-                            trace=Trace.TRACE_UI_CONTROLLER)
-                if self.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
-                                                      exact_match=True):
-                    continue
-                if self.is_random_trailers_play_state(
-                        minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz._logger.debug_extra_verbose(
-                                'breaking at play_state 5 movie:',
-                                self._movie.get_title(),
-                                trace=Trace.TRACE_UI_CONTROLLER)
-                    break
-
-                TrailerStatus.cancel_movie_timer(usage=f'Trailer finished '
-                                                       'playing')
-
-                # Again, we rely on our listeners to  stop this display, as
-                # appropriate
-
-                TrailerStatus.opaque()
-
-                self.configure_trailer_play_parameters()
-                if self.trailers_per_iteration != 0 and not video_is_curtain:
-                    number_of_trailers_played += 1
-                    if number_of_trailers_played > self.trailers_per_iteration:
-                        if Settings.is_group_trailers():
-                            self.set_random_trailers_play_state(
-                                    DialogState.GROUP_QUOTA_REACHED)
-                        else:
-                            self.set_random_trailers_play_state(
-                                    DialogState.QUOTA_REACHED)
-
-            ##############################################
-            #
-            # End of while loop. Exiting this method
-            #
-            ##############################################
-
-            if self._movie is None:
-                clz._logger.error('There will be no trailers to play')
-                msg: str = Messages.get_msg(Messages.NO_TRAILERS_TO_PLAY)
-                NotificationTimer.add_notification(msg=msg)
-                self.set_random_trailers_play_state(DialogState.NO_TRAILERS_TO_PLAY)
-            else:
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    clz._logger.debug_extra_verbose(
-                            'out of inner play loop movie:',
-                            self._movie.get_title())
-
-            if Settings.get_show_curtains():
-                self._movie_manager.queue_curtain(MovieManager.CLOSE_CURTAIN)
-
-                _, curtain = self._movie_manager.get_next_trailer()
-                TrailerStatus.set_show_curtain()
-
-                self.get_player().play_trailer(curtain.get_trailer_path(),
-                                               curtain)
-                if not self.get_player().wait_for_is_playing_video(
-                        path=curtain.get_trailer_path(),
-                        timeout=5.0):
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz._logger.debug_extra_verbose(
-                                'Timed out Waiting for Player.',
-                                trace=Trace.TRACE_UI_CONTROLLER)
-                self.get_player().wait_for_is_not_playing_video()
-                TrailerStatus.opaque()
-
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.debug_extra_verbose(
-                        'Completed everything except play_movie, if there is one')
-        except AbortException:
-            reraise(*sys.exc_info())
-        except Exception as e:
-            clz._logger.exception('')
-
-        try:
-            if self._movie is not None:
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz._logger.debug_extra_verbose(
-                            'Checking to see if there is a movie to play:',
-                            self._movie.get_title())
-            if self.is_random_trailers_play_state(DialogState.START_MOVIE_AND_EXIT,
-                                                  exact_match=True):
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz._logger.debug_extra_verbose(
-                            'about to play movie:', self._queued_movie)
-                TrailerStatus.opaque()
-                self.play_movie(self._queued_movie)
-
-        except AbortException:
-            clz._logger.debug('Received shutdown or abort')
-        except Exception as e:
-            clz._logger.exception('')
-'''

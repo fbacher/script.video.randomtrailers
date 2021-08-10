@@ -14,14 +14,14 @@ from common.monitor import Monitor
 from player.abstract_player import AbstractPlayer, PlayerState
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
-DEBUG_PLAYER: int = LazyLogger.DISABLED
+DEBUG_PLAYER: int = LazyLogger.DEBUG
 
 
 class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     """
 
     """
-    DEBUG_MONITOR: Final[bool] = True
+    DEBUG_MONITOR: Final[bool] = False
     _logger: LazyLogger = None
 
     def __init__(self):
@@ -173,7 +173,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
 
         if (local_class._logger.isEnabledFor(DEBUG_PLAYER)
                 and local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-            local_class._logger.enter()
+            local_class._logger.debug_extra_verbose(f'play_state: {self.play_state}')
         if self.play_state == PlayerState.STATE_PLAYING:
             # self._dump_state()  # TODO: remove
             self.pause()
@@ -181,8 +181,10 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     def resume_play(self) -> None:
         local_class = AdvancedPlayer
 
-        if local_class._logger.isEnabledFor(DEBUG_PLAYER):
-            local_class._logger.enter()
+        if (local_class._logger.isEnabledFor(DEBUG_PLAYER)
+                and local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+            local_class._logger.debug_extra_verbose(f'play_state: {self.play_state}')
+
         if self.play_state == PlayerState.STATE_PAUSED:
             # self._dump_state()  # TODO: remove
             self.pause()
@@ -280,7 +282,10 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         paused = False
         if self._player_state == PlayerState.STATE_PAUSED:
             paused = True
-        return True
+        return paused
+
+    def is_player_window_open(self) -> bool:
+        return self._player_window_open
 
     # Defined in xbmc.Player
     def isExternalPlayer(self) -> bool:
@@ -734,7 +739,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         local_class = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
                 local_class._logger.isEnabledFor(LazyLogger.DEBUG)):
-            local_class._logger.debug_extra_verbose(self.get_playing_title(), trace=Trace.TRACE)
+            local_class._logger.debug_extra_verbose(self.get_playing_title(),
+                                                    trace=Trace.TRACE)
         # self._dump_state()  # TODO: remove
 
         # self.displayInfo()

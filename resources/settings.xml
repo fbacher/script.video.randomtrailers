@@ -108,6 +108,13 @@
 						<heading>32060</heading>
 					</control>
 				</setting>
+				<setting help="" id="maximum_trailer_play_seconds" label="32151" type="integer">
+					<level>0</level>
+					<default>600</default>
+					<control format="integer" type="edit">
+						<heading>32151</heading>
+					</control>
+				</setting>
 			</group>
 			<group id="4" label="32061">
 				<setting help="" id="normalize_volume_of_local_trailers" label="32062" type="boolean">
@@ -1423,28 +1430,58 @@
 					</control>
 				</setting>
 			</group>
-			<group id="2" label="32148">
+			<group id="2" label="32291">
+				<setting help="" id="youtube_use_netrc" label="32294" type="boolean">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+				<setting help="" id="youtube_username" label="32292" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="youtube_use_netrc">false</condition>
+						</dependency>
+					</dependencies>
+					<control format="string" type="edit">
+						<heading>32292</heading>
+					</control>
+				</setting>
+				<setting help="" id="youtube_password" label="32293" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="youtube_use_netrc">false</condition>
+						</dependency>
+					</dependencies>
+					<control format="string" type="edit">
+						<heading>32293</heading>
+					</control>
+				</setting>
+			</group>
+			<group id="3" label="32148">
 				<setting help="" id="updateTmdbId" label="32268" type="boolean">
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
 			</group>
-			<group id="3" label="32149">
+			<group id="4" label="32149">
 				<setting help="" id="prompt_for_settings" label="32150" type="boolean">
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
-				<setting help="" id="max_trailer_length" label="32151" type="integer">
-					<level>0</level>
-					<default>600</default>
-					<control format="integer" type="edit">
-						<heading>32151</heading>
-					</control>
-				</setting>
 			</group>
-			<group id="4" label="32153">
+			<group id="5" label="32153">
 				<setting help="" id="enable_movie_stats" label="32169" type="boolean">
 					<level>0</level>
 					<default>false</default>

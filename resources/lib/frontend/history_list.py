@@ -42,13 +42,41 @@ class HistoryList:
         :return:
         """
         if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls.logger.enter('movie', movie.get_title(), 'len(buffer):',
-                               len(cls._buffer), 'cursor:', cls._cursor)
+            cls.logger.enter(f'movie {movie.get_title()} path: '
+                             f'{movie.get_movie_path()} len(buffer): '
+                             f'{len(cls._buffer)} cursor: {cls._cursor}')
+        duplicate = False
+        a_movie: AbstractMovie
+        for a_movie in cls._buffer:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.enter(f'a_movie {a_movie.get_title()} '
+                                 f'path: {a_movie.get_movie_path()}')
+            if ((a_movie.get_title() == movie.get_title())
+                    and (a_movie.get_year() == movie.get_year())):
+                duplicate = True
+                break
+
+        if duplicate:
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose(f'Not adding duplicate movie to history')
+            return
+
         cls._buffer.append(movie)
+
+        # If buffer is over-full, correct
         if len(cls._buffer) > HistoryList.MAX_HISTORY:
             # Delete oldest entry
             del cls._buffer[0]
-        cls._cursor = len(cls._buffer) - 1
+            # Adjust cursor index
+            # Note that even if other events have altered cursor before we
+            # have chance to adjust, it will still point to the whatever trailer
+            # was or is being played. In the worst case, where we somehow
+            # managed to back up to play MAX_HISTORY times before playing the next
+            # trailer, the cursor will go negative, but get_next_trailer accounts
+            # for this and will set it to 0.
+
+            cls._cursor -= 1
+
         if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls.logger.exit('movie', movie.get_title(), 'len(buffer):',
                             len(cls._buffer), 'cursor:', cls._cursor)
@@ -67,46 +95,62 @@ class HistoryList:
         :return:
         """
         if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls.logger.enter('len(buffer):',
-                             len(cls._buffer), 'cursor:', cls._cursor)
+            cls.logger.enter(f'{len(cls._buffer)} cursor: {cls._cursor}')
+
+        movie: AbstractMovie = None
+
         # cursor points to currently playing movie or -1
         cls._cursor -= 1
         if cls._cursor < 0:
             cls._cursor = -1
-            movie = None
             raise HistoryEmpty()
-        else:
-            movie = cls._buffer[cls._cursor]
+
+        # Check should not be needed
+        if cls._cursor > len(cls._buffer) - 1:
+            cls._cursor = len(cls._buffer) - 1
+
+        movie = cls._buffer[cls._cursor]
 
         if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls.logger.exit('movie', movie.get_title(), 'len(buffer):',
-                            len(cls._buffer), 'cursor:', cls._cursor)
+            title: str = 'None'
+            if movie is not None:
+                title = movie.get_title()
+            cls.logger.exit(f'movie: {title} len(buffer): '
+                            f'{len(cls._buffer)} cursor: {cls._cursor}')
         return movie
 
     @classmethod
     def get_next_trailer(cls) -> AbstractMovie:
         """
         Play the next trailer in the history buffer.
-        :return: The next trailer in the buffer or None, if there are none.
+        :return: The next trailer in the buffer or None, if there is none
+                 (which causes external code to add another trailer from the
+                 backend)
         """
-        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.enter('len(buffer):',
-                             len(cls._buffer), 'cursor:',
-                             cls._cursor)  # cursor points to currently playing
-                                           # movie or -1
-        cls._cursor += 1
-        if cls._cursor <= -1:
-            cls._cursor = 0
-        if cls._cursor > len(cls._buffer) - 1:
-            movie = None
-            title = 'None'
-            cls._cursor = len(cls._buffer) - 1
-        else:
-            movie = cls._buffer[cls._cursor]
-            title = movie.get_title()
-        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.exit('movie', title, 'len(buffer):',
-                            len(cls._buffer), 'cursor:', cls._cursor)
+        # cursor points to currently playing
+        # movie or -1
+
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls.logger.enter(f'{len(cls._buffer)} cursor: {cls._cursor}')
+
+        movie: AbstractMovie = None
+        if len(cls._buffer) == 0:
+            cls._cursor = -1
+            return movie  # None
+
+        if (cls._cursor + 1) > len(cls._buffer) - 1:
+            return movie  # None
+
+        cls._cursor += 1  # Advance only when we know it will work!
+        movie = cls._buffer[cls._cursor]
+
+        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            title: str = 'None'
+            if movie is not None:
+                title = movie.get_title()
+
+            cls.logger.exit(f'movie: {title} len(buffer): '
+                            f'{len(cls._buffer)} cursor: {cls._cursor}')
         return movie
 
     @classmethod

@@ -8,6 +8,9 @@ import simplejson as json
 from common.imports import *
 
 
+stop_listeners: List[Callable[[], None]] = []
+
+
 def say_text(text, interrupt=False) -> str:
 
     # {"method": "JSONRPC.NotifyAll",
@@ -49,5 +52,12 @@ def say_text(text, interrupt=False) -> str:
     return result
 
 
+def add_stop_listener(listener: Callable[[], None]) -> None:
+    stop_listeners.append(listener)
+
+
 def stop() -> None:
-    xbmc.executebuiltin('NotifyAll(service.xbmc.tts,STOP)')
+    xbmc.executebuiltin('NotifyAll(service.kodi.tts,STOP)')
+
+    for listener in stop_listeners:
+        listener()

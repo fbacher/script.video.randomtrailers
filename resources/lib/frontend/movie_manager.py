@@ -124,52 +124,45 @@ class MovieManager:
                 except HistoryEmpty:
                     self._play_state = TrailerPlayState.NOTHING
                     reraise(*sys.exc_info())
-            elif self._play_state == TrailerPlayState.PLAY_NEXT_TRAILER:
-                status = MovieStatus.NEXT_MOVIE
+            else:
+                if self._play_state == TrailerPlayState.PLAY_NEXT_TRAILER:
+                    status = MovieStatus.NEXT_MOVIE
+                else:
+                    status = MovieStatus.OK
+
                 trailer = HistoryList.get_next_trailer()
+                countdown = 50  # Five Seconds
 
-                # trailer is None when already played most recent trailer in history
+                # trailer is None when already played most recent trailer in history.
+                # Need to get trailer from back-end
 
-                if trailer is None:
-                    countdown = 50  # Five Seconds
-                    while trailer is None and countdown >= 0 and not self._changed:
-                        countdown -= 1
-                        if not self._pre_fetched_trailer_queue.empty():
-                            trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
-                        Monitor.throw_exception_if_abort_requested(timeout=0.001)
-
-                    if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        self._logger.debug(f'play_state: {self._play_state} '
-                                           f'trailer: {trailer is not None} '
-                                           f'changed: {self._changed}')
-                    if self._changed:
-                        continue
-
-                    if trailer is None:
-                        status = MovieStatus.TIMED_OUT
-                    else:
-                        HistoryList.append(trailer)
-            else:  # Not called due to user input, play next trailer
-                status = MovieStatus.OK
-                trailer = HistoryList.get_next_trailer()
-                countdown = 50 # Five Seconds
                 while trailer is None and countdown >= 0 and not self._changed:
                     countdown -= 1
                     if not self._pre_fetched_trailer_queue.empty():
                         trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
                     Monitor.throw_exception_if_abort_requested(timeout=0.001)
 
+                title: str = 'None'
+                if trailer is not None:
+                    title = trailer.get_title()
+                    HistoryList.append(trailer)
+
+                    # Force go get from history to make sure history cursor
+                    # is in sync what was just appended, otherwise, if user
+                    # presses next/prev movie rapidly, the history will
+                    # diverge from what is returned here.
+                    trailer = HistoryList.get_next_trailer()
                 if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    self._logger.debug(f'play_state: {self._play_state} '
-                                       f'trailer: {trailer is not None} '
+                    self._logger.debug(f'movie: {title} '
+                                       f'play_state: {self._play_state} '
                                        f'changed: {self._changed}')
                 if self._changed:
+                    # User wants something else in the time it took us to find
+                    # trailer
                     continue
 
                 if trailer is None:
                     status = MovieStatus.TIMED_OUT
-                else:
-                    HistoryList.append(trailer)
 
         self._play_state = TrailerPlayState.NOTHING
         title = None
