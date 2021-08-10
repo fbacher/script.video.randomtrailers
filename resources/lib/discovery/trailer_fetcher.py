@@ -252,8 +252,6 @@ class TrailerFetcher(TrailerFetcherInterface):
         # but can also just be an movie_id (TFH_ID or TMDB_ID), which
         # must be downloaded and populated at this time.
 
-        clz._logger.debug(f'Current thread name: {self.name}')
-
         if isinstance(base_movie, AbstractMovieId):
             tmdb_id: int = None
             try:
@@ -662,10 +660,11 @@ class TrailerFetcher(TrailerFetcherInterface):
             movie.set_discovery_state(MovieField.DISCOVERY_NEARLY_COMPLETE)
             AbstractMovieData.get_aggregate_trailers_by_name_date()[movie_id] = movie
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.debug_extra_verbose(movie.get_title(),
-                                                'added to AggregateTrailers',
-                                                'movie:', movie.get_trailer_path(),
-                                                'source:', movie.get_source())
+                clz._logger.debug_extra_verbose(f'{movie.get_title()} '
+                                                f'added to AggregateTrailers '
+                                                f'movie: '
+                                                f'{movie.get_optimal_trailer_path()} '
+                                                f'source: {movie.get_source()}')
 
         else:
             self._movie_data.remove_discovered_movie(movie)
