@@ -1050,7 +1050,7 @@ class AbstractMovieData:
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz.logger.debug_extra_verbose(
-                f'Got: {movie} from fetch queue')
+                f'Got: {movie}')
 
         return movie
 
