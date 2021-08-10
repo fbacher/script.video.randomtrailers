@@ -398,6 +398,11 @@ class MovieDetail:
                         # Account terminated, or other permanent unavailability
                         cls.trailer_permanently_unavailable(movie, error_code=error_code)
 
+                    elif error_code == VideoDownloader.AGE_LIMIT:
+                        cls._logger.debug_verbose(f'Trailer available for '
+                                                  f'{movie.get_title()} but exceeds '
+                                                  f'the configured Age Limit, or YouTube '
+                                                  f'userid/password not configured.')
                     if downloaded_trailer is not None:
                         download_path = downloaded_trailer[MovieField.TRAILER]
                         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):

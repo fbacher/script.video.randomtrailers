@@ -23,7 +23,7 @@ from common.logger import LazyLogger
 from common.monitor import Monitor
 from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
-from common.certification import WorldCertifications
+from common.certification import Certifications, WorldCertifications
 from common.settings import Settings
 from youtube_dl import DownloadError
 
@@ -70,7 +70,7 @@ class VideoDownloader:
     PARSE_ERROR = 13
     FORBIDDEN = 403
     NOT_FOUND = 404
-    ADULT = 14
+    AGE_LIMIT = 14
     ABORT_REQUESTED = 99
 
     # Initialize to a year ago
@@ -282,6 +282,17 @@ class VideoDownloader:
             else:
                 parse_json_as_youtube = True
 
+            '''
+            username:          Username for authentication purposes.
+            password:          Password for authentication purposes.
+            videopassword:     Password for accessing a video.
+            ap_mso:            Adobe Pass multiple-system operator identifier.
+            ap_username:       Multiple-system operator account username.
+            ap_password:       Multiple-system operator account password.
+            usenetrc:          Use netrc for authentication instead.
+            age_limit:         An integer representing the user's age in years.
+                               Unsuitable videos for the given age are skipped.
+            '''
             # clz._logger.debug_extra_verbose(f'title: {title} Getting VideoLogger')
             video_logger = VideoLogger(self, url,
                                        parse_json_as_youtube=parse_json_as_youtube)
@@ -298,10 +309,27 @@ class VideoDownloader:
             cookie_path = Settings.get_youtube_dl_cookie_path()
             if len(cookie_path) > 0 and os.path.exists(cookie_path):
                 ydl_opts['cookiefile'] = cookie_path
+            youtube_username: str = Settings.get_youtube_username()
+            youtube_password: str = Settings.get_youtube_password()
+            youtube_use_netrc: bool = Settings.is_youtube_use_netrc()
+            certifications_for_country: Certifications
+            certifications_for_country = WorldCertifications.get_certifications()
+            youtube_age_limit: int = certifications_for_country.get_viewable_age_limit()
+
+            if youtube_use_netrc:
+                ydl_opts['usenetrc'] = True
+                clz._logger.debug(f'usenetrc: True')
+            elif len(youtube_username) > 0 and len(youtube_password) > 0:
+                ydl_opts['username'] = youtube_username
+                ydl_opts['password'] = youtube_password
+                clz._logger.debug(f'username: {youtube_username} passwd: {youtube_password}')
+
+            ydl_opts['age_limit'] = youtube_age_limit
+            clz._logger.debug(f'age_limit: {youtube_age_limit}')
 
             # Start download
             # Sometimes fail with None type or other errors because of a URL that
-            # requires a login, is for an ADULT movie, etc.
+            # requires a login, is for an AGE_LIMIT movie, etc.
 
             # clz._logger.debug_extra_verbose(f'title: {title} starting download')
 
@@ -955,7 +983,7 @@ class BaseYDLogger:
         elif 'unavailable' in line:
             self.set_error(VideoDownloader.UNAVAILABLE)
         elif 'ERROR: Sign in to confirm your age' in line:
-            self.set_error(VideoDownloader.ADULT)
+            self.set_error(VideoDownloader.AGE_LIMIT)
         else:
             clz._logger.error(f'error? {line}')
 

@@ -1469,3 +1469,19 @@ msgstr ""
 msgctxt "#32290"
 msgid "Playlist {} not configured"
 msgstr ""
+
+msgctxt "#32291"
+msgid "(Optional) Specify YouTube account"
+msgstr ""
+
+msgctxt "#32292"
+msgid "YouTube username"
+msgstr ""
+
+msgctxt "#32293
+msgid "YouTube password"
+msgstr ""
+
+msgctxt "#32294"
+msgid "Get YouTube account information from .netrc"
+msgstr ""

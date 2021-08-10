@@ -299,7 +299,7 @@ class Certifications:
                  certification_label: str, certification_label_id: int) -> None:
         cls = type(self)
         if cls._logger is None:
-            cls._logger: LazyLogger = module_logger.getChild(cls.__name__)
+            cls._logger = module_logger.getChild(cls.__name__)
 
         self._country_id: str = country_id
         self._country_label: str = country_label
@@ -418,7 +418,7 @@ class Certifications:
         '''
         passed = False
         #
-        maximum_allowed_certification = Settings.get_rating_limit_setting()
+        maximum_allowed_certification: int = Settings.get_rating_limit_setting()
 
         # if Rating._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
         #    Rating._logger.enter('rating:', rating, 'limit:',
@@ -433,6 +433,24 @@ class Certifications:
             passed = True
 
         return passed
+
+    def get_viewable_age_limit(self) -> int:
+        """
+
+        Gets the "age" in years, used to determine which movies are appropriate
+        for viewing. (Used by YouTube).
+
+        :return:
+        """
+
+        max_appropriate_age: int = 0
+        #
+        maximum_rank: int = Settings.get_rating_limit_setting()
+
+        max_certification: Certification = self.get_certification_by_rank(maximum_rank)
+        max_appropriate_age = max_certification.get_age()
+
+        return max_appropriate_age
 
 
 class WorldCertifications:

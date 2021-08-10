@@ -155,6 +155,10 @@ class Settings:
     PLAYLIST_9 = "playlist_name_9"
     PLAYLIST_10 = "playlist_name_10"
 
+    YOUTUBE_USERNAME: Final[str] = 'youtube_username'
+    YOUTUBE_PASSWORD: Final[str] = 'youtube_password'
+    YOUTUBE_USE_NETRC: Final[str] = 'youtube_use_netrc'
+
     # HIDDEN SETTINGS
 
     YOUTUBE_DL_COOKIE_PATH = 'youtube_dl_cookie_path'
@@ -279,6 +283,9 @@ class Settings:
         PLAYLIST_8,
         PLAYLIST_9,
         PLAYLIST_10,
+        YOUTUBE_USERNAME,
+        YOUTUBE_PASSWORD,
+        YOUTUBE_USE_NETRC,
         YOUTUBE_DL_COOKIE_PATH,
         YOUTUBE_DL_CACHE_PATH,
     ]
@@ -1384,7 +1391,7 @@ class Settings:
     @staticmethod
     def get_rating_limit_setting() -> int:
         """
-
+        Gets the maximum (maturity) certification index configured
         :return:
         """
         try:
@@ -1393,6 +1400,19 @@ class Settings:
             rating_limit = 0
 
         return rating_limit
+
+    @staticmethod
+    def get_youtube_username() -> str:
+        return Settings.get_setting_str(Settings.YOUTUBE_USERNAME)
+
+
+    @staticmethod
+    def get_youtube_password() -> str:
+        return Settings.get_setting_str(Settings.YOUTUBE_PASSWORD)
+
+    @staticmethod
+    def is_youtube_use_netrc() -> bool:
+        return Settings.get_setting_bool(Settings.YOUTUBE_USE_NETRC)
 
     @staticmethod
     def get_tmdb_trailer_preference() -> str:
