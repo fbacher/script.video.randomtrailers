@@ -408,6 +408,12 @@ List.Sort
         YEAR: 0
     }
 
+    # Meant to clone fields that are generated at run-time.
+
+    DETAIL_CLONE_FIELDS: MovieType = {
+        NORMALIZED_TRAILER: '',
+        CACHED_TRAILER: ''
+    }
 
     # Used to by get_detail_info to copy fields from TMDb query to TFH movies
     # to supply missing data. The values in this dict are here in case no value was found
@@ -419,7 +425,7 @@ List.Sort
         DIRECTOR: [],
         DISCOVERY_STATE: NOT_INITIALIZED,
         FANART: '',
-        # FILE: '',
+        FILE: '',
         GENRE_NAMES: [],
         # PLOT: '',
         # RATING: 0.0,
@@ -431,11 +437,11 @@ List.Sort
         TMDB_TAG_NAMES: [],
         # TRAILER: '',
         # TRAILER_TYPE: '',
-        # VOTES: 0,
+        VOTES: 0,
         WRITER: [],
         YEAR: 0
     }
-    
+
     # Initially, the only data in a TFH movie is that which comes from Youtube playlist
     TFH_SKELETAL_MOVIE: MovieType = {
         TITLE: 'default_' + TITLE,

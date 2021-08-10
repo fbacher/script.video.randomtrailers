@@ -205,15 +205,19 @@ class DBAccess:
 
     @classmethod
     def get_movie_details(cls, query: str) -> List[MovieType]:
-        movies: Dict[str, Any] = []
+        movies: List[MovieType] = []
         try:
-            import simplejson as json
-            # json_encoded: Dict = json.loads(query)
-            cls.logger.debug_extra_verbose('JASON DUMP:',
-                                           json.dumps(
-                                               query, indent=3, sort_keys=True))
+            if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+                import simplejson as json
+                # json_encoded: Dict = json.loads(query)
+                cls.logger.debug_extra_verbose('JASON DUMP:',
+                                               json.dumps(
+                                                   query, indent=3, sort_keys=True))
         except Exception:
             pass
+
+        # Depending upon the query, either a single movie is returned, or a list.
+        # Always return a list
 
         query_result: Dict[str, Any] = {}
         try:
@@ -224,9 +228,13 @@ class DBAccess:
 
             Monitor.throw_exception_if_abort_requested()
             result: Dict[str, Any] = query_result.get('result', {})
-            movies: Dict[str, Any] = result.get('moviedetails', None)
-            if movies is None:
+            movie: MovieType = result.get('moviedetails', None)
+            if movie is None:
                 movies = result.get('movies', [])
+                cls.logger.error(f'Got back movies {len(movies)} '
+                                 f'instead of moviedetails.')
+            else:
+                movies.append(movie)
 
         except Exception as e:
             movies = []

@@ -91,9 +91,26 @@ class MovieDetail:
 
                 query: str = DBAccess.create_details_query(
                     movie.get_library_id())
-                raw_movie: MovieType = DBAccess.get_movie_details(query)
+
+                raw_movies: List[MovieType] = DBAccess.get_movie_details(query)
+                raw_movie: MovieType = None
+                if len(raw_movies) == 1:
+                    raw_movie = raw_movies[0]
+                else:
+                    cls._logger.error(f'Could not find movie in database: '
+                                      f'{movie.get_title()} ({movie.get_year()})')
+                    return
+
                 fully_populated_movie = ParseLibrary.parse_movie(is_sparse=False,
                                                                  raw_movie=raw_movie)
+
+                # Leave movie instance from AbstractMovieData alone. Go though
+                # rediscovery of fully_populated_movie on each display in order
+                # to reduce memory usage. CPU cost very little given that a trailer
+                # is shown only about every 3 minutes, or so.
+
+                cls.clone_fields(movie, fully_populated_movie,
+                                 MovieField.DETAIL_CLONE_FIELDS)
                 movie = fully_populated_movie
 
             if isinstance(movie, TMDbMovie) or isinstance(movie, TFHMovie):
@@ -125,10 +142,11 @@ class MovieDetail:
 
                                 kodi_movie = ParseLibrary.parse_movie(is_sparse=True,
                                                                       raw_movie=raw_movies[0])
-                            if kodi_movie is not None:
-                                cls._logger.debug(f'Kodi movie found!')
-                            else:
-                                cls._logger.debug(f'Kodi movie NOT found')
+                            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                                if kodi_movie is not None:
+                                    cls._logger.debug(f'Kodi movie found!')
+                                else:
+                                    cls._logger.debug(f'Kodi movie NOT found')
                         except Exception:
                             cls._logger.exception()
 
@@ -216,15 +234,14 @@ class MovieDetail:
                                                         f'due to Certification')
 
             if tmdb_detail_info is not None:
-                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
+                if (cls._logger.isEnabledFor(LazyLogger.DEBUG)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
                                           heading='Dumping TFH movie_info',
                                           log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
 
-                cls.clone_fields(tmdb_detail_info, movie, MovieField.TFH_CLONE_FIELDS,
-                                 set_default=True)
+                cls.clone_fields(tmdb_detail_info, movie, MovieField.TFH_CLONE_FIELDS)
 
                 if (movie.get_thumbnail(default='') == ''
                         and tmdb_detail_info.get_thumbnail(default='').startswith(
@@ -237,7 +254,7 @@ class MovieDetail:
                 if movie.get_rating() == 0.0 and tmdb_detail_info.get_rating() != 0.0:
                     movie.set_rating(tmdb_detail_info.get_rating())
 
-                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
+                if (cls._logger.isEnabledFor(LazyLogger.DEBUG)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
@@ -249,8 +266,7 @@ class MovieDetail:
     def clone_fields(cls,
                      source_movie: AbstractMovie,
                      destination_movie: AbstractMovie,
-                     fields_to_copy: Dict[str, Any],
-                     set_default: bool = False
+                     fields_to_copy: Dict[str, Any]
                      ) -> None:
         """
 
@@ -258,7 +274,6 @@ class MovieDetail:
         :param source_movie:
         :param destination_movie:
         :param fields_to_copy:
-        :param set_default:
         :return:
         """
         try:
@@ -469,6 +484,14 @@ class MovieDetail:
     @classmethod
     def trailer_permanently_unavailable(cls, movie: AbstractMovie, error_code: int = 0):
         tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
+        if not isinstance(movie, AbstractMovie):
+            cls._logger.dump_stack(msg=f'movie arg incorrect type: {type(movie)}')
+
+        if tmdb_id is None:
+            cls._logger.debug_verbose(f'tmdb_id is None for {movie.get_title()} '
+                                      f'source: {movie.get_source()}')
+            return
+
         TrailerUnavailableCache.add_missing_tmdb_trailer(
                             tmdb_id=tmdb_id,
                             library_id=None,
@@ -481,7 +504,7 @@ class MovieDetail:
             msg = 'Download permanently unavailable'
         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
             cls._logger.debug(f'Video Download failed {movie.get_title()} '
-                              f'class: {type(movie)}')
+                              f'tmdb_id: {movie.get_tmdb_id()}')
             Debug.dump_dictionary(movie.get_as_movie_type(),
                                   log_level=LazyLogger.DISABLED)
         missing_trailers_playlist: Playlist = Playlist.get_playlist(
