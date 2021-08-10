@@ -222,8 +222,8 @@ class Playlist:
 
         :return:
         """
-        now = datetime.datetime.now().strftime('%m/%d/%y %H:%M:%S')
-        self.writeLine('random trailers started: {!s}'.format(now))
+        now = datetime.datetime.now()
+        self.writeLine(f'{now:%Y-%m-%d %H:%M} START')
 
     def record_played_trailer(self,
                               movie: AbstractMovie,
@@ -273,7 +273,8 @@ class Playlist:
             line = Playlist.PLAYLIST_ENTRY_PREFIX + name + '\n'
             line += path + '\n'
         else:
-            line = f'{name}  {year}  # path: {movie.get_detail_title()} {path} {msg}\n'
+            now = datetime.datetime.now()
+            line = f'{movie.get_detail_title()} {path} {msg} {now:%Y-%m-%d %H:%M}\n'
         self._file.writelines(line)
 
     def writeLine(self, line: str) -> None:
