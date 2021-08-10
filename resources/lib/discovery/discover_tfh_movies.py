@@ -262,6 +262,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         cache_expiration_time = datetime.datetime.now() - cache_expiration_time
         if TFHCache.get_creation_date() > cache_expiration_time:
             cached_trailers = TFHCache.get_cached_movies()
+            clz.logger.debug(f'Using tfh cache creation_date:'
+                             f' {TFHCache.get_creation_date():%Y-%m-%d %H:%M} '
+                             f'expiration: {cache_expiration_time:%Y-%m-%d %H:%M}')
         else:
             cached_trailers: Dict[str, TFHMovie] = {}
 
@@ -308,6 +311,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         # Entire TFH index is read, so only re-do if the cache was not
         # completely built, or expired
 
+        rc: int = 0
         if (TFHCache.get_creation_date() < cache_expiration_time
                 or not TFHCache.is_complete()):
             clz.logger.debug_verbose(f'Rediscovering TFH Index')
