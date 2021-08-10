@@ -50,10 +50,16 @@ class FlexibleTimer(Thread):
                 self.function(*self.args, **self.kwargs)
             self.finished.set()
 
-    def run_now(self):
+    def run_now(self, kwargs=None):
+        clz = type(self)
         with self.lock:
             if not self.finished.is_set():
                 # Prevent from running again
                 self.finished.set()
+                if kwargs is not None:
+                    for key, value in kwargs.items():
+                        clz._logger.debug(f'key: {key} value: {value}')
+                        self.kwargs[key] = value
+
                 self.kwargs['called_early'] = True
                 self.function(*self.args, **self.kwargs)
