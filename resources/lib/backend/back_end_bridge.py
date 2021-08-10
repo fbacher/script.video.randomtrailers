@@ -141,7 +141,8 @@ class BackendBridge(PluginBridge):
             reraise(*sys.exc_info())
         except Exception as e:
             cls._logger.exception('')
-            Debug.dump_dictionary(movie, include_type=True, log_level=LazyLogger.ERROR)
+            Debug.dump_dictionary(movie.get_as_movie_type(),
+                                  include_type=True, log_level=LazyLogger.ERROR)
 
     @classmethod
     def register_listeners(cls) -> None:
