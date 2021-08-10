@@ -62,6 +62,10 @@ class TrailerUnavailableCache:
         :param source:
         :return:
         """
+        if tmdb_id is None:
+            cls._logger.debug(f'tmdb_id is None title: {title} year: {year}')
+            return
+
         values = {MovieField.UNIQUE_ID_TMDB: tmdb_id,
                   'timestamp': datetime.date.today()
                   }
@@ -199,24 +203,24 @@ class TrailerUnavailableCache:
 
         :return:
         """
-        #
-        # TODO: There are several issues here:
-        #
-        # tmdb_unsaved_changes and last save can be changed here, outside of
-        # the lock, while save_cache is in process of writing cache. In which
-        # save_cache will reset tmdb_unsaved_changes and tmdb_last_save AFTER
-        # we have exited.
-        #
-        # Also there are issues with multiple threads waiting on lock during
-        # a shutdown.
-        #
-        # Also, if the cache is large, it can take time to write AND it
-        # is more vulnerable to corruption, particularly at shutdown.
-        #
-        # Problems likely in other cache modules.
-        #
-        # Suggest using object_hook argument on json operations coupled with
-        # write to temp file, then rename.  See json_utils_basic.
+        '''
+        TODO: There are several issues here:
+              tmdb_unsaved_changes and last save can be changed here, outside of
+              the lock, while save_cache is in process of writing cache. In which
+              save_cache will reset tmdb_unsaved_changes and tmdb_last_save AFTER
+              we have exited.
+         
+              Also there are issues with multiple threads waiting on lock during
+              a shutdown.
+         
+              Also, if the cache is large, it can take time to write AND it
+              is more vulnerable to corruption, particularly at shutdown.
+         
+              Problems likely in other cache modules.
+         
+              Suggest using object_hook argument on json operations coupled with
+              write to temp file, then rename.  See json_utils_basic.
+        '''
 
         with cls.lock:
             cls.tmdb_unsaved_changes += 1
@@ -252,7 +256,8 @@ class TrailerUnavailableCache:
                     elapsed_time = datetime.date.today() - entry['timestamp']
                     elapsed_days = elapsed_time.days
                     if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
-                        if entry[MovieField.UNIQUE_ID_TMDB] in cls._all_missing_tmdb_trailers:
+                        if (entry[MovieField.UNIQUE_ID_TMDB] in
+                                cls._all_missing_tmdb_trailers):
                             entries_to_delete.append(
                                 entry[MovieField.UNIQUE_ID_TMDB])
                 for entry_to_delete in entries_to_delete:
@@ -263,7 +268,8 @@ class TrailerUnavailableCache:
                     path = os.path.join(Settings.get_remote_db_cache_path(),
                                         'index', 'missing_tmdb_trailers.json')
                     temp_path = os.path.join(Settings.get_remote_db_cache_path(),
-                                        'index', 'missing_tmdb_trailers.json.temp')
+                                             'index',
+                                             'missing_tmdb_trailers.json.temp')
 
                     # path = path.encode('utf-8')
                     path = xbmcvfs.validatePath(path)
@@ -311,7 +317,8 @@ class TrailerUnavailableCache:
                     elapsed_time = datetime.date.today() - entry['timestamp']
                     elapsed_days = elapsed_time.days
                     if elapsed_days > Settings.get_expire_remote_db_trailer_check_days():
-                        if entry[MovieField.MOVIEID] in cls._all_missing_library_trailers:
+                        if (entry[MovieField.MOVIEID] in
+                                cls._all_missing_library_trailers):
                             entries_to_delete.append(entry[MovieField.MOVIEID])
 
                 for entry_to_delete in entries_to_delete:
@@ -409,7 +416,7 @@ class TrailerUnavailableCache:
             return dct
 
     @classmethod
-    def load_cache_if_needed(cls, force_load: bool = False) -> None:
+    def load_cache_if_needed(cls) -> None:
         """
 
         :return:
@@ -419,7 +426,7 @@ class TrailerUnavailableCache:
         path = xbmcvfs.validatePath(path)
         cls.abort_on_shutdown()
         with cls.lock:
-            if force_load and cls._loaded:
+            if cls._loaded:
                 return
             try:
                 parent_dir, file_name = os.path.split(path)
@@ -427,8 +434,8 @@ class TrailerUnavailableCache:
 
                 if os.path.exists(path):
                     with io.open(path, mode='rt',
-                                           newline=None,
-                                           encoding='utf-8') as cacheFile:
+                                 newline=None,
+                                 encoding='utf-8') as cacheFile:
                         cls._all_missing_tmdb_trailers = json.load(
                             cacheFile, encoding='utf-8',
                             object_hook=TrailerUnavailableCache.datetime_parser)
