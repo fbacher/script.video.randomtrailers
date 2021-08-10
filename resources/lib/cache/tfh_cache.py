@@ -129,6 +129,7 @@ class TFHCache:
                     delta = int((datetime.datetime.now() -
                                 cls._last_saved_movie_timestamp).total_seconds() / 60)
                     cls._logger.debug_extra_verbose(f'flush: {flush} '
+                                                    f'complete: {complete} '
                                                     f'changes: {cls._unsaved_changes} '
                                                     f'time: {delta}' )
             if not do_flush:
@@ -260,6 +261,7 @@ class TFHCache:
                     # Read and delete INDEX_CREATION_DATE entry
                     # to set state of the cache
                     #
+                    cls._logger.debug(f'entries: {len(cls._cached_movies)}')
                     cls.load_creation_date()
                     for key, movie in cls._cached_movies.items():
                         if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
@@ -293,12 +295,25 @@ class TFHCache:
         # Loads the last time the index was created from a cached entry.
         # If no cached entry with the timestamp exists, set it to now.
 
+        cls._logger.enter()
         creation_date = None
-        creation_date_entry: TFHMovie = cls._cached_movies.get(cls.INDEX_CREATION_DATE)
+        creation_date_entry: MovieType = cls._cached_movies.get(cls.INDEX_CREATION_DATE, {})
+        cls._logger.debug(f'creation_date_entry: {creation_date_entry}')
         if creation_date_entry is not None:
-            creation_date = creation_date_entry.get_property(cls.INDEX_CREATION_DATE)
-            cls._cache_complete = creation_date_entry.get_property(cls.CACHE_COMPLETE,
+            creation_date = creation_date_entry.get(cls.INDEX_CREATION_DATE,
+                                                             None)
+            cls._cache_complete = creation_date_entry.get(cls.CACHE_COMPLETE,
                                                                    False)
+            x = None
+            if creation_date is not None:
+                x = Utils.strptime(creation_date, '%Y:%m:%d')
+        cls._logger.debug(f'creation_date: {creation_date} '
+                         f'creation_date_entry: {creation_date_entry} '
+                         f'x: {x}')
+
+        cls._logger.debug(f'cache_complete: {cls._cache_complete} '
+                             f' creation_date: {creation_date} '
+                             f'x: {x:%Y-%m-%d %H:%M}')
         if creation_date is None:
             cls._set_creation_date()
             cls._cache_complete = False
@@ -411,7 +426,7 @@ class TFHCache:
         return dct
 
     @staticmethod
-    def decoder(dct: MovieType) -> TFHMovie:
+    def decoder(dct: MovieType) -> Union[TFHMovie, Dict[str, Any]]:
         try:
             Monitor.throw_exception_if_abort_requested()
             # if len(dct.values()) > 0:
@@ -424,6 +439,8 @@ class TFHCache:
                 tfh_id: str = dct.get(MovieField.TFH_ID)
                 movie = TFHMovie(movie_id=tfh_id, movie_info=dct)
                 return movie
+            if TFHCache.INDEX_CREATION_DATE in dct:
+                return dct
 
         except Exception as e:
             TFHCache._logger.exception()
