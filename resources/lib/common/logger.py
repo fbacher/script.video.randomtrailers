@@ -1048,10 +1048,14 @@ class LazyLogger(Logger):
             self._log(*args, **kwargs)
 
     @classmethod
-    def dump_stack(cls, msg: str = '', ignore_frames: int = 0) -> None:
+    def dump_stack(cls, msg: str = '', ignore_frames: int = 0,
+                   heading: str = None,
+                   xbmc_log_level: int = xbmc.LOGERROR) -> None:
         """
             Logs a stack dump of all Python threads
 
+        :param heading:
+        :param xbmc_log_level:
         :param msg: Optional message
         :param ignore_frames: Specifies stack frames to dump
         :return: None
@@ -1059,7 +1063,8 @@ class LazyLogger(Logger):
         ignore_frames += 1
         trace_back, thread_name, is_daemon = super()._capture_stack(
             ignore_frames=ignore_frames)
-        cls.log_stack(msg, trace_back, thread_name, is_daemon)
+        cls.log_stack(msg, trace_back, thread_name, is_daemon,
+                      heading=heading, xbmc_log_level=xbmc_log_level)
 
     @classmethod
     def _capture_stack(cls, ignore_frames: int = 0) -> (List[Type], str):
@@ -1072,9 +1077,14 @@ class LazyLogger(Logger):
 
     @staticmethod
     def log_stack(msg: str, trace_back: List[Type],
-                  thread_name: str = '', is_daemon: bool = None) -> None:
+                  thread_name: str = '',
+                  is_daemon: bool = None,
+                  heading: str = None,
+                  xbmc_log_level: int = xbmc.LOGERROR) -> None:
         """
 
+        :param heading:
+        :param xbmc_log_level:
         :param msg:
         :param trace_back:
         :param thread_name:
@@ -1094,13 +1104,16 @@ class LazyLogger(Logger):
                   f'daemon: {daemon}'
             # msg = utils.py2_decode(msg)
 
+            if heading is None:
+                heading = Constants.TRACEBACK
+
             string_buffer = msg
-            string_buffer = string_buffer + '\n' + Constants.TRACEBACK
+            string_buffer = string_buffer + '\n' + heading
             lines = traceback.format_list(trace_back)
             for line in lines:
                 string_buffer = string_buffer + '\n' + line
 
-            xbmc.log(string_buffer, xbmc.LOGERROR)
+            xbmc.log(string_buffer, xbmc_log_level)
         except Exception as e:
             Logger.log_exception()
 
