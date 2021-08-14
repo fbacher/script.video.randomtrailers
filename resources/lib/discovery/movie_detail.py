@@ -130,18 +130,24 @@ class MovieDetail:
                         movie.set_movie_path(kodi_movie.get_kodi_file())
                     elif movie.get_year() is not None:
                         try:
-                            query = DBAccess.create_title_date_query(title=movie.get_title(),
-                                                                    year=str(movie.get_year()))
-                            raw_movies: List[MovieType] = DBAccess.get_movie_details(query)
+                            query = DBAccess.create_title_date_query(title=
+                                                                     movie.get_title(),
+                                                                     year=str(
+                                                                         movie.get_year())
+                                                                     )
+                            raw_movies: List[MovieType] = DBAccess.get_movie_details(
+                                    query)
                             if len(raw_movies) > 0:
                                 if len(raw_movies) > 1:
                                     # Bad decision, but always take the first entry.
-                                    cls._logger.debug_verbose(f'multiple movies returned from query '
-                                                              f'title: {movie.get_title()} '
+                                    cls._logger.debug_verbose(f'multiple movies returned '
+                                                              f'from query title: '
+                                                              f'{movie.get_title()} '
                                                               f'year: {movie.get_year()}')
 
                                 kodi_movie = ParseLibrary.parse_movie(is_sparse=True,
-                                                                      raw_movie=raw_movies[0])
+                                                                      raw_movie=
+                                                                      raw_movies[0])
                             if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                                 if kodi_movie is not None:
                                     cls._logger.debug(f'Kodi movie found!')
