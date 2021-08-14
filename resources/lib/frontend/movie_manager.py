@@ -140,18 +140,22 @@ class MovieManager:
                     countdown -= 1
                     if not self._pre_fetched_trailer_queue.empty():
                         trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
+                        if trailer is not None:
+                            title = trailer.get_title()
+                            HistoryList.append(trailer)
+
+                            # Force go get from history to make sure history cursor
+                            # is in sync what was just appended, otherwise, if user
+                            # presses next/prev movie rapidly, the history will
+                            # diverge from what is returned here.
+                            trailer = HistoryList.get_next_trailer()
+
                     Monitor.throw_exception_if_abort_requested(timeout=0.001)
 
                 title: str = 'None'
                 if trailer is not None:
                     title = trailer.get_title()
-                    HistoryList.append(trailer)
 
-                    # Force go get from history to make sure history cursor
-                    # is in sync what was just appended, otherwise, if user
-                    # presses next/prev movie rapidly, the history will
-                    # diverge from what is returned here.
-                    trailer = HistoryList.get_next_trailer()
                 if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     self._logger.debug(f'movie: {title} '
                                        f'play_state: {self._play_state} '
