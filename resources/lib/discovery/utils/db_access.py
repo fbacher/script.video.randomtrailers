@@ -13,7 +13,6 @@ from backend.json_utils_basic import JsonUtilsBasic
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
-from common.movie import LibraryMovie
 
 module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -61,12 +60,12 @@ class DBAccess:
         "votes"
     ]
 
-    logger: LazyLogger = None
+    _logger: LazyLogger = None
 
     @classmethod
     def _class_init_(cls):
-        if cls.logger is None:
-            cls.logger = module_logger.getChild(cls.__name__)
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def create_query(cls, sparse_properties: bool,
@@ -142,7 +141,7 @@ class DBAccess:
         if len(excluded_tags) > 0:
             excluded_tag_filter = (
                 'f{{"field": "tag", "operator": "doesnotcontain", '
-                f'"value": [{formatted_excluded_tag_list}]}}')
+                 f'"value": [{formatted_excluded_tag_list}]}}')
             exclude_filters.append(excluded_tag_filter)
 
         combined_exclude_filter = []
@@ -169,11 +168,11 @@ class DBAccess:
         query = f'{query_prefix}[{query_properties}]' \
                 f'{query_filter_prefix}{query_filter}{query_suffix}'
 
-        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.debug_verbose('query', 'genres:', included_genres,
-                                     'excluded_genres:', excluded_genres, 'tags:',
-                                     included_tags, 'excluded_tags:',
-                                     excluded_tags, query)
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_verbose('query', 'genres:', included_genres,
+                                      'excluded_genres:', excluded_genres, 'tags:',
+                                      included_tags, 'excluded_tags:',
+                                      excluded_tags, query)
 
         return query
 
@@ -198,8 +197,8 @@ class DBAccess:
 
         query = f'{prefix}{query_properties}{query_suffix}'
 
-        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.debug_verbose(f'query: {query}')
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_verbose(f'query: {query}')
 
         return query
 
@@ -207,10 +206,10 @@ class DBAccess:
     def get_movie_details(cls, query: str) -> List[MovieType]:
         movies: List[MovieType] = []
         try:
-            if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                 import simplejson as json
                 # json_encoded: Dict = json.loads(query)
-                cls.logger.debug_extra_verbose('JASON DUMP:',
+                cls._logger.debug_extra_verbose('JASON DUMP:',
                                                json.dumps(
                                                    query, indent=3, sort_keys=True))
         except Exception:
@@ -231,8 +230,9 @@ class DBAccess:
             movie: MovieType = result.get('moviedetails', None)
             if movie is None:
                 movies = result.get('movies', [])
-                cls.logger.error(f'Got back movies {len(movies)} '
-                                 f'instead of moviedetails.')
+                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                    cls._logger.error(f'Got back movies {len(movies)} '
+                                     f'instead of moviedetails.')
             else:
                 movies.append(movie)
 
@@ -243,11 +243,11 @@ class DBAccess:
                 error = query_result.get('error')
                 if error is not None:
                     message: str = error.get('message')
-            cls.logger.exception(message)
+            cls._logger.exception(message)
             try:
                 import simplejson as json
                 # json_encoded: Dict = json.loads(query)
-                cls.logger.debug_extra_verbose('JASON DUMP:',
+                cls._logger.debug_extra_verbose('JASON DUMP:',
                                                json.dumps(
                                                    query, indent=3, sort_keys=True))
             except Exception:
@@ -297,13 +297,13 @@ class DBAccess:
                        f'{{ "field": "year", "operator": "is", "value": "{year}" }} ' \
                        f'] }} }}, "id": 1}}'
 
-        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
-            cls.logger.debug_verbose(f'title: {title} year: {year}')
-            cls.logger.debug_verbose(f'query: {query}')
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_verbose(f'title: {title} year: {year}')
+            cls._logger.debug_verbose(f'query: {query}')
             try:
                 x = simplejson.loads(query)
                 query_str = simplejson.dumps(x, indent=4, sort_keys=True)
-                cls.logger.debug_extra_verbose(f'query: {query_str}')
+                cls._logger.debug_extra_verbose(f'query: {query_str}')
             except Exception:
                 pass
 
