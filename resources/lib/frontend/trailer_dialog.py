@@ -724,8 +724,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         clz._logger.enter()
         # Only do this for abort, since both events should not be set at same time
-        MovieDetailsTimer.cancel(usage='aborting')  # Unblock waits
-        TrailerTimer.cancel(usage='aborting', stop_play=True)
+        if MovieDetailsTimer.can_be_canceled():
+            MovieDetailsTimer.cancel(usage='aborting')  # Unblock waits
+        if TrailerTimer.can_be_canceled():
+            TrailerTimer.cancel(usage='aborting', stop_play=True)
         self._dialog_state_mgr.set_random_trailers_play_state(DialogState.SHUTDOWN)
         self._wait_event.set(ReasonEvent.SHUTDOWN)
 
@@ -809,12 +811,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         movie: AbstractMovie = self._movie
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             if action_id not in(100, 107):  # Mouse Move
-                clz._logger.debug_extra_verbose('Action.id:', action_id,
-                                               hex(action_id),
-                                               'Action.button_code:',
-                                               action.getButtonCode(),
-                                               hex(action.getButtonCode()),
-                                               trace=Trace.TRACE)
+                if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+                    clz._logger.debug_extra_verbose('Action.id:', action_id,
+                                                   hex(action_id),
+                                                   'Action.button_code:',
+                                                   action.getButtonCode(),
+                                                   hex(action.getButtonCode()),
+                                                   trace=Trace.TRACE)
 
                 action_mapper: Action = Action.get_instance()
                 matches: List[str] = action_mapper.getKeyIDInfo(action)
@@ -875,14 +878,16 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
               or action_id == xbmcgui.ACTION_MOVE_RIGHT):
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(
-                    key, 'Play next trailer at user\'s request',
+                    key, 'Show next trailer at user\'s request',
                     trace=Trace.TRACE_UI_CONTROLLER)
 
-            MovieDetailsTimer.cancel(usage='To play next trailer @ user\'s request')
-            TrailerTimer.cancel(usage='To play next trailer @ user\'s request',
-                                callback=TaskLoop.get_worker_thread().
-                                play_trailer_finished,
-                                stop_play=True)
+            if MovieDetailsTimer.can_be_canceled():
+                MovieDetailsTimer.cancel(usage='To play next trailer @ user\'s request')
+            if TrailerTimer.can_be_canceled():
+                TrailerTimer.cancel(usage='To play next trailer @ user\'s request',
+                                    callback=TaskLoop.get_worker_thread().
+                                    play_trailer_finished,
+                                    stop_play=True)
             TaskLoop.add_task(Task.QUEUE_NEXT_TRAILER, Task.GET_TRAILER,
                               Task.SHOW_DETAILS)
 
@@ -891,7 +896,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         elif action_id == xbmcgui.ACTION_MOVE_LEFT:
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(key,
-                                                'Play previous trailer at user\'s request',
+                                                'Show previous trailer at user\'s request',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
             has_previous_trailer: bool = HistoryList.has_previous_trailer()
             if has_previous_trailer:
@@ -969,7 +974,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
     def do_toggle_show_info(self):
         clz = type(self)
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose('Toggle Show_Info',
+            clz._logger.debug_extra_verbose('Toggle SHOW_INFO',
                                             trace=Trace.TRACE_UI_CONTROLLER)
 
         if not self._dialog_state_mgr.is_random_trailers_play_state(DialogState.NORMAL):
@@ -1015,9 +1020,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         self._dialog_state_mgr.set_random_trailers_play_state(
             DialogState.USER_REQUESTED_EXIT)
-        MovieDetailsTimer.cancel(usage=f'Exiting RandomTrailers at user request')
-        TrailerTimer.cancel(usage=f'Exiting RandomTrailers at user request',
-                            stop_play=True)
+        if MovieDetailsTimer.can_be_canceled():
+            MovieDetailsTimer.cancel(usage=f'Exiting RandomTrailers at user request')
+        if TrailerTimer.can_be_canceled():
+            TrailerTimer.cancel(usage=f'Exiting RandomTrailers at user request',
+                                stop_play=True)
 
     '''
     def do_play_movie(self):
@@ -1134,10 +1141,13 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                               MovieField.TRAILER: movie.get_trailer_path(),
                               'path': movie.get_movie_path(),
                               'mediatype': 'video'})
+
             listitem.setPath(movie.get_movie_path())
+
             if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                 clz._logger.debug_extra_verbose(
                         'path:', movie.get_movie_path(), 'title:', movie.get_title())
+
             xbmc.Player().play(movie.get_movie_path(), listitem=listitem)
 
         if Monitor.is_abort_requested():

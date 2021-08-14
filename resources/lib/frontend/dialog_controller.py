@@ -113,9 +113,11 @@ class DialogStateMgr(BaseDialogStateMgr):
 
             # TODO: There may be more to this...
 
-            MovieDetailsTimer.cancel('User Requested Exit', callback=None)
-            TrailerTimer.cancel('User Requested Exit', callback=None,
-                                stop_play=True)
+            if MovieDetailsTimer.can_be_canceled():
+                MovieDetailsTimer.cancel('User Requested Exit', callback=None)
+            if TrailerTimer.can_be_canceled():
+                TrailerTimer.cancel('User Requested Exit', callback=None,
+                                    stop_play=True)
 
         # Multiple groups can be played before exiting. Allow
         # them to be reset back to normal.
@@ -250,11 +252,15 @@ class TaskLoop(threading.Thread):
                 if task in cls.TASKS:
                     cls._logger.debug(f'adding task: {task}')
                     if task == Task.GET_TRAILER:
+                        # Sequence of: QUEUE_XX, GET_TRAILER, SHOW_TRAILER
                         # Purge everything but QUEUE* entries from queue
                         tasks_to_keep = []
                         for existing_task in TaskQueue.instance:
                             if existing_task in TaskLoop.QUEUE_OPERATIONS:
                                 tasks_to_keep.append(existing_task)
+                            else:
+                                cls._logger.debug_extra_verbose(f'purging task '
+                                                                 f'{task}')
 
                         if len(tasks_to_keep) != len(TaskQueue.instance):
                             TaskQueue.instance.clear()
@@ -511,10 +517,12 @@ class TaskLoop(threading.Thread):
             clz._trailer_dialog.queue_movie(self._movie)
             DialogStateMgr.set_random_trailers_play_state(
                 DialogState.START_MOVIE_AND_EXIT)
-            MovieDetailsTimer.cancel(f'Cancel playing trailer to play movie',
-                                     callback=None)
-            TrailerTimer.cancel(f'Cancel playing trailer to play movie',
-                                callback=None, stop_play=True)
+            if MovieDetailsTimer.can_be_canceled():
+                MovieDetailsTimer.cancel(f'Cancel playing trailer to play movie',
+                                         callback=None)
+            if TrailerTimer.can_be_canceled():
+                TrailerTimer.cancel(f'Cancel playing trailer to play movie',
+                                    callback=None, stop_play=True)
 
     def _play(self) -> None:
         clz = type(self)
@@ -539,7 +547,9 @@ class TaskLoop(threading.Thread):
             return
 
         self._pause()
-        TrailerTimer.cancel(usage='to show details')
+        if TrailerTimer.can_be_canceled():
+            TrailerTimer.cancel(usage='to show details')
+
         missing_movie_details: bool = self._movie.is_folder_source()
         detail_info_display_time: int
         if self._future_details_timed:
@@ -557,7 +567,9 @@ class TaskLoop(threading.Thread):
             # Kill movie player timer 1) because time is paused on player
             #                         2) timer will interfere with show details
             #
-            MovieDetailsTimer.cancel(usage=f'Cancel any previous movie')
+            if MovieDetailsTimer.can_be_canceled():
+                MovieDetailsTimer.cancel(usage=f'Cancel any previous movie')
+
             # TrailerTimer.cancel(usage=f'Cancel any previous movie')
             MovieDetailsTimer.config(scroll_plot=scroll_plot,
                                      display_seconds=detail_info_display_time,
@@ -606,8 +618,10 @@ class TaskLoop(threading.Thread):
 
         DialogStateMgr.set_random_trailers_play_state(
                 DialogState.USER_REQUESTED_EXIT)
-        MovieDetailsTimer.cancel(usage=f'exit plugin')
-        TrailerTimer.cancel(f'exit plugin', stop_play=True)
+        if MovieDetailsTimer.can_be_canceled():
+            MovieDetailsTimer.cancel(usage=f'exit plugin')
+        if TrailerTimer.can_be_canceled():
+            TrailerTimer.cancel(f'exit plugin', stop_play=True)
 
     def _add_to_playlist(self, playlist_number: int) -> None:
         """
@@ -679,6 +693,7 @@ class TaskLoop(threading.Thread):
             timeout: float = 0.2
             while attempts > 0:
                 try:
+                    attempts += 1
                     clz._logger.debug(f'In _get_trailer')
                     next_movie_status, next_movie = clz._movie_manager.get_next_trailer()
 
