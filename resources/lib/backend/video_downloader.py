@@ -724,10 +724,13 @@ class BaseYDLogger:
 
     _logger: LazyLogger = None
 
+    @classmethod
+    def class_init(cls):
+        cls._logger = module_logger.getChild(cls.__name__)
+
     def __init__(self, downloader: VideoDownloader, url: str,
                  parse_json_as_youtube: bool = True) -> None:
         clz = type(self)
-        clz._logger = module_logger.getChild(clz.__name__)
         self.debug_lines: List[str] = []
         self.warning_lines: List[str] = []
         self.error_lines: List[str] = []
@@ -1027,14 +1030,20 @@ class BaseYDLogger:
         self.log_lines(self.warning_lines, 'WARNING:')
 
 
+BaseYDLogger.class_init()
+
+
 class TfhIndexLogger(BaseYDLogger):
     _logger = None
+
+    @classmethod
+    def class_init(cls):
+        cls._logger = module_logger.getChild(cls.__name__)
 
     def __init__(self, downloader: VideoDownloader,
                  trailer_handler, url: str) -> None:
         super().__init__(downloader, url, parse_json_as_youtube=True)
         clz = type(self)
-        clz._logger = module_logger.getChild(clz.__name__)
         self._trailer_handler = trailer_handler
 
     def debug(self, line: str) -> None:
@@ -1185,6 +1194,9 @@ class TfhIndexLogger(BaseYDLogger):
         return movie
 
 
+TfhIndexLogger.class_init()
+
+
 class VideoLogger(BaseYDLogger):
     _logger = None
 
@@ -1193,9 +1205,13 @@ class VideoLogger(BaseYDLogger):
         super().__init__(downloader, url,
                          parse_json_as_youtube=parse_json_as_youtube)
         clz = type(self)
-        if clz._logger is None:
-            clz._logger = module_logger.getChild(clz.__name__)
+
         self.data: MovieType = None
+
+    @classmethod
+    def class_init(cls):
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
 
     def debug(self, line: str) -> None:
         """
@@ -1210,6 +1226,9 @@ class VideoLogger(BaseYDLogger):
             self.data = self.raw_data
 
 
+VideoLogger.class_init()
+
+
 class TfhInfoLogger(BaseYDLogger):
     _logger = None
     country_id = None
@@ -1219,15 +1238,18 @@ class TfhInfoLogger(BaseYDLogger):
     def __init__(self, downloader: VideoDownloader, url: str,
                  parse_json_as_youtube: bool = False) -> None:
         super().__init__(downloader, url, parse_json_as_youtube=parse_json_as_youtube)
-        clz = type(self)
-        if clz._logger is None:
-            clz._logger = module_logger.getChild(clz.__name__)
-            clz.country_id = Settings.get_country_iso_3166_1().lower()
-            clz.certifications = WorldCertifications.get_certifications(clz.country_id)
-            clz.unrated_id = clz.certifications.get_unrated_certification().get_preferred_id()
 
         self._trailer_info: List[MovieType] = []
         self.is_finished = False
+
+    @classmethod
+    def class_init(cls):
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+            cls.country_id = Settings.get_country_iso_3166_1().lower()
+            cls.certifications = WorldCertifications.get_certifications(cls.country_id)
+            cls.unrated_id = cls.certifications.get_unrated_certification().\
+                get_preferred_id()
 
     def get_trailer_info(self) -> List[MovieType]:
         return self._trailer_info
@@ -1243,6 +1265,9 @@ class TfhInfoLogger(BaseYDLogger):
             self._trailer_info.append(self.raw_data)
 
         # How do we know when finished?
+
+
+TfhInfoLogger.class_init()
 
 
 class BaseInfoHook:
