@@ -14,7 +14,7 @@
                 <width>1280</width>
                 <height>720</height>
                 <aspectratio>stretch</aspectratio>
-                <texture background="true">solid-black.png</texture>
+                <texture>solid-black.png</texture>
             </control>
         </control>
         <control type="group" id="38051">
@@ -28,7 +28,7 @@
                 <width>1280</width>
                 <height>720</height>
                 <aspectratio>stretch</aspectratio>
-                <texture background="true">glass-overlay.png</texture>
+                <texture>glass-overlay.png</texture>
             </control>
         </control>
     </controls>

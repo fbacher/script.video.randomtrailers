@@ -5,6 +5,23 @@
         <!-- First is the Black Mask to hide every window below, particularly
              the default player -->
         <control type="group" id="38000">
+            <description>Video Player Sandwich. Place a black background before and after
+            a videowindow to give us control:
+                The videowindow overrides the default video player behavior. This keeps
+                OSD from displaying unwanted things when we press SHOW_INFO, etc..
+
+                The black background control after the videowindow alows us to  black out
+                the video screen when we we want to show Movie Details instead of the
+                Trailer.
+
+                The black background control before the videowindow probably doesn't do much
+                for us, but just in case we need it...
+            </description>
+            <visible>true</visible>
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1280</width>
+            <height>720</height>
             <control type="image">
                 <description>Black background</description>
                 <visible>true</visible>
@@ -15,17 +32,11 @@
                 <aspectratio>stretch</aspectratio>
                 <texture background="true">solid-black.png</texture>
             </control>
-        </control>
 
-        <control type="group" id="38028">
-            <description>Play Trailer Window</description>
-            <posx>0</posx>
-            <posy>0</posy>
-            <width>1280</width>
-            <height>720</height>
-            <control type="videowindow">
+            <control type="videowindow" id="38032">
                 <description>Private Video Window for trailer to avoid default
-                    navigation action processing
+                    navigation action processing. Leave visible so it can intercept
+                    from native window. Hidden later, in Show Details grop by black image.
                 </description>
                 <visible>true</visible>
                 <left>0</left>
@@ -33,102 +44,153 @@
                 <right>100%</right>
                 <bottom>100%</bottom>
             </control>
-            <control type="group" id="38029">
-                <!-- Invisible when Notification is displayed -->
-                <visible>!Control.IsVisible(38030)</visible>
-                <control type="group">
-                    <description>Optional title displayed while trailer is playing</description>
+
+            <control type="group" id="38031">
+                <posx>0</posx>
+                <posy>0</posy>
+                <visible>true</visible>
+                <control type="image">
+                    <description>Black background to hide VideoWindow, etc.</description>
                     <posx>0</posx>
                     <posy>0</posy>
                     <width>1280</width>
-                    <height>50</height>
-                    <control type="image">
-                        <description>Shadow Text background</description>
-                        <posx>0</posx>
-                        <posy>0</posy>
-                        <width>1280</width>
-                        <height>45</height>
-                        <visible>true</visible>
-                        <aspectratio>stretch</aspectratio>
-                        <texture>gray-back.png</texture>
-                    </control>
-                    <control type="label" id="38021">
-                        <description>Movie Title</description>
-                        <posx>20</posx>
-                        <posy>5</posy>
-                        <width>1240</width>
-                        <aligny>top</aligny>
-                        <visible>true</visible>
-                        <scroll>false</scroll>
-                        <haspath>false</haspath>
-                        <wrapmultiline>false</wrapmultiline>
-                        <font>font25</font>
-                        <textcolor>FFFFFFFF</textcolor>
-                    </control>
-                </control>
-            </control>
-            <control type="group" id="38030">
-                <description>Controls Notification Visibility</description>
-                <control type="group" id="38022">
-                    <description>Notification that may appear while trailer is playing</description>
-                    <posx>0</posx>
-                    <posy>0</posy>
-                    <width>1280</width>
-                    <height>50</height>
-                    <control type="image">
-                        <description>Shadow Text background</description>
-                        <posx>0</posx>
-                        <width>1280</width>
-                        <visible>true</visible>
-                        <aspectratio>stretch</aspectratio>
-                        <texture>gray-back.png</texture>
-                    </control>
-                    <control type="label" id="38023">
-                        <description>Notification</description>
-                        <posx>20</posx>
-                        <posy>5</posy>
-                        <width>1240</width>
-                        <height>40</height>
-                        <aligny>top</aligny>
-                        <visible>true</visible>
-                        <scroll>false</scroll>
-                        <haspath>false</haspath>
-                        <wrapmultiline>false</wrapmultiline>
-                        <font>font30</font>
-                        <textcolor>FFFFFFFF</textcolor>
-                    </control>
+                    <height>720</height>
+                    <aspectratio>stretch</aspectratio>
+                    <texture>solid-black.png</texture>
+                    <visible>!Control.IsVisible(38028)</visible>
                 </control>
             </control>
         </control>
 
-        <control type="group" id="38001">
+        <!-- <control type="group" id="38028">
+            <description>Play Trailer Window</description>
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>1280</width>
+            <height>720</height>
+            <visible>true</visible> -->
+            <!--
+            <control type="videowindow">
+                <description>Private Video Window for trailer to avoid default
+                    navigation action processing. Leave visible so it can intercept
+                    from native window. Hidden later, in Show Details grop by black image.
+                </description>
+                <visible>true</visible>
+                <left>0</left>
+                <top>0</top>
+                <right>100%</right>
+                <bottom>100%</bottom>
+            </control> -->
+            <control type="group" id="38028">
+                <description>Trailer Overlay</description>
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1280</width>
+                <height>720</height>
+                <visible>true</visible>
+                <control type="group" id="38029">
+                    <!-- Invisible when Notification is displayed -->
+                    <visible>!Control.IsVisible(38030)</visible>
+                    <control type="group">
+                        <description>Optional title displayed while trailer is playing</description>
+                        <posx>0</posx>
+                        <posy>0</posy>
+                        <width>1280</width>
+                        <height>50</height>
+                        <control type="image">
+                            <description>Shadow Text background</description>
+                            <posx>0</posx>
+                            <posy>0</posy>
+                            <width>1280</width>
+                            <height>45</height>
+                            <visible>true</visible>
+                            <aspectratio>stretch</aspectratio>
+                            <texture>gray-back.png</texture>
+                        </control>
+                        <control type="label" id="38021">
+                            <description>Movie Title</description>
+                            <posx>20</posx>
+                            <posy>5</posy>
+                            <width>1240</width>
+                            <aligny>top</aligny>
+                            <visible>true</visible>
+                            <scroll>false</scroll>
+                            <haspath>false</haspath>
+                            <wrapmultiline>false</wrapmultiline>
+                            <font>font25</font>
+                            <textcolor>FFFFFFFF</textcolor>
+                        </control>
+                    </control>
+                </control>
+                <control type="group" id="38030">
+                    <description>Controls Notification Visibility</description>
+                    <control type="group" id="38022">
+                        <description>Notification that may appear while trailer is playing</description>
+                        <posx>0</posx>
+                        <posy>0</posy>
+                        <width>1280</width>
+                        <height>50</height>
+                        <control type="image">
+                            <description>Shadow Text background</description>
+                            <posx>0</posx>
+                            <width>1280</width>
+                            <visible>true</visible>
+                            <aspectratio>stretch</aspectratio>
+                            <texture>gray-back.png</texture>
+                        </control>
+                        <control type="label" id="38023">
+                            <description>Notification</description>
+                            <posx>20</posx>
+                            <posy>5</posy>
+                            <width>1240</width>
+                            <height>40</height>
+                            <aligny>top</aligny>
+                            <visible>true</visible>
+                            <scroll>false</scroll>
+                            <haspath>false</haspath>
+                            <wrapmultiline>false</wrapmultiline>
+                            <font>font30</font>
+                            <textcolor>FFFFFFFF</textcolor>
+                        </control>
+                    </control>
+                </control>
+            </control>
+        <!-- </control> -->
+
+        <control type="group">
             <description>Movie Details View</description>
             <posx>0</posx>
             <posy>0</posy>
             <width>1280</width>
             <height>720</height>
             <visible>true</visible>
+            <!-- <animation effect="fade" time="10000" start="100" end="90" reversible="false">Visible</animation> -->
             <!-- Everything below is for Movie Details while Trailer is NOT playing -->
 
-            <control type="group">
-                <animation effect="fade" start="100" end="0" time="1000">WindowClose</animation>
-                <animation effect="fade" start="0" end="100" time="1000">WindowOpen</animation>
+            <!-- <control type="group"> -->
+            <!-- <animation effect="fade" time="1000" reversible="false">Visible</animation> -->
+            <!-- <animation effect="fade" time="200" reversible="false">Hidden</animation> -->
+            <!-- <control type="group">
+                <posx>0</posx>
+                <posy>0</posy>
                 <visible>true</visible>
-                <!-- Black background for detail info must come first-->
-                <control type="group">
+                <control type="image">
+                    <description>Black background to hide VideoWindow, etc.</description>
                     <posx>0</posx>
                     <posy>0</posy>
-                    <control type="image">
-                        <description>Black background</description>
-                        <posx>0</posx>
-                        <posy>0</posy>
-                        <width>1280</width>
-                        <height>720</height>
-                        <aspectratio>stretch</aspectratio>
-                        <texture background="true">solid-black.png</texture>
-                        <visible>false</visible>
-                    </control>
+                    <width>1280</width>
+                    <height>720</height>
+                    <aspectratio>stretch</aspectratio>
+                    <texture background="true">solid-black.png</texture>
+                    <visible>!Control.IsVisible(38028)</visible>
                 </control>
+            </control> -->
+            <control type="group" id="38001">
+                <description>Detail View. Encompasses all detail text and images</description>
+                <posx>0</posx>
+                <posy>0</posy>
+                <width>1280</width>
+                <height>720</height>
                 <!-- TITLE -->
                 <control type="label" id="38003">
                     <description>Title</description>
@@ -168,9 +230,10 @@
                         <width>400</width>
                         <height>619</height>
                         <aspectratio>keep</aspectratio>
-                        <fadetime>200</fadetime>
+                        <!-- <fadetime>200</fadetime> -->
                         <texture background="true">noposter.png</texture>
-                        <visible>true</visible>
+                        <!-- <visible>Control.IsVisible(38001)</visible> -->
+                        <!-- <animation effect="fade" time="20000" start="100" end="0" reversible="false" pulse="true">Visible</animation> -->
                     </control>
                     <!-- Vertical Left border -->
                     <control type="image">
@@ -219,8 +282,10 @@
                         <width>420</width>
                         <height>240</height>
                         <aspectratio>keep</aspectratio>
-                        <fadetime>200</fadetime>
+                        <visible>true</visible>
+                        <!-- <fadetime>200</fadetime> -->
                         <texture background="true">preview.png</texture>
+                        <!-- <animation effect="fade" time="20000" start="100" stop="90" reversible="false">Visible</animation> -->
                     </control>
                 </control>
 
@@ -283,7 +348,7 @@
 
                 <control type="group">
                     <description>Plot, Studio, Certification, Rating/</description>
-                    <posy>342</posy>S
+                    <posy>342</posy>
                     <posx>0</posx>
                     <height>378</height>
                     <width>880</width>
