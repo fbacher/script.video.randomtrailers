@@ -8,7 +8,6 @@ import xbmcgui
 from common.imports import *
 from common.movie import AbstractMovie
 from player.advanced_player import AdvancedPlayer
-from player.advanced_player import PlayerState
 from common.logger import LazyLogger, Trace
 from common.disk_utils import DiskUtils
 
@@ -33,7 +32,6 @@ class MyPlayer(AdvancedPlayer, ABC):
         self._expected_title: str = None
         self._expected_file_path: str = None
         self._is_url: bool = False
-        self._is_activated: bool = True
         self._listener_lock: threading.RLock = threading.RLock()
         self._listeners: List[Callable[[Any], Any]] = []
 
@@ -114,8 +112,7 @@ class MyPlayer(AdvancedPlayer, ABC):
         self._expected_file_path = file_path
 
     def is_playing_trailer(self, path: str) -> bool:
-        if (self._player_state == PlayerState.STATE_PLAYING
-                and self._expected_file_path == path):
+        if self._is_playing and self._expected_file_path == path:
             return True
         return False
 
@@ -146,7 +143,6 @@ class MyPlayer(AdvancedPlayer, ABC):
             if genre != 'randomtrailers':
                 playing_file: str = super().getPlayingFile()
                 if not (self._is_url and DiskUtils.is_url(playing_file)):
-                    self._is_activated = False
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG):
                         clz._logger.debug(
                             'Player is playing video:', playing_file)
@@ -193,10 +189,3 @@ class MyPlayer(AdvancedPlayer, ABC):
                     clz._logger.debug('Not playing video')
         except Exception as e:
             clz._logger.exception('')
-
-    def is_activated(self) -> bool:
-        """
-
-        :return:
-        """
-        return self._is_activated
