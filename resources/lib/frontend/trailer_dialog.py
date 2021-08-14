@@ -1019,6 +1019,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         TrailerTimer.cancel(usage=f'Exiting RandomTrailers at user request',
                             stop_play=True)
 
+    '''
     def do_play_movie(self):
         clz = type(self)
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -1041,6 +1042,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             NotificationTimer.start()
         else:
             self.queue_movie(self._movie)
+    '''
 
     def set_playing_trailer_title_control(self, text: str = '') -> None:
         """
@@ -1118,12 +1120,25 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             movie_file = movie.get_movie_path()
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose('Playing movie at user request:',
-                                               movie.get_title(),
-                                               'path:', movie_file)
+                                                movie.get_title(),
+                                                'path:', movie_file)
 
             self._dialog_state_mgr.set_random_trailers_play_state(
                 DialogState.SHUTDOWN_CUSTOM_PLAYER)
-            xbmc.Player().play(movie_file)
+            listitem: xbmcgui.ListItem = xbmcgui.ListItem(label=movie.get_title(),
+                                                          path=movie.get_movie_path())
+            listitem.setInfo(
+                    'video', {MovieField.TITLE: movie.get_title(),
+                              'dbid': movie.get_library_id(),
+                              MovieField.GENRE_NAMES: movie.get_genre_names(),
+                              MovieField.TRAILER: movie.get_trailer_path(),
+                              'path': movie.get_movie_path(),
+                              'mediatype': 'video'})
+            listitem.setPath(movie.get_movie_path())
+            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+                clz._logger.debug_extra_verbose(
+                        'path:', movie.get_movie_path(), 'title:', movie.get_title())
+            xbmc.Player().play(movie.get_movie_path(), listitem=listitem)
 
         if Monitor.is_abort_requested():
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -1134,7 +1149,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if xbmc.Player().isPlayingVideo():
                 break
 
-        self._dialog_state_mgr.set_random_trailers_play_state(DialogState.STARTED_PLAYING_MOVIE)
+        self._dialog_state_mgr.set_random_trailers_play_state(
+                DialogState.STARTED_PLAYING_MOVIE)
 
         # Time to exit plugin
         Monitor.abort_requested()
