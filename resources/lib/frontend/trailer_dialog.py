@@ -40,13 +40,13 @@ from frontend.dialog_utils import (ControlId, Glue, MovieDetailsTimer, Notificat
 from frontend.front_end_exceptions import (SkipMovieException, StopPlayingGroup,
                                            UserExitException)
 from frontend.history_list import HistoryList
+from frontend.text_to_speech import TTS
 from player.my_player import MyPlayer
 from player.player_container import PlayerContainer
 from frontend.black_background import BlackBackground
 from frontend.movie_manager import MovieManager, MovieStatus
 from frontend.history_empty import HistoryEmpty
 from frontend.utils import ReasonEvent
-from frontend import text_to_speech
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -139,21 +139,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         self.delay_between_groups: int = None
         self.exiting_playing_movie: bool = False
         self._dialog_state_mgr = BaseDialogStateMgr.get_instance()
-        self._tts_stopped: bool = False
-        text_to_speech.add_stop_listener(self.tts_stopped)
-
-    def tts_stopped(self) -> None:
-        """
-        Primative flag to indicate that the text_to_speech engine was told
-        to stop. The flag is cleared after 1/2 second
-        :return:
-        """
-        clz = type(self)
-        clz._logger.enter()
-        self._tts_stopped = True
-        Monitor.throw_exception_if_abort_requested(timeout=0.5)
-        self._tts_stopped = False
-        clz._logger.exit()
 
     def get_movie_manager(self) -> MovieManager:
         return self._movie_manager
@@ -535,17 +520,17 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if self._logger.isEnabledFor(LazyLogger.DEBUG):
                 clz._logger.enter()
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             title_label = Messages.get_formatted_msg(Messages.TITLE_LABEL)
-            text_to_speech.say_text(title_label, interrupt=True)
+            TTS.say_text(title_label, interrupt=True)
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             title_string = self.get_title_string(self._movie)
-            text_to_speech.say_text(title_string, interrupt=False)
+            TTS.say_text(title_string, interrupt=False)
 
             rating: float = self._movie.get_rating()
 
@@ -553,84 +538,84 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             rating = int(rating * 10) / 20.0
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             # "Rated 4.5 out of 5 stars"
-            text_to_speech.say_text(
+            TTS.say_text(
                 Messages.get_formatted_msg(Messages.VOICED_STARS, str(rating)))
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             # MPAA rating
             certification = self._movie.get_detail_certification()
-            text_to_speech.say_text(
+            TTS.say_text(
                 Messages.get_formatted_msg(
                     Messages.VOICED_CERTIFICATION, certification))
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             runtime_genres = Messages.get_formatted_msg(
                 Messages.RUNTIME_GENRE,
                 self._movie.get_detail_runtime(),
                 self._movie.get_detail_genres())
-            text_to_speech.say_text(runtime_genres, interrupt=False)
+            TTS.say_text(runtime_genres, interrupt=False)
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             director_label = \
                 Messages.get_formatted_msg(Messages.DIRECTOR_LABEL)
-            text_to_speech.say_text(director_label, interrupt=False)
+            TTS.say_text(director_label, interrupt=False)
 
             # When TTS uses cached speech files, say the Directors one at a time
             # to reduce cached messages
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             for director in self._movie.get_voiced_directors():
-                text_to_speech.say_text(director, interrupt=False)
+                TTS.say_text(director, interrupt=False)
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             writer_label = \
                 Messages.get_formatted_msg(Messages.WRITER_LABEL)
-            text_to_speech.say_text(writer_label, interrupt=False)
+            TTS.say_text(writer_label, interrupt=False)
 
             # When TTS uses cached speech files, say the writers one at a time
             # to reduce cached messages
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             for writer in self._movie.get_voiced_detail_writers():
-                text_to_speech.say_text(writer, interrupt=False)
+                TTS.say_text(writer, interrupt=False)
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             stars_label = \
                 Messages.get_formatted_msg(Messages.STARS_LABEL)
-            text_to_speech.say_text(stars_label, interrupt=False)
+            TTS.say_text(stars_label, interrupt=False)
 
             # When TTS uses cached speech files, say the Actors one at a time
             # to reduce cached messages
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             for actor in self._movie.get_voiced_actors():
-                text_to_speech.say_text(actor)
+                TTS.say_text(actor)
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             plot_label = Messages.get_formatted_msg(Messages.PLOT_LABEL)
-            text_to_speech.say_text(plot_label, interrupt=False)
+            TTS.say_text(plot_label, interrupt=False)
 
             plot: str = self._movie.get_plot()
             if plot is None:
@@ -663,21 +648,21 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 cleaned_plot = re.sub(TrailerDialog.TFH_JUNK_PATTERN,
                                       r'', cleaned_plot)
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             # self._logger.debug('Plot original text:', plot)
             # self._logger.debug('Plot text:', cleaned_plot)
-            text_to_speech.say_text(cleaned_plot, interrupt=False)
+            TTS.say_text(cleaned_plot, interrupt=False)
 
             # When TTS uses cached speech files, say the Studios one at a time
             # to reduce cached messages
 
-            if self._tts_stopped:
+            if TTS.is_tts_stopped():
                 return
 
             for studio in self._movie.get_voiced_studios():
-                text_to_speech.say_text(studio, interrupt=False)
+                TTS.say_text(studio, interrupt=False)
 
         except AbortException:
             raise sys.exc_info()
@@ -1090,7 +1075,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         notification_control.setLabel(bold_text)
         notification_control_2.setLabel(bold_text)
         if text != '':
-            text_to_speech.say_text(text, interrupt=True)
+            TTS.say_text(text, interrupt=True)
         return
 
     def queue_movie(self, movie: AbstractMovie) -> None:
