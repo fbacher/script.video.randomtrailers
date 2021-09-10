@@ -6,7 +6,7 @@ Created on Feb 10, 2019
 """
 
 import xbmc
-from kodi65.kodiaddon import Addon
+from kutils.kodiaddon import Addon
 from common.imports import *
 
 

@@ -12,7 +12,7 @@ import xbmc
 import xbmcvfs
 
 from common.movie_constants import MovieField, MovieType
-from kodi65.kodiaddon import Addon
+from kutils.kodiaddon import Addon
 
 from common.imports import *
 from common.constants import (Constants, DebugLevel,

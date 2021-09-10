@@ -13,7 +13,7 @@ import random
 import time
 
 from common.minimal_monitor import MinimalMonitor
-from kodi65.kodiaddon import Addon
+from kutils.kodiaddon import Addon
 
 from common.constants import Constants
 from common.imports import *

@@ -13,8 +13,8 @@ import re
 
 import xbmcaddon
 import xbmcvfs
-from kodi65 import addon
-from kodi65.kodiaddon import Addon
+from kutils import addon
+from kutils.kodiaddon import Addon
 
 from common.imports import *
 
