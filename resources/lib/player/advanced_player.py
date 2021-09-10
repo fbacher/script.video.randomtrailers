@@ -608,10 +608,6 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         local_class = AdvancedPlayer
         title = None
         try:
-            playing_file = super().getPlayingFile()
-        except Exception as e:
-            playing_file = 'unknown'
-        try:
             info_tag = self.getVideoInfoTag()
             title = info_tag.getTitle()
         except Exception as e:
@@ -619,6 +615,19 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             self._is_finished = True
 
         return title
+    def is_playing_file(self, file_path) -> bool:
+        """
+        :param file_path: Path of the file to verify is playing (may be paused)
+        :returns: True if playing (may be paused) the current file
+                  else False
+        """
+        playing_the_file: bool = False
+        try:
+            playing_path: str = self.getPlaying_file()
+            playing_the_file = playing_path == file_path
+        except:
+            playing_the_file = False
+        return playing_the_file
 
     def kill_player(self) -> None:
         local_class = AdvancedPlayer

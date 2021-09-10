@@ -8,10 +8,10 @@ Created on Apr 17, 2019
 """
 
 import datetime
-import os
 import re
 import sys
 import threading
+from collections import OrderedDict
 
 import xbmc
 import xbmcgui
@@ -25,7 +25,6 @@ from common.debug_utils import Debug
 from common.imports import *
 from common.movie import AbstractMovie, FolderMovie, TFHMovie
 from common.movie_constants import MovieField
-from common.playlist import Playlist
 from common.exceptions import AbortException
 from common.logger import LazyLogger, Trace
 from common.messages import Messages
@@ -35,17 +34,13 @@ from action_map import Action
 from common.settings import Settings
 from frontend.dialog_controller import DialogState, BaseDialogStateMgr, Task, TaskLoop
 from frontend.dialog_utils import (ControlId, Glue, MovieDetailsTimer, NotificationTimer,
-                                   TrailerPlayer,
                                    TrailerStatus, TrailerTimer)
-from frontend.front_end_exceptions import (SkipMovieException, StopPlayingGroup,
-                                           UserExitException)
 from frontend.history_list import HistoryList
 from frontend.text_to_speech import TTS
 from player.my_player import MyPlayer
 from player.player_container import PlayerContainer
 from frontend.black_background import BlackBackground
 from frontend.movie_manager import MovieManager, MovieStatus
-from frontend.history_empty import HistoryEmpty
 from frontend.utils import ReasonEvent
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -110,7 +105,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
         clz._trailer_dialog = self
         TrailerStatus.class_init(self)
-        TrailerPlayer.class_init(trailer_dialog=self)
         Glue.set_dialog(self)
         BaseDialogStateMgr.set_trailer_dialog(self)
 
@@ -243,15 +237,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 clz._logger.debug_extra_verbose(
                     'About to close TrailerDialog')
 
-            clz._logger.debug_extra_verbose(f'Canceling Trailer Dialog to exit'
-                                            f' randomtrailers',
-                                            trace=Trace.TRACE_UI_CONTROLLER)
-            TrailerStatus.cancel_movie_details_timer(usage=f'Canceling Trailer Dialog to exit '
-                                              f'randomtrailers')
-            TrailerStatus.cancel_trailer_timer(usage=f'Canceling Trailer Dialog to exit '
-                                                     f'randomtrailers', stop_play=True)
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.debug_extra_verbose('Closed TrailerDialog')
             self.shutdown()
             return  # Exit thread
 
@@ -282,7 +267,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if self._movie is None:
                 clz._logger.info('There will be no trailers to play')
                 msg: str = Messages.get_msg(Messages.NO_TRAILERS_TO_PLAY)
-                NotificationTimer.config(msg=msg)
+                NotificationTimer.config(msg=msg, title=self._movie.get_title())
                 NotificationTimer.start()
                 self._dialog_state_mgr.set_random_trailers_play_state(
                         DialogState.NO_TRAILERS_TO_PLAY)
@@ -342,7 +327,11 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
     def update_detail_view(self, movie: AbstractMovie) -> None:
         """
+        Updates the Movie Details View GUI with information from the given movie.
+        Does NOT control the visibility of this view. Visibility should be off
+        when updating. See dialog_utils *Timers for controlling visibility.
 
+        :param movie: Movie to display the information for
         :return:
         """
         clz = type(self)
@@ -350,7 +339,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         try:
             Monitor.throw_exception_if_abort_requested()
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.enter()
+                clz._logger.enter(f'movie: {movie.get_title()}')
 
             control: Union[ControlImage, Control] = self.getControl(38002)
             thumbnail = self._movie.get_thumbnail()
@@ -379,9 +368,6 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 title_control: Union[ControlLabel,
                                      Control] = control_id.get_label_control() # self.getControl(control_id)
                 title_control.setLabel(title_string)
-
-            # title.setAnimations(
-            #    [('Hidden', 'effect=fade end=0 time=1000')])
 
             control: Union[ControlLabel, Control] = ControlId.DIRECTOR_LABEL.get_label_control()
             control.setLabel(self.bold(Messages.get_msg(Messages.DIRECTOR_LABEL)))
@@ -450,7 +436,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 cleaned_plot = re.sub(TrailerDialog.TFH_JUNK_PATTERN,
                                       r'', cleaned_plot)
 
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                     clz._logger.debug_extra_verbose('Plot original text:', plot)
                     clz._logger.debug_extra_verbose('Plot text:', cleaned_plot)
 
@@ -723,47 +709,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
 
         clz._logger.enter()
-        # Only do this for abort, since both events should not be set at same time
-        if MovieDetailsTimer.can_be_canceled():
-            MovieDetailsTimer.cancel(usage='aborting')  # Unblock waits
-        if TrailerTimer.can_be_canceled():
-            TrailerTimer.cancel(usage='aborting', stop_play=True)
         self._dialog_state_mgr.set_random_trailers_play_state(DialogState.SHUTDOWN)
         self._wait_event.set(ReasonEvent.SHUTDOWN)
-
-    '''
-    def do_next_trailer(self) -> None:
-        """
-            Cause the next trailer to be played by:
-                - Waking up the main "show details and trailer" loop, if
-                  idle
-                - Stop displaying any currently displayed movie details
-                - Stop playing any currently playing trailer
-            Above will allow main "show details and trailer" loop to advance
-            to next trailer.
-        :return:
-        """
-        clz = type(self)
-        clz._logger.enter()
-
-        # If idle due to wait between movie groups, then interrupt
-        # and play next movie.
-
-        if self._dialog_state_mgr.is_random_trailers_play_state(DialogState.GROUP_QUOTA_REACHED,
-                                              exact_match=True):
-            # Wake up wait in between groups
-            self._dialog_state_mgr.set_random_trailers_play_state(DialogState.NORMAL)
-
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose(f'About to play next trailer: will '
-                                           f'hide_detail and stop player')
-        MovieDetailsTimer.cancel(usage=f'From do_next_trailer')
-        if self.get_player() is not None:
-            self.get_player().stop()
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose('Finished playing movie',
-                                           trace=Trace.TRACE_SCREENSAVER)
-    '''
 
     def getFocus(self) -> None:
         """
@@ -878,34 +825,66 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
               or action_id == xbmcgui.ACTION_MOVE_RIGHT):
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(
-                    key, 'Show next trailer at user\'s request',
+                    key, 'Skip to automatically play next trailer',
                     trace=Trace.TRACE_UI_CONTROLLER)
 
+            # Cancel showing and playing current trailer
+
             if MovieDetailsTimer.can_be_canceled():
-                MovieDetailsTimer.cancel(usage='To play next trailer @ user\'s request')
-            if TrailerTimer.can_be_canceled():
-                TrailerTimer.cancel(usage='To play next trailer @ user\'s request',
+                MovieDetailsTimer.cancel(usage='Skip to play next trailer',
+                                         callback=TaskLoop.get_worker_thread().
+                                         play_trailer_finished)
+            elif TrailerTimer.can_be_canceled():
+                # Forcefully stop playing current trailer
+                # Callback will cause normal advance to play next trailer.
+
+                callback = TaskLoop.get_worker_thread().play_trailer_finished
+                clz._logger.debug_extra_verbose(f'callback: {callback}')
+                TrailerTimer.cancel(usage='Skip to play next trailer',
                                     callback=TaskLoop.get_worker_thread().
                                     play_trailer_finished,
                                     stop_play=True)
-            TaskLoop.add_task(Task.QUEUE_NEXT_TRAILER, Task.GET_TRAILER,
-                              Task.SHOW_DETAILS)
 
         ##################################################################
 
         elif action_id == xbmcgui.ACTION_MOVE_LEFT:
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(key,
-                                                'Show previous trailer at user\'s request',
+                                                'Skip to play previous trailer',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
             has_previous_trailer: bool = HistoryList.has_previous_trailer()
+            callback = TaskLoop.add_task
+
+            # TODO: kwarg keywords must be strings! How crude
+
+            kwargs = OrderedDict()
+            kwargs[Task.PLAY_TRAILER_FINISHED.name] = None
+            kwargs[Task.QUEUE_PREV_TRAILER.name] = None
+            kwargs[Task.GET_TRAILER.name] = None
+            kwargs[Task.SHOW_DETAILS.name] = None
+
             if has_previous_trailer:
                 TrailerStatus.opaque()
-                TaskLoop.add_task(Task.QUEUE_PREV_TRAILER, Task.GET_TRAILER,
-                                  Task.SHOW_DETAILS)
+
+                # Cancel showing and playing current trailer
+
+                if MovieDetailsTimer.can_be_canceled():
+                    MovieDetailsTimer.cancel(usage='Skip to play previous trailer',
+                                             callback=callback,
+                                             kwargs=kwargs)
+                elif TrailerTimer.can_be_canceled():
+                    # Forcefully stop playing current trailer
+
+                    TrailerTimer.cancel(usage='Skip to play previous trailer',
+                                        callback=callback,
+                                        kwargs=kwargs,
+                                        stop_play=True)
             else:
+                # No previous trailer to play. Display msg, then
+                # let normal behavior of playing next trailer to occur
+
                 msg = Messages.get_msg(Messages.NO_MORE_MOVIE_HISTORY)
-                NotificationTimer.config(msg)
+                NotificationTimer.config(msg, title=self._movie.get_title())
                 NotificationTimer.start()
 
         ##################################################################
@@ -982,7 +961,10 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             TaskLoop.add_task(Task.NOTIFY, msg=message)
 
         elif self.getControl(ControlId.SHOW_DETAILS.get_control_id()).isVisible():
-            TaskLoop.add_task(Task.RESUME_PLAY)
+            # Resume or start playing
+
+            TTS.stop()
+            TaskLoop.add_task(Task.PLAY_USER_REQUEST)
         else:
             clz._logger.debug(f'calling show_detailed_info',
                               trace=Trace.TRACE_UI_CONTROLLER)
@@ -1013,43 +995,15 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         clz = type(self)
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose('Exit application',
-                                           trace=Trace.TRACE_UI_CONTROLLER)
+                                            trace=Trace.TRACE_UI_CONTROLLER)
             clz._logger.debug_extra_verbose('Exiting RandomTrailers at user request')
 
             # Ensure we are not blocked
 
         self._dialog_state_mgr.set_random_trailers_play_state(
             DialogState.USER_REQUESTED_EXIT)
-        if MovieDetailsTimer.can_be_canceled():
-            MovieDetailsTimer.cancel(usage=f'Exiting RandomTrailers at user request')
-        if TrailerTimer.can_be_canceled():
-            TrailerTimer.cancel(usage=f'Exiting RandomTrailers at user request',
-                                stop_play=True)
 
-    '''
-    def do_play_movie(self):
-        clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose('Play Movie',
-                                           trace=Trace.TRACE_UI_CONTROLLER)
-        movie_file = self._movie.get_movie_path()
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose(
-                'Playing movie for currently playing trailer.',
-                'movie_file:', movie_file, 'source:',
-                self._movie.get_source(),
-                trace=Trace.TRACE_UI_CONTROLLER)
-        if movie_file == '':
-            message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
-            NotificationTimer.config(msg=message)
-            NotificationTimer.start()
-        elif not self._dialog_state_mgr.is_random_trailers_play_state(DialogState.NORMAL):
-            message = Messages.get_msg(Messages.PLAYER_IDLE)
-            NotificationTimer.config(msg=message)
-            NotificationTimer.start()
-        else:
-            self.queue_movie(self._movie)
-    '''
+        TaskLoop.add_task(Task.USER_EXIT)
 
     def set_playing_trailer_title_control(self, text: str = '') -> None:
         """

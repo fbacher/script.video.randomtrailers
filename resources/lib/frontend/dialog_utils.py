@@ -20,7 +20,6 @@ from xbmcgui import (Control, ControlImage, ControlButton, ControlEdit,
 from common.constants import Constants
 from common.flexible_timer import FlexibleTimer
 from common.imports import *
-from common.movie import AbstractMovie
 from common.exceptions import AbortException
 from common.logger import LazyLogger, Trace
 from common.messages import Messages
@@ -29,7 +28,6 @@ from common.settings import Settings
 from frontend.abstract_dialog_state import BaseDialogStateMgr, DialogState
 from frontend.text_to_speech import TTS
 from player.my_player import MyPlayer
-from frontend import text_to_speech
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -44,6 +42,10 @@ class Glue:
     @staticmethod
     def get_dialog() -> ForwardRef('TrailerDialog'):
         return Glue._dialog
+
+    @staticmethod
+    def get_player() -> MyPlayer:
+        return Glue._dialog.get_player()
 
 
 class ControlId(Enum):
@@ -132,6 +134,7 @@ class BaseTimer:
     _cancel_event: threading.Event = None
     _cancel_msg: str = None
     _stop_called: bool = None
+    _title: str = None   # For debug logs
 
     @classmethod
     def class_init(cls):
@@ -159,12 +162,13 @@ class BaseTimer:
             with cls._lock_cv:
                 try:
                     if not cls._busy_event.is_set():
-                        cls._logger.error(f'_busy_event is NOT set')
+                        cls._logger.error(f'_busy_event is NOT set title {cls._title}')
                         cls._cancel_event.clear()  # Just in case
                         return
 
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(f'display_seconds: '
+                        cls._logger.debug_extra_verbose(f'title: {cls._title}'
+                                                        f'display_seconds: '
                                                         f'{cls._display_seconds} '
                                                         f'start_action: {cls.start_action}',
                                                         trace=Trace.TRACE_UI_CONTROLLER)
@@ -176,13 +180,10 @@ class BaseTimer:
                     if cls._incorrect_state(TimerState.IDLE):
                         return
 
-                    cls._logger.debug_extra_verbose(f'Setting _timer_state to: STARTING',
+                    cls._logger.debug_extra_verbose(f'Setting _timer_state to: STARTING '
+                                                    f'title: {cls._title}',
                                                     trace=Trace.TRACE_UI_CONTROLLER)
                     cls._timer_state = TimerState.STARTING
-
-                    if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-                        cls._logger.debug_extra_verbose(f'STATE: {cls._timer_state}',
-                                                        trace=Trace.TRACE_UI_CONTROLLER)
                 finally:
                     cls._lock_cv.notify_all()
 
@@ -194,11 +195,6 @@ class BaseTimer:
                     cls.start_action()
                 finally:
                     cls._lock_cv.notify_all()
-
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug_extra_verbose(f'display_seconds: '
-                                                f'{cls._display_seconds} ',
-                                                trace=Trace.TRACE_UI_CONTROLLER)
 
             # Start Timer thread which, unless canceled first,
             # either kill a Trailer that is running too long, or stop
@@ -216,13 +212,12 @@ class BaseTimer:
                                 DialogState.USER_REQUESTED_EXIT)):
                         cls._timer = FlexibleTimer(cls._display_seconds,
                                                    cls._stop,
+                                                   cls._title,
                                                    kwargs={'callback':
                                                            cls._callback_on_stop})
                         cls._timer.setName(cls._timer_name)
-                        cls._logger.debug(f'Starting timeout in '
+                        cls._logger.debug(f'title: {cls._title} Starting timeout in '
                                           f'{cls._display_seconds} seconds',
-                                          trace=Trace.TRACE_UI_CONTROLLER)
-                        cls._logger.debug(f'Setting _timer_state to WAITING',
                                           trace=Trace.TRACE_UI_CONTROLLER)
                         cls._timer_state = TimerState.WAITING
                 finally:
@@ -235,7 +230,7 @@ class BaseTimer:
                     return
                 cls._lock_cv.notify_all()
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                 cls._logger.debug_extra_verbose(f'STATE: {cls._timer_state}',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
 
@@ -246,7 +241,8 @@ class BaseTimer:
     @classmethod
     def _incorrect_state(cls, timerstate: TimerState) -> bool:
         if cls._timer_state != timerstate:
-            cls._logger.warning(f'TimerState should be {timerstate} not: '
+            cls._logger.warning(f'title: {cls._title} TimerState should be '
+                                f'{timerstate} not: '
                                 f'{cls._timer_state} CANCELING LOCK',
                                 trace=Trace.TRACE_UI_CONTROLLER)
             cls._logger.dump_stack(heading=f'TimerState should be {timerstate} not: '
@@ -284,11 +280,11 @@ class BaseTimer:
             with cls._lock_cv:
                 try:
                     if not cls._busy_event.is_set():
-                        cls._logger.error(f'_busy_event is NOT set')
+                        cls._logger.error(f'title: {cls._title} _busy_event is NOT set')
                 finally:
                     cls._lock_cv.notify_all()
 
-            cls._logger.debug(f'stop_play: {stop_play}')
+            cls._logger.debug(f'title: {cls._title} stop_play: {stop_play}')
             with cls._lock_cv:
                 try:
                     if cls._incorrect_state(TimerState.WAITING):
@@ -296,14 +292,15 @@ class BaseTimer:
 
                     cls._timer_state = TimerState.CLEANUP_IN_PROGRESS
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(f'Setting _timer_state to: '
+                        cls._logger.debug_extra_verbose(f'title: {cls._title} '
+                                                        f'Setting _timer_state to: '
                                                         f'{cls._timer_state}',
                                                         trace=Trace.TRACE_UI_CONTROLLER)
                 finally:
                     cls._lock_cv.notify_all()
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug_extra_verbose('Stopping',
+                cls._logger.debug_extra_verbose(f'title: {cls._title} Stopping',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
 
             with cls._lock_cv:
@@ -327,24 +324,25 @@ class BaseTimer:
                         # Cleanup script will be called next
 
                         if not cls._cancel_event.is_set():
-                            cls._logger.error(f'cancel_event is NOT set.')
+                            cls._logger.error(f'title: {cls._title} '
+                                              f'cancel_event is NOT set.')
                         next_state = TimerState.CLEANUP_FINISHED
                     else:
                         cls._timer = None
                         next_state = TimerState.IDLE
-                        cls._logger.debug(f'STATE: {next_state}',
-                                          trace=Trace.TRACE_UI_CONTROLLER)
 
                     cls._timer_state = next_state
                     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(f'Setting _timer_state to: '
+                        cls._logger.debug_extra_verbose(f'title: {cls._title} '
+                                                        f'Setting _timer_state to: '
                                                         f'{cls._timer_state}',
                                                         trace=Trace.TRACE_UI_CONTROLLER)
 
-                    cls._logger.debug(f'called_early: {called_early} callback: {callback}')
+                        cls._logger.debug(f'called_early: {called_early} '
+                                          f'callback: {callback}')
                     if not called_early and callback is not None:
                         # Terminating without being canceled.
-                        cls._logger.debug(f'Calling callback')
+                        cls._logger.debug(f'title: {cls._title} Calling callback')
                         callback()
                         cls._busy_event.clear()
                     else:
@@ -360,13 +358,15 @@ class BaseTimer:
             cls._logger.exception(msg='')
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls._logger.debug_extra_verbose('exit',
+            cls._logger.debug_extra_verbose(f'title: {cls._title} exit',
                                             trace=Trace.TRACE_UI_CONTROLLER)
 
     @classmethod
     def cancel(cls, usage: str = '', stop_play: bool = False,
-               callback: Callable[[], None] = None) -> bool:
+               callback: Callable[[], None] = None,
+               kwargs: Dict[Union[str, Enum], Any] = None) -> bool:
         """
+        :param kwargs: Kwargs for callable
         :param usage: Displyable comment for debug
         :param stop_play: When cancelling trailer playback. If True, STOP
                           playback, otherwise, pause. Passed to stop_action.
@@ -374,29 +374,34 @@ class BaseTimer:
         :return: True if cancel performed, Otherwise, False
         """
         try:
+            cls._logger.debug(f'usage: {usage} stop_play: {stop_play} '
+                              f'callback: {callback}')
             with cls._lock_cv:
                 try:
                     if cls._stop_called:
-                        cls._logger.debug(f'Too late to cancel, already stopped')
+                        cls._logger.debug(f'title: {cls._title} '
+                                          f'Too late to cancel, already stopped')
                         return False
 
                     if not cls._busy_event.is_set():
-                        cls._logger.error(f'_busy_event is NOT set')
+                        cls._logger.error(f'title: {cls._title} _busy_event is NOT set')
 
                         # Just to make sure
                         cls._cancel_event.clear()
                         return False
 
                     if cls._cancel_event.is_set():
-                        cls._logger.debug(f'Already Marked to be Canceled, ignoring')
+                        cls._logger.debug(f'title: {cls._title} '
+                                          f'Already Marked to be Canceled, ignoring')
                         return False
 
                     if cls._timer_state == TimerState.IDLE:
-                        cls._logger.error(f'Canceled, but IDLE.')
+                        cls._logger.error(f'title: {cls._title} Canceled, but IDLE.')
                         return False
 
                     if cls._timer_state != TimerState.WAITING:
-                        cls._logger.info(f'TimerState should be WAITING not: '
+                        cls._logger.info(f'title: {cls._title} '
+                                         f'TimerState should be WAITING not: '
                                          f'{cls._timer_state}',
                                          trace=Trace.TRACE_UI_CONTROLLER)
                         return False
@@ -410,21 +415,27 @@ class BaseTimer:
                     cls._lock_cv.notify_all()
 
             if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-                cls._logger.debug(f'Canceling for {usage}',
+                cls._logger.debug(f'title: {cls._title} Canceling for {usage}',
                                   trace=[Trace.TRACE_UI_CONTROLLER])
 
             # Running timer early (before timeout)
-            cls._logger.debug(f'Calling stop early, stop_play: {stop_play}')
+            cls._logger.debug(f'title: {cls._title} '
+                              f'Calling stop early, stop_play: {stop_play}')
             cls._timer.run_now(kwargs={'stop_play': stop_play})
             cls._timer = None
 
-            cls._cleanup(callback=callback, kwargs={'stop_play': stop_play})
+            if kwargs is None:
+                kwargs = {}
+
+            kwargs['stop_play'] = stop_play
+            cls._cleanup(callback=callback, kwargs=kwargs)
             #
             # _cleanup takes care of resetting:
             # _cancel_event, _busy_event, _stop_called
             #
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug_extra_verbose(f'exit cancel_event.is_set: '
+                cls._logger.debug_extra_verbose(f'title: {cls._title} '
+                                                f'exit cancel_event.is_set: '
                                                 f'{cls._cancel_event.is_set()}',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
 
@@ -434,9 +445,9 @@ class BaseTimer:
         return True
 
     @classmethod
-    def _cleanup(cls, callback: Callable[[], None], comment: str = '',
+    def _cleanup(cls, callback: Callable[[], None] = None, comment: str = '',
                  kwargs: Dict[str, Union[str, bool]] = None):
-        cls._logger.debug(f'callback: {callback} comment: {comment}')
+        cls._logger.debug(f'title: {cls._title} callback: {callback} comment: {comment}')
         try:
             while not Monitor.wait_for_abort(0.1):
                 # Wait until:
@@ -449,32 +460,34 @@ class BaseTimer:
                 with cls._lock_cv:
                     try:
                         if not cls._busy_event.is_set():
-                            cls._logger.error(f'_busy_event is NOT set')
+                            cls._logger.error(f'title: {cls._title} '
+                                              f'_busy_event is NOT set')
                             cls._cancel_event.clear()
                             cls._stop_called: bool = False
                             return
 
                         if not cls._cancel_event.is_set():
-                            cls._logger.debug(f'_cancel_event is NOT set')
+                            cls._logger.debug(f'title: {cls._title} '
+                                              f'_cancel_event is NOT set')
                             cls._stop_called: bool = False
                             return
 
                         if cls._timer_state == TimerState.CLEANUP_FINISHED:
                             cls._timer_state = TimerState.IDLE
                             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                                cls._logger.debug_extra_verbose(f'Setting _timer_state to:'
+                                cls._logger.debug_extra_verbose(f'title: {cls._title} '
+                                                                f'Setting _timer_state to:'
                                                                 f' {cls._timer_state}',
                                                                 trace=
                                                                 Trace.TRACE_UI_CONTROLLER)
-                                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                                    cls._logger.debug_extra_verbose('State now IDLE',
-                                                                    trace=Trace.TRACE_UI_CONTROLLER)
                             if callback is not None:
-                                cls._logger.debug('Calling callback')
+                                cls._logger.debug(f'title: {cls._title} '
+                                                  f'Calling callback')
                                 if kwargs is None:
                                     kwargs = {}
                                 callback(**kwargs)
-                            cls._logger.debug(f'clearing cancel_event')
+                            cls._logger.debug(f'title: {cls._title} '
+                                              f'clearing cancel_event')
                             cls._cancel_event.clear()
                             cls._busy_event.clear()
                             cls._stop_called: bool = False
@@ -526,6 +539,7 @@ class NotificationTimer(BaseTimer):
     _cancel_event: threading.Event = threading.Event()
     _cancel_msg: str = None
     _stop_called: bool = False
+    _title: str = ''
 
     @classmethod
     def class_init(cls):
@@ -533,22 +547,25 @@ class NotificationTimer(BaseTimer):
             cls._logger = module_logger.getChild(cls.__name__)
 
     @classmethod
-    def config(cls, msg: str) -> None:
+    def config(cls, msg: str, title: str = '') -> None:
         with cls._lock_cv:
             try:
+                cls._title = title
                 if msg == cls._previous_msg:
                     return
 
                 cls._previous_msg = msg
 
                 if cls._cancel_event.is_set():
-                    cls._logger.debug_verbose(f'Waiting for cancel to complete')
+                    cls._logger.debug_verbose(f'title: {cls._title} '
+                                              f'Waiting for cancel to complete')
                     while cls._cancel_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
 
                 if cls._busy_event.is_set():
-                    cls._logger.debug_verbose(f'Waiting for previous operation'
-                                              f' to complete')
+                    cls._logger.debug_verbose(f'title: {cls._title} '
+                                              f'Waiting for previous operation '
+                                              f'to complete')
                     while cls._busy_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
 
@@ -567,11 +584,11 @@ class NotificationTimer(BaseTimer):
 
     @classmethod
     def start_action(cls) -> None:
-        cls._logger.debug('About to notify')
+        cls._logger.debug(f'title: {cls._title} About to notify')
         with cls._lock_cv:
             try:
                 if not cls._busy_event.is_set():
-                    cls._logger.error(f'_busy_event is NOT set')
+                    cls._logger.error(f'title: {cls._title} _busy_event is NOT set')
 
                 Glue.get_dialog().update_notification_labels(text=cls._msg)
                 TrailerStatus.set_notification_msg(msg=cls._msg)
@@ -581,12 +598,13 @@ class NotificationTimer(BaseTimer):
     @classmethod
     def stop_action(cls, called_early: bool,
                     stop_play: bool = False):
-        cls._logger.debug('called_early: {called_early} stop_play: {stop_play} '
-                          'About to clear notification')
+        cls._logger.debug(f'title: {cls._title} called_early: {called_early} '
+                          f'stop_play: {stop_play} '
+                          f'About to clear notification')
         with cls._lock_cv:
             try:
                 if not cls._busy_event.is_set():
-                    cls._logger.error(f'_busy_event is NOT set')
+                    cls._logger.error(f'title: {cls._title} _busy_event is NOT set')
 
                 TrailerStatus.clear_notification_msg()
                 Glue.get_dialog().update_notification_labels(text=None)
@@ -614,6 +632,7 @@ class MovieDetailsTimer(BaseTimer):
     _cancel_event: threading.Event = threading.Event()
     _cancel_msg: str = None
     _stop_called: bool = None
+    _title: str = ''
 
     @classmethod
     def class_init(cls):
@@ -623,20 +642,24 @@ class MovieDetailsTimer(BaseTimer):
     @classmethod
     def config (cls, scroll_plot: bool,
                 display_seconds: float,
+                title: str = '',
                 callback_on_stop: Callable[[], None] = None) -> None:
+        cls._title = title
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
 
         with cls._lock_cv:
             try:
                 if cls._busy_event.is_set():
-                    cls._logger.debug_verbose(f'Waiting for previous operation'
+                    cls._logger.debug_verbose(f'Title: {cls._title} '
+                                              f'Waiting for previous operation'
                                               f' to complete')
                     while cls._busy_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
 
                 if cls._cancel_event.is_set():
-                    cls._logger.debug_verbose(f'Waiting for cancel to complete')
+                    cls._logger.debug_verbose(f'Title: {cls._title} '
+                                              f'Waiting for cancel to complete')
 
                     while cls._cancel_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
@@ -657,9 +680,10 @@ class MovieDetailsTimer(BaseTimer):
         with cls._lock_cv:
             try:
                 if not cls._busy_event.is_set():
-                    cls._logger.error(f'_busy_event is NOT set')
+                    cls._logger.error(f'Title: {cls._title} _busy_event is NOT set')
 
-                cls._logger.debug(f'About to set_show_details & voice_detail_view')
+                cls._logger.debug(f'Title: {cls._title} '
+                                  f'About to set_show_details & voice_detail_view')
                 TrailerStatus.set_show_details(scroll_plot=cls._scroll_plot)
                 Glue.get_dialog().voice_detail_view()
             finally:
@@ -668,12 +692,13 @@ class MovieDetailsTimer(BaseTimer):
     @classmethod
     def stop_action(cls, called_early: bool,
                     stop_play: bool = False):
-        cls._logger.debug(f'called_early: {called_early} stop_play: {stop_play} '
-                    f'Calling TTS.stop and TrailerStatus.opaque')
+        cls._logger.debug(f'Title: {cls._title} '
+                          f'called_early: {called_early} stop_play: {stop_play} '
+                          f'Calling TTS.stop and TrailerStatus.opaque')
         with cls._lock_cv:
             try:
                 if not cls._busy_event.is_set():
-                    cls._logger.error(f'_busy_event is NOT set')
+                    cls._logger.error(f'Title: {cls._title} _busy_event is NOT set')
 
                 TTS.stop()
                 TrailerStatus.opaque()
@@ -700,23 +725,28 @@ class TrailerTimer(BaseTimer):
     _cancel_stop_on_play: bool = False
     _cancel_event: threading.Event = threading.Event()
     _cancel_msg: str = None
+    _title: str = ''
 
     @classmethod
     def config (cls,
                 display_seconds: float,
+                title: str = '',
                 callback_on_stop: Callable[[], None] = None) -> None:
+        cls._title = title
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
 
         with cls._lock_cv:
             try:
                 if cls._cancel_event.is_set():
-                    cls._logger.debug_verbose(f'Waiting for cancel to complete')
+                    cls._logger.debug_verbose(f'Title: {cls._title} '
+                                              f'Waiting for cancel to complete')
                     while cls._cancel_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
 
                 if cls._busy_event.is_set():
-                    cls._logger.debug_verbose(f'Waiting for previous operation'
+                    cls._logger.debug_verbose(f'Title: {cls._title} '
+                                              f'Waiting for previous operation'
                                               f' to complete')
                     while cls._busy_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
@@ -736,9 +766,9 @@ class TrailerTimer(BaseTimer):
         with cls._lock_cv:
             try:
                 if not cls._busy_event.is_set():
-                    cls._logger.error(f'_busy_event is NOT set')
+                    cls._logger.error(f'Title: {cls._title} _busy_event is NOT set')
 
-                cls._logger.debug(f'Calling set_show_trailer,'
+                cls._logger.debug(f'Title: {cls._title} Calling set_show_trailer,'
                                   f' set_playing_trailer_title')
                 TrailerStatus.set_show_trailer()
 
@@ -773,25 +803,27 @@ class TrailerTimer(BaseTimer):
         :return:
         """
         # Don't inform user if called due to user action
-        cls._logger.debug(f'called_early: {called_early} stop_play: {stop_play}')
+        cls._logger.debug(f'Title: {cls._title} '
+                          f'called_early: {called_early} stop_play: {stop_play}')
 
         if cls._inform_user and not called_early:
-            cls._logger.debug('About to notify max_play_time exceeded')
+            cls._logger.debug(f'Title {cls._title} '
+                              f'About to notify max_play_time exceeded')
             NotificationTimer.config(msg=Messages.get_msg(
-                    Messages.TRAILER_EXCEEDS_MAX_PLAY_TIME))
+                    Messages.TRAILER_EXCEEDS_MAX_PLAY_TIME), title=cls._title)
             NotificationTimer.start()
 
         TrailerStatus.opaque()
-        player = TrailerPlayer.get_player()
+        player = Glue.get_player()
         if not called_early:
             stop_play = True
 
         if stop_play:
-            cls._logger.debug(f'Stopping player',
+            cls._logger.debug(f'Title: {cls._title} Stopping player',
                               trace=Trace.TRACE_UI_CONTROLLER)
             player.stop()
         else:
-            cls._logger.debug(f'Pausing player',
+            cls._logger.debug(f'Title: {cls._title} Pausing player',
                               trace=Trace.TRACE_UI_CONTROLLER)
             player.pause_play()
 
@@ -799,124 +831,6 @@ class TrailerTimer(BaseTimer):
 
 
 TrailerTimer.class_init()
-
-
-class TrailerPlayer:
-
-    _logger: LazyLogger = None
-    _lock: threading.RLock = threading.RLock()
-    _trailer_dialog: ForwardRef('TrailerDialog') = None
-
-    @classmethod
-    def class_init(cls, trailer_dialog: ForwardRef('TrailerDialog')) -> None:
-        if cls._logger is None:
-            cls._logger = module_logger.getChild(cls.__name__)
-        cls._trailer_dialog = trailer_dialog
-
-    '''
-    @classmethod
-    def show_details_and_play(cls, scroll_plot: bool = False,
-                              missing_movie_details: bool = False,
-                              block_after_display_details: bool = True,
-                              from_user_request: bool = False):
-
-        try:
-            cls._logger.debug_extra_verbose(f'missing_movie_details: '
-                                            f'{missing_movie_details} '
-                                            f'block_after_display_details: '
-                                            f'{block_after_display_details} '
-                                            f'from_user_request: '
-                                            f'{from_user_request}',
-                                            trace=Trace.TRACE_UI_CONTROLLER)
-            cls._trailer_dialog.update_detail_view()
-            detail_info_display_time: int
-            detail_info_display_time = Settings.get_time_to_display_detail_info()
-            show_movie_details = (not missing_movie_details and
-                                  detail_info_display_time > 0)
-            trailer_play_time: int
-            trailer_play_time = Settings.get_max_trailer_play_seconds()
-            if show_movie_details:
-
-                player = cls.get_player()
-                if player is not None and player.isPlaying():
-                    # Pause playing trailer
-                    cls._logger.debug(f'Pausing Player',
-                                      trace=Trace.TRACE_UI_CONTROLLER)
-                    player.pause_play()
-
-                MovieDetailsTimer.config(scroll_plot=scroll_plot,
-                                         display_seconds=detail_info_display_time)
-                MovieDetailsTimer.start()
-
-            TrailerTimer.config(display_seconds=trailer_play_time,
-                                callback_on_stop=TaskLoop.play_trailer_finished)
-            TrailerTimer.start()
-        except Exception:
-            cls._logger.exception()
-    '''
-
-    @classmethod
-    def play_trailer(cls, movie: AbstractMovie = None,
-                     callback: Callable[[], None] = None):
-        worker = threading.Thread(target=cls._play_trailer,
-                                  args=(movie, callback),
-                                  name='TrailerPlayer.play_trailer')
-        worker.start()
-
-    @classmethod
-    def _play_trailer(cls, *args):
-        movie: AbstractMovie = args[0]
-        callback: Callable[[], None] = args[1]
-        try:
-            (is_normalized, is_cached, trailer_path) = movie.get_optimal_trailer_path()
-            cls.get_player().play_trailer(trailer_path, movie)
-
-            # time_to_play_trailer = (datetime.datetime.now() -
-            #                         self._get_next_trailer_start)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug_extra_verbose('started play_trailer:',
-                                                movie.get_title(),
-                                                # 'elapsed seconds:',
-                                                # time_to_play_trailer.total_seconds(),
-                                                'source:', movie.get_source(),
-                                                'normalized:', is_normalized,
-                                                'cached:', is_cached,
-                                                'path:', trailer_path)
-
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    cls._logger.debug_extra_verbose(
-                            'wait_for_is_playing_video 2 movie:',
-                            movie.get_title(),
-                            trace=Trace.TRACE_UI_CONTROLLER)
-                if not cls.get_player().wait_for_is_playing_video(path=trailer_path,
-                                                                  timeout=5.0):
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(
-                                'Timed out Waiting for Player.',
-                                trace=Trace.TRACE_UI_CONTROLLER)
-
-            trailer_play_time: float
-            trailer_play_time = float(Settings.get_max_trailer_play_seconds())
-            TrailerTimer.config(display_seconds=trailer_play_time,
-                                callback_on_stop=callback)
-            TrailerTimer.start()
-
-            cls.get_player().wait_for_is_not_playing_video()
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug_extra_verbose(
-                        f'Trailer not playing; checking play_state 5 movie:'
-                        f' {movie.get_title()}',
-                        trace=Trace.TRACE_UI_CONTROLLER)
-
-            if TrailerTimer.can_be_canceled():
-                TrailerTimer.cancel(usage=f'Trailer finished playing',
-                                    callback=callback, stop_play=True)
-        except Exception:
-            cls._logger.exception()
-
-    @classmethod
-    def get_player(cls) -> MyPlayer:
-        return cls._trailer_dialog.get_player()
 
 
 class TrailerStatus:
@@ -1074,16 +988,3 @@ class TrailerStatus:
                 cls.logger.debug_extra_verbose(command,
                                                trace=Trace.TRACE_UI_CONTROLLER)
             xbmc.executebuiltin(command, wait=False)
-
-    @classmethod
-    def cancel_trailer_timer(cls, usage: str = '',
-                             callback: Callable[[], None] = None,
-                             stop_play: bool = False) -> None:
-        if TrailerTimer.can_be_canceled():
-            TrailerTimer.cancel(usage=usage, callback=callback, stop_play=stop_play)
-
-    @classmethod
-    def cancel_movie_details_timer(cls, usage: str = '',
-                                   callback: Callable[[], None] = None) -> None:
-        if MovieDetailsTimer.can_be_canceled():
-            MovieDetailsTimer.cancel(usage=usage, callback=callback)

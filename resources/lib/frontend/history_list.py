@@ -55,7 +55,9 @@ class HistoryList:
 
         if duplicate:
             if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls.logger.debug_extra_verbose(f'Not adding duplicate movie to history')
+                cls.logger.debug_extra_verbose(f'Not adding duplicate movie to history: '
+                                               f'movie.get_title()')
+                cls.dump_history()
             return
 
         cls._buffer.append(movie)
@@ -73,7 +75,11 @@ class HistoryList:
             # for this and will set it to 0.
 
             cls._cursor -= 1
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.dump_history()
 
+    @classmethod
+    def dump_history(cls) -> None:
         if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             i: int = 0
             for a_movie in cls._buffer:
@@ -82,6 +88,7 @@ class HistoryList:
 
             cls.logger.debug_extra_verbose(f'len: {len(cls._buffer)} '
                                            f'cursor: {cls._cursor}')
+
 
     @classmethod
     def has_previous_trailer(cls) -> bool:

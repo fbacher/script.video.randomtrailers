@@ -4,8 +4,9 @@ Created on Jul 23, 2021
 
 @author: Frank Feuerbacher
 """
-
 from threading import Event, RLock, Thread
+from typing import Callable
+
 from common.logger import LazyLogger
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -27,13 +28,23 @@ class FlexibleTimer(Thread):
     """
     _logger: LazyLogger = None
 
-    def __init__(self, interval, function, args=None, kwargs=None):
+    def __init__(self, interval: float, function: Callable[[], None],
+                 label: str = None, args=None, kwargs=None):
+        """
+
+        :param interval: Seconds before timer goes off
+        :param function: Callback function to call on timer expiration
+        :param label:  Optional Label to supply in any debug statements
+        :param args:  Optional arguments to pass to function
+        :param kwargs:  Optional arguments to pass to function
+        """
         super().__init__(self)
         clz = type(self)
         if clz._logger is None:
             clz._logger = module_logger.getChild(self.__class__.__name__)
-        self.interval = interval
+        self.interval:float = interval
         self.function = function
+        self._label: str = label
         self.args = args if args is not None else []
         self.kwargs = kwargs if kwargs is not None else {}
         self.lock = RLock()
@@ -58,7 +69,8 @@ class FlexibleTimer(Thread):
                 self.finished.set()
                 if kwargs is not None:
                     for key, value in kwargs.items():
-                        clz._logger.debug(f'key: {key} value: {value}')
+                        clz._logger.debug(f'label: {self._label} key: {key}'
+                                          f' value: {value}')
                         self.kwargs[key] = value
 
                 self.kwargs['called_early'] = True
