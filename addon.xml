@@ -25,8 +25,7 @@
         <provides>video</provides>
     </extension>
     <extension point="xbmc.ui.screensaver" library="resources/lib/screensaver_service.py"/>
-    <extension point="xbmc.service" library="resources/lib/back_end_service.py">
-    </extension>
+    <extension point="xbmc.service" library="resources/lib/back_end_service.py"/>
 
     <extension point="xbmc.addon.metadata">
         <reuselanguageinvoker>false</reuselanguageinvoker>
