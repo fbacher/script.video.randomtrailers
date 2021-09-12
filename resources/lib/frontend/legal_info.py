@@ -19,7 +19,7 @@ from common.imports import *
 from common.logger import LazyLogger, Trace
 from common.messages import Messages
 from common.monitor import Monitor
-from frontend import text_to_speech
+from frontend.text_to_speech import TTS
 from action_map import Action
 
 
@@ -86,19 +86,19 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         label: Union[ControlLabel, Control] = self.getControl(38021)
         label_text = Messages.get_msg(Messages.LICENSE_LABEL)
         label.setLabel(f'[B]{label_text}[/B]')
-        text_to_speech.say_text(label_text, interrupt=True)
+        TTS.say_text(label_text, interrupt=True)
 
         tmdb_license = Messages.get_msg(Messages.TMDB_LICENSE)
 
         text_control: Union[Control, ControlTextBox] = self.getControl(38022)
         text_control.setText(tmdb_license)
-        text_to_speech.say_text(tmdb_license, interrupt=False)
+        TTS.say_text(tmdb_license, interrupt=False)
 
         tfh_license = Messages.get_msg(Messages.TFH_LICENSE)
 
         text_control: Union[Control, ControlTextBox] = self.getControl(38023)
         text_control.setText(tfh_license)
-        text_to_speech.say_text(tfh_license, interrupt=False)
+        TTS.say_text(tfh_license, interrupt=False)
 
         while not self._wait_or_interrupt_event.is_set():
             Monitor.wait_for_abort(0.1)
