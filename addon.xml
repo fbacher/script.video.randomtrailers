@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <addon id="script.video.randomtrailers"
        name="Random Trailers"
-       version="2.0.7+matrix.1"
+       version="2.0.7+beta.1"
        provider-name="Frank Feuerbacher (fbacher)">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -62,7 +62,7 @@ Navigation:
         <!-- <website></website> -->
         <email>frank@feuerbacher.us</email>
         <source>https://github.com/fbacher/script.video.randomtrailers</source>
-        <news>v2.0.7-Beta1 (09/10/2021)
+        <news>2.0.7+beta.1 (09/10/2021)
             [new] Major Release See Readme.txt
         </news>
         <assets>
