@@ -30,8 +30,8 @@
     <extension point="xbmc.addon.metadata">
         <reuselanguageinvoker>false</reuselanguageinvoker>
         <platform>all</platform>
-        <summary lang="en_US">Plays Random Trailers from Multiple Sources</summary>
-        <description lang="en_US">
+        <summary lang="en_GB">Plays Random Trailers from Multiple Sources</summary>
+        <description lang="en_GB">
 Plays random movie trailers from library, Themoviedb.org, TrailersFromHell.com, Specified folder
 
 Installs as a Screensaver and Program. There are Options to filter, hide trailers of watched movies, etc.
@@ -54,10 +54,10 @@ Navigation:
   ACTION_REMOTE_[0-9] and ACTION_JUMP_SMS[2-9] writes
      to playlist. See playlist setting for more information.
         </description>
-        <!-- <disclaimer lang="en_US"></disclaimer> -->
+        <!-- <disclaimer lang="en_GB"></disclaimer> -->
         <!-- <language></language> --> <!-- the language of the videos the plugin provides, may be left blank -->
         <platform>all</platform>
-        <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
+        <license>LGPL-2.1-only</license>
         <forum>https://forum.kodi.tv/showthread.php?tid=167276</forum>
         <!-- <website></website> -->
         <email>frank@feuerbacher.us</email>
