@@ -360,11 +360,12 @@ class VideoDownloader:
 
             movie: MovieType = video_logger.data
             if self._error == 0:
-                trailer_file = os.path.join(folder, f'_rt_{movie_id}*')
-                trailer_file = glob.glob(trailer_file)
-                if trailer_file is not None:
-                    if len(trailer_file) > 0:
-                        trailer_file = trailer_file[0]
+                trailer_path: str = os.path.join(folder, f'_rt_{movie_id}*')
+                trailer_files: List[str] = glob.glob(trailer_path)
+                trailer_file: str = None
+                if trailer_files is not None:
+                    if len(trailer_files) > 0:
+                        trailer_file = trailer_files[0]
                     #
                     # Don't know why, but sometimes youtube_dl returns incorrect
                     # file extension.
