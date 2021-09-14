@@ -46,15 +46,24 @@ class ParseLibrary:
         if last_played == '':
             last_played = clz.DEFAULT_LAST_PLAYED_DATE
 
+        pd: time.struct_time
         pd = time.strptime(last_played, '%Y-%m-%d %H:%M:%S')
+
         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
             clz._logger.debug(f'last_played type: {type(pd)} xform: {pd}')
-        pd = time.mktime(pd)
+
+        timestamp: float
+        try:
+            timestamp = time.mktime(pd)
+        except OverflowError:
+            timestamp = 0.0
+
         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-            clz._logger.debug(f'last_played mktime: {pd}')
-        last_played_time: datetime = datetime.fromtimestamp(pd)
+            clz._logger.debug(f'last_played mktime: {timestamp}')
+        last_played_time: datetime = datetime.fromtimestamp(timestamp)
         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-            clz._logger.debug(f'last_played final: {type(last_played_time)} {last_played_time}')
+            clz._logger.debug(f'last_played final: {type(last_played_time)} '
+                              f'{last_played_time}')
         self._movie.set_last_played(last_played_time)
 
     def parse_certification(self) -> None:
