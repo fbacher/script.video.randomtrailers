@@ -244,10 +244,11 @@ class TMDbMoviePageData(TMDbMovieId):
         self._movie_info[MovieField.TITLE] = title
 
     def get_year(self) -> int:
-        return self._movie_info[MovieField.YEAR]
+        return self._movie_info.get(MovieField.YEAR, 0)
 
     def set_year(self, year: int) -> None:
-        self._movie_info[MovieField.YEAR] = year
+        if year is not None:
+            self._movie_info[MovieField.YEAR] = year
 
     def is_cached(self) -> bool:
         return self._cached
@@ -489,10 +490,11 @@ class AbstractMovie(BaseMovie):
         self._movie_info[MovieField.ALT_TITLES] = alt_titles
 
     def get_year(self) -> int:
-        return self._movie_info.get(MovieField.YEAR)
+        return self._movie_info.get(MovieField.YEAR, 0)
 
     def set_year(self, year: int) -> None:
-        self._movie_info[MovieField.YEAR] = year
+        if year is not None:
+            self._movie_info[MovieField.YEAR] = year
 
     def set_cached(self, cached: bool = True) -> None:
         self._movie_info[MovieField.CACHED] = cached
@@ -771,7 +773,7 @@ class AbstractMovie(BaseMovie):
         Maximum of MovieField.MAX_DISPLAYED_ACTORS returned.
         :return:
         """
-        return self._movie_info[MovieField.ACTORS]
+        return self._movie_info.get(MovieField.ACTORS, [])
 
     def set_actors(self, actors: List[str]) -> None:
         if len(actors) > MovieField.MAX_ACTORS:
