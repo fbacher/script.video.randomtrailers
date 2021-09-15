@@ -451,11 +451,17 @@ class Monitor(MinimalMonitor):
         cls.track_wait_call_counts()
         abort = False
         while timeout > 0.0:
-            if cls._abort_received.is_set():
-                abort = True
-                break
-            cls.real_waitForAbort(timeout=0.1)
-            timeout -= 0.1
+            poll_delay: float = min(timeout, CriticalSettings.SHORT_POLL_DELAY)
+            if CriticalSettings.POLL_MONITOR_WAIT_FOR_ABORT:
+                if cls._abort_received.is_set():
+                    abort = True
+                    break
+                cls.real_waitForAbort(timeout=poll_delay)
+            else:
+                if cls._abort_received.wait(timeout=poll_delay):
+                    abort = True
+                    break
+            timeout -= poll_delay
 
         cls.track_wait_return_counts()
 
@@ -514,31 +520,12 @@ class Monitor(MinimalMonitor):
         approximate_wait_time = 0.0
         while not is_set:
             is_set = cls.startup_complete_event.wait(timeout=None)
-            Monitor.throw_exception_if_abort_requested(timeout=0.1)
-            approximate_wait_time += 0.1
+            Monitor.throw_exception_if_abort_requested(timeout=0.2)
+            approximate_wait_time += 0.2
             if timeout is not None and approximate_wait_time >= timeout:
                 break
 
         return is_set
-
-    @classmethod
-    def throw_exception_if_abort_requested(cls, timeout: float = 0.0) -> None:
-        """
-         Throws an AbortException if Abort has been set within the specified
-          time period.
-
-            If timeout = 0, then immediately returns without exception if
-             Abort is not set, or with an AbortException if it
-             is set.
-            if timeout = None, then wait forever until abort is set.
-            Otherwise, wait a maximum of the specified time in seconds.
-        :param timeout:
-        :return:
-        """
-        cls.track_wait_call_counts()
-        if cls._abort_received.wait(timeout=timeout):
-            raise AbortException()
-        cls.track_wait_return_counts()
 
     @classmethod
     def track_wait_call_counts(cls, thread_name: str = None) -> None:

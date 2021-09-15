@@ -27,6 +27,10 @@ class CriticalSettings:
     DEBUG_EXTRA_VERBOSE = 6
     NOTSET = 0  # logging.NOTSET  # 0
 
+    POLL_MONITOR_WAIT_FOR_ABORT: bool = False  # If False, wait on abort_event
+    SHORT_POLL_DELAY: float = 0.5  # Seconds
+    LONG_POLL_DELAY: float = 0.5  # Seconds
+
     DEBUG_INCLUDE_THREAD_INFO: Final[str] = 'debug_include_thread_info'
     addon = None
     _plugin_name: str = ""

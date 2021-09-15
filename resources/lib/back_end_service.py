@@ -58,7 +58,7 @@ class MainThreadLoop:
             bridge_initialized = False
 
             # For the first 10 seconds use a short timeout so that initialization
-            # stuff is handled quickly. Then revert to 1 second checks
+            # stuff is handled quickly. Then revert to less frequent checks
 
             initial_timeout = 0.05
             switch_timeouts_count = 10 * 20
@@ -82,7 +82,7 @@ class MainThreadLoop:
             while not MinimalMonitor.real_waitForAbort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
-                    timeout = 0.10
+                    timeout = CriticalSettings.LONG_POLL_DELAY
 
                 if start_backend_count_down > 0:
                     start_backend_count_down -= 1.0

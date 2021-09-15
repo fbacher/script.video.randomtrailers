@@ -51,7 +51,8 @@ try:
         # If this is not done, then Kodi will get constipated
         # sending/receiving events to plugins.
 
-        _monitor.throw_exception_if_abort_requested(timeout=0.01)
+        timeout: float = CriticalSettings.LONG_POLL_DELAY
+        _monitor.throw_exception_if_abort_requested(timeout=timeout)
 
         message_received = False
         if not message_received:
@@ -62,7 +63,7 @@ try:
                 "params": {"addonid": "script.video.randomtrailers",\
                 "params": "screensaver" }, "id": 1}'
             json_text = xbmc.executeJSONRPC(cmd)
-            _monitor.throw_exception_if_abort_requested(timeout=0.01)
+            _monitor.throw_exception_if_abort_requested(timeout=timeout)
 
     MinimalMonitor.abort_requested()
     MinimalMonitor.real_waitForAbort()
