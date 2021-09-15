@@ -185,8 +185,7 @@ class TMDBMatcher:
                         JsonUtilsBasic.get_json(url, params=data,
                                                 dump_msg='get_tmdb_id_from_title_year',
                                                 dump_results=False,
-                                                error_msg=title +
-                                                f' ({year})')
+                                                error_msg=f'{title} ({year})')
                     if status_code == 0:
                         finished = True
                     else:
