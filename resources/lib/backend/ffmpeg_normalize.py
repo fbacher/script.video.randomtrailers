@@ -29,7 +29,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
 
     You may modify the parameters here to your taste.
 
-    Note that you can not change newOutFileName, otherwise Random Trailers will not see
+    Note that you can not change out_file, otherwise Random Trailers will not see
     the file.
 '''
 
