@@ -262,7 +262,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         cache_expiration_time = datetime.datetime.now() - cache_expiration_time
         if TFHCache.get_creation_date() > cache_expiration_time:
             cached_trailers = TFHCache.get_cached_movies()
-            clz.logger.debug(f'Using tfh cache creation_date:'
+            clz.logger.debug(f'Trailers {len(cached_trailers)} '
+                             f'Using tfh cache creation_date:'
                              f' {TFHCache.get_creation_date():%Y-%m-%d %H:%M} '
                              f'expiration: {cache_expiration_time:%Y-%m-%d %H:%M}')
         else:
@@ -325,47 +326,152 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 rc = video_downloader.get_tfh_index(
                     url, self.trailer_handler, block=True)
                 if rc != Constants.HTTP_TOO_MANY_REQUESTS:  # Last entry read failed
-                    TFHCache.save_cache(flush=True, complete=True)
+                    complete: bool = False
+                    if len(TFHCache.get_cached_movies()) > 1400:
+                        # Sanity check. Sometimes Youtube gets crankie and doesn't
+                        # return any entries.
+                        complete = True
+
+                    TFHCache.save_cache(flush=True, complete=complete)
                     finished = True
 
         clz.logger.debug(f'TFH Discovery Complete rc: {rc}')
 
-    def fix_title(self, tfh_movie: TFHMovie) -> str:
+    def fix_title(self, tfh_movie: TFHMovie) -> (str, int):
         clz = type(self)
 
-        # TFH Title formats prefix the movie title with the name of the
-        # reviewer and the date of review (or post to Youtube). Strip this
-        # out to leave only the Movie Name (but in uppercase). Later, TMDb
-        # will be consulted to get the correct title and date.
-        #
-        # Formats: Reviewer on CAPS TITLE (most common)
-        #          Reviewer talks TITLE
-        #          Reviewer talks about TITLE
-        #          Reviewer discusses TITLE
-        #          Reviewer's TITLE
-        #          TITLE
-        #          Reviewer In Conversation With Person
-        #          Reviewer covers TITLE
-        #          Reviewer introduces TITLE for the Cinenasty series
-        #
-        # Occasionally, CAPS_TITLE has some lower case chars (grr)
-        #               ex: BIG JIM McLEAN
-        #                   Eli Roth on EXCORCIST II: THE HERETIC
+        # This pattern captures the TITLE, not the Reviewer.
+        # The TITLE must be mostly ALL CAPS, with some special characters
+        # and a lower case 'c' (for names like McCLOUD, with space separators
+
+        # title is a series of words
+
+        # If first pattern fails, then perhaps we have one of the few cases
+        # Where only a mixed case title is specified without a reviewer
+        # In which case, assume the entire string is a title, but with parenthesis
+        # analysis, as will be done for the above as well.
+
+
+        '''
+        TFH Title formats prefix the movie title with the name of the
+        reviewer and the date of review (or post to Youtube). Strip this
+        out to leave only the Movie Name (but in uppercase). Later, TMDb
+        will be consulted to get the correct title and date.
+        
+        Formats handled by TITLE_RE:
+            Reviewer on CAPS TITLE (most common)
+            Reviewer on CAPS TITLE (1972)   embedded year
+            Reviewer on [0-9]+ CAPS
+            Reviewer talks TITLE
+            Reviewer talks about TITLE
+            Reviewer discusses TITLE
+            Reviewer's TITLE
+            TITLE
+            Reviewer covers TITLE
+            Guillermo del Toro habla sobre DEEP RED
+
+        Not handled because of embedded comment
+        Fede Alvarez on ACCION MUTANTE (MUTANT ACTION) (delete comment in parens)
+        
+        Not handled due to mixed case
+        Allan Arkush on THE 36th CHAMBER OF THE SHAOLIN  (th suffix, same with rd)
+        
+        Not handled due to numbers or spelled numbers:
+        Adam Rifkin on 16 CANDLES  (Should be SIXTEEN)
+        
+        Not handled because mixed case
+            Reviewer on CAPS TITLE (commentary)   Throw away if not a year
+            Reviewer In Conversation With Person
+
+            Joe Dante introduces GREMLINS for the Cinenasty series
+            John Landis explains Why We Need Monsters
+            John Landis: Trailers From Fail
+            TFH Exclusive: A Clip from THE MOVIE ORGY
+            Grant Page's Pet Cat
+            Alias St. Nick
+            Allan Arkush on 8 1/2
+            Hell-o
+            DAUGHTER OF HORROR
+            Numbers can be in number or word form
+        
+                           Eli Roth on EXCORCIST II: THE HERETIC
+        '''
+        SEPARATORS = [
+            ' on ',
+            ' talks about ',
+            ' talks ',
+            ' discusses ',
+            ' covers ',
+            ' '
+        ]
 
         tfh_title = tfh_movie.get_tfh_title()
-        title_segments = re.split(TFH.TITLE_RE, tfh_title)
-        # reviewer = title_segments[0]
+        clz.logger.debug(f'tfh_title: {tfh_title}')
 
-        # Is this a non-standard format for movie?
-        if len(title_segments) > 1:
-            movie_title = title_segments[1]
-        else:
-            movie_title = tfh_title  # Not sure what else to do
+        SPECIAL_CHARACTERS = 'c.!?#&@,:$ ()\'"~-'
+        movie_title: str = ''
+        saved_title: str = ''
+        for ch in tfh_title:
+            if ch.isupper() or ch.isdigit() or ch in SPECIAL_CHARACTERS:
+                movie_title += ch
+            else:
+                if len(movie_title) > len(saved_title):
+                    saved_title = movie_title
+                movie_title = ''
 
-        # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-        #     clz.logger.debug(f'reviewer: {reviewer} title: {movie_title}')
+        if len(movie_title) > len(saved_title):
+            saved_title = movie_title
+        movie_title = ''
 
-        return movie_title
+        num_open_parens = saved_title.count('(')
+        num_close_parens = saved_title.count(')')
+        while num_open_parens > num_close_parens:
+            idx = saved_title.rfind('(')
+            saved_title = saved_title[:idx]
+            num_open_parens -= 1
+
+        movie_title = saved_title.strip()
+        clz.logger.debug(f'tfh_title: {tfh_title} saved_title: {movie_title}')
+
+        '''
+
+
+        # First, isolate the longest segment with only valid characters in
+        # it (roughly segment without lower-case characters).
+
+        title_segments = re.split(TFH.TITLE_PASS_1_RE, tfh_title)
+        clz.logger.debug(f'#segments: {len(title_segments)}')
+
+        # segment 0 should be original title
+
+        seg_num = 0
+        for segment in title_segments:
+            clz.logger.debug(f'seg: {seg_num} segment: {segment}')
+            seg_num += 1
+
+        title = title_segments[1]
+        '''
+
+        title_segments = re.split(TFH.PARENTHESIS_RE, movie_title)
+        seg_num = 0
+        year: int = 0
+        constructed_title = ''
+        separator: str = ''
+        for segment in title_segments:
+            segment = segment.strip()
+            if re.match(TFH.YEAR_RE, segment):
+                year = int(segment[1:-1])
+            else:
+                constructed_title += separator + segment
+                separator = ' '
+
+            clz.logger.debug(f'seg: {seg_num} segment: {segment} year: {year}')
+            seg_num += 1
+
+        clz.logger.debug(f'constructed_title: {constructed_title}')
+        movie_title = constructed_title
+
+        return movie_title, year
 
     def trailer_handler(self, tfh_trailer: MovieType) -> None:
         """
@@ -412,7 +518,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             # The following are most likely all junk and set to default
             # values.
 
-            # Bogus value of unrated. Replaced with value from TMDb, if
+            # Bogus value of unrated. Replace with value from TMDb, if
             # movie can be found there.
 
             parser.parse_certification()
@@ -425,7 +531,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             #  TODO: parse fields which optionally come from TMDb discovery
 
             movie: TFHMovie = parser.get_movie()
-            movie.set_title(self.fix_title(movie))
+            title, year = self.fix_title(movie)
+            movie.set_title(title)
+            movie.set_year(year)
 
             # if (Settings.get_max_number_of_tfh_trailers()
             #        <= len(TFHCache.get_cached_trailers())):

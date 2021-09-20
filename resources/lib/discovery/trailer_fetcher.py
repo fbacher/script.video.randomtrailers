@@ -544,10 +544,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 self.throw_exception_on_forced_to_stop()
                 tmdb_id: int = movie.get_tmdb_id()
                 if tmdb_id is None and movie.is_tmdb_id_findable():
-                    if isinstance(movie, TFHMovie):
-                        year = None
-                    else:
-                        year = str(movie.get_year())
+                    year = str(movie.get_year())
                     try:
                         self.throw_exception_on_forced_to_stop()
                         tmdb_id: Union[
@@ -704,10 +701,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         if (tmdb_id is None
                 and (isinstance(movie, ITunesMovie) or isinstance(movie, TFHMovie))):
             self.throw_exception_on_forced_to_stop()
-            if isinstance(movie, TFHMovie):
-                year = None
-            else:
-                year = movie.get_year()
+            year = movie.get_year()
             try:
                 tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                     movie.get_title(), year,
@@ -973,7 +967,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 self.throw_exception_on_forced_to_stop()
 
                 rc = ffmpeg_normalize.normalize(
-                    trailer_path, normalized_trailer_path)
+                    trailer_path, normalized_trailer_path, use_compand=True)
 
                 if rc == 0:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
