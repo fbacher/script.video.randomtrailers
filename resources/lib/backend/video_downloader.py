@@ -56,6 +56,7 @@ RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
 LOG_ALL = True # False
 LOGGER_ENABLE_LEVEL = LazyLogger.DEBUG_EXTRA_VERBOSE # LazyLogger.DISABLED
+LOG_LOCK: bool = False
 
 
 class VideoDownloader:
@@ -196,9 +197,10 @@ class VideoDownloader:
         try:
             cls.get_lock(source)  # Block new transaction
             # HAVE LOCK
-            cls._logger.debug(f'HAVE LOCK: '
-                              f'{cls.get_lock_source(source)} '
-                              f'for {source}')
+            if LOG_LOCK:
+                cls._logger.debug(f'HAVE LOCK: '
+                                  f'{cls.get_lock_source(source)} '
+                                  f'for {source}')
 
             if source == MovieField.ITUNES_SOURCE:
                 waited: datetime.timedelta = (
@@ -212,9 +214,10 @@ class VideoDownloader:
 
         finally:
             cls.release_lock(source)
-            cls._logger.debug(f'RELEASED LOCK '
-                              f'{cls.get_lock_source(source)} '
-                              f'for {source}')
+            if LOG_LOCK:
+                cls._logger.debug(f'RELEASED LOCK '
+                                  f'{cls.get_lock_source(source)} '
+                                  f'for {source}')
 
         # LOCK RELEASED
 
@@ -257,9 +260,10 @@ class VideoDownloader:
         try:
             clz.get_lock(source)
             # HAVE LOCK
-            clz._logger.debug(f'HAVE LOCK: '
-                              f'{clz.get_lock_source(source)} '
-                              f'for {source}')
+            if LOG_LOCK:
+                clz._logger.debug(f'HAVE LOCK: '
+                                  f'{clz.get_lock_source(source)} '
+                                  f'for {source}')
 
             if not block:
                 too_many_requests = clz.check_too_many_requests(url, source)
@@ -408,9 +412,10 @@ class VideoDownloader:
         finally:
             clz.release_lock(source)
             # LOCK RELEASED
-            clz._logger.debug(f'RELEASED LOCK: '
-                              f'{clz.get_lock_source(source)} '
-                              f'for {source}')
+            if LOG_LOCK:
+                clz._logger.debug(f'RELEASED LOCK: '
+                                  f'{clz.get_lock_source(source)} '
+                                  f'for {source}')
 
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
@@ -461,9 +466,10 @@ class VideoDownloader:
         try:
             clz.get_lock(movie_source)
             # HAVE LOCK
-            clz._logger.debug(f'HAVE LOCK '
-                              f'{clz.get_lock_source(movie_source)} '
-                              f'for {movie_source}')
+            if LOG_LOCK:
+                clz._logger.debug(f'HAVE LOCK '
+                                  f'{clz.get_lock_source(movie_source)} '
+                                  f'for {movie_source}')
 
             if not block:
                 too_many_requests = clz.check_too_many_requests(url, movie_source)
@@ -520,9 +526,10 @@ class VideoDownloader:
             trailer_info = []
         finally:
             clz.release_lock(movie_source)  # LOCK RELEASED
-            clz._logger.debug(f'RELEASED LOCK '
-                              f'{clz.get_lock_source(movie_source)} '
-                              f'for {movie_source}')
+            if LOG_LOCK:
+                clz._logger.debug(f'RELEASED LOCK '
+                                  f'{clz.get_lock_source(movie_source)} '
+                                  f'for {movie_source}')
 
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
@@ -569,9 +576,10 @@ class VideoDownloader:
         try:
             clz.get_lock(MovieField.TFH_SOURCE)
             # HAVE LOCK
-            clz._logger.debug(f'HAVE LOCK '
-                              f'{clz.get_lock_source(MovieField.TFH_SOURCE)} '
-                              f'for {MovieField.TFH_SOURCE}')
+            if LOG_LOCK:
+                clz._logger.debug(f'HAVE LOCK '
+                                  f'{clz.get_lock_source(MovieField.TFH_SOURCE)} '
+                                  f'for {MovieField.TFH_SOURCE}')
 
             if not block:
                 too_many_requests = clz.check_too_many_requests(url,
@@ -655,9 +663,10 @@ class VideoDownloader:
                 clz._logger.exception(f'Error downloading: url: {url}')
         finally:
             clz.release_lock(MovieField.TFH_SOURCE)
-            clz._logger.debug(f'RELEASED LOCK '
-                              f'{clz.get_lock_source(MovieField.TFH_SOURCE)} '
-                              f'for {MovieField.TFH_SOURCE}')
+            if LOG_LOCK:
+                clz._logger.debug(f'RELEASED LOCK '
+                                  f'{clz.get_lock_source(MovieField.TFH_SOURCE)} '
+                                  f'for {MovieField.TFH_SOURCE}')
 
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
@@ -681,7 +690,7 @@ class VideoDownloader:
     @classmethod
     def get_lock(cls, source: str):
         lock_source = cls.get_lock_source(source)
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'GETTING LOCK: {lock_source} '
                                             f'for {source}')
             LazyLogger.dump_stack('Getting Lock',
@@ -691,14 +700,14 @@ class VideoDownloader:
         while not cls.locks[source].acquire(blocking=False):
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'HAVE LOCK: {lock_source} for {source}')
 
     @classmethod
     def release_lock(cls, source: str):
         lock_source = cls.get_lock_source(source)
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'RELEASING LOCK: {lock_source} '
                                             f'for {source}')
             LazyLogger.dump_stack(heading='VideoDowloader Releasing Lock',
@@ -706,7 +715,7 @@ class VideoDownloader:
 
         cls.locks[source].release()
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'RELEASED LOCK {lock_source} for {source}')
 
     @classmethod
@@ -1081,8 +1090,8 @@ class TfhIndexLogger(BaseYDLogger):
 
              :return:
         """
-        super().debug(line)
         clz = type(self)
+        super().debug(line)
         if self._parsed_movie is not None and self._downloader._error == 0:
             try:
                 self._trailer_handler(self._parsed_movie)
@@ -1094,18 +1103,20 @@ class TfhIndexLogger(BaseYDLogger):
                 #
                 self._downloader.release_lock(MovieField.TFH_SOURCE)
                 # LOCK RELEASED
-                clz._logger.debug(f'RELEASED LOCK '
-                                  f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
-                                  f'for {MovieField.TFH_SOURCE}')
+                if LOG_LOCK:
+                    clz._logger.debug(f'RELEASED LOCK '
+                                      f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
+                                      f'for {MovieField.TFH_SOURCE}')
 
                 # ..... Some other thread can get video
 
                 # GET LOCK
                 self._downloader.get_lock(MovieField.TFH_SOURCE)
                 # HAVE LOCK
-                clz._logger.debug(f'HAVE LOCK '
-                                  f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
-                                  f'for {MovieField.TFH_SOURCE}')
+                if LOG_LOCK:
+                    clz._logger.debug(f'HAVE LOCK '
+                                      f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
+                                      f'for {MovieField.TFH_SOURCE}')
 
             except Exception as e:
                 type(self)._logger.exception(f'url: {self.url}')
@@ -1259,8 +1270,8 @@ class TfhInfoLogger(BaseYDLogger):
         """
              :return:
         """
-        super().debug(line)
         clz = type(self)
+        super().debug(line)
 
         if self.raw_data is not None:
             self._trailer_info.append(self.raw_data)
