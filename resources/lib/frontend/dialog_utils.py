@@ -162,7 +162,7 @@ class BaseTimer:
             with cls._lock_cv:
                 try:
                     if not cls._busy_event.is_set():
-                        cls._logger.error(f'_busy_event is NOT set title {cls._title}')
+                        cls._logger.error(f'_busy_event is NOT set. title {cls._title}')
                         cls._cancel_event.clear()  # Just in case
                         return
 
@@ -243,10 +243,10 @@ class BaseTimer:
         if cls._timer_state != timerstate:
             cls._logger.warning(f'title: {cls._title} TimerState should be '
                                 f'{timerstate} not: '
-                                f'{cls._timer_state} CANCELING LOCK',
+                                f'{cls._timer_state}. CANCELING LOCK',
                                 trace=Trace.TRACE_UI_CONTROLLER)
             cls._logger.dump_stack(heading=f'TimerState should be {timerstate} not: '
-                                           f'{cls._timer_state} CANCELING LOCK')
+                                           f'{cls._timer_state}. CANCELING LOCK')
             cls.cancel()
             return True
         return False
@@ -550,6 +550,9 @@ class NotificationTimer(BaseTimer):
     def config(cls, msg: str, title: str = '') -> None:
         with cls._lock_cv:
             try:
+                # Notifications always cancels any previous Notification
+
+                cls.cancel(usage=f'Canceling for new Notification: {title}')
                 cls._title = title
                 if msg == cls._previous_msg:
                     return
@@ -567,6 +570,13 @@ class NotificationTimer(BaseTimer):
                                               f'Waiting for previous operation '
                                               f'to complete')
                     while cls._busy_event.is_set():
+                        Monitor.throw_exception_if_abort_requested(timeout=0.2)
+
+                if cls._cancel_event.is_set():
+                    cls._logger.debug_verbose(f'Title: {cls._title} '
+                                              f'Waiting for cancel to complete')
+
+                    while cls._cancel_event.is_set():
                         Monitor.throw_exception_if_abort_requested(timeout=0.2)
 
                 cls._busy_event.set()
