@@ -2,7 +2,6 @@
 
 import re
 import threading
-from re import Pattern
 
 import xbmc
 import simplejson as json
@@ -11,14 +10,23 @@ from common.logger import LazyLogger
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
+_RE_COMBINE_WHITESPACE: Pattern = re.compile(r"\s+")
+
 
 class TTS:
 
     stop_listeners: List[Callable[[], None]] = []
     _tts_stopped: bool = False
+    _is_tts_running: bool = True
+
+    @staticmethod
+    def is_tts_running() -> bool:
+        return TTS._is_tts_running
 
     @staticmethod
     def say_text(text, interrupt=False) -> str:
+        if not TTS._is_tts_running:
+            return ''
 
         # {"method": "JSONRPC.NotifyAll",
         #  "params": {"sender": "service.xbmc.tts",
@@ -29,8 +37,6 @@ class TTS:
         #   "jsonrpc": "2.0"}
 
         # Remove excess whitespace from text
-
-        _RE_COMBINE_WHITESPACE: Pattern = re.compile(r"\s+")
 
         text = _RE_COMBINE_WHITESPACE.sub(" ", text).strip()
 
@@ -49,10 +55,16 @@ class TTS:
 
     @staticmethod
     def add_stop_listener(listener: Callable[[], None]) -> None:
+        if not TTS._is_tts_running:
+            return
+
         TTS.stop_listeners.append(listener)
 
     @staticmethod
     def stop() -> None:
+        if not TTS._is_tts_running:
+            return
+
         #
         # Run in separate thread because it adds about 1/2 second to switching
         # visibility of trailer/details view
@@ -64,6 +76,9 @@ class TTS:
 
     @staticmethod
     def _stop() -> None:
+        if not TTS._is_tts_running:
+            return
+
         try:
             xbmc.executebuiltin('NotifyAll(service.kodi.tts,STOP)')
 
@@ -74,6 +89,9 @@ class TTS:
 
     @staticmethod
     def tts_stopped() -> None:
+        if not TTS._is_tts_running:
+            return
+
         """
         Primative flag to indicate that the text_to_speech engine was told
         to stop. Currently it is cleared as soon as it is queried. Mostly useful
@@ -84,6 +102,9 @@ class TTS:
 
     @staticmethod
     def is_tts_stopped() -> bool:
+        if not TTS._is_tts_running:
+            return True
+
         is_stopped: bool = TTS._tts_stopped
         TTS._tts_stopped = False
         return is_stopped
