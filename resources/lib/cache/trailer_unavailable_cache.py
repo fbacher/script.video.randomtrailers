@@ -125,10 +125,13 @@ class TrailerUnavailableCache:
 
     @classmethod
     def is_library_id_missing_trailer(cls,
-                                      library_id: int) -> Union[bool, None]:
+                                      library_id: int) -> bool:
         """
+        Checks to see if the given library id is known to NOT have a TMDb trailer
+
         :param library_id:
-        :return:
+        :return: True if the given library_id is known to be missing a trailer from TMDb
+                 False if it is unknown if the library_id has a TMDb trailer
         """
         cls.abort_on_shutdown()
         with cls.lock:
@@ -149,7 +152,7 @@ class TrailerUnavailableCache:
         else:
             Statistics.add_missing_library_id_cache_hit()
 
-        return entry
+        return entry is None
 
     @classmethod
     def library_cache_changed(cls, flush: bool = False) -> None:
