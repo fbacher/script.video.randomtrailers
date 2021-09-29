@@ -9,6 +9,7 @@ Created on Mar 21, 2019
 import pickle
 import sys
 import threading
+from datetime import datetime
 
 from common.constants import Constants
 from common.debug_utils import Debug
@@ -17,7 +18,7 @@ from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
-from common.movie import AbstractMovie
+from common.movie import AbstractMovie, LibraryMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 from discovery.playable_trailer_service import PlayableTrailerService
 
@@ -130,6 +131,15 @@ class BackendBridge(PluginBridge):
             Send movie to front-end
         """
         try:
+            # As a side-effect of a patch for datetime.datetime.strptime, an
+            # un-picklable object can be created for last_played_time.
+            # The patch is in YoutubeDLWrapper from youtube-dl.
+
+            if isinstance(movie, LibraryMovie):
+                last_played_str: str = movie.get_last_played().isoformat()
+                last_played = datetime.fromisoformat(last_played_str)
+                movie.set_last_played(last_played)
+
             pickled: bytes = pickle.dumps(movie)
             pickled_str: str = pickled.hex()
             cls.send_signal('nextTrailer',
