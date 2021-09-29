@@ -90,7 +90,7 @@ class MyPlayer(AdvancedPlayer, ABC):
         clz = type(self)
         title = listitem.getLabel()
         clz._logger.debug(f'Playing: {title} path: {item}',
-                           trace=Trace.TRACE_PLAY_STATS)
+                          trace=Trace.TRACE_PLAY_STATS)
         super().play(item, listitem, windowed, startpos)
 
     def set_playing_title(self, title: str) -> None:
@@ -111,10 +111,10 @@ class MyPlayer(AdvancedPlayer, ABC):
         self._is_url = DiskUtils.is_url(file_path)
         self._expected_file_path = file_path
 
-    def is_playing_trailer(self, path: str) -> bool:
-        if self._is_playing and self._expected_file_path == path:
-            return True
-        return False
+    # def is_playing_trailer(self, path: str) -> bool:
+    #     if self._is_playing and self._expected_file_path == path:
+    #         return True
+    #     return False
 
     def onAVStarted(self) -> None:
         """
@@ -138,6 +138,7 @@ class MyPlayer(AdvancedPlayer, ABC):
             # of remote trailers will eliminate this issue.
 
             super().onAVStarted()
+            clz._logger.debug(f'onAVStarted path: {self.getPlayingFile()}')
             genre: str = self.getVideoInfoTag().getGenre()
             # clz._logger.debug('genre:', genre)
             if genre != 'randomtrailers':
