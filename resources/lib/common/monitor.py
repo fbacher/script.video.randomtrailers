@@ -248,6 +248,7 @@ class Monitor(MinimalMonitor):
         """
 
         :param listener:
+        :param name:
         :return:
         """
         with cls._abort_listener_lock:
