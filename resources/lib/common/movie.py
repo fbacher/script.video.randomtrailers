@@ -693,7 +693,7 @@ class AbstractMovie(BaseMovie):
         Get the best path available, in order of preference:
             - normalized path
             - cached path
-            - path
+            - path (best path)
 
         :return: (is_normalized, is_cached, path)
         """
@@ -710,7 +710,7 @@ class AbstractMovie(BaseMovie):
         else:
             trailer_path = self.get_trailer_path()
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
             clz._logger.debug_extra_verbose(f'normalized: {is_normalized} cached: '
                                             f'{is_cached} path: {trailer_path}')
         return is_normalized, is_cached, trailer_path
