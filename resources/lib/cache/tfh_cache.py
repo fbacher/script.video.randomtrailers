@@ -94,8 +94,10 @@ class TFHCache:
         :return:
         """
         cls._logger = module_logger.getChild(type(cls).__name__)
-        cls.load_cache()
-        cls._logger.debug('load_cache complete')
+        if Settings.is_include_tfh_trailers():
+            cls.load_cache()
+        else:
+            cls._logger.debug_extra_verbose('TFH not enabled')
 
     @classmethod
     def logger(cls) -> LazyLogger:
@@ -191,7 +193,6 @@ class TFHCache:
                             temp_movie.set_trailer_path(movie.get_trailer_path())
                             temp_movie.set_trailer_type(movie.get_trailer_type())
                             temp_movie.set_tfh_title(movie.get_tfh_title())
-                            temp_movie.set_year(movie.get_year())
                             findable: bool = movie.is_tmdb_id_findable()
                             #
                             # Only set when NOT findable.
@@ -269,10 +270,6 @@ class TFHCache:
                             movie_ids_to_delete.append(movie.get_id())
                         elif not isinstance(movie, TFHMovie):
                             movie_ids_to_delete.append(movie.get_id())
-
-                        # Not all TFH fields are saved, but some need initial
-                        # values
-
 
                     if len(movie_ids_to_delete) > 0:
                         cls.remove_movies(movie_ids_to_delete, flush=True)
