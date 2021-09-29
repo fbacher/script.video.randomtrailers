@@ -44,9 +44,11 @@ class TMDbMovieDownloader:
                        library_id: str = None
                        ) -> (List[int], TMDbMovie):
         """
-            Called in two situations:
+            Called in three situations:
                 1) When a local movie does not have any movie information
-                2) When a TMDB search for multiple movies is used, which does NOT return
+                2) When a local movie is missing trailer info and the Settings are
+                   configured to search TMDb for the trailer
+                3) When a TMDB search for multiple movies is used, which does NOT return
                     detail information, including movie info.
 
             Given the movieId from TMDB, query TMDB for details and manufacture
@@ -94,13 +96,11 @@ class TMDbMovieDownloader:
 
         rejection_reasons, tmdb_movie = cls._query_tmdb_cache_for_movie(movie_title,
                                                                         tmdb_id_str,
-                                                                        source,
                                                                         ignore_failures=False,
                                                                         library_id=library_id)
         if tmdb_movie is None:
             rejection_reasons, tmdb_movie = cls._query_tmdb_for_movie(movie_title,
                                                                       tmdb_id_str,
-                                                                      source,
                                                                       ignore_failures=False,
                                                                       library_id=library_id)
             Cache.write_tmdb_cache_json(tmdb_movie)
@@ -137,7 +137,6 @@ class TMDbMovieDownloader:
     def _query_tmdb_cache_for_movie(cls,
                                     movie_title: str,
                                     tmdb_id_str: str,
-                                    source: str,
                                     ignore_failures: bool = False,
                                     library_id: str = None
                                     ) -> (List[int], TMDbMovie):
@@ -145,15 +144,9 @@ class TMDbMovieDownloader:
 
         tmdb_movie: TMDbMovie = None
         try:
-            cache_id: str
-            if library_id is not None:
-                cache_id = library_id
-            else:
-                cache_id = tmdb_id_str
-
             status_code: int
             status_code, tmdb_movie = Cache.get_cached_tmdb_movie(
-                movie_id=cache_id, error_msg=movie_title)
+                tmdb_id=tmdb_id_str, error_msg=movie_title)
             if status_code != 0:
                 rejection_reasons.append(MovieField.REJECTED_FAIL)
                 if tmdb_movie is None:
@@ -194,7 +187,6 @@ class TMDbMovieDownloader:
     def _query_tmdb_for_movie(cls,
                               movie_title: str,
                               tmdb_id_str: str,
-                              source: str,
                               ignore_failures: bool = False,
                               library_id: str = None
                               ) -> (List[int], TMDbMovie):
@@ -211,16 +203,9 @@ class TMDbMovieDownloader:
         tmdb_movie: TMDbMovie = None
         dump_msg: str = 'tmdb_id: ' + tmdb_id_str
         try:
-            cache_id: str
-            if library_id is not None:
-                cache_id = library_id
-            else:
-                cache_id = tmdb_id_str
-
             status_code: int
-            status_code, tmdb_raw_data = cls.query_tmdb(url, movie_id=cache_id,
+            status_code, tmdb_raw_data = cls.query_tmdb(url,
                                                         error_msg=movie_title,
-                                                        source=source,
                                                         params=query_data,
                                                         dump_results=False,
                                                         dump_msg=dump_msg)
@@ -260,6 +245,7 @@ class TMDbMovieDownloader:
                          library_id: str) -> TMDbMovie:
         movie: TMDbMovie = None
         library_id_int = None
+        tmdb_id_str = ''
         if library_id is not None:
             library_id_int = int(library_id)
 
@@ -288,8 +274,8 @@ class TMDbMovieDownloader:
             tmdb_keyword_ids: List[str] = tmdb_parser.parse_keyword_ids()
             original_language: str = tmdb_parser.parse_original_language()
             original_title: str = tmdb_parser.parse_original_title()
-            movie = tmdb_parser.get_movie()
             discovery_state = tmdb_parser.get_discovery_state()
+            movie = tmdb_parser.get_movie()
 
         except AbortException as e:
             reraise(*sys.exc_info())
@@ -306,14 +292,11 @@ class TMDbMovieDownloader:
             except Exception as e:
                 cls._logger.error('failed to get Json data')
 
-        movie: TMDbMovie = tmdb_parser.get_movie()
         return movie
 
     @classmethod
     def query_tmdb(cls, url: str,
-                   movie_id: Union[str, int, None] = None,
                    error_msg: Union[str, int, None] = None,
-                   source: Union[str, None] = None,
                    dump_results: bool = False,
                    dump_msg: str = '',
                    headers: Union[dict, None] = None,
@@ -324,9 +307,7 @@ class TMDbMovieDownloader:
             Query TMDb for detail data on specified movie id
 
         :param url:
-        :param movie_id:
         :param error_msg:
-        :param source:
         :param dump_results:
         :param dump_msg:
         :param headers:
@@ -343,9 +324,6 @@ class TMDbMovieDownloader:
 
         movie_data: MovieType = None
         status = 0
-        if source is None or source not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
-            cls._logger.error('Invalid source:', source)
-
         finished = False
         delay = 0.5
         while not finished:

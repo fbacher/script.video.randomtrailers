@@ -249,7 +249,7 @@ class TrailerFetcher(TrailerFetcherInterface):
         rejection_reasons: List[int] = []
 
         # base_movie is Usually a populated AbstractMovie,
-        # but can also just be an movie_id (TFH_ID or TMDB_ID), which
+        # but can also just be an tmdb_id (TFH_ID or TMDB_ID), which
         # must be downloaded and populated at this time.
 
         if isinstance(base_movie, AbstractMovieId):
@@ -449,7 +449,14 @@ class TrailerFetcher(TrailerFetcherInterface):
             if isinstance(movie, LibraryMovie):
                 self.throw_exception_on_forced_to_stop()
 
-                if (movie.has_trailer() and
+                '''
+                For movies in the Library, we sometimes need to look up TMDb information:
+                    * Just to know it's tmdb ID 
+                    * Or when there is no local trailer info and the user wants us to
+                      search TMDb for a trailer.
+                '''
+                if ((movie.has_trailer() or Settings.is_include_library_no_trailer_info())
+                        and
                         TrailerUnavailableCache.is_library_id_missing_trailer(
                             movie.get_library_id())):
                     # Try to find movie from TMDb
@@ -476,22 +483,21 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 if isinstance(movie, TFHMovie):
                                     TFHCache.update_movie(movie)
                             else:
-                                movie.add_unique_id(MovieField.UNIQUE_ID_TMDB,
-                                                    str(tmdb_id))
+                                movie.add_tmdb_id(tmdb_id)
 
                         except CommunicationException:
                             pass  # Get it next time
 
                         self.throw_exception_on_forced_to_stop()
 
-                    if tmdb_id is not None:
+                    if not (movie.has_trailer() or tmdb_id is None):
                         self.throw_exception_on_forced_to_stop()
 
                         # We only want the trailer, ignore other fields.
 
                         rejection_reasons: List[str]
-                        new_trailer_data: TMDbMovie
-                        rejection_reasons, new_trailer_data = \
+                        tmdb_trailer_data: TMDbMovie
+                        rejection_reasons, tmdb_trailer_data = \
                             TMDbMovieDownloader.get_tmdb_movie(movie.get_title(),
                                                                tmdb_id,
                                                                source,
@@ -516,8 +522,8 @@ class TrailerFetcher(TrailerFetcherInterface):
                                 clz._logger.debug_verbose(
                                     'Unexpected REJECTED_STATUS. Ignoring')
 
-                        elif (new_trailer_data is None
-                              or not new_trailer_data.has_trailer()):
+                        elif (tmdb_trailer_data is None
+                              or not tmdb_trailer_data.has_trailer()):
                             keep_new_trailer = False
                             TrailerUnavailableCache.add_missing_library_trailer(
                                 tmdb_id=tmdb_id,
@@ -535,16 +541,22 @@ class TrailerFetcher(TrailerFetcherInterface):
                                     self._playable_trailers.get_number_of_added_trailers(),
                                     'movies:',
                                     self._movie_data.get_number_of_added_movies())
-                        else:
-                            # Keep trailer field,not entire new movie
-                            keep_new_trailer = False
-                            movie.set_trailer(new_trailer_data.get_trailer_path())
+                        else:  # movie does not have a trailer
+                            # Keep trailer field, not entire new movie
+                            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                clz._logger.debug_extra_verbose(f'Found remote trailer '
+                                                                f'for library movie: '
+                                                                f'{movie.get_title()}')
+                            movie.set_trailer(tmdb_trailer_data.get_trailer_path())
 
             elif source in (MovieField.ITUNES_SOURCE, MovieField.TFH_SOURCE):
                 self.throw_exception_on_forced_to_stop()
                 tmdb_id: int = movie.get_tmdb_id()
                 if tmdb_id is None and movie.is_tmdb_id_findable():
-                    year = str(movie.get_year())
+                    if isinstance(movie, TFHMovie):
+                        year = None
+                    else:
+                        year = str(movie.get_year())
                     try:
                         self.throw_exception_on_forced_to_stop()
                         tmdb_id: Union[
@@ -599,7 +611,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                     keep_new_trailer = False
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose('Not keeping:', movie.get_title(),
-                                                        'because movie is empty')
+                                                        'because trailer is empty')
                 elif movie_id in AbstractMovieData.get_aggregate_trailers_by_name_date():
                     keep_new_trailer = False
 
@@ -701,7 +713,10 @@ class TrailerFetcher(TrailerFetcherInterface):
         if (tmdb_id is None
                 and (isinstance(movie, ITunesMovie) or isinstance(movie, TFHMovie))):
             self.throw_exception_on_forced_to_stop()
-            year = movie.get_year()
+            if isinstance(movie, TFHMovie):
+                year = None
+            else:
+                year = movie.get_year()
             try:
                 tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                     movie.get_title(), year,
@@ -815,6 +830,18 @@ class TrailerFetcher(TrailerFetcherInterface):
             :return: True if movie was normalized by this call
         """
         clz = type(self)
+
+        # During startup the expense of Audio Normalization can delay showing
+        # movies. Skip it if the player is starving. We can normalize this movie
+        # at another time.
+
+        if self._playable_trailers.is_starving():
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                clz._logger.debug_extra_verbose(f'Delaying normalization due to '
+                                                f'starvation for {movie.get_title()} '
+                                                f'source: {movie.get_source()}')
+            return False
+
         normalized_trailer_path: str = ''
         normalized_used: bool = False
         start: datetime.datetime = datetime.datetime.now()
@@ -833,7 +860,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 clz._logger.debug_extra_verbose(f'{movie.get_title()} '
                                                 f'source: {movie.get_source()} '
                                                 f'video_id: '
-                                                f'{Cache.get_video_id(movie)} '
+                                                f'{Cache.get_trailer_id(movie)} '
                                                 f'movie: {movie.get_trailer_path()} '
                                                 f'cached movie: '
                                                 f'{movie.get_cached_trailer()} '
@@ -853,7 +880,7 @@ class TrailerFetcher(TrailerFetcherInterface):
             # iTunes, if we choose.
             #
 
-            if Cache.get_video_id(movie) is None:
+            if Cache.get_trailer_id(movie) is None:
                 return False
 
             # Can not normalize remote files. MovieField.CACHED_TRAILER contains
@@ -967,7 +994,7 @@ class TrailerFetcher(TrailerFetcherInterface):
                 self.throw_exception_on_forced_to_stop()
 
                 rc = ffmpeg_normalize.normalize(
-                    trailer_path, normalized_trailer_path, use_compand=True)
+                    trailer_path, normalized_trailer_path)
 
                 if rc == 0:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):

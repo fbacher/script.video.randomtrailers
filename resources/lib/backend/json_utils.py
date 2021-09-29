@@ -45,7 +45,7 @@ class JsonUtils(JsonUtilsBasic):
 '''
     @staticmethod
     def get_cached_tmdb_movie(url: str,
-                        movie_id: Union[str, int] = None,
+                        tmdb_id: Union[str, int] = None,
                         error_msg: Union[str, int] = None,
                         source: str = None,
                         dump_results: bool = False,
@@ -61,7 +61,7 @@ class JsonUtils(JsonUtilsBasic):
             Any information not in the cache will be placed into it after successfully
             reading it.
         :param url:
-        :param movie_id:
+        :param tmdb_id:
         :param error_msg:
         :param source:
         :param dump_results:
@@ -83,7 +83,7 @@ class JsonUtils(JsonUtilsBasic):
         if Settings.is_use_tmdb_cache():
             start = datetime.datetime.now()
             trailer_data = Cache.read_tmdb_cache_json(
-                movie_id, source, error_msg=error_msg)
+                tmdb_id, source, error_msg=error_msg)
             status = 0
             stop = datetime.datetime.now()
             read_time = stop - start
@@ -104,7 +104,7 @@ class JsonUtils(JsonUtilsBasic):
                                                       timeout=timeout)
             if ((status == 0 or status == 200) and trailer_data is not None
                     and Settings.is_use_tmdb_cache()):
-                Cache.write_tmdb_cache_json(movie_id, source, trailer_data)
+                Cache.write_tmdb_cache_json(tmdb_id, source, trailer_data)
 
         if trailer_data is None and status == 0:
             status = -1

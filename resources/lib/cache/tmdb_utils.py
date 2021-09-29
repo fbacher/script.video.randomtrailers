@@ -33,5 +33,5 @@ class TMDbUtils:
                     movies.append(cached_movie)
                     additional_movies_to_get -= 1
                 else:
-                    Cache.delete_cache_json(tmdb_id.get_id(), MovieField.TMDB_SOURCE)
+                    Cache.delete_cache_json(tmdb_id.get_id())
         return movies

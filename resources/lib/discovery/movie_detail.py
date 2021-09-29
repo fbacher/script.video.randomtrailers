@@ -385,7 +385,7 @@ class MovieDetail:
             if movie.get_source() not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
                 return 0
 
-            movie_id = Cache.get_video_id(movie)
+            movie_id = Cache.get_trailer_id(movie)
 
             # Trailers for movies in the library are treated differently
             # from those that we don't have a local movie for:
@@ -460,7 +460,7 @@ class MovieDetail:
                        To save json data from downloaded for debugging, uncomment
                        the following.
     
-                    temp_file = os.path.join(trailer_folder, str(movie_id) + '.json')
+                    temp_file = os.path.join(trailer_folder, str(tmdb_id) + '.json')
                     import io
                     with io.open(temp_file, mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
