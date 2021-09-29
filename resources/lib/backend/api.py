@@ -120,11 +120,13 @@ class DiscoveryManager:
                 instance = info.get_instance()
                 discovery_class: Type[BaseDiscoverMovies] = info.get_class()
                 if discovery_class.is_enabled():
-                    if not info.is_started() and instance is not None:
+                    if (instance is not None
+                            and (instance.needs_restart() or not info.is_started())):
                         instance.stop_thread()
                         instance.destroy()
                         GarbageCollector.add_thread(instance)
                         info.clear_instance()
+                        instance = None
                     if instance is None:
                         instance = info.begin_discovery()
                 elif instance is not None:

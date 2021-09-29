@@ -543,3 +543,21 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
             self.add_to_discovered_movies(movie)
             self.number_of_trailers_on_site += 1
             return
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+            :returns: True if settings have changed requiring restart
+                      False if relevant settings have changed or if it should
+                      be allowed to die without restart
+        """
+        clz = type(self)
+        clz.logger.enter()
+
+        restart_needed = False
+        if Settings.is_include_tfh_trailers():
+            restart_needed: bool = Settings.is_tfh_loading_settings_changed()
+
+        return restart_needed

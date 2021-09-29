@@ -634,6 +634,25 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         return rc
 
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+
+        clz = type(self)
+        clz.logger.enter()
+
+        restart_needed: bool = False
+        if Settings.is_include_itunes_trailers():
+            restart_needed: bool = Settings.is_itunes_loading_settings_changed()
+
+        return restart_needed
+
     ''' 
     {            
        "_filename": "Featurette - The Making of 

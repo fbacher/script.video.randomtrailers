@@ -228,3 +228,7 @@ class BaseDiscoverMovies(threading.Thread):
             self._removed_trailers = 0
             self._discovery_complete = False
             self._movie_data.remove()
+
+    def needs_restart(self) -> bool:
+        # return False
+        raise NotImplementedError()

@@ -203,3 +203,15 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                 self.stop_thread()
         except Exception as e:
             clz.logger.exception('')
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+            :returns: True if settings have changed requiring restart
+                      False if relevant settings have changed or if it should
+                      be allowed to die without restart
+        """
+
+        return False

@@ -395,6 +395,22 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         except Exception:
             clz.logger.exception('')
 
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+        clz = type(self)
+        clz.logger.enter()
+        restart_needed: bool = False
+        if Settings.is_include_library_trailers():
+            restart_needed = Settings.is_library_loading_settings_changed()
+        return restart_needed
+
 
 class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
     """
@@ -459,6 +475,23 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                 return  # Just exit thread
             except Exception as e:
                 clz.logger.exception('')
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+        clz = type(self)
+        clz.logger.enter()
+        restart_needed: bool = False
+        if Settings.is_include_library_remote_trailers():
+            restart_needed = Settings.is_library_loading_settings_changed()
+
+        return restart_needed
 
 
 class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
@@ -526,3 +559,19 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                 return  # Just exit thread
             except Exception as e:
                 clz.logger.exception('')
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+        clz = type(self)
+        clz.logger.enter()
+        restart_needed: bool = False
+        if Settings.is_include_library_no_trailer_info():
+            restart_needed = Settings.is_library_loading_settings_changed()
+        return restart_needed
