@@ -8,6 +8,7 @@ from threading import Event, RLock, Thread
 from typing import Callable
 
 from common.logger import LazyLogger
+from common.monitor import Monitor
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -49,10 +50,13 @@ class FlexibleTimer(Thread):
         self.kwargs = kwargs if kwargs is not None else {}
         self.lock = RLock()
         self.finished = Event()
+        Monitor.register_abort_listener(listener=self.cancel,
+                                        name='kill timer on abort')
 
     def cancel(self):
         """Stop the timer if it hasn't finished yet."""
         self.finished.set()
+        Monitor.unregister_abort_listener(self.cancel)
 
     def run(self):
         self.finished.wait(self.interval)
