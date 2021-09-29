@@ -46,14 +46,16 @@ class ParseLibrary:
         if last_played == '':
             last_played = clz.DEFAULT_LAST_PLAYED_DATE
 
-        pd: time.struct_time
-        pd = time.strptime(last_played, '%Y-%m-%d %H:%M:%S')
-
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-            clz._logger.debug(f'last_played type: {type(pd)} xform: {pd}')
+        # There are many ways to do this. Decided to use a timestamp, which is
+        # based upon the Epoch (not that long ago, but plenty long ago for last played).
+        # Anyway, that is why if the date is something crazy like 1900-01-01, conversion
+        # to timestamp will cause Overflow, so we just set timestamp to 0.0 (the
+        # date of the Epoch). It works, but explanation useful.
 
         timestamp: float
         try:
+            pd: time.struct_time
+            pd = time.strptime(last_played, '%Y-%m-%d %H:%M:%S')
             timestamp = time.mktime(pd)
         except OverflowError:
             timestamp = 0.0
