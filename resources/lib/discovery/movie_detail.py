@@ -113,7 +113,8 @@ class MovieDetail:
                                  MovieField.DETAIL_CLONE_FIELDS)
                 movie = fully_populated_movie
 
-            if isinstance(movie, TMDbMovie) or isinstance(movie, TFHMovie):
+            if (keep_trailer and
+                    (isinstance(movie, TMDbMovie) or isinstance(movie, TFHMovie))):
                 # If a movie was downloaded from TMDB or TFH, check to see if
                 # the movie is in our library so that fact can be included in the
                 # UI.
@@ -164,7 +165,9 @@ class MovieDetail:
                             f' tmdbId: {str(tmdb_id)}'
                             f' MovieId: {movie.get_library_id()}')
 
-            movie.set_discovery_state(MovieField.DISCOVERY_READY_TO_DISPLAY)
+            if keep_trailer:
+                movie.set_discovery_state(MovieField.DISCOVERY_READY_TO_DISPLAY)
+
             if tmdb_id is not None:
                 CacheIndex.remove_unprocessed_movie(tmdb_id)
 
@@ -191,6 +194,25 @@ class MovieDetail:
 
     @classmethod
     def merge_tmdb_info(cls, movie: AbstractMovie):
+        """
+        Merges information from TMDb for the given TFH or ITunes movie, which have
+        sparse information.
+
+        KLUDGE: See TODO
+
+        TODO: Revisit policy of merging DUMMY TMDb information when no TMDb movie
+              found for TFH movies.
+
+        param: movie
+
+        returns: True when TMDb data was found, merged, and determined not
+                 to exclude the movie from viewing due to certification,
+                 etc.
+
+                 False, when either corresponding TMDb movie not found or
+                 the filter on the TMDb movie indicates that the trailer
+                 should not be displayed
+        """
         tmdb_id: Optional[int] = MovieEntryUtils.get_tmdb_id(movie)
         if tmdb_id is not None:
             tmdb_id = int(tmdb_id)
@@ -230,14 +252,23 @@ class MovieDetail:
                 movie.get_title(), tmdb_id, movie.get_source(), ignore_failures=True)
 
             if len(rejection_reasons) > 0:
-                keep_trailer = False
+                # At this point, rejection is only due inability to get any TMDb info
+                # for the movie.
+
+                # TODO: Revisit not setting to False
+
+                # keep_trailer = False
                 tmdb_detail_info = None
-                if (MovieField.REJECTED_ADULT, MovieField.REJECTED_CERTIFICATION,
-                        MovieField.REJECTED_FAIL) in rejection_reasons:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        cls._logger.debug_extra_verbose(f'Rejecting TFH movie'
-                                                        f' {movie.get_title()} '
-                                                        f'due to Certification')
+
+                # These rejected reasons will never be present. See comment above.
+                # Checked later, when returned.
+                #
+                # if (MovieField.REJECTED_ADULT, MovieField.REJECTED_CERTIFICATION,
+                #         MovieField.REJECTED_FAIL) in rejection_reasons:
+                #     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                #         cls._logger.debug_extra_verbose(f'Rejecting TFH movie'
+                #                                         f' {movie.get_title()} '
+                #                                         f'due to Certification')
 
             if tmdb_detail_info is not None:
                 if (cls._logger.isEnabledFor(LazyLogger.DEBUG)
@@ -266,6 +297,16 @@ class MovieDetail:
                     Debug.dump_dictionary(movie.get_as_movie_type(),
                                           heading='Dumping Modified movie info',
                                           log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+            else:
+                # TODO: Revisit this. Should we display when we can't filter based
+                #       on user's wishes?
+                #
+                # TMDb movie not found for TFH movie. Take a risk and display it
+                # anyway with dummy information. The risk is that the movie should
+                # be filtered out due to certification (content) or other reasons.
+                #
+                dummy_movie = TMDbMovie()
+                cls.clone_fields(dummy_movie, movie, MovieField.TFH_CLONE_FIELDS)
         return keep_trailer
 
     @classmethod
