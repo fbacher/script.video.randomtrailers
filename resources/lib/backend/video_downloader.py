@@ -54,9 +54,10 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 # Delay two hours after encountering 429 (too many requests)
 RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
-LOG_ALL = True # False
+LOG_ALL = False
 LOGGER_ENABLE_LEVEL = LazyLogger.DEBUG_EXTRA_VERBOSE # LazyLogger.DISABLED
 LOG_LOCK: bool = False
+DUMP_JSON: bool = False
 
 
 class VideoDownloader:
@@ -322,14 +323,11 @@ class VideoDownloader:
 
             if youtube_use_netrc:
                 ydl_opts['usenetrc'] = True
-                clz._logger.debug(f'usenetrc: True')
             elif len(youtube_username) > 0 and len(youtube_password) > 0:
                 ydl_opts['username'] = youtube_username
                 ydl_opts['password'] = youtube_password
-                clz._logger.debug(f'username: {youtube_username} passwd: {youtube_password}')
 
             ydl_opts['age_limit'] = youtube_age_limit
-            clz._logger.debug(f'age_limit: {youtube_age_limit}')
 
             # Start download
             # Sometimes fail with None type or other errors because of a URL that
@@ -352,7 +350,6 @@ class VideoDownloader:
                             clz._logger.debug_verbose(f'error GENERIC DOWNLOAD arg: '
                                                       f'{arg}')
 
-            clz._logger.debug(f'ydl.download rc: {rc} error: {self._error}')
             wait_attempts: int = 0
             ten_minutes: int = 10 * 60 * 2
             while (video_logger.data is None and self._error == 0 and not
@@ -806,7 +803,6 @@ class BaseYDLogger:
         """
         clz = type(self)
         self.debug_lines.append(line)
-        clz._logger.debug(f'line: {line}')
 
         # self._parsed_movie = None
         if Monitor.is_abort_requested():
@@ -829,7 +825,7 @@ class BaseYDLogger:
             # "_type playlist" lists summary information for each movie in playlist
             try:
                 self.raw_data = json.loads(line)
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz._logger.isEnabledFor(LOGGER_ENABLE_LEVEL):
                     try:
                         json_text = json.dumps(self.raw_data,
                                                ensure_ascii=False,
@@ -848,7 +844,7 @@ class BaseYDLogger:
             # "id" describes single downloaded movie
             try:
                 self.raw_data = json.loads(line)
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if DUMP_JSON and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     try:
                         json_text = json.dumps(self.raw_data,
                                                ensure_ascii=False,
@@ -875,9 +871,6 @@ class BaseYDLogger:
         dump_json = False
         missing_keywords = []
         try:
-            Debug.dump_dictionary(movie_data, heading='VideoLogger Dump',
-                                  log_level=LazyLogger.DEBUG)
-            dump_json = True
             trailer_id = movie_data.get('id')
             if trailer_id is None:
                 missing_keywords.append('id')
@@ -950,7 +943,6 @@ class BaseYDLogger:
 
     def warning(self, line: str) -> None:
         clz = type(self)
-        clz._logger.debug(f'line: {line}')
 
         self.warning_lines.append(line)
 
@@ -973,8 +965,6 @@ class BaseYDLogger:
 
     def error(self, line: str) -> None:
         clz = type(self)
-
-        clz._logger.debug(f'line: {line}')
 
         self.error_lines.append(line)
         if Monitor.is_abort_requested():
