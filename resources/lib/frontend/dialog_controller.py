@@ -870,6 +870,9 @@ class TaskLoop(threading.Thread):
                 TrailerTimer.cancel(reason=f'Exceeded max playback time',
                                     cancel_callback=callback, stop_play=True)
 
+        except AbortException:
+            pass  # Let thread die
+        
         except Exception:
             clz._logger.exception()
 
