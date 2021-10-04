@@ -814,6 +814,7 @@ class TrailerFetcher(TrailerFetcherInterface):
 
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz._logger.debug_verbose(movie.get_title(), f'audio normalized: '
+                                          f'{normalized} '
                                           f'normalized movie: ' 
                                           f'{movie.get_normalized_trailer_path()} '
                                           f'type: {type(movie).__name__} '
