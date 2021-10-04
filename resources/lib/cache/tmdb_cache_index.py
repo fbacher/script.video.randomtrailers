@@ -94,13 +94,10 @@ class CachedPage:
         return year_str + '_' + str(self._page_number)
 
 
-class CacheParameters:
+class CacheParametersType:
     """
 
     """
-
-    _logger = None
-    _cached_value = None
 
     # Used only for comparing cached value to current value
     #
@@ -113,9 +110,6 @@ class CacheParameters:
             get_tmdb_include_old_movie_movies
 
         """
-        if type(self)._logger is None:
-            type(self)._logger = module_logger.getChild(type(self).__name__)
-
         self._included_genres = dict_value['included_genres']
         self._excluded_genres = dict_value['excluded_genres']
         self._included_tags = dict_value['included_tags']
@@ -132,13 +126,38 @@ class CacheParameters:
                               CacheIndex.UNINITIALIZED_STATE)
         self._cache_state = dict_value['cache_state']
 
+
+class CacheParameters(CacheParametersType):
+    """
+
+    """
+
+    _logger = None
+    _cached_value: CacheParametersType = None
+
+    # Used only for comparing cached value to current value
+    #
+    def __init__(self,
+                 dict_value: Dict[str, Any]
+                 ) -> None:
+        """
+            Settings with no impact:
+            trailer_type
+            get_tmdb_include_old_movie_movies
+
+        """
+        if type(self)._logger is None:
+            type(self)._logger = module_logger.getChild(type(self).__name__)
+
+        super().__init__(dict_value)
+
     @classmethod
     def to_json(cls) -> str:
         """
 
         :return:
         """
-        cached_value = cls._cached_value
+        cached_value: CacheParametersType = cls._cached_value
         values_in_dict = {'included_genres': cached_value._included_genres,
                           'excluded_genres': cached_value._excluded_genres,
                           'included_tags': cached_value._included_tags,
@@ -162,7 +181,7 @@ class CacheParameters:
         return json_text
 
     @classmethod
-    def get_parameter_values(cls) -> ForwardRef('CacheParameters'):
+    def get_parameter_values(cls) -> CacheParametersType:
         """
 
         :return:
@@ -256,6 +275,130 @@ class CacheParameters:
 
         return is_equal
 
+    def is_rebuild_cache(self,
+                         other_value  # type: CacheParameters
+                         ) -> bool:
+        """
+        Determines whether settings have changed enough to cause json cache to be
+        rebuilt.
+
+        It is expensive to rebuild the cache, but having many old .json entries
+        creates multiple problems:
+            * At startup, in an attempt to save time, the cache is walked and
+              all of the tmdb_ids from the json files are added to the TrailerFetcher
+              to be examined for matches.
+            * The previous step can be expensive. Further, if most fail the configured
+              filter, much time can be wasted resulting in a blank screen
+            * Even if many or all .json files pass the filter, the results can
+              be skewed to an old more limited range of years, genres, etc.
+        """
+        finished = False
+        rebuild_needed = False
+        while not finished:
+
+            if other_value is None:
+                is_equal = False
+                break
+
+            # Don't understand why this is failing
+            if not isinstance(other_value, CacheParameters):
+                # is_equal = False
+                # break
+                pass
+
+            '''
+             TMDB related settings 
+        * indicates saved in search_parameters
+        - indicates change does not warrant destroying tmdb cache
+        + indicates change does warrant destroying tmdb cache
+        
+        - TMDB_MAX_NUMBER_OF_TRAILERS,
+        - TMDB_MAX_DOWNLOAD_MOVIES
+        *- TMDB_ALLOW_FOREIGN_LANGUAGES,
+        - TMDB_TRAILER_TYPE,
+        -    INCLUDE_TMDB_TRAILERS,
+        -    INCLUDE_CLIPS,
+        -    INCLUDE_FEATURETTES,
+        -    INCLUDE_TEASERS,
+        * TMDB_SORT_ORDER,
+        * TMDB_VOTE_VALUE,
+        * TMDB_VOTE_FILTER,
+        *+ TMDB_ENABLE_SELECT_BY_YEAR_RANGE (increase of range not too destructive),
+            * TMDB_YEAR_RANGE_MINIMUM or None
+            * TMDB_YEAR_RANGE_MAXIMUM or None
+        *+ TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
+        FILTER_GENRES
+        * GENREXXX
+        * keywords
+        * certifications: not-yet-rated, Unknown certification, max_certification
+        '''
+            included_genres_set = CacheParameters.create_set(
+                self._included_genres)
+            other_included_genres_set = CacheParameters.create_set(
+                other_value._included_genres)
+            if len(included_genres_set ^ other_included_genres_set) != 0:
+                rebuild_needed = True
+                break
+
+            excluded_genres_set = CacheParameters.create_set(
+                self._excluded_genres)
+            other_excluded_genres_set = CacheParameters.create_set(
+                other_value._excluded_genres)
+            if len(excluded_genres_set ^ other_excluded_genres_set) != 0:
+                rebuild_needed = True
+                break
+
+            included_tags_set = CacheParameters.create_set(self._included_tags)
+            other_included_tags_set = CacheParameters.create_set(
+                other_value._included_tags)
+            if len(included_tags_set ^ other_included_tags_set) != 0:
+                rebuild_needed = True
+                break
+
+            excluded_tags_set = CacheParameters.create_set(self._excluded_tags)
+            other_excluded_tags_set = CacheParameters.create_set(
+                other_value._excluded_tags)
+            if len(excluded_tags_set ^ other_excluded_tags_set) != 0:
+                rebuild_needed = True
+                break
+
+            if self._minimum_year != other_value._minimum_year:
+                rebuild_needed = True
+                break
+
+            if self._maximum_year != other_value._maximum_year:
+                rebuild_needed = True
+                break
+
+            if self._remote_trailer_preference != other_value._remote_trailer_preference:
+                rebuild_needed = True
+
+            if self._vote_comparison != other_value._vote_comparison:
+                rebuild_needed = True
+                break
+
+            if self._vote_value != other_value._vote_value:
+                rebuild_needed = True
+                break
+
+            if self._rating_limit_string != other_value._rating_limit_string:
+                rebuild_needed = True
+                break
+
+            '''
+            if self._language != other_value._language:
+                rebuild_needed = True
+                break
+            '''
+
+            if self._country != other_value._country:
+                rebuild_needed = True
+                break
+
+            finished = True
+
+        return rebuild_needed
+
     @classmethod
     def save_cache(cls) -> None:
         """
@@ -289,23 +432,25 @@ class CacheParameters:
     @classmethod
     def load_cache(cls,
                    current_parameters: ForwardRef('CacheParameters')
-                   ) -> bool:
+                   ) -> Tuple[bool, bool]:
         """
 
         :param current_parameters:
         :return bool: True when cache has changed
         """
         saved_parameters = cls.read_cached_value_from_disk()
-        cache_changed = False
+        cache_changed: bool = False
+        rebuild_cache: bool = False
         if saved_parameters != current_parameters:
             current_parameters._cache_state =\
                 CacheIndex.CACHE_PARAMETERS_INITIALIZED_STATE
             cls.set_cached_value(current_parameters)
             cache_changed = True
+            rebuild_cache = current_parameters.is_rebuild_cache(saved_parameters)
         else:
             cls.set_cached_value(saved_parameters)
 
-        return cache_changed
+        return cache_changed, rebuild_cache
 
     @classmethod
     def set_cached_value(cls,
@@ -659,7 +804,6 @@ class CachedPagesData:
         """
 
         :param year:
-        :param page_number:
         :return:
         """
         cached_pages = []
@@ -962,17 +1106,6 @@ class CacheIndex:
             cls.load_unprocessed_movies_cache()
 
     @classmethod
-    def is_tmdb_cache_empty(cls) -> bool:
-        """
-
-        :return:
-        """
-        if (len(cls.get_undiscovered_tmdb_ids()) == 0
-                and len(cls._found_tmdb_trailer_ids) == 0):
-            return True
-        return False
-
-    @classmethod
     def add_search_pages(cls,
                          tmdb_search_query: str,
                          search_pages: List[CachedPage],
@@ -1229,7 +1362,7 @@ class CacheIndex:
         if arg_tmdb_id is None:
             cls._logger.debug(f'arg_tmdb_id is None')
 
-        cls._logger.debug(f'arg_tmdb_id: {type(arg_tmdb_id)}')
+        cls._logger.debug(f'arg_tmdb_id: {arg_tmdb_id}')
         tmdb_id: int = None
         if isinstance(arg_tmdb_id, TMDbMovieId):
             tmdb_id = int(arg_tmdb_id.get_tmdb_id())
