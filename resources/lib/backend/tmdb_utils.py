@@ -5,14 +5,15 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-
+import threading
 from math import sqrt
 import re
 import sys
 
 import simplejson
+from cache.base_reverse_index_cache import BaseReverseIndexCache
+from cache.json_cache_helper import JsonCacheHelper
 
-from common.debug_utils import Debug
 from common.imports import *
 
 from common.exceptions import AbortException, CommunicationException
@@ -24,7 +25,7 @@ from common.logger import LazyLogger
 from common.certification import WorldCertifications
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
-from discovery.utils.db_access import DBAccess
+from common.utils import Delay
 from discovery.utils.parse_library import ParseLibrary
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -338,6 +339,7 @@ class TMDBUtils:
     """
     _logger: LazyLogger = None
     kodi_data_for_tmdb_id: Dict[int, TMDbIdForKodiId] = None  # Must be None!
+    _library_json_cache: Type[BaseReverseIndexCache]
 
     def __init__(self,
                  kodi_id: int,
@@ -354,21 +356,67 @@ class TMDBUtils:
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
 
+        cls._library_json_cache = JsonCacheHelper.get_json_cache_for_source(
+            MovieField.LIBRARY_SOURCE)
+
     @classmethod
     def load_cache(cls) -> None:
         """
-        Loads kodi-id and tmdb-id for ENTIRE database for every entry with tmdb-id.
-        This cache is not saved and is loaded on first query.
+        Build a bi-directional map of of kodi_id to tmdb_id.
 
-        TODO: Change to query database for entry with tmdb-id on demand. May not
-              be possible to do cheaply.
+        This can be very expensive, depending upon size of local db as well as
+        Setting.get_update_tmdb_id returning True, which causes the tmdb_id of
+        library movies to be stored in the kodi library database. It can take
+        one or more hours to build the map for a library of over 1,000 movies.
 
-        :return:
+        If get_update_tmdb_id is False, the cache library_json_cache is used
+        instead. The cache exists to help manage cached .json files, but can
+        also be used for this purpose.
+
+        Because of the expense, building the map in a separate thread is necessary.
+        Until it is built, some queries will
+        fail, resulting in on-demand queries to TMDb to get ids, or missing the
+        relationship. Normally this is not a big deal, the UI won't snow that a
+        TMDb movie is also a local movie. In any event, it is not catastrophic
+        and will be rectified in a later run.
         """
         if cls.kodi_data_for_tmdb_id is not None:
             return
 
+        loader = threading.Thread(target=cls._load_cache_thread,
+                                  name='load kodi-tmdbid map')
+
         cls.kodi_data_for_tmdb_id = {}
+        loader.start()
+
+    @classmethod
+    def _load_cache_thread(cls) -> None:
+
+        try:
+            cls._load_cache_worker()
+        except AbortException:
+            pass  # Quietly die
+
+        except Exception:
+            cls._logger.exception()
+
+    @classmethod
+    def _load_cache_worker(cls) -> None:
+        """
+        Loads kodi-id and tmdb-id for ENTIRE database for every entry with tmdb-id.
+        The results are optionally saved in the local database. The results are
+        also persisted in the cache library_json_cache.json
+
+        :return:
+        """
+
+        # Add wait between each movie added = 1.0 + log(# trailers_added * 2)
+        # seconds
+        # For 1,000 trailers added, the delay is 1.0 + 3.3 = 4.3 seconds
+        #
+        # The delay does not occur until when the json files are read
+
+        delay = Delay(bias=1.0, call_scale_factor=2.0, scale_factor=1.0)
 
         query: str = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
                      "params": {\
@@ -414,11 +462,17 @@ class TMDBUtils:
                         f'The movie: {kodi_file} does not appear to be scraped')
                     continue
 
+                if tmdb_id is None:
+                    tmdb_id_str: str = cls._library_json_cache.get_item(str(kodi_id))
+                    if tmdb_id_str is not None:
+                        tmdb_id = int(tmdb_id_str)
+
                 # If we can't talk to TMDb we just won't get the tmdb_id
                 # this time around.
 
                 if tmdb_id is None and communication_error_count < 5:
                     try:
+                        delay.delay()
                         tmdb_id = TMDBUtils.get_tmdb_id_from_title_year(
                             title, year)
                     except CommunicationException:
@@ -429,6 +483,9 @@ class TMDBUtils:
                     entry: TMDbIdForKodiId = TMDbIdForKodiId(kodi_id, tmdb_id,
                                                              kodi_file, title)
                     TMDBUtils.kodi_data_for_tmdb_id[tmdb_id] = entry
+                    # cls._logger.debug(f'tmdb_id: {tmdb_id} kodi_id: {kodi_id}')
+                    if tmdb_id is not None:
+                        cls._library_json_cache.add_item(str(kodi_id), str(tmdb_id))
 
     @classmethod
     def get_kodi_id_for_tmdb_id(cls, tmdb_id: int) -> int:
