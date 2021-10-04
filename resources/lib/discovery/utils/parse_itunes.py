@@ -101,8 +101,10 @@ class ParseITunes:
         return release_date
 
     def parse_itunes_id(self) -> str:
-        itunes_id: str = self._itunes_movie.get_title() + '_' +\
-                         str(self._itunes_movie.get_release_date().year)
+        title: str = self.parse_title()
+        year_str: str = str(self.parse_year())
+
+        itunes_id: str = f'{title}_{year_str}'
         self._itunes_movie.set_id(itunes_id)
         return itunes_id
 
@@ -310,3 +312,7 @@ class ParseITunes:
         self._itunes_movie.set_genre_names(genres)
         return genres
 
+    def parse_rating(self) -> float:
+        fake_rating: float = 0.0
+        self._itunes_movie.set_rating(fake_rating)
+        return fake_rating
