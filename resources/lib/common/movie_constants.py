@@ -246,25 +246,41 @@ List.Sort
     TFH_SOURCE: Final[str] = 'TFH'
 
     TRAILER_TYPE_TRAILER: Final[str] = 'Trailer'
+    TRAILER_TYPE_FINAL_TRAILER: Final[str] = 'Final Trailer'
+    TRAILER_TYPE_OFFICIAL_TRAILER: Final[str] = 'Official Trailer'
     TRAILER_TYPE_FEATURETTE: Final[str] = 'Featurette'
     TRAILER_TYPE_CLIP: Final[str] = 'Clip'
     TRAILER_TYPE_TEASER: Final[str] = 'Teaser'
     TRAILER_TYPE_BEHIND_THE_SCENES: Final[str] = 'Behind the Scenes'
     TRAILER_TYPE_COMMENTARY: Final[str] = 'Trailer Commentary'
 
-    TRAILER_TYPES: Tuple[str] = (TRAILER_TYPE_TRAILER, TRAILER_TYPE_FEATURETTE,
+    # Not all sources (TMDb, iTunes provide all of these 'trailer-types'
+
+    TRAILER_TYPES: Tuple[str] = (TRAILER_TYPE_OFFICIAL_TRAILER, TRAILER_TYPE_FINAL_TRAILER,
+                                 TRAILER_TYPE_TRAILER, TRAILER_TYPE_FEATURETTE,
                                  TRAILER_TYPE_CLIP, TRAILER_TYPE_TEASER,
                                  TRAILER_TYPE_BEHIND_THE_SCENES, TRAILER_TYPE_COMMENTARY)
 
-    # Map trailer types found in .json files from iTunes to what is used in this
-    # app.
+    # Map the above TRAILER_TYPES into the base trailer types that this app
+    # provides settings for
 
-    xxxITUNES_TRAILER_TYPE_MAP: Dict[str, str] = {
-        'trailer': TRAILER_TYPE_TRAILER,
-        'featurette': TRAILER_TYPE_FEATURETTE,
-        'clip': TRAILER_TYPE_CLIP,
-        'teaser': TRAILER_TYPE_TEASER
+    TRAILER_TYPE_MAP: Dict[str, str] = {
+        TRAILER_TYPE_OFFICIAL_TRAILER:  TRAILER_TYPE_TRAILER,
+        TRAILER_TYPE_FINAL_TRAILER: TRAILER_TYPE_TRAILER,
+        TRAILER_TYPE_TRAILER: TRAILER_TYPE_TRAILER,
+        TRAILER_TYPE_FEATURETTE: TRAILER_TYPE_FEATURETTE,
+        TRAILER_TYPE_CLIP: TRAILER_TYPE_CLIP,
+        TRAILER_TYPE_TEASER: TRAILER_TYPE_TEASER,
+        TRAILER_TYPE_BEHIND_THE_SCENES: TRAILER_TYPE_CLIP,
+        TRAILER_TYPE_COMMENTARY: TRAILER_TYPE_CLIP
     }
+
+    SUPPORTED_TRAILER_TYPES: Tuple[str] = (
+        TRAILER_TYPE_TRAILER,
+        TRAILER_TYPE_FEATURETTE,
+        TRAILER_TYPE_CLIP,
+        TRAILER_TYPE_TEASER
+    )
 
     LIB_TMDB_ITUNES_TFH_SOURCES: Tuple[str] = (
         LIBRARY_SOURCE, TMDB_SOURCE, ITUNES_SOURCE, TFH_SOURCE)

@@ -441,6 +441,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             rc, downloadable_trailers = video_downloader.get_info(
                 feature_url, MovieField.ITUNES_SOURCE, block=True)
 
+            '''
             # Have a series of released promotions for a movie.
             # Each promotion can have different formats based upon
             # language, resolution, etc.
@@ -467,6 +468,24 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             # After the distillation, pick the best
 
+                fulltitle": "Announcement Video",  Ignore
+               "fulltitle": "Big Game Spot",       Ignore
+               "fulltitle": "Clip",
+               "fulltitle": "Clip - Action Ted",
+               "fulltitle": "Clip - Do You Think He's Dead?",
+               "fulltitle": "Clip - Something Better I Can Do",
+               "fulltitle": "Clip - Time Travel Confession",
+               "fulltitle": "Featurette",
+               "fulltitle": "Final Trailer",      Recognise
+               "fulltitle": "Official Trailer",   Recognise
+               "fulltitle": "Teaser Trailer",
+               "fulltitle": "Trailer ",
+               "fulltitle": "Trailer",
+               "fulltitle": "Trailer 1",
+               "fulltitle": "Trailer 2",
+               "fulltitle": "Trailer 2 Exclusive",
+               "fulltitle": "Trailer 3",
+
             # "fulltitle": "Featurette - The Making of Peterloo",
             #  "fulltitle": "Trailer",
             # "fulltitle": "Trailer 2",
@@ -479,6 +498,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # trailer type settings
             #
             # Then from those that pass the first filter, find the best.
+            '''
 
             chosen_promotion = None
             current_language: str = Settings.get_lang_iso_639_1()
@@ -492,14 +512,21 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     Monitor.throw_exception_if_abort_requested()
                     keep_promotion = True
                     media_type = downloadable_trailer.get(
-                        'title', '')
-                    media_type = media_type.split(' ')[0]  # Get first word
+                        'fulltitle', '')
+
+                    # There can be trash after the trailer type
+
+                    rt_media_type: str = None
+                    for trailer_type in MovieField.TRAILER_TYPES:
+                        if media_type.startswith(trailer_type):
+                            media_type = trailer_type
+                            rt_media_type = MovieField.TRAILER_TYPE_MAP[media_type]
 
                     language: str = downloadable_trailer.get('language', '')
                     thumbnail: str = downloadable_trailer['thumbnail']
                     upload_date = downloadable_trailer['upload_date']
 
-                    if media_type not in MovieField.TRAILER_TYPES:
+                    if rt_media_type not in MovieField.TRAILER_TYPES:
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                             clz.logger.debug_verbose(f'Rejecting {title} due to '
                                                      f'media-type: '
@@ -516,19 +543,19 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         clz.logger.debug_verbose(f'Empty language specified for: {title} '
                                                  f'from media-type: {media_type}')
                     if (not Settings.get_include_clips() and
-                            media_type == MovieField.TRAILER_TYPE_CLIP):
+                            rt_media_type == MovieField.TRAILER_TYPE_CLIP):
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 f'Rejecting {title} due to clip')
                         keep_promotion = False
                     elif not Settings.get_include_featurettes() and (
-                            media_type == MovieField.TRAILER_TYPE_FEATURETTE):
+                            rt_media_type == MovieField.TRAILER_TYPE_FEATURETTE):
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 f'Rejecting {title} due to Featurette')
                         keep_promotion = False
                     elif not Settings.get_include_teasers() and (
-                            media_type == MovieField.TRAILER_TYPE_TEASER):
+                            rt_media_type == MovieField.TRAILER_TYPE_TEASER):
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                             clz.logger.debug_verbose(
                                 f'Rejecting {title} due to Teaser')
@@ -567,7 +594,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                          media_type, 'format:', format)
 
                             promotion = {}
-                            promotion['type'] = media_type
+                            promotion['type'] = rt_media_type
                             promotion['language'] = language
                             promotion['height'] = height
                             promotion['url'] = url
@@ -575,7 +602,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             promotion['thumbnail'] = thumbnail
                             promotion['upload_date'] = upload_date
                             promotions.append(promotion)
-                            media_types_map[media_type].append(promotion)
+                            media_types_map[rt_media_type].append(promotion)
                 except KeyError:
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.exception()
@@ -589,7 +616,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # remains. Pick the best promotional media.
 
             # First, pick the best requested media type match
-            for media_type in MovieField.TRAILER_TYPES:
+            for media_type in MovieField.SUPPORTED_TRAILER_TYPES:
                 if len(media_types_map[media_type]) > 0:
                     promotions = media_types_map[media_type]
                     break
