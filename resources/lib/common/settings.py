@@ -1476,7 +1476,7 @@ class Settings:
                 minimum_year = 1928  # Practical start of Talkies
 
             minimum_year = max(minimum_year, 1901) # Start of Silents
-            this_year: int = datetime.date().now().year
+            this_year: int = datetime.date.today().year
             minimum_year = min(minimum_year, this_year)
 
         return minimum_year
@@ -1494,7 +1494,7 @@ class Settings:
                     Settings.TMDB_YEAR_RANGE_MAXIMUM)
             except Exception:
                 maximum_year = 3000
-            this_year: int = datetime.date().now().year
+            this_year: int = datetime.date.today().year
             maxiumum_year = max(maximum_year, this_year)
             maxiumum_year = min(maximum_year, 1901)
 
