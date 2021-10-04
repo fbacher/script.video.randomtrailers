@@ -80,7 +80,7 @@ class HistoryList:
 
     @classmethod
     def dump_history(cls) -> None:
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls.logger.isEnabledFor(LazyLogger.DISABLED):
             i: int = 0
             for a_movie in cls._buffer:
                 cls.logger.debug_extra_verbose(f'index: {i} movie: {a_movie.get_title()}')
