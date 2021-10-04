@@ -9,6 +9,7 @@ Created on Feb 10, 2019
 import sys
 import threading
 
+from common.critical_settings import CriticalSettings
 from common.imports import *
 from common.constants import Constants
 from common.exceptions import AbortException, reraise
@@ -163,6 +164,7 @@ class BaseDiscoverMovies(threading.Thread):
         """
 
         :return:
+        :exception: AbortException, StopDiscoveryException
         """
         clz = type(self)
         finished: bool = False
@@ -171,7 +173,7 @@ class BaseDiscoverMovies(threading.Thread):
         else:
             forever = False
         while not finished:
-            self.throw_exception_on_forced_to_stop(0.2)
+            self.throw_exception_on_forced_to_stop(CriticalSettings.SHORT_POLL_DELAY)
             if not forever:
                 timeout -= 0.2  # Accuracy not needed
                 if timeout < 0:
@@ -182,6 +184,8 @@ class BaseDiscoverMovies(threading.Thread):
 
         :param timeout:
         :return:
+
+        :exception: AbortException, StopDiscoveryException
         """
         clz = type(self)
 

@@ -21,7 +21,7 @@ from common.imports import *
 from common.debug_utils import Debug
 from common.logger import LazyLogger
 from common.monitor import Monitor
-from common.movie import TFHMovie
+from common.movie import ITunesMovie
 from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
 from common.disk_utils import DiskUtils
@@ -30,7 +30,7 @@ from common.utils import Utils
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class TFHCache:
+class ITunesCache:
     """
     Trailers From Hell has an index of all of the trailers that they produce.
     We don't rely on the index being static. It is not really searchable.
@@ -75,10 +75,10 @@ class TFHCache:
     _initialized = threading.Event()
     lock = threading.RLock()
     _logger: LazyLogger = None
-    _cached_movies: Dict[str, TFHMovie] = {}
+    _cached_movies: Dict[str, ITunesMovie] = {}
     _last_saved_movie_timestamp = datetime.datetime.now()
-    _tfh_json_cache = JsonCacheHelper.get_json_cache_for_source(
-        source=MovieField.TFH_SOURCE)
+    _itunes_json_cache = JsonCacheHelper.get_json_cache_for_source(
+        source=MovieField.ITUNES_SOURCE)
 
     # Does NOT capture changes to the entries, only to the addition or
     # removal of the entries.
@@ -97,10 +97,10 @@ class TFHCache:
         :return:
         """
         cls._logger = module_logger.getChild(type(cls).__name__)
-        if Settings.is_include_tfh_trailers():
+        if Settings.is_include_itunes_trailers():
             cls.load_cache()
         else:
-            cls._logger.debug_extra_verbose('TFH not enabled')
+            cls._logger.debug_extra_verbose('iTunes not enabled')
 
     @classmethod
     def logger(cls) -> LazyLogger:
@@ -142,11 +142,11 @@ class TFHCache:
 
             try:
                 path = os.path.join(Settings.get_remote_db_cache_path(),
-                                    'index', 'tfh_trailers.json')
+                                    'index', 'itunes_trailers.json')
 
                 path = xbmcvfs.validatePath(path)
                 tmp_path = os.path.join(Settings.get_remote_db_cache_path(),
-                                        'index', 'tfh_trailers.json.tmp')
+                                        'index', 'itunes_trailers.json.tmp')
 
                 tmp_path = xbmcvfs.validatePath(tmp_path)
                 parent_dir, file_name = os.path.split(path)
@@ -168,34 +168,33 @@ class TFHCache:
                     creation_date_str = datetime.datetime.strftime(
                         cls._time_of_index_creation, '%Y:%m:%d')
 
-                    dummy_tfh_movie: TFHMovie
-                    dummy_tfh_movie = TFHMovie(movie_id=cls.INDEX_CREATION_DATE)
-                    dummy_tfh_movie.set_title('cache complete marker')
-                    dummy_tfh_movie.set_property(cls.INDEX_CREATION_DATE,
+                    dummy_itunes_movie: ITunesMovie
+                    dummy_itunes_movie = ITunesMovie(movie_id=cls.INDEX_CREATION_DATE)
+                    dummy_itunes_movie.set_title('cache complete marker')
+                    dummy_itunes_movie.set_property(cls.INDEX_CREATION_DATE,
                                                  creation_date_str)
                     cls._logger.debug(f'complete3: {complete} cache_complete: '
                                       f'{cls._cache_complete}')
-                    dummy_tfh_movie.set_property(cls.CACHE_COMPLETE, cls._cache_complete)
+                    dummy_itunes_movie.set_property(cls.CACHE_COMPLETE, cls._cache_complete)
 
-                    movie: TFHMovie
+                    movie: ITunesMovie
 
                     #
                     # Don't save more fields than we need, slows down
                     # load/save operations.
                     #
 
-                    temp_movies: Dict[str, TFHMovie] = {}
+                    temp_movies: Dict[str, ITunesMovie] = {}
 
                     for movie in cls._cached_movies.values():
                         try:
-                            temp_movie: TFHMovie = TFHMovie(movie_id=movie.get_id())
+                            temp_movie: ITunesMovie = ITunesMovie(movie_id=movie.get_id())
                             temp_movie.set_cached(True)
-                            temp_movie.set_tfh_id(movie.get_id())
+                            temp_movie.set_itunes_id(movie.get_id())
                             temp_movie.set_plot(movie.get_plot())  # Very likely empty
                             temp_movie.set_title(movie.get_title())
                             temp_movie.set_trailer_path(movie.get_trailer_path())
                             temp_movie.set_trailer_type(movie.get_trailer_type())
-                            temp_movie.set_tfh_title(movie.get_tfh_title())
                             findable: bool = movie.is_tmdb_id_findable()
                             #
                             # Only set when NOT findable.
@@ -210,12 +209,12 @@ class TFHCache:
                         except Exception as e:
                             a = 1
 
-                    temp_movies[cls.INDEX_CREATION_DATE] = dummy_tfh_movie
+                    temp_movies[cls.INDEX_CREATION_DATE] = dummy_itunes_movie
 
                     json_text = json.dumps(temp_movies,
                                            encoding='utf-8',
                                            ensure_ascii=False,
-                                           default=TFHCache.encoder,
+                                           default=ITunesCache.encoder,
                                            indent=3, sort_keys=True)
                     cacheFile.write(json_text)
                     cacheFile.flush()
@@ -247,7 +246,7 @@ class TFHCache:
             cls._initialized.set()
             try:
                 path = os.path.join(Settings.get_remote_db_cache_path(),
-                                    'index', 'tfh_trailers.json')
+                                    'index', 'itunes_trailers.json')
                 path = xbmcvfs.validatePath(path)
 
                 parent_dir, file_name = os.path.split(path)
@@ -258,9 +257,9 @@ class TFHCache:
                                  encoding='utf-8') as cacheFile:
                         cls._cached_movies = json.load(
                             cacheFile,
-                            object_hook=TFHCache.decoder)
+                            object_hook=ITunesCache.decoder)
 
-                    movie: TFHMovie
+                    movie: ITunesMovie
                     movie_ids_to_delete: List[str] = []
                     #
                     # Read and delete INDEX_CREATION_DATE entry
@@ -268,11 +267,11 @@ class TFHCache:
                     #
                     cls._logger.debug(f'entries: {len(cls._cached_movies)}')
                     cls.load_creation_date()
-                    for key, movie in cls._cached_movies.items():
-                        if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
-                            movie_ids_to_delete.append(movie.get_id())
-                        elif not isinstance(movie, TFHMovie):
-                            movie_ids_to_delete.append(movie.get_id())
+                    # for key, movie in cls._cached_movies.items():
+                        # if not movie.is_sane(MovieField.ITUN):
+                        #     movie_ids_to_delete.append(movie.get_id())
+                        # elif not isinstance(movie, ITunesMovie):
+                        #     movie_ids_to_delete.append(movie.get_id())
 
                     if len(movie_ids_to_delete) > 0:
                         cls.remove_movies(movie_ids_to_delete, flush=True)
@@ -327,7 +326,7 @@ class TFHCache:
             # Remove dummy entry from cache
             del cls._cached_movies[cls.INDEX_CREATION_DATE]
 
-        # Just to be consistent, all cached_trailer entries are TFHMovie (i.e. Dict)
+        # Just to be consistent, all cached_trailer entries are ITunesMovie (i.e. Dict)
         # So, get the actual timestamp from it
 
         cls._time_of_index_creation = Utils.strptime(creation_date, '%Y:%m:%d')
@@ -346,32 +345,32 @@ class TFHCache:
         return cls._cache_complete
 
     @classmethod
-    def add_movies(cls, movies: Dict[str, TFHMovie],
+    def add_movies(cls, movies: Dict[str, ITunesMovie],
                    total: int = None, flush: bool = False) -> None:
         cls._initialized.wait()
         with cls.lock:
             for key, movie in movies.items():
-                if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
-                    cls._logger.debug(f'TFH movie not sane: {movie.get_title}')
+                # if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
+                #     cls._logger.debug(f'TFH movie not sane: {movie.get_title}')
                 cls._cached_movies[key] = movie
-                tmdb_id: int = movie.get_tmdb_id()
-                if tmdb_id is not None:
-                    cls._tfh_json_cache.add_item(key, str(movie.get_tmdb_id()))
+                # tmdb_id: int = movie.get_tmdb_id()
+                # if tmdb_id is not None:
+                #     cls._tfh_json_cache.add_item(key, str(movie.get_tmdb_id()))
 
                 cls._unsaved_changes += 1
                 cls.save_cache(flush=flush)
 
     @classmethod
-    def add_movie(cls, movie: TFHMovie, total: int = None, flush=False) -> None:
-        if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
-            cls._logger.debug(f'TFH movie not sane: {movie.get_title}')
+    def add_movie(cls, movie: ITunesMovie, total: int = None, flush=False) -> None:
+        # if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
+        #     cls._logger.debug(f'TFH movie not sane: {movie.get_title}')
         cls._initialized.wait()
         with cls.lock:
             key = movie.get_id()
             cls._cached_movies[key] = movie
-            tmdb_id: int = movie.get_tmdb_id()
-            if tmdb_id is not None:
-                cls._tfh_json_cache.add_item(key, str(movie.get_tmdb_id()))
+            # tmdb_id: int = movie.get_tmdb_id()
+            # if tmdb_id is not None:
+            #     cls._tfh_json_cache.add_item(key, str(movie.get_tmdb_id()))
 
             cls._unsaved_changes += 1
             cls.save_cache(flush=flush)
@@ -388,7 +387,7 @@ class TFHCache:
             cls.save_cache(flush=flush)
 
     @classmethod
-    def update_movie(cls, movie: TFHMovie,
+    def update_movie(cls, movie: ITunesMovie,
                        flush=False) -> None:
         """
             Nearly identical (for now) to add_movie.
@@ -405,21 +404,21 @@ class TFHCache:
         with cls.lock:
             key = movie.get_id()
             cls._cached_movies[key] = movie
-            tmdb_id: int = movie.get_tmdb_id()
-            if tmdb_id is not None:
-                cls._tfh_json_cache.add_item(key, str(movie.get_tmdb_id()))
+            # tmdb_id: int = movie.get_tmdb_id()
+            # if tmdb_id is not None:
+            #     cls._tfh_json_cache.add_item(key, str(movie.get_tmdb_id()))
 
             cls._unsaved_changes += 1
             cls.save_cache(flush=flush)
 
     @classmethod
-    def get_cached_movie(cls, movie_id: str) -> TFHMovie:
+    def get_cached_movie(cls, movie_id: str) -> ITunesMovie:
         cls._initialized.wait()
         with cls.lock:
             return cls._cached_movies.get(movie_id)
 
     @classmethod
-    def get_cached_movies(cls) -> Dict[str, TFHMovie]:
+    def get_cached_movies(cls) -> Dict[str, ITunesMovie]:
         cls._initialized.wait()
         with cls.lock:
             return cls._cached_movies.copy()
@@ -435,32 +434,32 @@ class TFHCache:
         return dct
 
     @staticmethod
-    def encoder(dct: TFHMovie) -> MovieType:
+    def encoder(dct: ITunesMovie) -> MovieType:
         Monitor.throw_exception_if_abort_requested()
-        if isinstance(dct, TFHMovie):
+        if isinstance(dct, ITunesMovie):
             return dct.get_as_movie_type()
         return dct
 
     @staticmethod
-    def decoder(dct: MovieType) -> Union[TFHMovie, Dict[str, Any]]:
+    def decoder(dct: MovieType) -> Union[ITunesMovie, Dict[str, Any]]:
         try:
             Monitor.throw_exception_if_abort_requested()
             # if len(dct.values()) > 0:
             #     for value in dct.values():
-            #         if isinstance(value, TFHMovie):
+            #         if isinstance(value, ITunesMovie):
             #             return dct
             #         break
 
-            if MovieField.TFH_ID in dct:
-                tfh_id: str = dct.get(MovieField.TFH_ID)
-                movie = TFHMovie(movie_id=tfh_id, movie_info=dct)
+            if MovieField.ITUNES_ID in dct:
+                itunes_id: str = dct.get(MovieField.ITUNES_ID)
+                movie = ITunesMovie(movie_id=itunes_id, movie_info=dct)
                 return movie
-            if TFHCache.INDEX_CREATION_DATE in dct:
+            if ITunesCache.INDEX_CREATION_DATE in dct:
                 return dct
 
         except Exception as e:
-            TFHCache._logger.exception()
+            ITunesCache._logger.exception()
         return dct
 
 
-TFHCache.class_init()
+ITunesCache.class_init()

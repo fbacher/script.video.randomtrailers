@@ -11,6 +11,7 @@ import re
 import sys
 
 # from cache.itunes_cache_index import ItunesCacheIndex
+from cache.base_cache import BaseCache
 from common.constants import iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
@@ -18,7 +19,7 @@ from common.exceptions import AbortException, reraise
 from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
-from common.movie import ITunesMovie
+from common.movie import ITunesMovie, RawMovie
 from common.movie_constants import MovieField
 from common.logger import LazyLogger, Trace
 from common.settings import Settings
@@ -354,12 +355,18 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         for itunes_movie in parsed_content:
             try:
                 Monitor.throw_exception_if_abort_requested()
-
                 itunes_parser: ParseITunes = ParseITunes(itunes_movie)
+                movie_id: str = itunes_parser.parse_itunes_id()
                 title: str = itunes_parser.parse_title()
+
+                raw_movie = RawMovie(movie_info=itunes_movie,
+                                     source=MovieField.ITUNES_SOURCE)
+                raw_movie.set_id(movie_id)
+                raw_movie.set_property(MovieField.TITLE, title)
+                BaseCache.write_cache_json(raw_movie)
+
                 release_date: datetime.date = itunes_parser.parse_release_date()
                 year: int = itunes_parser.parse_year()
-                movie_id: str = itunes_parser.parse_itunes_id()
 
                 if clz.logger.isEnabledFor(LazyLogger.DISABLED):
                     clz.logger.debug_extra_verbose('value: ', itunes_movie)
@@ -375,10 +382,11 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 # clz.logger.debug('poster_2x: ', poster_2x)
 
                 # Normalize rating
-                # We expect the attribute to be named 'mpaa', not 'rating'
+                # We expect the attribute to be named 'certification', not 'rating'
 
                 certification_id: str = itunes_parser.parse_certification()
                 genres: List[str] = itunes_parser.parse_genre_names()
+                # fake_rating: float = itunes_parser.parse_rating()
                 directors: List[str] = itunes_parser.parse_directors()
                 actors: List[str] = itunes_parser.parse_actors()
                 location: str = itunes_parser.parse_location()
@@ -403,7 +411,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                            movie=movie,
                                                            release_date=release_date)
 
-                if movie is not None:
+                if rc == 0 and movie is not None:
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         Debug.validate_basic_movie_properties(
                             movie)
@@ -509,6 +517,14 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             promotions = []
             for downloadable_trailer in downloadable_trailers:
                 try:
+                    raw_movie = RawMovie(movie_info=downloadable_trailer,
+                                         source=MovieField.ITUNES_SOURCE)
+                    movie_id: str = movie.get_id() + '_X'
+                    raw_movie.set_id(movie_id)
+                    raw_movie.set_property(MovieField.TITLE, title)
+                    BaseCache.write_cache_json(raw_movie)
+                   # Debug.dump_json('downloadable_trailer', downloadable_trailer,
+                   #                  LazyLogger.DEBUG)
                     Monitor.throw_exception_if_abort_requested()
                     keep_promotion = True
                     media_type = downloadable_trailer.get(
@@ -571,6 +587,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                     if keep_promotion:
                         for promotion_format in downloadable_trailer['formats']:
+                            #Debug.dump_json('kept promotion format', promotion_format, LazyLogger.DEBUG)
+
                             language = promotion_format.get('language', '')
                             height = promotion_format.get('height', 0)
                             url = promotion_format.get('url', '')
@@ -644,6 +662,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
             if len(best_promotions) > 0:
                 chosen_promotion = best_promotions[0]
+                # Debug.dump_json('chosen promotion', chosen_promotion, LazyLogger.DEBUG)
+
+                raw_movie = RawMovie(movie_info=chosen_promotion,
+                                     source=MovieField.ITUNES_SOURCE)
+                movie_id: str = movie.get_id() + '_C'
+                raw_movie.set_id(movie_id)
+                raw_movie.set_property(MovieField.TITLE, title)
+                BaseCache.write_cache_json(raw_movie)
+
                 trailer_url: str = chosen_promotion['url']
                 trailer_type: str = chosen_promotion['type']
                 thumb: str = chosen_promotion['thumbnail']
