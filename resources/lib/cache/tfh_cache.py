@@ -151,7 +151,7 @@ class TFHCache:
                     DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(tmp_path, mode='at', newline=None,
+                with io.open(tmp_path, mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
 
                     cls._logger.debug(f'complete: {complete} cache_complete: '
