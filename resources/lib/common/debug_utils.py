@@ -73,13 +73,13 @@ class Debug:
                                           log_level=log_level)
 
     @classmethod
-    def dump_json(cls, text: str = '', data: str = '',
+    def dump_json(cls, text: str = '', data: Any = '',
                   log_level: int = LazyLogger.DISABLED) -> None:
         """
             Log Json values using the json.dumps utility
 
         :param text:
-        :param data:
+        :param data: Any json serializable object
         :param log_level:
         :return:
         """
@@ -209,7 +209,7 @@ class Debug:
             Verifies that certain fields in a Kodi VideoInfo dictionary
             have values. Fields with Missing fields are logged and dummy
             values are added. Meant to avoid Exceptions.
-        :param movie:
+        :param movie_arg:
         :param stack_trace:
         :return:
         """
@@ -246,7 +246,7 @@ class Debug:
                     property_name, basic_properties[property_name])
 
         if len(failing_properties) > 0:
-            msg = f'{movie.get(MovieField.TITLE, "title missing")} ' \
+            msg = f'title: {movie.get(MovieField.TITLE, "title missing")} ' \
                 f'{",".join(failing_properties)}'
             if stack_trace:
                 LazyLogger.dump_stack('Missing basic property: ' + msg)
