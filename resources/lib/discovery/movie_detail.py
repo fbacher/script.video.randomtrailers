@@ -271,7 +271,7 @@ class MovieDetail:
                 #                                         f'due to Certification')
 
             if tmdb_detail_info is not None:
-                if (cls._logger.isEnabledFor(LazyLogger.DEBUG)
+                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
@@ -291,7 +291,7 @@ class MovieDetail:
                 if movie.get_rating() == 0.0 and tmdb_detail_info.get_rating() != 0.0:
                     movie.set_rating(tmdb_detail_info.get_rating())
 
-                if (cls._logger.isEnabledFor(LazyLogger.DEBUG)
+                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
