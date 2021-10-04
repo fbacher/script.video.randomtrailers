@@ -205,7 +205,7 @@ class PlayableTrailerService:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 clz.logger.debug_verbose('Nothing to Play! numTrailers:',
                                          total_number_of_trailers)
-            raise StopIteration
+            raise StopIteration()
             # return None
 
         # Now, randomly pick playable_trailers to get a movie from based upon
@@ -379,7 +379,7 @@ class PlayableTrailerService:
             trailer = None
             
         if trailer is None:
-            raise StopIteration
+            raise StopIteration()
 
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             clz.logger.debug_verbose('Playing:', trailer.get_detail_title(),
