@@ -25,7 +25,8 @@ from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
 from common.certification import Certifications, WorldCertifications
 from common.settings import Settings
-from youtube_dl import DownloadError
+from discovery.restart_discovery_exception import StopDiscoveryException
+from youtube_dl.utils import DownloadError
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -55,7 +56,7 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
 LOG_ALL = False
-LOGGER_ENABLE_LEVEL = LazyLogger.DEBUG_EXTRA_VERBOSE # LazyLogger.DISABLED
+LOGGER_ENABLE_LEVEL = LazyLogger.DISABLED
 LOG_LOCK: bool = False
 DUMP_JSON: bool = False
 
@@ -1017,8 +1018,8 @@ class BaseYDLogger:
 
         clz = BaseYDLogger
         text = '\n'.join(lines)
-        if type(self)._logger.isEnabledFor(LOGGER_ENABLE_LEVEL):
-            type(self)._logger.debug_extra_verbose(label, text)
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            clz._logger.debug_extra_verbose(label, text)
 
     def log_debug(self) -> None:
         self.log_lines(self.debug_lines, 'DEBUG:')
@@ -1109,7 +1110,7 @@ class TfhIndexLogger(BaseYDLogger):
                                       f'for {MovieField.TFH_SOURCE}')
 
             except Exception as e:
-                type(self)._logger.exception(f'url: {self.url}')
+                clz._logger.exception(f'url: {self.url}')
 
     @classmethod
     def populate_youtube_movie_info(cls, movie_data: MovieType,
