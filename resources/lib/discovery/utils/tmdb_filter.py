@@ -67,7 +67,7 @@ class TMDbFilter:
         try:
             movie_title = movie.get_title()
 
-            if minimum_year is not None \
+            if minimum_year != 0 \
                     and movie.get_year() < minimum_year:
                 filter_passes = False
                 if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -76,7 +76,7 @@ class TMDbFilter:
                         minimum_year, 'movie_entry:',
                         movie_title,
                         'release:', movie.get_year())
-            elif maximum_year is not None \
+            elif maximum_year != 0 \
                     and movie.get_year() > maximum_year:
                 filter_passes = False
                 if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -210,10 +210,10 @@ class TMDbFilter:
             # for those downloaded by a search (page data).
 
             date_passes = True
-            if minimum_year is not None \
+            if minimum_year != 0 \
                     and movie.get_year() < minimum_year:
                 date_passes = False
-            elif maximum_year is not None \
+            elif maximum_year != 0 \
                     and movie.get_year() > maximum_year:
                 date_passes = False
             if not date_passes:

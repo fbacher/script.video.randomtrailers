@@ -4,7 +4,7 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-
+import datetime
 import locale
 import os
 
@@ -1467,11 +1467,18 @@ class Settings:
 
         :return:
         """
-        try:
-            minimum_year = Settings.get_setting_int(
-                Settings.TMDB_YEAR_RANGE_MINIMUM)
-        except Exception:
-            minimum_year = 1901  # Start of talkies
+        minimum_year: int = 0
+        if Settings.is_tmdb_select_by_year_range():
+            try:
+                minimum_year = Settings.get_setting_int(
+                    Settings.TMDB_YEAR_RANGE_MINIMUM)
+            except Exception:
+                minimum_year = 1928  # Practical start of Talkies
+
+            minimum_year = max(minimum_year, 1901) # Start of Silents
+            this_year: int = datetime.date().now().year
+            minimum_year = min(minimum_year, this_year)
+
         return minimum_year
 
     @staticmethod
@@ -1480,11 +1487,16 @@ class Settings:
 
         :return:
         """
-        try:
-            maximum_year = Settings.get_setting_int(
-                Settings.TMDB_YEAR_RANGE_MAXIMUM)
-        except Exception:
-            maximum_year = 3000
+        maximum_year: int = 0
+        if Settings.is_tmdb_select_by_year_range():
+            try:
+                maximum_year = Settings.get_setting_int(
+                    Settings.TMDB_YEAR_RANGE_MAXIMUM)
+            except Exception:
+                maximum_year = 3000
+            this_year: int = datetime.date().now().year
+            maxiumum_year = max(maximum_year, this_year)
+            maxiumum_year = min(maximum_year, 1901)
 
         return maximum_year
 
