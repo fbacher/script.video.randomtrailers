@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <addon id="script.video.randomtrailers"
        name="Random Trailers"
-       version="2.0.7+beta.1"
+       version="2.0.7+beta.2"
        provider-name="Frank Feuerbacher (fbacher)">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -62,7 +62,15 @@ Navigation:
         <!-- <website></website> -->
         <email>frank@feuerbacher.us</email>
         <source>https://github.com/fbacher/script.video.randomtrailers</source>
-        <news>2.0.7+beta.1 (09/10/2021)
+        <news>2.0.7+beta.2 (10/04/2021)
+               Fixed:
+               #14 Thread blocked an hour or so building a map of library to tmdb_id on every run with default settings.
+               #13 Trailers for movies in local database not downloaded
+               #1 Change of settings not properly purging caches, etc. (mostly fixed)
+               Improved UI responsiveness and reliability. There were some situations where the UI could lock up or behave unexpectedly. 
+               This tended to occur when navigation buttons quickly pressed (SHOW_INFO, LEFT, RIGHT, PAUSE, STOP, etc.). Model made
+               more MVC. Still not perfect.
+              2.0.7+beta.1 (09/10/2021)
             [new] Major Release See Readme.txt
         </news>
         <assets>
