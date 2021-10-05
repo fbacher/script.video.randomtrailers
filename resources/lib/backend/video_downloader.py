@@ -57,8 +57,9 @@ RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
 LOG_ALL = False
 LOGGER_ENABLE_LEVEL = LazyLogger.DISABLED
-LOG_LOCK: bool = False
+LOG_LOCK: bool = True
 DUMP_JSON: bool = False
+YIELD_LOCK: bool = False
 
 
 class VideoDownloader:
@@ -119,6 +120,10 @@ class VideoDownloader:
         MovieField.TFH_SOURCE: _youtube_lock,
         MovieField.LIBRARY_URL_TRAILER: _youtube_lock,
         MovieField.LIBRARY_NO_TRAILER: _youtube_lock
+    }
+    _lock_count: Dict[str, int] = {
+        'itunes_lock': 0,
+        'youtube_lock': 0
     }
 
     def __init__(self) -> None:
@@ -188,16 +193,18 @@ class VideoDownloader:
             cls._logger.debug('Wait for TOO_MANY_REQUESTS complete')
 
     @classmethod
-    def delay_between_transactions(cls, source: str, video: bool) -> None:
+    def delay_between_transactions(cls, source: str, video: bool,
+                                   reason: str = '') -> None:
         if video:
             delay_range = DOWNLOAD_VIDEO_DELAY_BY_SOURCE[source]
         else:
             delay_range = DOWNLOAD_INFO_DELAY_BY_SOURCE[source]
         delay = cls.get_delay(delay_range)
         # min_time_between_requests = datetime.timedelta(seconds=10.0)
-
+        start_time: datetime.datetime
+        
         try:
-            cls.get_lock(source)  # Block new transaction
+            start_time = cls.get_lock(source)  # Block new transaction
             # HAVE LOCK
             if LOG_LOCK:
                 cls._logger.debug(f'HAVE LOCK: '
@@ -212,6 +219,7 @@ class VideoDownloader:
                         datetime.datetime.now() - cls._last_youtube_request_timestamp)
             time_to_wait = delay - waited.total_seconds()
             if time_to_wait > 0.0:
+                cls._logger.debug(f'Delaying {time_to_wait} for source: {source}')
                 Monitor.throw_exception_if_abort_requested(time_to_wait)
 
         finally:
@@ -220,6 +228,9 @@ class VideoDownloader:
                 cls._logger.debug(f'RELEASED LOCK '
                                   f'{cls.get_lock_source(source)} '
                                   f'for {source}')
+                elapsed_time: datetime.timedelta = datetime.datetime.now() - start_time
+                elapsed_seconds: int = int(elapsed_time.total_seconds())
+                cls._logger.debug(f'Delayed for {elapsed_seconds} for {reason}')
 
         # LOCK RELEASED
 
@@ -259,8 +270,9 @@ class VideoDownloader:
 
         if clz._logger.isEnabledFor(LazyLogger.DISABLED):
             clz._logger.debug_extra_verbose(f'title: {title}')
+        start_time: datetime.datetime = None
         try:
-            clz.get_lock(source)
+            start_time = clz.get_lock(source, reason=f'get_video: {title}')
             # HAVE LOCK
             if LOG_LOCK:
                 clz._logger.debug(f'HAVE LOCK: '
@@ -277,7 +289,8 @@ class VideoDownloader:
             else:
                 clz.wait_if_too_many_requests(source, True)
 
-            clz.delay_between_transactions(source, True)
+            clz.delay_between_transactions(source, True,
+                                           reason=f'get_video {title}')
             # The embedded % fields are for youtube_dl to fill  in.
 
             template = os.path.join(folder, f'_rt_{movie_id}_%(title)s.%(ext)s')
@@ -415,6 +428,9 @@ class VideoDownloader:
                                   f'{clz.get_lock_source(source)} '
                                   f'for {source}')
 
+            elapsed_time: datetime.timedelta = start_time - datetime.datetime.now()
+            elapsed_seconds: int = int(elapsed_time.total_seconds())
+            clz._logger.debug(f'Time taken to get_video {title}: {elapsed_seconds}')
             if self._error != Constants.HTTP_TOO_MANY_REQUESTS:
                 clz._retry_attempts = 0
             else:
@@ -458,10 +474,13 @@ class VideoDownloader:
         """
         clz = VideoDownloader
         trailer_info: List[MovieType] = []
-        clz.delay_between_transactions(movie_source, False)
+        start_time: datetime.datetime = datetime.datetime.now()
+        clz.delay_between_transactions(movie_source, False,
+                                       reason=f'Get Info for {movie_source}')
         info_logger = TfhInfoLogger(self, url, parse_json_as_youtube=False)
 
         try:
+            # TODO: Resume here
             clz.get_lock(movie_source)
             # HAVE LOCK
             if LOG_LOCK:
@@ -568,7 +587,9 @@ class VideoDownloader:
         """
 
         clz = VideoDownloader
-        clz.delay_between_transactions(MovieField.TFH_SOURCE, False)
+        start_time: datetime.datetime = datetime.datetime.now()
+        clz.delay_between_transactions(MovieField.TFH_SOURCE, False,
+                                       reason=f'get_tfh_index')
         tfh_index_logger = TfhIndexLogger(self, trailer_handler, url)
 
         try:
@@ -686,8 +707,10 @@ class VideoDownloader:
         return self._error
 
     @classmethod
-    def get_lock(cls, source: str):
+    def get_lock(cls, source: str, reason: str = '') -> datetime.datetime:
+        start_time: datetime.datetime = datetime.datetime.now()
         lock_source = cls.get_lock_source(source)
+        lock: threading.RLock = cls.locks[source]
         if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'GETTING LOCK: {lock_source} '
                                             f'for {source}')
@@ -698,20 +721,34 @@ class VideoDownloader:
         while not cls.locks[source].acquire(blocking=False):
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
+        count: str = cls.increment_lock_count(source)
+
+        elapsed_time: datetime.timedelta = datetime.datetime.now() - start_time
+        elapsed_seconds: int = int(elapsed_time.total_seconds())
+
         if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls._logger.debug_extra_verbose(f'HAVE LOCK: {lock_source} for {source}')
+            cls._logger.debug_extra_verbose(f'HAVE LOCK: {lock_source} for {source} '
+                                            f'post-lock-count: {count}')
+            cls._logger.debug_extra_verbose(f'Waited {elapsed_seconds} for {source} '
+                                            f'lock: {reason}')
+        return start_time
 
     @classmethod
-    def release_lock(cls, source: str):
+    def release_lock(cls, source: str, elapsed_seconds: int = 0, reason: str = ''):
         lock_source = cls.get_lock_source(source)
+        lock: threading.RLock = cls.locks[source]
 
         if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            count: str = cls.get_lock_count(source)
             cls._logger.debug_extra_verbose(f'RELEASING LOCK: {lock_source} '
-                                            f'for {source}')
+                                            f'for {source}  pre-release-lock-count: {count}')
+            cls._logger.debug_extra_verbose(f'Finished with {source} lock held for '
+                                            f'{elapsed_seconds} for {reason}')
             LazyLogger.dump_stack(heading='VideoDowloader Releasing Lock',
                                   xbmc_log_level=xbmc.LOGDEBUG)
 
         cls.locks[source].release()
+        count: str = cls.decrement_lock_count(source)
 
         if LOG_LOCK and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'RELEASED LOCK {lock_source} for {source}')
@@ -721,6 +758,25 @@ class VideoDownloader:
         if cls.locks[source] == cls._itunes_lock:
             return 'itunes_lock'
         return 'youtube_lock'
+
+    @classmethod
+    def get_lock_count(cls, source: str) -> str:
+        real_source: str = cls.get_lock_source(source)
+        return str(cls._lock_count[real_source])
+
+    @classmethod
+    def increment_lock_count(cls, source: str) -> str:
+        real_source: str = cls.get_lock_source(source)
+        cls._lock_count[real_source] += 1
+
+        return str(cls._lock_count[real_source])
+
+    @classmethod
+    def decrement_lock_count(cls, source: str) -> str:
+        real_source: str = cls.get_lock_source(source)
+        cls._lock_count[real_source] -= 1
+
+        return str(cls._lock_count[real_source])
 
 
 class BaseYDLogger:
@@ -826,7 +882,7 @@ class BaseYDLogger:
             # "_type playlist" lists summary information for each movie in playlist
             try:
                 self.raw_data = json.loads(line)
-                if clz._logger.isEnabledFor(LOGGER_ENABLE_LEVEL):
+                if clz._logger.isEnabledFor(DUMP_JSON):
                     try:
                         json_text = json.dumps(self.raw_data,
                                                ensure_ascii=False,
@@ -1083,34 +1139,43 @@ class TfhIndexLogger(BaseYDLogger):
         """
         clz = type(self)
         super().debug(line)
+        start_time: datetime.datetime = None
+        if YIELD_LOCK:
+            #
+            # Give another thread a chance to fetch a movie
+            #
+            start_time = datetime.datetime.now()
+
+            self._downloader.release_lock(MovieField.TFH_SOURCE)
+            # LOCK RELEASED
+            if LOG_LOCK:
+                clz._logger.debug(f'RELEASED LOCK '
+                                  f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
+                                  f'for {MovieField.TFH_SOURCE}')
+                clz._logger.debug(f'Yielding Lock between TFH index entries')
+
+            # ..... Some other thread can get video
+
         if self._parsed_movie is not None and self._downloader._error == 0:
             try:
                 self._trailer_handler(self._parsed_movie)
                 self._parsed_movie = None  # Don't send duplicates
 
-                VideoDownloader.delay_between_transactions(MovieField.TFH_SOURCE, False)
-                #
-                # Give another thread a chance to fetch a movie
-                #
-                self._downloader.release_lock(MovieField.TFH_SOURCE)
-                # LOCK RELEASED
-                if LOG_LOCK:
-                    clz._logger.debug(f'RELEASED LOCK '
-                                      f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
-                                      f'for {MovieField.TFH_SOURCE}')
-
-                # ..... Some other thread can get video
-
-                # GET LOCK
-                self._downloader.get_lock(MovieField.TFH_SOURCE)
-                # HAVE LOCK
-                if LOG_LOCK:
-                    clz._logger.debug(f'HAVE LOCK '
-                                      f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
-                                      f'for {MovieField.TFH_SOURCE}')
-
             except Exception as e:
                 clz._logger.exception(f'url: {self.url}')
+
+        if YIELD_LOCK:
+            # RE-ACQUIRE LOCK
+            self._downloader.get_lock(MovieField.TFH_SOURCE)
+            # HAVE LOCK
+            if LOG_LOCK:
+                clz._logger.debug(f'HAVE LOCK '
+                                  f'{self._downloader.get_lock_source(MovieField.TFH_SOURCE)} '
+                                  f'for {MovieField.TFH_SOURCE}')
+
+                elapsed_time: datetime.timedelta = start_time - datetime.datetime.now()
+                elapsed_seconds: int = int(elapsed_time.total_seconds())
+                clz._logger.debug(f'TFH index Yield of: {elapsed_seconds}')
 
     @classmethod
     def populate_youtube_movie_info(cls, movie_data: MovieType,
