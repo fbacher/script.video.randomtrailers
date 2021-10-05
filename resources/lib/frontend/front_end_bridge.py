@@ -218,3 +218,16 @@ class FrontendBridge(PluginBridge):
             frontend_id, 'nextTrailer', cls.returned_trailer)
         cls.register_slot(
             frontend_id, 'activate_screensaver', cls.activate_screensaver)
+
+    @classmethod
+    def dump_threads(cls) -> None:
+        """
+            Front-end informs others (back-end) to dump threads.
+
+        :return:
+        """
+        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            cls._logger.enter()
+        signal_payload = {}
+        cls.send_signal('dump_threads', data=signal_payload,
+                        source_id=Constants.BACKEND_ID)

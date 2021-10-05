@@ -5,9 +5,13 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
+import datetime
 import faulthandler
 import io
 from io import StringIO
+
+import xbmcvfs
+
 import simplejson as json
 import sys
 import threading
@@ -16,6 +20,8 @@ import traceback
 from sys import getsizeof, stderr
 from itertools import chain
 from collections import deque
+
+from common.critical_settings import CriticalSettings
 
 try:
     from reprlib import repr
@@ -133,14 +139,19 @@ class Debug:
         xbmc.log(string_buffer, xbmc.LOGDEBUG)
 
         try:
-            dump_path = Constants.FRONTEND_DATA_PATH + '/stack_dump'
+            dump_path = f'{xbmcvfs.translatePath("special://temp")}' \
+                        f'{CriticalSettings.get_plugin_name()}_thread_dump.txt'
 
-            dump_file = io.open(dump_path, mode='at', buffering=1, newline=None,
-                                encoding='ascii')
+            with io.open(dump_path, mode='at', buffering=1, newline=None) as dump_file:
 
-            faulthandler.dump_traceback(file=dump_file, all_threads=True)
+                dump_file.write(f'\n{datetime.datetime.now()}'
+                                f'   *** STACKTRACE - START ***\n\n')
+                faulthandler.dump_traceback(file=dump_file, all_threads=True)
+                dump_file.write(f'\n{datetime.datetime.now()}'
+                                f'   *** STACKTRACE - END ***\n\n')
+
         except Exception as e:
-             pass
+            cls._logger.exception()
 
     @classmethod
     def compare_movies(cls,

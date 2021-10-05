@@ -155,6 +155,11 @@ class BackendBridge(PluginBridge):
                                   include_type=True, log_level=LazyLogger.ERROR)
 
     @classmethod
+    def dump_threads(cls, _) -> None:
+        from common.debug_utils import Debug
+        Debug.dump_all_threads()
+
+    @classmethod
     def register_listeners(cls) -> None:
         """
             Register listeners (callbacks) with service. Note that
@@ -170,3 +175,5 @@ class BackendBridge(PluginBridge):
         #
         cls.register_slot(Constants.BACKEND_ID,
                           'get_next_trailer', cls.get_trailer)
+        cls.register_slot(
+            Constants.BACKEND_ID, 'dump_threads', cls.dump_threads)

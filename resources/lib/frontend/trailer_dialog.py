@@ -34,6 +34,7 @@ from common.settings import Settings
 from frontend.dialog_controller import DialogState, BaseDialogStateMgr, Task, TaskLoop
 from frontend.dialog_utils import (ControlId, Glue, MovieDetailsTimer, NotificationTimer,
                                    TrailerStatus, TrailerTimer)
+from frontend.front_end_bridge import FrontendBridge
 from frontend.history_list import HistoryList
 from frontend.text_to_speech import TTS
 from player.my_player import MyPlayer
@@ -816,6 +817,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
             from common.debug_utils import Debug
             Debug.dump_all_threads()
+            FrontendBridge.dump_threads()
 
         ################################################################
         #
