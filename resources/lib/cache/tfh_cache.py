@@ -269,9 +269,9 @@ class TFHCache:
                     cls._logger.debug(f'entries: {len(cls._cached_movies)}')
                     cls.load_creation_date()
                     for key, movie in cls._cached_movies.items():
-                        if not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
+                        if not isinstance(movie, TFHMovie):
                             movie_ids_to_delete.append(movie.get_id())
-                        elif not isinstance(movie, TFHMovie):
+                        elif not movie.is_sane(MovieField.TFH_SKELETAL_MOVIE):
                             movie_ids_to_delete.append(movie.get_id())
 
                     if len(movie_ids_to_delete) > 0:
@@ -301,36 +301,45 @@ class TFHCache:
         # If no cached entry with the timestamp exists, set it to now.
 
         cls._logger.enter()
-        creation_date = None
-        creation_date_entry: MovieType = cls._cached_movies.get(cls.INDEX_CREATION_DATE, {})
-        cls._logger.debug(f'creation_date_entry: {creation_date_entry}')
-        if creation_date_entry is not None:
-            creation_date = creation_date_entry.get(cls.INDEX_CREATION_DATE,
-                                                             None)
-            cls._cache_complete = creation_date_entry.get(cls.CACHE_COMPLETE,
-                                                                   False)
-            x = None
-            if creation_date is not None:
-                x = Utils.strptime(creation_date, '%Y:%m:%d')
-        cls._logger.debug(f'creation_date: {creation_date} '
-                         f'creation_date_entry: {creation_date_entry} '
-                         f'x: {x}')
+        try:
+            creation_date = None
+            creation_date_movie: TFHMovie = cls._cached_movies.get(cls.INDEX_CREATION_DATE,
+                                                                   None)
+            if creation_date_movie is not None:
+                creation_date_entry: MovieType = creation_date_movie.get_as_movie_type()
 
-        cls._logger.debug(f'cache_complete: {cls._cache_complete} '
-                             f' creation_date: {creation_date} '
-                             f'x: {x:%Y-%m-%d %H:%M}')
-        if creation_date is None:
-            cls._set_creation_date()
-            cls._cache_complete = False
-            return
-        else:
-            # Remove dummy entry from cache
-            del cls._cached_movies[cls.INDEX_CREATION_DATE]
+            # Debug.dump_json(text='TFH INDEX_CREATION_DATE',
+            #                 data=creation_date_entry,
+            #                 log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+            # cls._logger.debug(f'creation_date_entry: {creation_date_entry}')
+            if creation_date_entry is not None:
+                creation_date = creation_date_entry.get(cls.INDEX_CREATION_DATE,
+                                                        None)
+                cls._cache_complete = creation_date_entry.get(cls.CACHE_COMPLETE, False)
+                x = None
+                if creation_date is not None:
+                    x = Utils.strptime(creation_date, '%Y:%m:%d')
+            cls._logger.debug(f'creation_date: {creation_date} '
+                              f'creation_date_entry: {creation_date_entry} '
+                              f'x: {x}')
 
-        # Just to be consistent, all cached_trailer entries are TFHMovie (i.e. Dict)
-        # So, get the actual timestamp from it
+            cls._logger.debug(f'cache_complete: {cls._cache_complete} '
+                              f' creation_date: {creation_date} '
+                              f'x: {x:%Y-%m-%d %H:%M}')
+            if creation_date is None:
+                cls._set_creation_date()
+                cls._cache_complete = False
+                return
+            else:
+                # Remove dummy entry from cache
+                del cls._cached_movies[cls.INDEX_CREATION_DATE]
 
-        cls._time_of_index_creation = Utils.strptime(creation_date, '%Y:%m:%d')
+            # Just to be consistent, all cached_trailer entries are TFHMovie (i.e. Dict)
+            # So, get the actual timestamp from it
+
+            cls._time_of_index_creation = Utils.strptime(creation_date, '%Y:%m:%d')
+        except Exception:
+            cls._logger.exception()
         return
 
     @classmethod
@@ -450,13 +459,13 @@ class TFHCache:
             #         if isinstance(value, TFHMovie):
             #             return dct
             #         break
+            # Debug.dump_json(text='decoder1', data=dct,
+            #                 log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
 
             if MovieField.TFH_ID in dct:
                 tfh_id: str = dct.get(MovieField.TFH_ID)
                 movie = TFHMovie(movie_id=tfh_id, movie_info=dct)
                 return movie
-            if TFHCache.INDEX_CREATION_DATE in dct:
-                return dct
 
         except Exception as e:
             TFHCache._logger.exception()
