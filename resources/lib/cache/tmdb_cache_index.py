@@ -1362,7 +1362,6 @@ class CacheIndex:
         if arg_tmdb_id is None:
             cls._logger.debug(f'arg_tmdb_id is None')
 
-        cls._logger.debug(f'arg_tmdb_id: {arg_tmdb_id}')
         tmdb_id: int = None
         if isinstance(arg_tmdb_id, TMDbMovieId):
             tmdb_id = int(arg_tmdb_id.get_tmdb_id())
