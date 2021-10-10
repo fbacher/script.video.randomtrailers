@@ -1334,7 +1334,9 @@ class MyFormatter(logging.Formatter):
 
     """
 
-    INCLUDE_THREAD_INFO = CriticalSettings.is_debug_include_thread_info()
+    INCLUDE_THREAD_INFO: bool = CriticalSettings.is_debug_include_thread_info()
+    INCLUDE_DEBUG_LEVEL: bool = False
+    INCLUDE_THREAD_LABEL: bool = False
 
     def __init__(self, fmt: str = None, datefmt: str = None) -> None:
         """
@@ -1382,6 +1384,7 @@ class MyFormatter(logging.Formatter):
         # [threadName name funcName:lineno]
 
         text = ''
+        clz = type(self)
         try:
             start_file = record.__dict__.get('start_file', None)
             try:
@@ -1401,24 +1404,31 @@ class MyFormatter(logging.Formatter):
 
             suffix = super().format(record)
             passed_traces = record.__dict__.get('trace_string', None)
-            if passed_traces is None:
-                if type(self).INCLUDE_THREAD_INFO:
-                    prefix = '[Thread {!s} {!s}.{!s}:{!s}:{!s}]'.format(
-                        record.threadName, record.name, record.funcName,
-                        record.lineno, record.levelname)
-                else:
-                    prefix = '[{!s}.{!s}:{!s}]'.format(
-                        record.name, record.funcName, record.lineno)
+            if clz.INCLUDE_THREAD_LABEL:
+                thread_label = 'Thread'
             else:
-                if type(self).INCLUDE_THREAD_INFO:
-                    prefix = '[Thread {!s} {!s}.{!s}:{!s}:{!s} Trace:{!s}]'.format(
-                        record.threadName, record.name, record.funcName,
-                        record.lineno, record.levelname, passed_traces)
+                thread_label = ''
+            if clz.INCLUDE_DEBUG_LEVEL:
+                level = record.levelname
+            else:
+                level = ''
+
+            if passed_traces is None:
+                if clz.INCLUDE_THREAD_INFO:
+                    prefix = f'[{thread_label} {record.threadName} ' \
+                             f'{record.name}.{record.funcName}:{record.lineno}:{level}]'
                 else:
-                    prefix = '[{!s}.{!s}:{!s}:{!s} Trace:{!s}]'.format(
-                        record.name, record.funcName,
-                        record.lineno, record.levelname, passed_traces)
-            text = '{} {}'.format(prefix, suffix)
+                    prefix = f'[{record.name}.{record.funcName}:{record.lineno}:{level}]'
+            else:
+                if clz.INCLUDE_THREAD_INFO:
+                    prefix = f'[{thread_label} {record.threadName} ' \
+                             f'{record.name}.{record.funcName}:{record.lineno}:{level}' \
+                             f' Trace:{passed_traces}]'
+                else:
+                    prefix = f'[{record.name}.{record.funcName}:{record.lineno}:' \
+                             f'{level} Trace:{passed_traces}]'
+
+            text = f'{prefix} {suffix}'
         except Exception as e:
             pass
 
