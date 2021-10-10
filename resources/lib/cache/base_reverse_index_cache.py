@@ -60,6 +60,12 @@ class BaseReverseIndexCache:
         :param reverse_id:
         :param flush:
         :return:
+
+        TODO: Currently only supports mapping to one other database, TMDb.
+              Can easily add more by passing an additional argument,
+              database_name. Then store remote database_ids in a list where
+              the indexes are constant for a remote_database across all
+              of these caches.
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
         if item_id is None or reverse_id is None:
