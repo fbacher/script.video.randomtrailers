@@ -701,9 +701,12 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         """
         clz = AdvancedPlayer
         if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz._logger.debug_verbose(
-                f'{self.get_playing_title()} path: {self.getPlayingFile()}',
-                    trace=Trace.TRACE)
+            try:
+                clz._logger.debug_verbose(
+                    f'{self.get_playing_title()} path: {self.getPlayingFile()}',
+                        trace=Trace.TRACE)
+            except RuntimeError:
+                clz._logger.debug_verbose('Movie info not yet available')
 
         self._is_playing = True
         self._is_paused = False
