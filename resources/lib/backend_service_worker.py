@@ -9,6 +9,7 @@ import sys
 
 import xbmc
 
+from backend.network_stats import NetworkStats
 from common.imports import *
 from common.exceptions import AbortException
 from common.monitor import Monitor
@@ -50,6 +51,7 @@ def startup_non_main_thread() -> None:
     # Start the periodic garbage collector
 
     CacheManager.get_instance().start_cache_garbage_collection_thread()
+    NetworkStats.auto_report(frequency_minutes=30)
 
 
 def post_install() -> None:
