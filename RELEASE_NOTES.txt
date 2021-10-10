@@ -7,22 +7,28 @@ For the latest information see:
 
 Installation:
 
-You will first need to install a dependent plugin which is not yet published.
-    The zip is available at:
-    https://github.com/fbacher/script.module.kodi65/releases/tag/1.2.1%2Bmatrix.4
-
-The install zip can be found at: https://github.com/fbacher/Kodi-script.video.randomtrailers/releases/tag/2.0.7-Beta1
+The install zip can be found at: https://github.com/fbacher/Kodi-script.video.randomtrailers/releases/tag/2.0.7-Beta3
 
 WINDOWS INSTALLATION If you use one or both "Normalize Volume *" settings, then you will need to download and install ffmpeg. In Random Trailers settings, under the "Common" tab, enter the path to ffmpeg in the "Path to ffmpeg command" field.
 
 REPORTING BUGS See https://kodi.wiki/view/HOW-TO:Submit_a_bug_report
 
-Enable kodi debugging. You can either do this through kodi settings (see Kodi web pages for this). Or create <kodi_isntall_dir>/userdata/advancedsettings.xml with the following:
+Enable kodi debugging. You can either do this through kodi settings (see Kodi web pages for this). Or create <kodi_install_dir>/userdata/advancedsettings.xml with the following:
 1 false
 
 Next, configure Random Trailers plugin settings. Select "Experimental" tab, then select "Enable Debug", Choose "Logging Level" of "EXTRA VERBOSE DEBUG", also enable other radio buttons.
 
 Restart Kodi, reproduce problem. Paste the entire kodi.log, <kodi_install_dir>/userdata/addon_data/script.video.randomtrailers/settings.xml and a description of the problem to: https://paste.kodi.tv/. Report the problem and the id returned by paste.kodi.tv on the Kodi forum for randomtrailers: https://forum.kodi.tv/showthread.php?tid=346536&highlight=randomtrailers
+
+10/09/2021 2.0.7-Beta3 Fix several major issues found in Beta2. Did additional testing,
+same focus as Beta2
+
+10/04/2021 2.0.7-Beta2 Focus on Stability, bug fixes, live refresh when settings change,
+cache cleanup.
+
+Reworked UI to be much more MVC. Was not very disciplined on MVC, causing thread blocking,
+confusion of responsibility and fragile code. Main symptom is that when UI events came in
+randomly, the UI would get confused, lock-up, etc.
 
 07/01/2021 2.0.7-Beta1 Focus on performance, startup time, memory use and caching issues. Major refactoring of movie data. Structure was a simple dict but this was getting increasingly sloppy with duplicative code and confusing since each trailer source (library, TFH, TMDb, etc.) required 'tweaks'. What finally forced the change was performance and caching issues. To reduce startup time, needed to change TFH & TMDb discovery to only discover minimal info needed to identify the movie/trailer that needed further discovery. Refactored to about 10 Classes wrapping around a dict with getters/setters. While a big change, it was fairly straight-forward. The result is much cleaner code.
 
@@ -65,13 +71,9 @@ Caching issues Metadata for downloaded movies as well as downloaded trailers are
 The solution is multi-part:
 
     Add setting to purge cache of data from that source (TMDb, TFH, etc.)
-
     Any data not purged, is persisted across settings changes, without any "amnesia" as it is now
-
     Add setting to purge cache of anything that does not pass current filter settings.
-
     Add setting to (not purge) filter cached movies based upon settings. This will allow one to temporarily alter what is viewed, such as genre or year range, without destroying cache.
-
     Random Trailers can NOT be debugged with pydevd at this time. A Kodi change broke this and a partial fix does not completely cure. Needs investigation.
 
 YouTube issues (Resolved in Alpha2): If you experience trailer downloading issues, you may need to go to your browser and try to play any youtube video. It might prompt you to prove that you are a human. This can occur when too much is downloaded too fast. This is most likely to occur if you restart Kodi multiple times while it is initially building the TFH index (described above). Random Trailers has pauses between downloads to avoid this problem, but sometimes this is insufficient.
