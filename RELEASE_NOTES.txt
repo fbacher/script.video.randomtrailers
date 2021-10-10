@@ -7,7 +7,7 @@ For the latest information see:
 
 Installation:
 
-The install zip can be found at: https://github.com/fbacher/Kodi-script.video.randomtrailers/releases/tag/2.0.7-Beta3
+The install zip can be found at: https://github.com/fbacher/script.video.randomtrailers/archive/refs/tags/2.0.7.beta.3.zip
 
 WINDOWS INSTALLATION If you use one or both "Normalize Volume *" settings, then you will need to download and install ffmpeg. In Random Trailers settings, under the "Common" tab, enter the path to ffmpeg in the "Path to ffmpeg command" field.
 
