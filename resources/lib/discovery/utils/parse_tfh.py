@@ -4,7 +4,7 @@ Created on 4/25/21
 
 @author: Frank Feuerbacher
 """
-
+from backend.backend_constants import TMDbConstants
 from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TFHMovie
@@ -26,7 +26,7 @@ class ParseTFH:
         self._tfh_movie.set_cached(False)
         self._lang = Settings.get_lang_iso_639_1().lower()
         self._library_id: int = library_id
-        self._image_base_url: str = 'http://image.tmdb.org/t/p/'
+        self._image_base_url: str = TMDbConstants.IMAGE_BASE_URL
         self._country_id: str = Settings.get_country_iso_3166_1().lower()
         self._certifications: Certifications = \
                     WorldCertifications.get_certifications(self._country_id)

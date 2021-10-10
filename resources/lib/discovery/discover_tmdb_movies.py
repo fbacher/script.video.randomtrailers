@@ -13,6 +13,7 @@ from re import Match
 import simplejson as json
 import xbmcvfs
 
+from backend.backend_constants import TMDbConstants
 from cache.json_cache_helper import JsonCacheHelper
 from cache.tmdb_cache_index import (CachedPage, CacheIndex, CacheParameters,
                                     CachedPagesData)
@@ -34,7 +35,7 @@ from common.utils import Delay
 
 from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
-from backend.json_utils_basic import JsonUtilsBasic
+from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
 from common.certification import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.utils.tmdb_filter import TMDbFilter
@@ -361,7 +362,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             as other search criteria.
 
         :param tmdb_trailer_type: # type: str
-                Specifies a movie-type search parameter
+                Specifies a trailer-type search parameter
         :return: # type: List[MovieType]
         """
         clz = type(self)
@@ -513,16 +514,32 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         page_data: MovieType = {}
         while not finished:
             try:
-                status_code, page_data = JsonUtilsBasic.get_json(
+                result: Result = JsonUtilsBasic.get_json(
                     url, params=data)
-                if page_data is None:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('Problem communicating with TMDB')
-                    # TODO: Wait for communication to resume
-                    # TODO: Notification to user
-                    raise CommunicationException()
-                else:
+
+                s_code = result.get_api_status_code()
+                if s_code is not None:
+                    clz.logger.debug(f'api status: {s_code}')
+
+                status_code: JsonReturnCode = result.get_rc()
+                if status_code == JsonReturnCode.OK:
                     finished = True
+
+                    page_data = result.get_data()
+                    if page_data is None:
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                            clz.logger.debug(f'page_data None status OK. Skipping page')
+
+                if status_code in (JsonReturnCode.FAILURE_NO_RETRY,
+                                   JsonReturnCode.UNKNOWN_ERROR):
+                    clz.logger.debug_extra_verbose(f'TMDb call'
+                                                   f' {status_code.name}')
+                    finished = True
+
+                if status_code == JsonReturnCode.RETRY:
+                    clz.logger.debug_extra_verbose(f'TMDb call failed RETRY')
+                    raise CommunicationException()
+
             except CommunicationException as e:
                 self.throw_exception_on_forced_to_stop(timeout=delay)
                 delay += delay
@@ -1523,7 +1540,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
         clz = type(self)
         data: Dict[str, Any] = {}
-        url = ''
+        url: str = ''
 
         try:
             data['page'] = page
@@ -1579,9 +1596,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             data['with_original_language'] = Settings.get_lang_iso_639_1()
 
             if tmdb_trailer_type == 'all':
-                url = 'http://api.themoviedb.org/3/discover/movie'
+                url = TMDbConstants.DISCOVER_ALL_URL
             else:
-                url = 'https://api.themoviedb.org/3/movie/' + tmdb_trailer_type
+                url = f'{TMDbConstants.DISCOVER_TRAILER_URL}{tmdb_trailer_type}'
 
             if tmdb_search_query == "genre":
                 data['with_genres'] = self._selected_genres
@@ -1665,12 +1682,32 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 info_string: Dict[str, Any] = {}
                 while not finished:
                     try:
-                        status_code, info_string = JsonUtilsBasic.get_json(
+                        result: Result = JsonUtilsBasic.get_json(
                             url, params=data)
 
-                        if info_string is None:
-                            raise CommunicationException
-                        else: finished = True
+                        s_code = result.get_api_status_code()
+                        if s_code is not None:
+                            clz.logger.debug(f'api status: {s_code}')
+
+                        status_code: JsonReturnCode = result.get_rc()
+                        if status_code == JsonReturnCode.OK:
+                            finished = True
+                            if info_string is None:
+                                clz.logger.debug_extra_verbose(
+                                    f'Status OK but data is None '
+                                    f'Skipping page')
+
+                        if status_code in (JsonReturnCode.FAILURE_NO_RETRY,
+                                           JsonReturnCode.UNKNOWN_ERROR):
+                            clz.logger.debug_extra_verbose(f'TMDb call'
+                                                           f' {status_code.name}')
+                            finished = True
+
+                        if status_code == JsonReturnCode.RETRY:
+                            clz.logger.debug_extra_verbose(
+                                f'TMDb call failed RETRY')
+                            raise CommunicationException()
+
                     except CommunicationException as e:
                         self.throw_exception_on_forced_to_stop(timeout=delay)
                         delay += delay

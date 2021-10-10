@@ -8,8 +8,8 @@ import datetime
 import re
 import sys
 
+from backend.backend_constants import iTunes
 from backend.itunes import ITunes
-from common.constants import iTunes
 from common.imports import *
 from common.exceptions import AbortException
 from common.logger import LazyLogger

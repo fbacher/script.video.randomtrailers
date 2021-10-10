@@ -6,10 +6,9 @@ Created on 4/25/21
 """
 import sys
 
-from backend.backend_constants import YOUTUBE_URL_PREFIX
+from backend.backend_constants import iTunes, YOUTUBE_URL_PREFIX, VIMEO_URL_PREFIX
 from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import TrailerUnavailableCache
-# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.imports import *
 from common.logger import LazyLogger
 from common.movie import TMDbMovie
@@ -21,7 +20,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
 
 DOWNLOAD_SITE_PREFIXES: Dict[str, str] = {
     'YouTube': YOUTUBE_URL_PREFIX,
-    'Vimeo': 'https://vimeo.com/'
+    'Vimeo': VIMEO_URL_PREFIX
     }
 
 
@@ -36,7 +35,7 @@ class ParseTMDb:
         self._tmdb_movie.set_cached(False)
         self._current_lang = Settings.get_lang_iso_639_1().lower()
         self._library_id: int = library_id
-        self._image_base_url: str = 'http://image.tmdb.org/t/p/'
+        self._image_base_url: str = iTunes.BASE_IMAGE_URL
         self._country_id: str = Settings.get_country_iso_3166_1().lower()
         self._certifications: Certifications = \
                     WorldCertifications.get_certifications(self._country_id)

@@ -9,6 +9,7 @@ import datetime
 import re
 import sys
 
+from backend.backend_constants import TFHConstants
 from cache.tfh_cache import TFHCache
 from common.constants import Constants, TFH
 from common.debug_utils import Debug
@@ -317,7 +318,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                 or not TFHCache.is_complete()):
             clz.logger.debug_verbose(f'Rediscovering TFH Index')
             video_downloader = VideoDownloader()
-            url = 'https://www.youtube.com/user/trailersfromhell/videos'
+            url = TFHConstants.TFH_TRAILER_PLAYLIST_URL
 
             # trailer_handler is a callback, so adds entries to the cache
 

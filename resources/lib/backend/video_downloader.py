@@ -5,6 +5,7 @@ Created on Apr 5, 2019
 """
 import xbmc
 
+from backend.backend_constants import YOUTUBE_URL
 from common.debug_utils import Debug
 from common.imports import *
 
@@ -57,7 +58,7 @@ RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
 LOG_ALL = False
 LOGGER_ENABLE_LEVEL = LazyLogger.DISABLED
-LOG_LOCK: bool = True
+LOG_LOCK: bool = False
 DUMP_JSON: bool = False
 YIELD_LOCK: bool = False
 
@@ -75,6 +76,8 @@ class VideoDownloader:
     FORBIDDEN = 403
     NOT_FOUND = 404
     AGE_LIMIT = 14
+    PRIVATE_VIDEO = 15
+    UNKNOWN_ERROR = 16
     ABORT_REQUESTED = 99
 
     # Initialize to a year ago
@@ -202,7 +205,7 @@ class VideoDownloader:
         delay = cls.get_delay(delay_range)
         # min_time_between_requests = datetime.timedelta(seconds=10.0)
         start_time: datetime.datetime
-        
+
         try:
             start_time = cls.get_lock(source)  # Block new transaction
             # HAVE LOCK
@@ -364,10 +367,11 @@ class VideoDownloader:
                             clz._logger.debug_verbose(f'error GENERIC DOWNLOAD arg: '
                                                       f'{arg}')
 
-            wait_attempts: int = 0
+            wait_attempts: int = -1
             ten_minutes: int = 10 * 60 * 2
             while (video_logger.data is None and self._error == 0 and not
                     self._download_finished):
+                wait_attempts += 1
                 if wait_attempts > ten_minutes:
                     clz._logger.error(f'VideoDownloader appears stuck. Exiting')
                     self.set_error(VideoDownloader.DOWNLOAD_ERROR)
@@ -937,7 +941,7 @@ class BaseYDLogger:
                 dump_json = True
 
             movie_title = movie_data.get('title', 'Missing Title')
-            trailer_url = 'https://youtu.be/' + trailer_id
+            trailer_url = f'{YOUTUBE_URL}{trailer_id}'
             if movie_data.get('upload_date') is None:
                 missing_keywords.append('upload_date')
                 dump_json = True
@@ -1003,9 +1007,14 @@ class BaseYDLogger:
 
         self.warning_lines.append(line)
 
-        if 'HTTP Error 403' in line:
+        # Failures can occur while downloading metadata, but the video still
+        # succeeds.
+
+        #  TODO:  Consider not making a Warning an ERROR
+
+        if 'HTTP Error 403' in line and 'JSON' not in line:
             self.set_error(VideoDownloader.FORBIDDEN)
-        elif 'HTTP Error 404' in line:
+        elif 'HTTP Error 404' in line and 'JSON' not in line:
             self.set_error(VideoDownloader.NOT_FOUND)
 
         if Monitor.is_abort_requested():
@@ -1044,8 +1053,11 @@ class BaseYDLogger:
             self.set_error(VideoDownloader.UNAVAILABLE)
         elif 'ERROR: Sign in to confirm your age' in line:
             self.set_error(VideoDownloader.AGE_LIMIT)
+        elif 'ERROR: Private video' in line:
+            self.set_error(VideoDownloader.PRIVATE_VIDEO)
         else:
             clz._logger.error(f'error? {line}')
+            self.set_error(VideoDownloader.UNKNOWN_ERROR)
 
     def get_debug(self) -> List[str]:
         """
@@ -1215,7 +1227,7 @@ class TfhIndexLogger(BaseYDLogger):
                 dump_json = True
 
             movie_title = movie_data.get('title', 'Missing Title')
-            trailer_url = 'https://youtu.be/' + trailer_id
+            trailer_url = f'{YOUTUBE_URL}{trailer_id}'
 
             upload_date = movie_data.get('upload_date', '19000101')
             year_str = upload_date[0:4]

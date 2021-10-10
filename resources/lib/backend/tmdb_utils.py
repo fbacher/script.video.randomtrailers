@@ -13,6 +13,7 @@ import sys
 import simplejson
 from cache.base_reverse_index_cache import BaseReverseIndexCache
 from cache.json_cache_helper import JsonCacheHelper
+from backend.backend_constants import TMDbConstants
 
 from common.imports import *
 
@@ -24,7 +25,7 @@ from common.settings import Settings
 from common.logger import LazyLogger
 from common.certification import WorldCertifications
 from backend.json_utils import JsonUtils
-from backend.json_utils_basic import (JsonUtilsBasic)
+from backend.json_utils_basic import (JsonUtilsBasic, JsonReturnCode, Result)
 from common.utils import Delay
 from discovery.utils.parse_library import ParseLibrary
 
@@ -174,23 +175,43 @@ class TMDBMatcher:
             data['include_adult'] = include_adult
             data['append_to_response'] = 'alternative_titles'
 
-            url = 'https://api.themoviedb.org/3/search/movie'
             finished = False
             delay = 0.5
-            _info_string: Dict[str, Any] = None
             attempts: int = 0
             while not finished:
                 attempts += 1
                 try:
-                    status_code, _info_string = \
-                        JsonUtilsBasic.get_json(url, params=data,
+                    result: Result = \
+                        JsonUtilsBasic.get_json(TMDbConstants.SEARCH_URL, params=data,
                                                 dump_msg='get_tmdb_id_from_title_year',
                                                 dump_results=False,
                                                 error_msg=f'{title} ({year})')
-                    if status_code == 0:
+
+                    s_code = result.get_api_status_code()
+                    if s_code is not None:
+                        clz._logger.debug(f'api status: {s_code}')
+
+                    status_code: JsonReturnCode = result.get_rc()
+                    if status_code == JsonReturnCode.OK:
                         finished = True
-                    else:
+                        if result.get_data() is None:
+                            clz._logger.debug_extra_verbose(f'Status OK but data is None '
+                                                            f'Skipping {title}')
+
+                    if status_code == JsonReturnCode.FAILURE_NO_RETRY:
+                        clz._logger.debug_extra_verbose(f'{title} TMDb call'
+                                                        f' FAILURE_NO_RETRY')
+                        finished = True
+
+                    if status_code == JsonReturnCode.UNKNOWN_ERROR:
+                        clz._logger.debug_extra_verbose(f'{title} TMDb call'
+                                                        f' UNKNOWN_ERROR')
+                        finished = True
+
+                    if status_code == JsonReturnCode.RETRY:
+                        clz._logger.debug_extra_verbose(f'{title} TMDb call failed RETRY')
                         raise CommunicationException()
+
                 except CommunicationException as e:
                     if attempts > 10:  # 5 seconds
                         reraise(*sys.exc_info())
@@ -203,8 +224,8 @@ class TMDBMatcher:
                     f'Getting TMDB movie for title: {title} year: {year} '
                     f'runtime: {runtime_seconds}')
 
-            if _info_string is not None:
-                results = _info_string.get('results', [])
+            if result.get_data() is not None:
+                results = result.get_data().get('results', [])
                 if len(results) > 1:
                     if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(

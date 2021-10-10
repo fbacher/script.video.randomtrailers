@@ -15,6 +15,7 @@ from pathlib import Path
 
 import xbmcvfs
 
+from backend.backend_constants import YOUTUBE_URL
 from backend.movie_entry_utils import MovieEntryUtils
 from backend.tmdb_utils import TMDBUtils
 from cache.tfh_cache import TFHCache
@@ -379,7 +380,7 @@ class MovieDetail:
                 video_id = re.sub(r'^.*video_?id=', '', trailer_path)
                 # plugin://plugin.video.youtube/play/?video_id=
                 # DEPRECATED plugin://plugin.video.youtube/?action=play_video&videoid=
-                new_path = 'https://youtu.be/' + video_id
+                new_path = f'{YOUTUBE_URL}{video_id}'
                 trailer_path = new_path
 
             if movie.get_source() not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:

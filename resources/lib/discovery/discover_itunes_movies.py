@@ -11,12 +11,12 @@ import re
 import sys
 
 # from cache.itunes_cache_index import ItunesCacheIndex
+from backend.backend_constants import APPLE_URL_PREFIX
 from cache.base_cache import BaseCache
-from common.constants import iTunes
+from backend.backend_constants import iTunes
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
 from common.exceptions import AbortException, reraise
-from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
 from common.movie import ITunesMovie, RawMovie
@@ -28,9 +28,7 @@ from discovery.utils.itunes_filter import ITunesFilter
 
 from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
-from backend import backend_constants
-from backend.itunes import ITunes
-from backend.json_utils_basic import JsonUtilsBasic
+from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
 from backend.video_downloader import VideoDownloader
 
 from discovery.base_discover_movies import BaseDiscoverMovies
@@ -39,8 +37,6 @@ from discovery.utils.parse_itunes import ParseITunes
 
 STRIP_TZ_PATTERN: Final[Pattern] = re.compile(' .[0-9]{4}$')
 EPOCH_TIME: Final[datetime.datetime] = datetime.datetime(1970, 1, 1, 0, 1)
-TRAILER_BASE_URL: Final[str] = 'https://trailers.apple.com'
-
 
 module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -282,28 +278,51 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         json_url = iTunes.get_url_for_trailer_type(
             show_only_itunes_trailers_of_this_type)
-        json_url = backend_constants.APPLE_URL_PREFIX + json_url
+        json_url = f'{APPLE_URL_PREFIX}{json_url}'
         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.debug_extra_verbose('iTunes json_url', json_url)
+            clz.logger.debug_extra_verbose(f'iTunes json_url {json_url}')
         attempts: int = 0
         parsed_content: Dict[str, Any] = None
         timeout: int = 1 * 60  # one minute
-        while attempts < 60 and parsed_content is None:
-            status_code, parsed_content = JsonUtilsBasic.get_json(json_url)
+        finished: bool = False
+        while not finished and attempts < 60 and parsed_content is None:
+            result: Result = JsonUtilsBasic.get_json(json_url)
             attempts += 1
             timeout = timeout * 2
+            # Limit to 30 minutes. That is a long time
             if timeout > 30 * 60:
                 timeout = 30 * 60
 
-            if parsed_content is None:
-                Monitor.throw_exception_if_abort_requested(timeout=timeout)
+            status_code: JsonReturnCode = result.get_rc()
+            if status_code == JsonReturnCode.OK and parsed_content is not None:
+                finished = True
+
+            if status_code == JsonReturnCode.FAILURE_NO_RETRY:
+                clz.logger.debug_extra_verbose(f'iTunes call'
+                                               f' FAILURE_NO_RETRY')
+                finished = True
+
+            if status_code == JsonReturnCode.UNKNOWN_ERROR:
+                clz.logger.debug_extra_verbose(f'iTunes call'
+                                               f' UNKNOWN_ERROR')
+                finished = True
+
+            if status_code == JsonReturnCode.RETRY:
+                clz.logger.debug_extra_verbose(f'iTunes call failed RETRY')
+                Monitor.throw_exception_if_abort_requested(timeout=float(timeout))
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug(f'Itunes read attempt {attempts}'
                                      f' failed waiting {timeout} seconds')
+
+            parsed_content = result.get_data()
+            if parsed_content is None:
+                finished = True
+
         if parsed_content is None:
             if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                 clz.logger.debug(f'Failed to get trailers from iTunes.'
                                  f' giving up.')
+            finished = True
             return
 
         DiskUtils.RandomGenerator.shuffle(parsed_content)
@@ -400,7 +419,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 #  Now need to look at trailer information for more
                 #  data and opportunities to filter
 
-                feature_url = TRAILER_BASE_URL + location
+                feature_url = f'{iTunes.TRAILER_BASE_URL}{location}'
                 Monitor.throw_exception_if_abort_requested()
                 rc: int
                 movie: ITunesMovie

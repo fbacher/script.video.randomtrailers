@@ -9,7 +9,8 @@ import sys
 from datetime import datetime
 
 import simplejson as json
-from backend.json_utils_basic import JsonUtilsBasic
+from backend.backend_constants import TMDbConstants
+from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
 # from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.monitor import Monitor
 
@@ -105,7 +106,8 @@ class TMDbMovieDownloader:
                                                                       source=source,
                                                                       ignore_failures=False,
                                                                       library_id=library_id)
-            Cache.write_tmdb_cache_json(tmdb_movie)
+            if tmdb_movie is not None:
+                Cache.write_tmdb_cache_json(tmdb_movie)
 
         if tmdb_movie is None:
             return rejection_reasons, None
@@ -203,7 +205,7 @@ class TMDbMovieDownloader:
             'api_key': Settings.get_tmdb_api_key()
         }
 
-        url: str = 'http://api.themoviedb.org/3/movie/' + tmdb_id_str
+        url: str = f'{TMDbConstants.DISCOVER_TRAILER_URL}{tmdb_id_str}'
 
         tmdb_movie: TMDbMovie = None
         dump_msg: str = 'tmdb_id: ' + tmdb_id_str
@@ -334,23 +336,50 @@ class TMDbMovieDownloader:
         status = 0
         finished = False
         delay = 0.5
+        retries: int = 3
         while not finished:
             try:
-                status, movie_data = JsonUtilsBasic.get_json(url,
-                                                             dump_results=dump_results,
-                                                             dump_msg=dump_msg,
-                                                             headers=headers,
-                                                             error_msg=error_msg,
-                                                             params=params,
-                                                             timeout=timeout)
-                if status == 0:
+                retries -= 1
+                if retries < 0:
+                    finished = True  # Not again!
+
+                result: Result
+                result = JsonUtilsBasic.get_json(url,
+                                                 dump_results=dump_results,
+                                                 dump_msg=dump_msg,
+                                                 headers=headers,
+                                                 error_msg=error_msg,
+                                                 params=params,
+                                                 timeout=timeout)
+                s_code = result.get_api_status_code()
+                if s_code is not None:
+                    cls._logger.debug(f'api status: {s_code}')
+
+                status_code: JsonReturnCode = result.get_rc()
+                if status_code == JsonReturnCode.OK:
                     finished = True
+                    status = 0
+                    movie_data = result.get_data()
+                    if movie_data is None:
+                        cls._logger.debug_extra_verbose(f'Status OK but data is None '
+                                                        f'Skipping {error_msg}')
+
+                if status_code in (JsonReturnCode.FAILURE_NO_RETRY,
+                                   JsonReturnCode.UNKNOWN_ERROR):
+                    cls._logger.debug_extra_verbose(f'{error_msg} TMDb call'
+                                                    f' {status_code.name}')
+                    status = -1
+                    finished = True
+
+                if status_code == JsonReturnCode.RETRY:
+                    status = -2
+                    cls._logger.debug_extra_verbose(f'{error_msg} TMDb call failed RETRY')
+                    raise CommunicationException()
+
             except CommunicationException as e:
                 Monitor.throw_exception_if_abort_requested(timeout=delay)
                 delay += delay
 
-        if movie_data is None and status == 0:
-            status = -1
         return status, movie_data
 
 

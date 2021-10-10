@@ -25,7 +25,7 @@ from discovery.utils.library_filter import LibraryFilter
 
 from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
-from backend.movie_utils import LibraryMovieStats
+from backend.movie_stats import LibraryMovieStats
 from backend.json_utils_basic import JsonUtilsBasic
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.library_movie_data import (LibraryMovieData, LibraryNoTrailerMovieData,

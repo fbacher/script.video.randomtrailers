@@ -9,7 +9,7 @@ from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
-from backend.movie_utils import LibraryMovieStats
+from backend.movie_stats import LibraryMovieStats
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.discover_library_movies import DiscoverLibraryMovies
 from discovery.discover_folder_trailers import DiscoverFolderTrailers

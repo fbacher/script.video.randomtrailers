@@ -177,38 +177,7 @@ class RemoteTrailerPreference:
     AVERAGE_VOTE_LESS_OR_EQUAL: Final[int] = 2
 
 
-class iTunes:
-    """
-        Defines constants that apply to iTunes
-    """
-    #"Coming Soon|Just Added|Popular|Exclusive|All"
-    COMING_SOON: Final[int] = 0
-    JUST_ADDED: Final[int] = 1
-    POPULAR: Final[int] = 2
-    EXCLUSIVE: Final[int] = 3
-    ALL: Final[int] = 4
-
-    COMING_SOON_URL: Final[str] = '/trailers/home/feeds/studios.json'
-    JUST_ADDED_URL: Final[str] = '/trailers/home/feeds/just_added.json'
-    POPULAR_URL: Final[str] = '/trailers/home/feeds/most_pop.json'
-    EXCLUSIVE_URL: Final[str] = '/trailers/home/feeds/exclusive.json'
-    ALL_URL: Final[str] = '/trailers/home/feeds/studios.json'
-
-    _trailerForTypeMap: Final[Dict[int, str]] =\
-        {COMING_SOON: COMING_SOON_URL,
-         JUST_ADDED: JUST_ADDED_URL,
-         POPULAR: POPULAR_URL,
-         EXCLUSIVE: EXCLUSIVE_URL,
-         ALL: ALL_URL}
-
-    @staticmethod
-    def get_url_for_trailer_type(trailer_type: int) -> str:
-        url: str = iTunes._trailerForTypeMap.get(trailer_type, None)
-        return url
-
-
 class TFH:
-
 
     # This pattern captures the TITLE, not the Reviewer.
     # The TITLE must be mostly ALL CAPS, with some special characters
@@ -342,37 +311,6 @@ class TFH:
                    r')?'
                    r')')
 '''
-
-
-"""
-# noinspection PyClassHasNoInit,PyClassHasNoInit,PyClassHasNoInit
-class TMDB:
-    # Applies to trailer type
-    #"Coming Soon|Just Added|Popular|Exclusive|All"
-    COMING_SOON = 0
-    JUST_ADDED = 1
-    POPULAR = 2
-    EXCLUSIVE = 3
-    ALL = 4
-
-    COMING_SOON_URL = '/trailers/home/feeds/studios.json'
-    JUST_ADDED_URL = '/trailers/home/feeds/just_added.json'
-    POPULAR_URL = '/trailers/home/feeds/most_pop.json'
-    EXCLUSIVE_URL = '/trailers/home/feeds/exclusive.json'
-    ALL_URL = '/trailers/home/feeds/studios.json'
-
-    _trailerForTypeMap = {COMING_SOON: COMING_SOON_URL,
-                          JUST_ADDED: JUST_ADDED_URL,
-                          POPULAR: POPULAR_URL,
-                          EXCLUSIVE: EXCLUSIVE_URL,
-                          ALL: ALL_URL}
-
-    @staticmethod
-    def get_url_for_trailer_type(trailerType):
-        url = TMDB._trailerForTypeMap.get(trailerType, None)
-        return url
-
-"""
 
 
 class GenreEnum:

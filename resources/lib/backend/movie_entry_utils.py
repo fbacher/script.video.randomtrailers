@@ -7,6 +7,7 @@ Created on Apr 14, 2019
 
 import sys
 import simplejson as json
+from backend.backend_constants import TMDbConstants
 
 from common.imports import *
 from common.exceptions import AbortException
@@ -16,7 +17,7 @@ from common.movie import AbstractMovie, LibraryMovie, TFHMovie
 from common.movie_constants import MovieField
 from common.certification import Certifications, WorldCertifications, Certification
 from common.settings import Settings
-from backend.json_utils_basic import JsonUtilsBasic
+from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -68,52 +69,65 @@ class MovieEntryUtils:
                             'language': Settings.get_lang_iso_639_1(),
                             'api_key': Settings.get_tmdb_api_key()
                              }
-                    url = 'http://api.themoviedb.org/3/find/' + \
-                        str(imdb_id)
+                    url = f'{TMDbConstants.FIND_URL}{str(imdb_id)}'
                     try:
                         Monitor.throw_exception_if_abort_requested()
-                        status_code, tmdb_result = JsonUtilsBasic.get_json(
+                        result: Result
+                        result = JsonUtilsBasic.get_json(
                             url, error_msg=title,
                             params=data, dump_results=True, dump_msg='')
 
                         Monitor.throw_exception_if_abort_requested()
 
-                        if status_code == 0 and tmdb_result is not None:
-                            s_code = tmdb_result.get('status_code', None)
-                            if s_code is not None:
-                                status_code = s_code
-                        if status_code != 0:
-                            pass
-                        elif tmdb_result is not None:
-                            movie_results = tmdb_result.get(
-                                'movie_results', [])
-                            if len(movie_results) == 0:
-                                pass
-                            elif len(movie_results) > 1:
-                                pass
+                        s_code = result.get_api_status_code()
+                        if s_code is not None:
+                            cls._logger.debug(f'api status: {s_code}')
+
+                        status_code: JsonReturnCode = result.get_rc()
+                        if status_code == JsonReturnCode.FAILURE_NO_RETRY:
+                            cls._logger.debug_extra_verbose(f'{title} TMDb call'
+                                                            f' FAILURE_NO_RETRY')
+                        elif status_code == JsonReturnCode.UNKNOWN_ERROR:
+                            cls._logger.debug_extra_verbose(f'{title} TMDb call'
+                                                            f' UNKNOWN_ERROR')
+                        elif status_code == JsonReturnCode.RETRY:
+                            cls._logger.debug_extra_verbose(f'{title} TMDb call '
+                                                            f'RETRY')
+
+                        elif status_code == JsonReturnCode.OK:
+                            if result.get_data() is None:
+                                cls._logger.debug_extra_verbose(f'Status OK but data is '
+                                                                f'None. Skipping {title}')
                             else:
-                                tmdb_id = movie_results[0].get('id', None)
-                                try:
-                                    tmdb_id_int = int(tmdb_id)
-                                except ValueError:
-                                    tmdb_id = None
-
-                                if tmdb_id is None:
-                                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                                        cls._logger.debug('Did not find movie for',
-                                                          'imdb_id:', imdb_id,
-                                                          'title:', title)
+                                movie_results = result.get_data().get(
+                                    'movie_results', [])
+                                if len(movie_results) == 0:
+                                    pass
+                                elif len(movie_results) > 1:
+                                    pass
                                 else:
-                                    changed: bool = movie.add_tmdb_id(tmdb_id)
-                                    if changed:
-                                        # Not likely from TFH
-                                        if isinstance(movie, TFHMovie):
-                                            from cache.tfh_cache import TFHCache
+                                    tmdb_id = movie_results[0].get('id', None)
+                                    try:
+                                        tmdb_id_int = int(tmdb_id)
+                                    except ValueError:
+                                        tmdb_id = None
 
-                                            TFHCache.update_movie(movie)
+                                    if tmdb_id is None:
+                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                                            cls._logger.debug('Did not find movie for',
+                                                              'imdb_id:', imdb_id,
+                                                              'title:', title)
+                                    else:
+                                        changed: bool = movie.add_tmdb_id(tmdb_id)
+                                        if changed:
+                                            # Not likely from TFH
+                                            if isinstance(movie, TFHMovie):
+                                                from cache.tfh_cache import TFHCache
 
-                                        if isinstance(movie, LibraryMovie):
-                                            cls.update_database_unique_id(movie)
+                                                TFHCache.update_movie(movie)
+
+                                            if isinstance(movie, LibraryMovie):
+                                                cls.update_database_unique_id(movie)
                     except AbortException:
                         reraise(*sys.exc_info())
                     except Exception:
