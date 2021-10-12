@@ -5,6 +5,9 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
+import sys
+
+from common.exceptions import AbortException
 from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.logger import LazyLogger
@@ -134,8 +137,10 @@ class DiscoveryManager:
                     instance.destroy()
                     GarbageCollector.add_thread(instance)
                     info.clear_instance()
+            except AbortException:
+                reraise(*sys.exc_info())
             except Exception as e:
-                cls._logger.exception()    
+                cls._logger.exception()
 
         if not cls._initialized:
             Monitor.throw_exception_if_abort_requested(timeout=1.0)
@@ -151,4 +156,3 @@ class DiscoveryManager:
         :return:
         """
         return LibraryMovieStats.get_genres_in_library()
-

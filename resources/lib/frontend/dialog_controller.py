@@ -6,11 +6,10 @@ Created on Jul 29, 2021
 @author: Frank Feuerbacher
 
 """
-import datetime
+import sys
 import time
 from collections import deque, OrderedDict
 from enum import auto, Enum
-import sys
 import threading
 
 from common.exceptions import AbortException
@@ -34,6 +33,7 @@ from frontend.utils import ReasonEvent
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 SKIP_NOTIFICATION_SECONDS: int = 5
+
 
 class DialogStateMgr(BaseDialogStateMgr):
 
@@ -872,7 +872,7 @@ class TaskLoop(threading.Thread):
 
         except AbortException:
             pass  # Let thread die
-        
+
         except Exception:
             clz._logger.exception()
 
@@ -1029,7 +1029,7 @@ class TaskLoop(threading.Thread):
                     break
 
                 except AbortException:
-                    reraise(*sys.exec_info())
+                    reraise(*sys.exc_info())
 
                 except HistoryEmpty:
                     # This is pre-checked when user input occurs, but perhaps under

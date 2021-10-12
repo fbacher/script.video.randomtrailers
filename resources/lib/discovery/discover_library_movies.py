@@ -239,6 +239,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             self.throw_exception_on_forced_to_stop()
             result: Dict[str, Any] = query_result.get('result', {})
             movies: List[Dict[str, Any]] = result.get('movies', [])
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             message: str = ''
             if query_result is not None:
@@ -329,9 +331,14 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             except AbortException:
                 reraise(*sys.exc_info())
             except StopIteration:
-                self.add_movies_to_discovery_queues(library_movies, library_url_movies,
-                                                    library_no_trailer_movies,
-                                                    batch_size)
+                try:
+                    self.add_movies_to_discovery_queues(library_movies, library_url_movies,
+                                                        library_no_trailer_movies,
+                                                        batch_size)
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception:
+                    clz.logger.exception()
                 break
             except Exception:
                 clz.logger.exception('')
@@ -469,8 +476,13 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
             except StopDiscoveryException:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                     clz.logger.debug_verbose('Stopping discovery')
-                self.destroy()
-                finished = True
+                try:
+                    self.destroy()
+                    finished = True
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception:
+                    clz.logger.exception()
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
@@ -553,8 +565,13 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
             except StopDiscoveryException:
                 if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                     clz.logger.debug('Stopping discovery')
-                self.destroy()
-                finished = True
+                try:
+                    self.destroy()
+                    finished = True
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception:
+                    clz.logger.exception()
             except AbortException:
                 return  # Just exit thread
             except Exception as e:

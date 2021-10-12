@@ -155,6 +155,8 @@ class MovieDetail:
                                     cls._logger.debug(f'Kodi movie found!')
                                 else:
                                     cls._logger.debug(f'Kodi movie NOT found')
+                        except AbortException:
+                            reraise(*sys.exc_info())
                         except Exception:
                             cls._logger.exception()
 
@@ -350,6 +352,9 @@ class MovieDetail:
         rc: int = 0
 
         try:
+            if movie.get_source() not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
+                return 0
+
             start = datetime.datetime.now()
             movie_id = ''
             trailer_path = movie.get_trailer_path()
@@ -382,9 +387,6 @@ class MovieDetail:
                 # DEPRECATED plugin://plugin.video.youtube/?action=play_video&videoid=
                 new_path = f'{YOUTUBE_URL}{video_id}'
                 trailer_path = new_path
-
-            if movie.get_source() not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
-                return 0
 
             movie_id = Cache.get_trailer_id(movie)
 

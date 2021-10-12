@@ -16,6 +16,7 @@ from cache.trailer_cache import (TrailerCache)
 
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
+from common.exceptions import AbortException
 from common.imports import *
 from common.monitor import Monitor
 from common.logger import Trace, LazyLogger
@@ -108,6 +109,8 @@ class PlayableTrailerService:
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                         clz.logger.debug_verbose(
                             'Rediscovery in progress. attempt:', attempt)
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
             reraise(*sys.exc_info())
@@ -125,6 +128,8 @@ class PlayableTrailerService:
                 self.throw_exception_on_forced_to_stop(
                     movie_data=None, delay=0.25)
 
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
 
@@ -147,7 +152,7 @@ class PlayableTrailerService:
         nothing_to_play: bool = True
         playable_trailers_map: Dict[str, PlayableTrailersContainer]
         playable_trailers_map = PlayableTrailersContainer.get_instances()
-        
+
         # Need to use the same projected sizes throughout this method.
 
         projected_sizes_map: Dict[str, int] = {}
@@ -244,6 +249,8 @@ class PlayableTrailerService:
                     if trailer_index_to_play < total_number_of_trailers:
                         found_playable_trailers = playable_trailers
                         break
+                except AbortException:
+                    reraise(*sys.exc_info())
                 except Exception as e:
                     clz.logger.log_exception(e)
             try:
@@ -290,13 +297,13 @@ class PlayableTrailerService:
                     # of the trailer types, see if we can replay a trailer
                     # that we have on hand.
                     #
-                    # Only need to try this once since none will be added 
+                    # Only need to try this once since none will be added
                     # until a trailer is found for playing
-                    
+
                     trailer = RecentlyPlayedTrailers.get_recently_played()
                     if trailer is not None:
                         break
-                    
+
                 second_method_attempts += 1
                 try:
                     playable_trailers = playable_trailers_map[source]
@@ -377,7 +384,7 @@ class PlayableTrailerService:
             trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
             trailer.set_trailer_played(False)
             trailer = None
-            
+
         if trailer is None:
             raise StopIteration()
 

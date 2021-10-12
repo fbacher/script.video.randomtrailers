@@ -149,7 +149,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     finished = True
 
         except AbortException:
-            return
+            return  # Let thread die
         except Exception as e:
             clz.logger.exception('')
         finally:
@@ -938,7 +938,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                 except (AbortException, StopDiscoveryException):
                     reraise(*sys.exc_info())
-
                 except Exception as e:
                     clz.logger.exception()
 
@@ -958,7 +957,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         except AbortException:
             reraise(*sys.exc_info())
-
         except Exception as e:
             clz.logger.exception()
 
@@ -987,10 +985,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         additional_movies_to_get: int = 0
 
         try:
-            
+
             #  Send any cached TMDb trailers to the discovered list first,
             #  since they require least processing AND known to have trailers.
-            
+
             additional_movies_to_get = (Settings.get_max_tmdb_trailers()
                                         - self.get_number_of_known_trailers())
             '''
@@ -1013,7 +1011,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             self.add_to_discovered_movies(tmdb_movies)
             '''
             pass
-
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
 
@@ -1032,7 +1031,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             except AbortException:
                 reraise(*sys.exc_info())
-
             except Exception as e:
                 clz.logger.exception('')
 
@@ -1106,7 +1104,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                     except (AbortException, StopDiscoveryException):
                         reraise(*sys.exc_info())
-
                     except Exception as e:
                         clz.logger.exception()
 
@@ -1133,7 +1130,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             except AbortException:
                 reraise(*sys.exc_info())
-
             except Exception as e:
                 clz.logger.exception()
             '''
@@ -1293,7 +1289,6 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
-
         except Exception as e:
             clz.logger.exception('')
         return
@@ -1878,6 +1873,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                         if TMDbFilter.pre_filter_movie(movie):
                             movies.append(movie)
+                    except AbortException:
+                        reraise(*sys.exc_info())
                     except Exception as e:
                         clz.logger.exception()
 

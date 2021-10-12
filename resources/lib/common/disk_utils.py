@@ -489,6 +489,8 @@ class DiskUtils:
                                 continue
                         except OSError as e:
                             continue  # File doesn't exist
+                        except AbortException:
+                            reraise(*sys.exc_info())
                         except Exception as e:
                             cls._logger.exception('')
                             continue
@@ -538,6 +540,8 @@ class DiskUtils:
                     # If empty
                     if next(directory.iterdir(), None) is None:
                         directory.rmdir()
+                except AbortException:
+                    reraise(*sys.exc_info())
                 except Exception as e:
                     pass
 
@@ -602,8 +606,8 @@ class FindFiles(Iterable[Path]):
             target=self._run,
             name='find files')
         self._find_thread.start()
-        self._find_thread.setName(f'Find Files: {top}')        
-        
+        self._find_thread.setName(f'Find Files: {top}')
+
     def _run(self) -> None:
         clz = type(self)
         try:
@@ -625,6 +629,9 @@ class FindFiles(Iterable[Path]):
                         Monitor.throw_exception_if_abort_requested(timeout=0.25)
                 if self._die:
                     break
+        except AbortException:
+            self._die = True   # Let thread die
+
         except Exception as e:
             clz._logger.exception()
         finally:
@@ -659,6 +666,9 @@ class FindFiles(Iterable[Path]):
                         self._find_thread = None
                         self._file_queue = None
                         break
+            except AbortException:
+                reraise(*sys.exc_info())
+
             except BaseException as e:
                 clz._logger.exception()
 
@@ -669,8 +679,6 @@ class FindFiles(Iterable[Path]):
         clz = type(self)
         #  clz._logger.debug('In kill')
         self._die = True
-        if self._file_queue is None:
-            return
 
     def __iter__(self) -> Iterator:
         clz = type(self)
@@ -691,12 +699,15 @@ class FindFilesIterator(Iterator):
         self._files: FindFiles = files
 
     def __next__(self) -> Path:
-        path: Path
+        path: Path = None
         clz = type(self)
         #  clz._logger.debug('In __next__')
         try:
             path = self._files.get_next()
             #  clz._logger.debug(f'__next__ path: {path}')
+        except AbortException:
+            reraise(*sys.exc_info())
+
         except Exception as e:
             clz._logger.exception()
 
@@ -705,7 +716,7 @@ class FindFilesIterator(Iterator):
             raise StopIteration()
 
         return path
-    
+
     def __del__(self):
         self._files.kill()
 

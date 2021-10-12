@@ -201,6 +201,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             stop_thread: bool = not Settings.is_include_trailer_folders()
             if stop_thread:
                 self.stop_thread()
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
 

@@ -5,12 +5,13 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-
+import sys
 from collections import OrderedDict
 import threading
 import queue
 
 from common.constants import Constants
+from common.exceptions import AbortException
 from common.imports import *
 from common.debug_utils import Debug
 from common.monitor import Monitor
@@ -251,6 +252,8 @@ class PlayableTrailersContainer:
                 if self._starve_check_timer is not None:
                     try:
                         self._starve_check_timer.join(timeout=0.05)
+                    except AbortException:
+                        reraise(*sys.exc_info())
                     except Exception:
                         pass
 
@@ -279,7 +282,7 @@ class PlayableTrailersContainer:
         starving = self._starving
         self._starving = False
         return starving
-    
+
     def set_shuffled(self) -> None:
         self._shuffled = True
 

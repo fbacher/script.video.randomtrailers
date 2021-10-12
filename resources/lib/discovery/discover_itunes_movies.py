@@ -89,6 +89,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     self.stop_thread()
                 self._duplicate_check.clear()
 
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
 

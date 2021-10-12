@@ -66,7 +66,6 @@ class NetworkStats:
         try:
             # Use FlexibleTimer since it will cancel if AbortException occurs
 
-            cls._logger.debug(f'frequency_minutes: {frequency_minutes}')
             interval: float = float(frequency_minutes * 60)
             next_report: FlexibleTimer = FlexibleTimer(interval=interval,
                                                        function=cls.do_report,

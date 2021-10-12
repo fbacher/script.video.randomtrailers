@@ -305,6 +305,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
                     if clz.FORCE_TFH_REDISCOVERY:
                         tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
+                except AbortException:
+                    reraise(*sys.exc_info())
                 except Exception as e:
                     clz.logger.exception(e)
 

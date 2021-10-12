@@ -81,6 +81,7 @@ class Monitor(MinimalMonitor):
             # The same scheme is used for wait_for_startup_complete,
 
             cls.startup_complete_event = threading.Event()
+            super().register_abort_callback(cls._inform_abort_listeners)
 
             cls._monitor_changes_in_settings_thread = threading.Thread(
                 target=cls._monitor_changes_in_settings,
@@ -287,7 +288,7 @@ class Monitor(MinimalMonitor):
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 cls._logger.enter()
             listeners_copy = copy.copy(cls._abort_listeners)
-            del cls._abort_listeners[:]  # Unregister all
+            cls._abort_listeners.clear() # Unregister all
             cls._abort_listeners_informed = True
 
         for listener, listener_name in listeners_copy.items():
@@ -471,7 +472,7 @@ class Monitor(MinimalMonitor):
     @classmethod
     def abort_requested(cls) -> None:
         cls._xbmc_monitor.abortRequested()
-        cls._abort_received.set()
+        cls.set_abort_received()
 
     def abortRequested(self) -> None:
         """
