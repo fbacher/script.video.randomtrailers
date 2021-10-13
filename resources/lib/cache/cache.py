@@ -23,6 +23,7 @@ from cache.library_json_cache import LibraryJsonCache
 from cache.tfh_json_cache import TFHJsonCache
 from cache.tmdb_cache_index import CacheIndex
 from cache.tmdb_json_cache import TMDbJsonCache
+from common.debug_utils import Debug
 from common.imports import *
 from common.logger import LazyLogger
 from common.exceptions import (AbortException, CommunicationException, TrailerIdException)
@@ -162,13 +163,16 @@ class Cache:
                     serializable: MovieType = json.load(cacheFile, encoding='utf-8')
                     serializable[MovieField.CACHED] = True
 
-                    if serializable.get(MovieField.CLASS, '') == TMDbMovie.__name__:                          
+                    if serializable.get(MovieField.CLASS, '') == TMDbMovie.__name__:
                         tmdb_movie = TMDbMovie.de_serialize(serializable)
                     else:
                         if (cls._logger.isEnabledFor(
                                 LazyLogger.DEBUG_EXTRA_VERBOSE)):
                             cls._logger.debug_extra_verbose(
-                                f'Expected CLASS entry indicating TMDbMovie')
+                                f'Expected CLASS entry indicating TMDbMovie not '
+                                f'{MovieField.CLASS}')
+                            Debug.dump_dictionary(serializable,
+                                                  log_level=LazyLogger.DEBUG)
 
                 except Exception as e:
                     cls._logger.exception(e)
