@@ -155,10 +155,20 @@ class ParseTMDb:
             if trailer_key is not None:
                 tmdb_video = best_size_map[trailer_type]
 
-                trailer_url = DOWNLOAD_SITE_PREFIXES[site] + tmdb_video['key']
+                trailer_url: str = DOWNLOAD_SITE_PREFIXES[site] + tmdb_video['key']
                 self._logger.debug_extra_verbose(f'movie: {self._tmdb_movie.get_title()} '
                                                  f'has trailer: '
                                                  f'{trailer_url}')
+                #
+                # Usually url from TMDb is to youtube, but sometimes it goes
+                # through tmdb url, which fails in youtube-dl. However, the
+                # id seems to be usable directly as a youtube url
+                # ex: https://www.themoviedb.org/video/play?key=mcjn1BmQeNg
+                # can be changed to https://youtu.be/mcjn18mQeNq
+
+                trailer_url = trailer_url.replace(
+                        'https://www.themoviedb.org/video/play?key=',
+                        'https://youtu.be/')
                 self._tmdb_movie.set_trailer(trailer_url)
                 self._tmdb_movie.set_trailer_type(trailer_type)
                 CacheIndex.add_tmdb_id_with_trailer(tmdb_id_int)

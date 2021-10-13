@@ -7,9 +7,12 @@ Created on 6/12/21
 Provides methods to create and execute queries to Kodi database
 
 """
+import sys
+
 import simplejson
 
 from backend.json_utils_basic import JsonUtilsBasic
+from common.exceptions import AbortException
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
@@ -212,6 +215,8 @@ class DBAccess:
                 cls._logger.debug_extra_verbose('JASON DUMP:',
                                                json.dumps(
                                                    query, indent=3, sort_keys=True))
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception:
             pass
 
@@ -236,6 +241,8 @@ class DBAccess:
             else:
                 movies.append(movie)
 
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             movies = []
             message: str = ''
