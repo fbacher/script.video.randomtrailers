@@ -300,19 +300,15 @@ class Monitor(MinimalMonitor):
         cls.startup_complete_event.set()
 
         with cls._settings_changed_listener_lock:
-            del cls._settings_changed_listeners[:]
+            cls._settings_changed_listeners.clear()
 
         with cls._screen_saver_listener_lock:
-            del cls._screen_saver_listeners[:]
+            cls._screen_saver_listeners.clear()
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            xbmc.sleep(250)
             from common.debug_utils import Debug
-            Debug.dump_all_threads()
-            xbmc.sleep(1000)
-            Debug.dump_all_threads()
-            xbmc.sleep(1000)
-            Debug.dump_all_threads()
+            Debug.dump_all_threads(delay=0.25)
+            Debug.dump_all_threads(delay=0.50)
 
     @classmethod
     def _inform_settings_changed_listeners(cls) -> None:
@@ -323,7 +319,7 @@ class Monitor(MinimalMonitor):
         with cls._settings_changed_listener_lock:
             listeners = copy.copy(cls._settings_changed_listeners)
             if cls.is_abort_requested():
-                del cls._settings_changed_listeners[:]
+                cls._settings_changed_listeners.clear()
 
         for listener, listener_name in listeners.items():
             if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
@@ -344,7 +340,7 @@ class Monitor(MinimalMonitor):
         with cls._screen_saver_listener_lock:
             listeners_copy = copy.copy(cls._screen_saver_listeners)
             if cls.is_abort_requested():
-                del cls._screen_saver_listeners[:]
+                cls._screen_saver_listeners.clear()
 
         if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             cls._logger.debug_verbose(f'Screensaver activated: {activated}')
@@ -567,7 +563,7 @@ class Monitor(MinimalMonitor):
 
     @classmethod
     def dump_wait_counts(cls) -> None:
-        return;
+        return
 
         xbmc.log('Wait Call Map', xbmc.LOGDEBUG)
         for k, v in cls._wait_call_count_map.items():

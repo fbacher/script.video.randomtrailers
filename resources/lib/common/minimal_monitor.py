@@ -103,8 +103,8 @@ class MinimalMonitor(xbmc.Monitor):
     def set_abort_received(cls):
         if not cls._abort_received.is_set():
             cls._abort_received.set()
-            if cls._abort_callback is not None:
-                cls._abort_callback()
+            if MinimalMonitor._abort_callback is not None:
+                MinimalMonitor._abort_callback()
 
     @classmethod
     def throw_exception_if_abort_requested(cls, timeout: float = 0) -> None:
@@ -130,7 +130,7 @@ class MinimalMonitor(xbmc.Monitor):
 
     @classmethod
     def register_abort_callback(cls, callback: Callable[[], None]) -> None:
-        cls._abort_callback = callback
+        MinimalMonitor._abort_callback = callback
 
 
 # Initialize class:
