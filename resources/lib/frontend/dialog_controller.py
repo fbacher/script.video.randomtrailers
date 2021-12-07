@@ -114,10 +114,15 @@ class DialogStateMgr(BaseDialogStateMgr):
             TaskLoop.get_player().resume_play()
 
             # TODO: There may be more to this...
-
-            MovieDetailsTimer.cancel('User Requested Exit', cancel_callback=None)
-            TrailerTimer.cancel('User Requested Exit', cancel_callback=None,
-                                stop_play=True)
+            try:
+                MovieDetailsTimer.cancel('User Requested Exit', cancel_callback=None)
+            except Exception:
+                pass  # Ignore, probably received AbortException
+            try:
+                TrailerTimer.cancel('User Requested Exit', cancel_callback=None,
+                                    stop_play=True)
+            except Exception:
+                pass  # Ignore, probably received AbortException
 
         # Multiple groups can be played before exiting. Allow
         # them to be reset back to normal.
@@ -125,8 +130,6 @@ class DialogStateMgr(BaseDialogStateMgr):
         if cls._dialog_state == DialogState.GROUP_QUOTA_REACHED:
             cls._dialog_state = dialog_state
 
-        # if dialog_state > self._dialog_state:
-        #     self._dialog_state = dialog_state
         cls.get_trailer_dialog()._wait_event.set(ReasonEvent.RUN_STATE_CHANGE)
 
 
@@ -567,11 +570,7 @@ class TaskLoop(threading.Thread):
         except HistoryEmpty:
             self._logger.exception()
         except AbortException:
-            MovieDetailsTimer.cancel(f'Shutting down plugin',
-                                     cancel_callback=None)
-            TrailerTimer.cancel(f'Shutting down plugin',
-                                cancel_callback=None, stop_play=True)
-
+            pass  # Let thread die
         except Exception:
             clz._logger.exception()
         finally:
@@ -770,6 +769,13 @@ class TaskLoop(threading.Thread):
                                           debug_label=self._movie.get_title(),
                                           callback_on_stop=
                                           clz.callback_show_details_finished)
+            if self._movie.is_starving():
+                # Starving flag cleared on above query
+                NotificationTimer.start_timer(notification_msg=
+                                              f'Having difficulty preparing '
+                                              f'trailers to play. May see '
+                                              f'repeats.',
+                                              debug_label=self._movie.get_title())
 
     @classmethod
     def callback_show_details_finished(cls, stop_play: bool = False):
@@ -1017,9 +1023,16 @@ class TaskLoop(threading.Thread):
                         raise SkipMovieException()  # Try again
 
                     if next_movie_status == MovieStatus.BUSY:
-                        DialogStateMgr.set_random_trailers_play_state(
-                                DialogState.NO_TRAILERS_TO_PLAY)
-                        raise SkipMovieException()  # Try again
+                        if next_movie is None:
+                            DialogStateMgr.set_random_trailers_play_state(
+                                    DialogState.NO_TRAILERS_TO_PLAY)
+                            raise SkipMovieException()  # Try again
+                        else:
+                            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                clz._logger.debug_extra_verbose(
+                                    f'status: {next_movie_status} '
+                                    f'movie: '
+                                    f'{next_movie}')
 
                     DialogStateMgr.set_random_trailers_play_state(
                             DialogState.NORMAL)

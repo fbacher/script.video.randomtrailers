@@ -328,6 +328,7 @@ class BaseTimer:
                         return
 
                     cls.stop_action(called_early=called_early, stop_play=stop_play)
+                    # Clear
                     TrailerStatus.clear_notification_msg()
                     Glue.get_dialog().update_notification_labels(text=None)
                 finally:
@@ -1041,9 +1042,11 @@ class TrailerStatus:
 
     @classmethod
     def clear_notification_msg(cls) -> None:
+        # Called by stop methods
         cls._notification_msg = None
         cls.show_notification = False
-        cls.value_changed(VisibleFields.NOTIFICATION)
+        # TODO test to see if needed
+        # cls.value_changed(VisibleFields.NOTIFICATION)
 
     @classmethod
     def get_notification_msg(cls) -> str:

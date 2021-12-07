@@ -271,8 +271,7 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             if self._movie is None:
                 clz._logger.info('There will be no trailers to play')
                 msg: str = Messages.get_msg(Messages.NO_TRAILERS_TO_PLAY)
-                NotificationTimer.start_timer(notification_msg=msg,
-                                              debug_label=self._movie.get_title())
+                NotificationTimer.start_timer(notification_msg=msg)
                 self._dialog_state_mgr.set_random_trailers_play_state(
                         DialogState.NO_TRAILERS_TO_PLAY)
             else:
