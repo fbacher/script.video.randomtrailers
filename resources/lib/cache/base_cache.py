@@ -55,6 +55,14 @@ class BaseCache:
     _logger = module_logger.getChild('BaseCache')
     _instance = None
 
+    @classmethod
+    def class_init(cls) -> None:
+        """
+        :return:
+        """
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(type(cls).__name__)
+
     def __init__(self) -> None:
         """
 
@@ -85,10 +93,11 @@ class BaseCache:
         movie: AbstractMovie = None
         status = 0
 
+        cls._logger.debug(f'movie_id: {movie_id} source: {source}')
         if Settings.is_use_tmdb_cache():
             start = datetime.datetime.now()
-            movie = BaseCache.read_tmdb_cache_json(movie_id, source=source,
-                                                   error_msg=error_msg)
+            movie = BaseCache.read_cache_json(movie_id, source=source,
+                                              error_msg=error_msg)
             status = 0
             stop = datetime.datetime.now()
             read_time = stop - start
@@ -98,6 +107,8 @@ class BaseCache:
             status = -1
             # if Settings.is_use_tmdb_cache():
             #     BaseCacheIndex.remove_tmdb_id_with_trailer(movie_id)
+
+        cls._logger.debug(f'status: {status} movie: {movie.get_title()}')
         return status, movie
 
     @classmethod
@@ -220,12 +231,8 @@ class BaseCache:
                 cls._logger.error(messages.get_msg(
                     Messages.CAN_NOT_WRITE_FILE) % path)
                 return None
-            # temp_movie = {}
-
-            #  TODO: Move cache serialize logic into AbstractMovie
-
             movie.set_cached(True)
-            serializable: MovieType = movie.get_serializable()
+            serializable: MovieType = movie.serialize()
 
             Monitor.throw_exception_if_abort_requested()
             with io.open(path, mode='wt', newline=None,
@@ -237,7 +244,6 @@ class BaseCache:
                 cache_file.flush()
                 json_cache = JsonCacheHelper.get_json_cache_for_source(source)
                 json_cache.add_item(movie_id_str, movie_id_str)
-                # del temp_movie
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -522,3 +528,6 @@ class BaseCache:
         if cls._logger.isEnabledFor(LazyLogger.DISABLED):
             cls._logger.debug_extra_verbose('Path:', path)
         return path
+
+
+BaseCache.class_init()

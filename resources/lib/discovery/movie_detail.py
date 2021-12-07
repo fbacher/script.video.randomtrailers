@@ -18,10 +18,12 @@ import xbmcvfs
 from backend.backend_constants import YOUTUBE_URL
 from backend.movie_entry_utils import MovieEntryUtils
 from backend.tmdb_utils import TMDBUtils
+from cache.library_trailer_index import LibraryTrailerIndex
+from cache.movie_trailer_index import MovieTrailerIndex
 from cache.tfh_cache import TFHCache
 from cache.tmdb_cache_index import CacheIndex
+from cache.tmdb_trailer_index import TMDbTrailerIndex
 from cache.trailer_unavailable_cache import TrailerUnavailableCache
-# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.constants import Constants
 from common.debug_utils import Debug
 from common.imports import *
@@ -32,7 +34,8 @@ from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, CommunicationException, reraise
 from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
-from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie, LibraryMovie
+from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie, LibraryMovie, \
+    Movies
 from common.movie_constants import MovieField
 from common.playlist import Playlist
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
@@ -57,7 +60,7 @@ class MovieDetail:
 
         Assumptions:
            An attempt to discover TMDb id for this movie has been done and the
-           movie entry has been updated with any found info. (See TrailerFetcher,
+           movie entry has been updated with any found info. (See AbstractTrailerFetcher,
            this is done there because the title + year is used for a key in
            the Aggregate Trailer table).
 
@@ -110,12 +113,18 @@ class MovieDetail:
                 # to reduce memory usage. CPU cost very little given that a trailer
                 # is shown only about every 3 minutes, or so.
 
+                cls._logger.debug(f'fully_populated path: '
+                                  f'{fully_populated_movie.get_trailer_path()} '
+                                  f'cache: {fully_populated_movie.get_cached_trailer()} '
+                                  f'normalized: {fully_populated_movie.get_normalized_trailer_path()} ')
+                cls._logger.debug(f'movie path: {movie.get_trailer_path()} '
+                                  f'cache: {movie.get_cached_trailer()} '
+                                  f'normalized: {movie.get_normalized_trailer_path()}')
                 cls.clone_fields(movie, fully_populated_movie,
                                  MovieField.DETAIL_CLONE_FIELDS)
                 movie = fully_populated_movie
 
-            if (keep_trailer and
-                    (isinstance(movie, TMDbMovie) or isinstance(movie, TFHMovie))):
+            if keep_trailer and isinstance(movie, (TMDbMovie, TFHMovie)):
                 # If a movie was downloaded from TMDB or TFH, check to see if
                 # the movie is in our library so that fact can be included in the
                 # UI.
@@ -170,6 +179,7 @@ class MovieDetail:
 
             if keep_trailer:
                 movie.set_discovery_state(MovieField.DISCOVERY_READY_TO_DISPLAY)
+                movie.set_has_been_fully_discovered(True)
 
             if tmdb_id is not None:
                 CacheIndex.remove_unprocessed_movie(tmdb_id)
@@ -217,6 +227,7 @@ class MovieDetail:
                  should not be displayed
         """
         tmdb_id: Optional[int] = MovieEntryUtils.get_tmdb_id(movie)
+        movie.set_tmdb_id(tmdb_id)
         if tmdb_id is not None:
             tmdb_id = int(tmdb_id)
 
@@ -226,7 +237,7 @@ class MovieDetail:
         if isinstance(movie, ITunesMovie):
             Monitor.throw_exception_if_abort_requested()
             rejection_reasons, tmdb_detail_info = TMDbMovieDownloader.get_tmdb_movie(
-                movie.get_title(), tmdb_id, movie.get_source(), ignore_failures=True)
+                movie, ignore_failures=True)
 
             if len(rejection_reasons) > 0:
                 # There is some data which is normally considered a deal-killer.
@@ -252,7 +263,7 @@ class MovieDetail:
         if isinstance(movie, TFHMovie):
             Monitor.throw_exception_if_abort_requested()
             rejection_reasons, tmdb_detail_info = TMDbMovieDownloader.get_tmdb_movie(
-                movie.get_title(), tmdb_id, movie.get_source(), ignore_failures=True)
+                movie, ignore_failures=True)
 
             if len(rejection_reasons) > 0:
                 # At this point, rejection is only due inability to get any TMDb info
@@ -313,6 +324,32 @@ class MovieDetail:
         return keep_trailer
 
     @classmethod
+    def get_tmdb_trailer_url(cls, movie: AbstractMovie) -> str:
+        """
+        Gets only the trailer path for the TMDb movie referenced by the given movie.
+
+        TODO: Revisit policy of merging DUMMY TMDb information when no TMDb movie
+              found for TFH movies.
+
+        param: movie
+
+        returns: url path to the trailer for the TMDb movie.
+                 None if no path found
+        """
+
+        Monitor.throw_exception_if_abort_requested()
+        tmdb_detail_info: TMDbMovie
+        rejection_reasons, tmdb_detail_info = TMDbMovieDownloader.get_tmdb_movie(
+            movie, ignore_failures=True)
+
+        if len(rejection_reasons) > 0:
+            cls._logger.debug(f'tmdb movie rejected:{ movie.get_tmdb_id()}')
+            return None
+        else:
+            cls._logger.debug(f'found path: {tmdb_detail_info.get_trailer_path()}')
+            return tmdb_detail_info.get_trailer_path()
+
+    @classmethod
     def clone_fields(cls,
                      source_movie: AbstractMovie,
                      destination_movie: AbstractMovie,
@@ -330,6 +367,8 @@ class MovieDetail:
             for key, default_value in fields_to_copy.items():
                 value = source_movie.get_property(key, default_value)
                 destination_movie.set_property(key, value)
+            destination_movie.set_local_trailer(source_movie.has_local_trailer())
+            destination_movie.set_has_trailer(source_movie.get_has_trailer())
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -352,18 +391,31 @@ class MovieDetail:
         rc: int = 0
 
         try:
-            if movie.get_source() not in MovieField.LIB_TMDB_ITUNES_TFH_SOURCES:
+            if not isinstance(movie, Movies.LIB_TMDB_ITUNES_TFH_SOURCES):
+                cls._logger.debug(f'Incorrect type: {type(movie)}')
                 return 0
 
             start = datetime.datetime.now()
             movie_id = ''
+            #
+            # We are guaranteed to have a trailer path. Either a url or local file path
+            #
             trailer_path = movie.get_trailer_path()
-            is_url = DiskUtils.is_url(trailer_path)
+            is_url = movie.is_trailer_url()
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 cls._logger.debug_verbose(
                     f'{movie.get_title()} {movie.get_trailer_path()} url: {is_url}')
 
             if not is_url:
+                # Must be a path to a local trailer (not cached, etc.).
+                #
+                # The meaning of set_local_trailer is that a local trailer,
+                # from a download to a cache or not, is present.
+                #
+                movie.set_local_trailer(True)
+                movie.set_has_trailer(True)
+                movie.validate_local_trailer()
+                MovieTrailerIndex.add(movie)
                 return rc
 
             # If cached files purged, then remove references
@@ -379,6 +431,8 @@ class MovieDetail:
 
             if (movie.has_normalized_trailer()
                     and os.path.exists(movie.get_normalized_trailer_path())):
+                movie.set_local_trailer(True)
+                MovieTrailerIndex.add(movie)
                 return rc
 
             if trailer_path.startswith('plugin'):
@@ -389,6 +443,8 @@ class MovieDetail:
                 trailer_path = new_path
 
             movie_id = Cache.get_trailer_id(movie)
+            cls._logger.debug(f'movie: {movie.get_title()} movie_id: {movie_id} '
+                              f'trailer_path: {trailer_path}')
 
             # Trailers for movies in the library are treated differently
             # from those that we don't have a local movie for:
@@ -407,14 +463,25 @@ class MovieDetail:
             if movie_id is not None and movie_id != '':
                 cached_path = Cache.get_trailer_cache_file_path_for_movie_id(
                     movie, '*-movie.*', False)
+                cls._logger.debug(f'cached_path: {cached_path}')
                 cached_trailers = glob.glob(cached_path)
                 if len(cached_trailers) != 0:
+                    #
+                    # A cached trailer exists. It is either the normalized or not.
+                    #
+                    movie.set_local_trailer(True)
+                    movie.set_has_trailer(True)
+                    MovieTrailerIndex.add(movie)
                     already_normalized = False
                     for cached_trailer in cached_trailers:
                         if 'normalized' in cached_trailer:
                             already_normalized = True
                             if movie.get_normalized_trailer_path() == '':
                                 movie.set_normalized_trailer_path(cached_trailer)
+                            cls._logger.debug(
+                                f'Already normalized trailer {movie.get_title()} '
+                                f'path: {movie.get_normalized_trailer_path()}',
+                                Trace.TRACE_DISCOVERY)
 
                     if not already_normalized:
                         movie.set_cached_trailer(cached_trailers[0])
@@ -424,18 +491,28 @@ class MovieDetail:
                             cls._logger.debug_extra_verbose('time to locate movie:',
                                                             locate_time.seconds, 'path:',
                                                             movie.get_cached_trailer())
+                        cls._logger.debug(f'Already cached trailer {movie.get_title()} '
+                                          f'path: {movie.get_cached_trailer()}',
+                                          trace=Trace.TRACE_DISCOVERY)
                 else:
                     #
                     # Not in cache, download
                     #
+                    movie.set_local_trailer(False)
+                    MovieTrailerIndex.add(movie)
+
                     downloaded_trailer: MovieType
                     error_code: int
                     trailer_folder = xbmcvfs.translatePath('special://temp')
                     video_downloader = VideoDownloader()
+                    cls._logger.debug(f'downloading movie_id: {movie_id}')
                     error_code, downloaded_trailer = \
                         video_downloader.get_video(
                             trailer_path, trailer_folder, movie_id,
                             movie.get_title(), movie.get_source(), block=False)
+                    cls._logger.debug(f'video_downloader returned error_code: '
+                                      f'{error_code} downloaded_trailer: '
+                                      f'{downloaded_trailer}')
                     if error_code == Constants.HTTP_TOO_MANY_REQUESTS:
                         rc = Constants.HTTP_TOO_MANY_REQUESTS
                         if cls._logger.isEnabledFor(LazyLogger.DEBUG):
@@ -457,7 +534,8 @@ class MovieDetail:
                         download_path = downloaded_trailer[MovieField.TRAILER]
                         if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             cls._logger.debug_extra_verbose(f'Successful Download path: '
-                                                            f'{download_path}')
+                                                            f'{download_path}',
+                                                            trace=Trace.TRACE_DISCOVERY)
 
                     """
                        To save json data from downloaded for debugging, uncomment
@@ -507,7 +585,9 @@ class MovieDetail:
                                     os.path.dirname(cached_path))
                                 shutil.move(download_path, cached_path)
                                 Path(cached_path).touch()
-                                movie.set_cached_trailer(cached_path)
+                            movie.set_cached_trailer(cached_path)
+                            movie.set_local_trailer(True)
+                            MovieTrailerIndex.add(movie)
 
                             stop = datetime.datetime.now()
                             locate_time = stop - start
@@ -534,6 +614,11 @@ class MovieDetail:
             cls._logger.exception(f'Exception. Movie: {movie.get_title()}',
                                   'ID:', movie_id, 'Path:', cached_path)
 
+        movie.validate_local_trailer()
+        if isinstance(movie, TMDbMovie):
+            TMDbTrailerIndex.add(movie)
+        elif isinstance(movie, LibraryMovie):
+            LibraryTrailerIndex.add(movie)
         return rc
 
     @classmethod

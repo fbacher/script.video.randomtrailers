@@ -5,7 +5,7 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-
+from cache.tmdb_trailer_index import TMDbTrailerIndex
 from common.imports import *
 
 import datetime
@@ -285,7 +285,7 @@ class CacheParameters(CacheParametersType):
         It is expensive to rebuild the cache, but having many old .json entries
         creates multiple problems:
             * At startup, in an attempt to save time, the cache is walked and
-              all of the tmdb_ids from the json files are added to the TrailerFetcher
+              all of the tmdb_ids from the json files are added to the AbstractTrailerFetcher
               to be examined for matches.
             * The previous step can be expensive. Further, if most fail the configured
               filter, much time can be wasted resulting in a blank screen
@@ -979,10 +979,11 @@ class CachedPagesData:
 
         :return:
         """
+
         if self._cached_page_by_key is not None:
             return
 
-        path = xbmcvfs.validatePath(self._path)
+        path: str = xbmcvfs.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
@@ -1011,7 +1012,8 @@ class CachedPagesData:
             self._logger.exception('')
 
         self._logger.debug_verbose(
-            "Loaded entries:", len(self._cached_page_by_key))
+            f'Loaded entries key: {self._key} # pages: '
+            f'{len(self._cached_page_by_key)}')
         self._time_of_last_save = datetime.datetime.now()
 
     def clear(self) -> None:
@@ -1073,7 +1075,7 @@ class CacheIndex:
 
     @classmethod
     def load_cache(cls,
-                   cache_changed: bool
+                   cache_changed: bool,
                    ) -> None:
         """
         :param cache_changed:
@@ -1099,8 +1101,10 @@ class CacheIndex:
                 cached_page_data: CachedPagesData
                 cached_page_key: str
                 for cached_page_key in CachedPagesData.pages_data.keys():
+                    cached_page_data: CachedPagesData
                     cached_page_data = CachedPagesData.pages_data[cached_page_key]
                     cached_page_data.clear()
+                    cached_page_data.save_search_pages(flush=True)
 
             cls.load_tmdb_ids_with_trailers()
             cls.load_unprocessed_movies_cache()
@@ -1128,6 +1132,8 @@ class CacheIndex:
         :return:
         """
 
+        cls._logger.debug(f'tmdb_search_query: {tmdb_search_query}')
+        cached_pages_data: CachedPagesData
         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
         return list(cached_pages_data.get_undiscovered_search_pages())
 
@@ -1139,6 +1145,7 @@ class CacheIndex:
         """
         number_of_discovered_pages = 0
         for page_type in ('genre', 'keyword', 'generic'):
+            cached_pages_data: CachedPagesData
             cached_pages_data = CachedPagesData.pages_data[page_type]
             number_of_discovered_pages +=\
                 cached_pages_data.get_number_of_discovered_search_pages()
@@ -1240,7 +1247,6 @@ class CacheIndex:
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
-
             if os.path.exists(path):
                 with CacheIndex.lock, io.open(path, mode='rt', newline=None,
                                               encoding='utf-8') as cacheFile:

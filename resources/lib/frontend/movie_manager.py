@@ -131,7 +131,7 @@ class MovieManager:
                     status = MovieStatus.OK
 
                 trailer = HistoryList.get_next_trailer()
-                countdown = 50  # Five Seconds
+                countdown = 10  # Five Seconds
 
                 # trailer is None when already played most recent trailer in history.
                 # Need to get trailer from back-end
@@ -139,18 +139,35 @@ class MovieManager:
                 while trailer is None and countdown >= 0 and not self._changed:
                     countdown -= 1
                     if not self._pre_fetched_trailer_queue.empty():
-                        trailer = self._pre_fetched_trailer_queue.get(timeout=0.1)
+                        trailer = self._pre_fetched_trailer_queue.get(timeout=0.5)
                         if trailer is not None:
                             title = trailer.get_title()
+
+                            # HistoryList.append does not add trailers that
+                            # are in it's recent history. However, when
+                            # the back-end is having trouble getting trailers
+                            # to us, it can send duplicates. Therefore, if,
+                            # a few lines down, HistoryList.get_next_trailer
+                            # doesn't return anything, we can return this
+                            # trailer, if it is marked as starving.
+
                             HistoryList.append(trailer)
 
                             # Force go get from history to make sure history cursor
                             # is in sync what was just appended, otherwise, if user
                             # presses next/prev movie rapidly, the history will
                             # diverge from what is returned here.
-                            trailer = HistoryList.get_next_trailer()
 
-                    Monitor.throw_exception_if_abort_requested(timeout=0.001)
+                            next_trailer = HistoryList.get_next_trailer()
+                            if next_trailer is not None:
+                                trailer = next_trailer
+                            elif not trailer.is_starving(reset=False):
+
+                                # If trailer is not marked as starving, then
+                                # don't force it to be played.
+                                trailer = None
+
+                    Monitor.throw_exception_if_abort_requested(timeout=0.0)
 
                 title: str = 'None'
                 if trailer is not None:
@@ -209,7 +226,7 @@ class MovieManager:
                 clz._logger.debug_verbose('Does not exist:', trailer_path)
         else:
             trailer_path = trailer.get_trailer_path()
-            if not trailer.has_trailer():
+            if not trailer.has_trailer_path():
                 trailer_path = None
             elif not (trailer_path.startswith('plugin') or os.path.exists(trailer_path)):
                 trailer.set_trailer_path('')
@@ -223,12 +240,17 @@ class MovieManager:
         self._thread.start()
 
     def _pre_fetch_trailer(self) -> None:
+        clz = type(self)
         try:
             while not Monitor.throw_exception_if_abort_requested():
+                clz._logger.debug(f'get_next_trailer called')
                 status, trailer = FrontendBridge.get_next_trailer()
+                clz._logger.debug(f'Got status: {status} trailer: {trailer}')
                 if trailer is not None and Debug.validate_detailed_movie_properties(
                         trailer):
                     added = False
+                    if status == FrontendBridgeStatus.BUSY:
+                        trailer.set_starving(True)
                     while not added:
                         try:
                             self._pre_fetched_trailer_queue.put(trailer, timeout=0.1)
@@ -239,7 +261,6 @@ class MovieManager:
         except AbortException:
             pass  # In thread, let die
         except Exception as e:
-            clz = type(self)
             clz._logger.exception(e)
 
     # Put movie in recent history. If full, delete oldest

@@ -47,7 +47,7 @@ class PluginBridge:
         if PluginBridge._logger is not None:
             return
 
-        PluginBridge._logger: LazyLogger = module_logger.getChild(type(self).__name__)
+        PluginBridge._logger = module_logger.getChild(type(self).__name__)
         try:
             PluginBridge._registered_slots = []
             Monitor.register_abort_listener(type(self).on_abort_event)

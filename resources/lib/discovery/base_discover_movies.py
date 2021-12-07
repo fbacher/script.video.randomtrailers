@@ -96,7 +96,7 @@ class BaseDiscoverMovies(threading.Thread):
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 # clz.logger.debug('got self._movie_data.lock')
                 clz.logger.debug_verbose('Shuffling because finished_discovery',
-                                   trace=Trace.TRACE_DISCOVERY)
+                                         trace=Trace.TRACE_DISCOVERY)
             self._movie_data.shuffle_discovered_movies(mark_unplayed=False)
             self._discovery_complete = True
 
@@ -108,16 +108,28 @@ class BaseDiscoverMovies(threading.Thread):
 
     def add_to_discovered_movies(self,
                                  movies: Union[BaseMovie,
-                                               Iterable[BaseMovie]]) -> None:
+                                               Iterable[BaseMovie]],
+                                 shuffle: bool = False) -> None:
         """
 
         :param movies:
+        :param shuffle: Force reshuffling and recreation of discovery queues.
+                        Useful when a large number of movies added and before
+                        the rate of adding more movies is about to drop.
+
+                        It is important to do this at the end of initial
+                        loading from caches because shuffling also
+                        enables better balancing of mixing easily
+                        discoverable movies with more complex cases,
+                        reducing repeats and black screens.
         :return:
         """
         clz = type(self)
 
         # clz.logger.enter()
         self._movie_data.add_to_discovered_movies(movies)
+        if shuffle:
+            self._movie_data.shuffle_discovered_movies()
 
     def get_number_of_movies(self) -> int:
         """

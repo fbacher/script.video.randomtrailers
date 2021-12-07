@@ -8,18 +8,25 @@ import random
 import threading
 
 from common.imports import *
+from common.logger import LazyLogger
 from common.movie import AbstractMovie
+
+
+module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
 class RecentTrailerHistory:
 
     MAXIMUM_HISTORY: Final[int] = 20
+
+    logger: ClassVar[LazyLogger] = None
+
     _trailer_history: Final[List[AbstractMovie]] = []
     _lock: Final[threading.RLock] = threading.RLock()
 
     @classmethod
     def __class_init__(cls) -> None:
-        pass
+        cls.logger = module_logger.getChild(f'{cls.__name__}')
 
     @classmethod
     def get_trailer(cls) -> AbstractMovie:
@@ -28,14 +35,18 @@ class RecentTrailerHistory:
                 return None
 
             index: int = random.randint(0, len(cls._trailer_history) - 1)
+            cls.logger.debug(f'len: {len(cls._trailer_history)} '
+                             f'getting: {cls._trailer_history[index].get_title()}')
             return cls._trailer_history[index]
 
     @classmethod
     def add_trailer(cls, movie: AbstractMovie) -> None:
         with cls._lock:
             cls._trailer_history.append(movie)
+            cls.logger.debug(f'adding: {movie.get_title()}')
             if len(cls._trailer_history) > cls.MAXIMUM_HISTORY:
                 del cls._trailer_history[0]
+                cls.logger.debug(f'history[0]: {cls._trailer_history[0].get_title()}')
 
     @classmethod
     def get_number_of_trailers(cls) -> int:
@@ -59,3 +70,6 @@ class RecentlyPlayedTrailers:
     @classmethod
     def get_number_of_trailers(cls) -> int:
         return RecentTrailerHistory.get_number_of_trailers()
+
+
+RecentTrailerHistory.__class_init__()

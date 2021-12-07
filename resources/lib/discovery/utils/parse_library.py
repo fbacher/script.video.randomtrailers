@@ -2,12 +2,16 @@ import sys
 import time
 from datetime import datetime
 
+from cache.library_trailer_index import LibraryTrailerIndex
+from common.constants import Constants
+from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
 from common.imports import *
 from common.logger import LazyLogger
-from common.movie import LibraryMovie
+from common.movie import LibraryMovie, LibraryMovieId
 from common.movie_constants import MovieField
 from common.certification import Certification, WorldCertifications
+from common.settings import Settings
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -85,7 +89,9 @@ class ParseLibrary:
 
     def parse_trailer_path(self) -> None:
         trailer_path: str = self._library_entry.get(MovieField.TRAILER, '')
-        self._movie.set_trailer(trailer_path)
+        if Constants.DISABLE_LIBRARY_TRAILERS and not DiskUtils.is_url(trailer_path):
+            trailer_path = ''
+        self._movie.set_trailer_path(trailer_path)
 
     def parse_trailer_type(self) -> None:
         trailer_type: str = self._library_entry.get(MovieField.TRAILER_TYPE,
@@ -196,6 +202,7 @@ class ParseLibrary:
     def parse_tags(self) -> None:
         tags: List[str] = self._library_entry.get(MovieField.TAG, [])
         self._movie.set_tags(tags)
+        self._movie.set_tag_names(tags)  # Hmm. Maybe we don't need both
 
     @classmethod
     def parse_movie(cls,
@@ -211,6 +218,11 @@ class ParseLibrary:
             movie_parser.parse_last_played()
             movie_parser.parse_certification()
             movie_parser.parse_vote_average()
+
+            if Settings.is_enable_movie_stats():
+                movie_parser.parse_actors()
+                movie_parser.parse_genres()
+                movie_parser.parse_tags()
 
             if not is_sparse:
                 movie_parser.parse_trailer_type()
@@ -229,6 +241,15 @@ class ParseLibrary:
                 movie_parser.parse_tags()
 
             movie: LibraryMovie = movie_parser.get_movie()
+            movie_id: LibraryMovieId = LibraryTrailerIndex.get(movie.get_id())
+            cls._logger.debug(f'title: {movie.get_title()} '
+                              f'id: {movie.get_id()} movie_id: {movie_id}')
+            if movie_id is not None:
+                cls._logger.debug(f'local_trailer: {movie_id.has_local_trailer()} '
+                                  f'has_trailer: {movie_id.get_has_trailer()}')
+                movie.set_local_trailer(movie_id.has_local_trailer())
+                movie.set_has_trailer(movie_id.get_has_trailer())
+                movie.set_tmdb_id(movie.get_tmdb_id())
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:

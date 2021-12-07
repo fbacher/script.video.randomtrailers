@@ -16,6 +16,7 @@ from common.exceptions import AbortException
 from common.imports import *
 from common.logger import LazyLogger
 from common.monitor import Monitor
+from common.settings import Settings
 
 module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -62,6 +63,11 @@ class DBAccess:
         "userrating",
         "votes"
     ]
+    STATS_PROPERTIES: Final[List[str]] = [
+        "cast",
+        "tag",
+        "genre"
+    ]
 
     _logger: LazyLogger = None
 
@@ -99,7 +105,10 @@ class DBAccess:
 
         props: List[str]
         if sparse_properties:
-            props = cls.MINIMAL_PROPERTIES
+            props = cls.MINIMAL_PROPERTIES.copy()
+            if Settings.is_enable_movie_stats():
+                # Add a few more properties for a report
+                props.extend(cls.STATS_PROPERTIES)
         else:
             props = cls.DETAIL_PROPTIES
 

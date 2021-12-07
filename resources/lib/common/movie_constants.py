@@ -324,6 +324,13 @@ List.Sort
 
     DISCOVERY_READY_TO_DISPLAY: Final[str] = '04_discoveryReadyToDisplay'
 
+    # FULLY_DISCOVERED indicates that this movie has been fully discovered in
+    # the past, and therefore likely to do so again. Helps to prioritize
+    # discovery of movies that are most likely to result in ready-to-play
+    # trailers
+
+    FULLY_DISCOVERED: Final[str] = 'fully_discovered'
+
     # IN_FETCH_QUEUE is a boolean
     IN_FETCH_QUEUE: Final[str] = 'in_fetch_queue'
 
@@ -343,6 +350,14 @@ List.Sort
     # Used to tag class type for serialization
 
     CLASS: Final[str] = 'class'
+
+    # Used to for serialization of fields not in Map, but as fields (perhaps a
+    # mistake)
+
+    LIBRARY_ID: Final[str] = 'rts.library_id'
+    TMDB_ID: Final[str] = 'rts.tmdb_id'
+    HAS_LOCAL_TRAILER: Final[str] = 'rts.has_local_trailer'
+    HAS_TRAILER: Final[str] = 'rts.has_trailer'
 
     # Reasons a TMDB movie was rejected
 
@@ -428,7 +443,8 @@ List.Sort
 
     DETAIL_CLONE_FIELDS: MovieType = {
         NORMALIZED_TRAILER: '',
-        CACHED_TRAILER: ''
+        CACHED_TRAILER: '',
+        TRAILER: ''
     }
 
     # Used to by get_detail_info to copy fields from TMDb query to TFH movies

@@ -41,7 +41,7 @@ class TMDbFilter:
 
         The movie information can be either complete or partial information.
 
-        Complete information is from TrailerFetcher.get_tmdb_trailer,
+        Complete information is from AbstractTrailerFetcher.get_tmdb_trailer,
         by way of the cache Cache.read_tmdb_cache_json.
 
         Partial information is from the initial TMDb page discovery via
@@ -278,8 +278,8 @@ class TMDbFilter:
                 f'Error filtering tmdb movie: {movie.get_title()}')
 
         cls.logger.exit(f'Finished processing movie: {movie.get_title()} year: '
-                        f'{movie.get_year()} rejection_reason count:  '
-                        f'{len(rejection_reasons)}')
+                        f'{movie.get_year()} id: {movie.get_tmdb_id()} '
+                        f'rejection_reason count: {len(rejection_reasons)}')
 
         return rejection_reasons
 

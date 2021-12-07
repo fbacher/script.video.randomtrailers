@@ -26,7 +26,6 @@ from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
 from common.certification import Certifications, WorldCertifications
 from common.settings import Settings
-from discovery.restart_discovery_exception import StopDiscoveryException
 from youtube_dl.utils import DownloadError
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -41,7 +40,7 @@ DOWNLOAD_INFO_DELAY_BY_SOURCE = {MovieField.ITUNES_SOURCE: ITUNES_DOWNLOAD_INFO_
                                  MovieField.LIBRARY_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY,
                                  MovieField.FOLDER_SOURCE: YOUTUBE_DOWNLOAD_INFO_DELAY}
 #  Intentional delay (seconds) to help prevent TOO_MANY_REQUESTS
-YOUTUBE_DOWNLOAD_VIDEO_DELAY = (30.0, 120.0)
+YOUTUBE_DOWNLOAD_VIDEO_DELAY = (5.0, 30.0)
 ITUNES_DOWNLOAD_VIDEO_DELAY = (10.0, 60.0)
 DOWNLOAD_VIDEO_DELAY_BY_SOURCE = {MovieField.ITUNES_SOURCE: ITUNES_DOWNLOAD_VIDEO_DELAY,
                                   MovieField.TMDB_SOURCE: YOUTUBE_DOWNLOAD_VIDEO_DELAY,
@@ -56,8 +55,8 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 # Delay two hours after encountering 429 (too many requests)
 RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
-LOG_ALL = False
-LOGGER_ENABLE_LEVEL = LazyLogger.DISABLED
+LOG_ALL = True
+LOGGER_ENABLE_LEVEL = LazyLogger.DEBUG
 LOG_LOCK: bool = False
 DUMP_JSON: bool = False
 YIELD_LOCK: bool = False
@@ -222,7 +221,7 @@ class VideoDownloader:
                         datetime.datetime.now() - cls._last_youtube_request_timestamp)
             time_to_wait = delay - waited.total_seconds()
             if time_to_wait > 0.0:
-                cls._logger.debug(f'Delaying {time_to_wait} for source: {source}')
+                cls._logger.debug(f'Delaying {int(time_to_wait)} seconds for source: {source}')
                 Monitor.throw_exception_if_abort_requested(time_to_wait)
 
         finally:
@@ -667,6 +666,8 @@ class VideoDownloader:
                 ydl_opts['cachedir'] = cache_dir
 
             Monitor.throw_exception_if_abort_requested()
+
+            clz._logger.debug(f'options: {ydl_opts}')
 
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 try:

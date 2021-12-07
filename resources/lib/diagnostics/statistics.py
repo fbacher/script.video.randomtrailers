@@ -64,6 +64,8 @@ class Statistics:
     _next_trailer_wait_time_attempts: int = 0
     _next_trailer_second_attempt_wait_time_elapsed_seconds: int = 0
     _next_trailer_second_attempt_wait_time_attempts: int = 0
+    _next_trailer_third_attempt_wait_time_elapsed_seconds: int = 0
+    _next_trailer_third_attempt_wait_time_attempts: int = 0
     _json_io_time: int = 0
 
     # For Discovery Modules
@@ -322,7 +324,7 @@ class Statistics:
         cls._missing_tmdb_trailers_initial_size = size
 
     @classmethod
-    def missing_library_trailers_initial_size(cls, size: int) ->None:
+    def missing_library_trailers_initial_size(cls, size: int) -> None:
         """
 
         :return:
@@ -389,6 +391,13 @@ class Statistics:
 
     @classmethod
     def add_next_trailer_second_attempt_wait_time(cls, elapsed_seconds: int,
-                                   attempts: int) -> None:
+                                                  attempts: int) -> None:
         cls._next_trailer_second_attempt_wait_time_elapsed_seconds += elapsed_seconds
         cls._next_trailer_second_attempt_wait_time_attempts += attempts
+
+    @classmethod
+    def add_next_trailer_second_attempt_wait_time(cls,
+                                                  elapsed_seconds: int,
+                                                  attempts: int) -> None:
+        cls._next_trailer_third_attempt_wait_time_elapsed_seconds += elapsed_seconds
+        cls._next_trailer_third_attempt_wait_time_attempts += attempts

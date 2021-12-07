@@ -7,23 +7,32 @@ Created on Feb 10, 2019
 """
 
 
-from collections import OrderedDict
-import threading
-import sys
 import datetime
+import sys
+import threading
+from collections import OrderedDict
+
+import xbmc
 
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException, DuplicateException, reraise
+from common.exceptions import AbortException, DuplicateException
 from common.imports import *
 from common.kodi_queue import (KodiQueue)
-from common.monitor import Monitor
 from common.logger import (Trace, LazyLogger)
-from common.movie import BaseMovie, AbstractMovieId, AbstractMovie, TFHMovie
+from common.monitor import Monitor
+from common.movie import BaseMovie, AbstractMovieId, AbstractMovie
 from common.movie_constants import MovieField, MovieType
 from diagnostics.play_stats import PlayStatistics
+from discovery.trailer_fetcher_interface import TrailerFetcherInterface
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+
+# The number of trailers to fully discover ahead of time. MUST be at least one
+# but a bad idea to have < 3)
+
+MOVIES_TO_PREFETCH: Final[int] = 3
+LOCAL_TRAILERS_FOR_EACH_REMOTE: Final[int] = 4
 
 
 class MovieSourceData:
@@ -130,7 +139,8 @@ class UniqueQueue:
                     self.logger.debug(f'movie: {str(movie)} key: {key}')
                     self.logger.dump_stack(f'{str(movie)} '
                                            f'movie not found in duplicate_check for '
-                                           f'')
+                                           f'',
+                                           heading='')
         # if self.logger.isEnabledFor(LazyLogger.DEBUG):
             # self.logger.debug('got movie:', item[Movie.TITLE], 'source:',
             #                    item[Movie.SOURCE], 'key:', key)
@@ -191,7 +201,7 @@ class MovieList:
     """
 
     """
-    logger: ClassVar[LazyLogger] = None
+    logger: LazyLogger = None
 
     def __init__(self, movie_source: str) -> None:
         """
@@ -212,7 +222,7 @@ class MovieList:
         self._ordered_dict: OrderedDict = OrderedDict()
 
     def __sizeof__(self) -> int:
-        approx_size: int =  Debug.total_size(self._ordered_dict)
+        approx_size: int = Debug.total_size(self._ordered_dict)
         return approx_size
 
     def clear(self) -> None:
@@ -242,31 +252,45 @@ class MovieList:
         """
         clz = MovieList
 
-        if self.logger.isEnabledFor(LazyLogger.DISABLED):
-            self.logger.debug(f'movie: {movie} source: {movie.get_source()}')
+        if self.logger.isEnabledFor(LazyLogger.DEBUG):
+            self.logger.debug(f'movie: {movie.get_id()} type: {type(movie)} '
+                              f'source: {movie.get_source()}')
 
         # Key is source + _ + id
         # Therefore if keys are identical, so are sources
         key = clz.get_key(movie)
         new_movie: bool = True
+        dupe: bool = False
         with self._lock:
             if key in self._ordered_dict.keys():
                 current_value = self._ordered_dict.get(key)
-                new_movie = False
-                # Movies are from same source then complain about
+                dupe = True
+
+                # If movies are from same source then complain about
                 # duplicate, unless one is a movie id and the other
                 # is a movie.
 
-                if (not (isinstance(current_value, AbstractMovieId)
-                         and isinstance(movie, AbstractMovie))
-                        or not (isinstance(current_value, AbstractMovie)
-                                and isinstance(movie, AbstractMovieId))):
+                if dupe and self.logger.isEnabledFor(LazyLogger.DEBUG):
+                    self.logger.debug(f'dupe: movie: {movie.get_id()} type: '
+                                      f'{type(movie)} from type: {type(current_value)} '
+                                      f'source: {movie.get_source()}')
+                    # self.logger.dump_stack(heading='', xbmc_log_level=xbmc.LOGDEBUG)
+
+                if dupe:
+                    clz.logger.debug(f'Raising DuplicateException')
+                    clz.logger.debug(f'isinstance current_value AbstractMovieId: '
+                                     f'{isinstance(current_value, AbstractMovieId)}')
+                    clz.logger.debug(f'isinstance current_value AbstractMovie: '
+                                     f'{isinstance(current_value, AbstractMovie)}')
+                    clz.logger.debug(f'isinstance movie AbstractMovieId: '
+                                     f'{isinstance(movie, AbstractMovieId)}')
+                    clz.logger.debug(f'isinstance movie AbstractMovie: '
+                                     f'{isinstance(movie, AbstractMovie)}')
                     raise DuplicateException()
 
             # If we didn't raise Exception, then okay to add or replace
             self._ordered_dict[key] = movie
-            if new_movie:
-                self._number_of_added_movies += 1
+            self._number_of_added_movies += 1
 
             PlayStatistics.add(movie)
 
@@ -295,8 +319,11 @@ class MovieList:
 
             return movie
 
-    def get_movies(self) -> ValuesView[BaseMovie]:
-        return self._ordered_dict.values()
+    def get_movies(self) -> List[BaseMovie]:
+        with self._lock:
+            movies: List[BaseMovie] = []
+            movies.extend(self._ordered_dict.values())
+            return movies
 
     def remove(self, movie: BaseMovie) -> None:
         """
@@ -309,6 +336,10 @@ class MovieList:
         if movie is None:
             return
 
+        if self.logger.isEnabledFor(LazyLogger.DEBUG):
+            self.logger.debug(f'movie: {movie.get_id()} type: {type(movie)} '
+                              f'source: {movie.get_source()}')
+            self.logger.dump_stack(heading='')
         with self._lock:
             try:
                 del self._ordered_dict[clz.get_key(movie)]
@@ -342,7 +373,7 @@ class MovieList:
         """
         clz = MovieList
 
-        # clz.logger.enter()
+        # self.logger.dump_stack(heading='', xbmc_log_level=xbmc.LOGDEBUG)
 
         with self._lock:
             items = list(self._ordered_dict.items())
@@ -379,7 +410,8 @@ class AbstractMovieData:
     _aggregate_trailers_by_name_date: Dict[str, BaseMovie] = dict()
     _first_load: bool = True
 
-    def __init__(self, movie_source: str = '') -> None:
+    def __init__(self, trailer_fetcher_class: Type[TrailerFetcherInterface],
+                 movie_source: str = '') -> None:
         """
         """
         clz = type(self)
@@ -392,7 +424,7 @@ class AbstractMovieData:
         self._discovery_complete: bool = False
         self._discovery_complete_reported: bool = False
         self._last_shuffle_time: datetime.datetime = datetime.datetime.fromordinal(1)
-        self._last_shuffled_index: int = -1
+        self._last_shuffled_size: int = 0
         self._discovered_movies_lock: threading.RLock = threading.RLock()
 
         #  Access via self._discovered_movies_lock
@@ -413,16 +445,37 @@ class AbstractMovieData:
 
         self._discovered_movies_queue: UniqueQueue = UniqueQueue(
             maxsize=0, movie_source=movie_source)
-        self._movies_to_fetch_queue: KodiQueue = KodiQueue(maxsize=3)
+
+        # _previously_discovered_movies_queue contains movies which appear to
+        # have been previously discovered. The assumption is that if they were
+        # discovered once, they are probably easier to discover again (in particular,
+        # if the trailers and json data is cached). The purpose is to reduce the
+        # chance that we have nothing to play because downloads are or discovery
+        # is slow.
+        #
+        # We can have the policy that we fetch two trailers from the previously
+        # discovered queue for every one (new) one from the _discovered_movies_queue.
+        # This fits well since the capacity of the output queue is 3.
+
+        self._previously_discovered_movies_queue: UniqueQueue = UniqueQueue(
+            maxsize=0, movie_source=movie_source)
+        self._fetch_count: int = 0
+
+        # _movies_to_fetch_queue is a small queue that has movies that
+        # trailers are actively being searched for. The small size limits
+        # how many trailers are discovered ahead of time, but is large
+        # enough to have a decent buffer from starving.
+
+        self._movies_to_fetch_queue: KodiQueue = KodiQueue(maxsize=MOVIES_TO_PREFETCH)
         self._starvation_queue: KodiQueue = KodiQueue()
         self._movies_to_fetch_queueLock: threading.RLock = threading.RLock()
         self.stop_discovery_event: threading.Event = threading.Event()
         self._movie_source: str = movie_source
 
-        from discovery.trailer_fetcher import TrailerFetcher
-        fetcher_thread_name: Final[str] = f'{movie_source}_fetcher'
-        self._parent_trailer_fetcher: TrailerFetcher = \
-            TrailerFetcher(self, fetcher_thread_name)
+        clz.logger.debug(f'movie_data: {self} instantiating trailer_fetcher: '
+                         f'{trailer_fetcher_class}')
+        self._parent_trailer_fetcher: TrailerFetcherInterface = \
+            trailer_fetcher_class(movie_data=self)
         self._minimum_shuffle_seconds: int = 10
 
     def get_size_of(self) -> int:
@@ -471,9 +524,10 @@ class AbstractMovieData:
             self._load_fetch_total_duration = 0
             self._discovery_complete = False
             self._last_shuffle_time = datetime.datetime.fromordinal(1)
-            self._last_shuffled_index = -1
+            self._last_shuffled_size = 0
             self._discovered_movies.clear()
             self._discovered_movies_queue.clear()
+            self._previously_discovered_movies_queue.clear()
             self._discovery_complete = True
 
             self._movie_source_data = {}
@@ -488,6 +542,8 @@ class AbstractMovieData:
         clz = type(self)
 
         with self._discovered_movies_lock:
+            clz = type(self)
+            clz.logger.enter()
             self.shuffle_discovered_movies(mark_unplayed=False)
             self._discovery_complete = True
 
@@ -534,7 +590,7 @@ class AbstractMovieData:
         movies_added: bool = False
         with self._discovered_movies_lock:
             #  if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            #     clz.logger.debug('Have discovered_trailers_lock')
+            #     clz.logger.debug('Have discovered_movies_lock')
             movie: BaseMovie
             for movie in movies:
                 if clz.logger.isEnabledFor(LazyLogger.DISABLED):
@@ -566,7 +622,7 @@ class AbstractMovieData:
         reshuffle: bool = False
         # Reshuffle every minute or when there is a 20% change
 
-        last_shuffled_at_size = self._last_shuffled_index
+        last_shuffled_at_size = self._last_shuffled_size
         current_size = len(self._discovered_movies)
         if (movies_added
                 and (current_size > 25
@@ -576,7 +632,7 @@ class AbstractMovieData:
             reshuffle = True
 
         if reshuffle:
-            if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz.logger.debug_extra_verbose(
                     f'seconds_since_last_shuffle: {seconds_since_last_shuffle} '
                     f'current size: {current_size} '
@@ -595,9 +651,12 @@ class AbstractMovieData:
         """
         clz = type(self)
         with self._discovered_movies_lock:
-            self._discovered_movies.add(movie)
+            try:
+                self._discovered_movies.add(movie)
+            except DuplicateException:
+                pass  # Expected
 
-    def purge_rediscoverable_data(self, movie: AbstractMovie) -> None:
+    def purge_rediscoverable_data(self, movie: AbstractMovie) -> AbstractMovieId:
         #
         # Used to clear out fully populated movie data and just keep movieid.
         # This keeps tables from continually growing. When caching is enabled
@@ -611,6 +670,7 @@ class AbstractMovieData:
         :return:
         """
         clz = type(self)
+        # clz.logger.debug(f'{self._movies_discovered_event.is_set()}')
         return self._movies_discovered_event.isSet()
 
     def shuffle_discovered_movies(self, mark_unplayed: bool = False) -> None:
@@ -622,28 +682,31 @@ class AbstractMovieData:
         clz = type(self)
 
         Monitor.throw_exception_if_abort_requested()
-        # clz.logger.debug('before self.lock')
+        clz.logger.debug('before self.lock')
 
         with self._discovered_movies_lock:
-            # clz.logger.debug('Have discovered_trailers_lock')
+            # clz.logger.debug('Have discovered_movies_lock')
 
             if self._discovered_movies.len() == 0:
                 return
 
             self._discovered_movies.shuffle()
             if mark_unplayed:
+                # Force starvation queue to be rebuilt
+
+                self._starvation_queue.clear()
                 for movie in self._discovered_movies.get_movies():
                     movie.set_trailer_played(False)
-
-            self._last_shuffled_index = self._discovered_movies.len() - 1
-            self._last_shuffle_time = datetime.datetime.now()
 
             # Drain anything previously in queue
 
             self._discovered_movies_queue.clear()
+            self._previously_discovered_movies_queue.clear()
 
             Monitor.throw_exception_if_abort_requested()
             # clz.logger.debug('reloading _discovered_movies_queue')
+            movies_with_local_trailers: List[BaseMovie] = []
+            movies_with_remote_trailers: List[BaseMovie] = []
             for movie in self._discovered_movies.get_movies():
                 if isinstance(movie, AbstractMovieId) or not movie.is_trailer_played():
                     # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
@@ -651,20 +714,49 @@ class AbstractMovieData:
                     #                      'id:', hex(id(movie)),
                     #                      'to discovered_movies_queue',
                     #                      'state:', movie[Movie.DISCOVERY_STATE])
-                    self._discovered_movies_queue.put(movie)
+
+                    # When a movie has been previously played, then it is likely
+                    # much easier/quicker to prepare it for viewing. By segregating
+                    # movies according to whether they are likely to be quick to
+                    # ready them for playing a trailer for or not means that we may
+                    # be able to avoid long periods of not playing trailers while
+                    # we are finding a movie with a playable trailer.
+
+                    if movie.has_local_trailer():
+                        movies_with_local_trailers.append(movie)
+                    elif movie.get_has_trailer():
+                        movies_with_remote_trailers.append(movie)
+                    else:
+                        self._discovered_movies_queue.put(movie)
+
+            # To help out with startup, push the movies with local trailers
+            # first
+
+            for movie in movies_with_local_trailers:
+                self._previously_discovered_movies_queue.put(movie)
+            for movie in movies_with_remote_trailers:
+                self._previously_discovered_movies_queue.put(movie)
+
+            # See comment in get_candidate_movie
+            self._fetch_count = 0
 
             if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 seconds_since_last_shuffle: int = (
                         datetime.datetime.now() - self._last_shuffle_time).seconds
-                last_shuffled_at_size = self._last_shuffled_index
+                last_shuffled_at_size = self._last_shuffled_size
                 current_size = len(self._discovered_movies)
                 clz.logger.debug_extra_verbose(
                     f'seconds_since_last_shuffle: {seconds_since_last_shuffle} '
                     f'current size: {current_size} '
                     f'previous size: {last_shuffled_at_size}'
-                    f'_discoveredTrailerQueue length: '
-                    f'{self._discovered_movies_queue.qsize()}',
+                    f'_discovered_movies_queue length: '
+                    f'{self._discovered_movies_queue.qsize()} '
+                    f'_previously_discovered_movies_queue length: '
+                    f'{self._previously_discovered_movies_queue.qsize()}',
                     trace=Trace.TRACE_DISCOVERY)
+
+            self._last_shuffled_size = self._discovered_movies.len()
+            self._last_shuffle_time = datetime.datetime.now()
 
     def get_number_of_movies(self) -> int:
         """
@@ -689,13 +781,58 @@ class AbstractMovieData:
         """
         number_of_trailers: int = 0
         with self._discovered_movies_lock:
+            movie: BaseMovie
             for movie in self._discovered_movies.get_movies():
-                if isinstance(movie, AbstractMovie):
-                    trailer: str = movie.get_trailer_path()
-                    if trailer is not None and trailer != '':
-                        number_of_trailers += 1
+                if movie.get_has_trailer():
+                    number_of_trailers += 1
 
         return number_of_trailers
+
+    def get_playable_trailer_immediately(self) -> AbstractMovie:
+        """
+        Called when the player is desperate to find something to play.
+        Not very likely to succeed when Constants.SAVE_MEMORY is True
+        (the default) since very few AbstractMovie instances will be present.
+
+        It would not be very expensive to use AbstractMovieId instances
+        that has_local_trailer, but would require a bit more care to
+        handle the edge cases within playable_trailers_container thread.
+        You probably would want to have separate trailer_fetcher threads
+        just to handle this (separate threads would not disturb other
+        fetching activity).
+
+        """
+        clz = type(self)
+        with self._discovered_movies_lock:
+            movie: BaseMovie
+            for movie in self._discovered_movies.get_movies():
+                if isinstance(movie, AbstractMovieId):
+                    movie_id: AbstractMovieId
+                    movie_id = movie
+                    if movie_id.has_local_trailer():
+                        pass  # Perhaps send to separate TrailerFetcher thread
+                if isinstance(movie, AbstractMovie):
+                    the_movie: AbstractMovie = movie
+                    if (the_movie.get_discovery_state() ==
+                            MovieField.DISCOVERY_READY_TO_DISPLAY):
+                        clz.logger.debug(f'Found trailer: {the_movie}')
+                        return the_movie
+
+        return None
+
+    def is_any_likely_playable(self) -> bool:
+        """
+        Scans the (partially) discovered movies to see if there are any
+        that appear to have a trailer that we can play.
+        """
+        clz = type(self)
+
+        with self._discovered_movies_lock:
+            movie: BaseMovie
+            for movie in self._discovered_movies.get_movies():
+                if movie.has_local_trailer():
+                    return True
+        return False
 
     def get_projected_number_of_trailers(self) -> int:
         """
@@ -750,7 +887,7 @@ class AbstractMovieData:
         clz = type(self)
         Monitor.throw_exception_if_abort_requested()
         with self._discovered_movies_lock:
-            # clz.logger.debug('Have discovered_trailers_lock')
+            # clz.logger.debug('Have discovered_movies_lock')
 
             base_movie: BaseMovie = None
             try:
@@ -787,24 +924,28 @@ class AbstractMovieData:
 
     def load_fetch_queue(self) -> None:
         """
-            Load the _movies_to_fetch_queue from._discovered_movies_queue.
+            Load the _movies_to_fetch_queue from either _discovered_movies_queue
+            or _previously_discovered_movies_queue
 
             If _movies_to_fetch_queue is full, then return
 
             If discoveryComplete and _discovered_movies is empty,
             then return
 
-            If discoveryComplete and._discovered_movies_queue is empty,
-            then shuffle_discovered_movies and fill the _movies_to_fetch_queue
+            If discoveryComplete and both _discovered_movies_queue and
+            _previously_discovered_movies_queue are empty,
+            then shuffle _discovered_movies and fill the _movies_to_fetch_queue
             from it. If there are not enough items to fill the fetch queue,
             then get as many as are available.
 
             Otherwise, discoveryComplete == False:
 
-            If _discovered_movies_queue is empty and _movies_to_fetch_queue
+            If both _discovered_movies_queue and _previously_discovered_movies_queue
+            are empty and _movies_to_fetch_queue
             is not empty, then return without loading any.
 
-            If _discovered_movies_queue is empty and _movies_to_fetch_queue is empty
+            If both _discovered_movies_queue and _previously_discovered_movies_queue
+            are empty and _movies_to_fetch_queue is empty
             then block until an item becomes available or discoveryComplete == True.
 
             Finally, if _movies_to_fetch_queue is not full, fill it from any available
@@ -834,6 +975,15 @@ class AbstractMovieData:
             iteration_successful = False
             try:
                 elapsed: datetime.timedelta = datetime.datetime.now() - start_time
+                discovered_movies_queues_empty: bool = False
+                #
+                # No point doing anything if no movies have passed the initial
+                # discovery phase. (discovered_movies_queue)
+                #
+                if (self._discovered_movies_queue.empty() and
+                        self._previously_discovered_movies_queue.empty()):
+                    discovered_movies_queues_empty = True
+
                 if attempts > 0:
                     if (attempts > 1
                             and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
@@ -841,102 +991,169 @@ class AbstractMovieData:
                                                        'elapsed:', elapsed.seconds)
 
                 if self._movies_to_fetch_queue.full():
+
+                    # If the output queue to the fetch stage is full, then leave
+
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         clz.logger.debug_extra_verbose('_movies_to_fetch_queue full',
                                                        trace=Trace.TRACE)
                     finished = True
                     iteration_successful = True
-                elif self._discovery_complete and len(self._discovered_movies) == 0:
-                    if (not self._discovery_complete_reported and
-                            clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-                        self._discovery_complete_reported = True
-                        clz.logger.debug_extra_verbose(
-                            'Discovery Complete and nothing found.', trace=Trace.TRACE)
-                    finished = True
-                    iteration_successful = True
-                elif self._discovery_complete and self._discovered_movies_queue.empty():
-                    clz.logger.error(
-                        'discoveryComplete,_discovered_movies_queue empty')
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose(
-                            'discoveryComplete,_discovered_movies_queue empty',
-                            trace=Trace.TRACE)
-                    shuffle = True
-                    discovery_complete_queue_empty += 1
+                    continue
+
+                if self._discovery_complete:
+                    # First phase discovery complete. Simply play trailers from what
+                    # we already have info on, if any.
+                    #
+                    if len(self._discovered_movies) == 0:
+                        #
+                        # No movies will ever be discovered, give up
+                        #
+                        if (not self._discovery_complete_reported and
+                                clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                            self._discovery_complete_reported = True
+                            clz.logger.debug_extra_verbose(
+                                'Discovery Complete and nothing found.', trace=Trace.TRACE)
+                        finished = True
+                        iteration_successful = True
+                        continue
+
+                    if discovered_movies_queues_empty:
+                        #
+                        # Reload our discovery queues from the master
+                        # list of discovered movies, after reshuffling
+
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose(
+                                f'discoveryComplete and discovered_movies_queues empty',
+                                trace=Trace.TRACE)
+                        shuffle = True
+                        discovery_complete_queue_empty += 1
+                    else:
+                        # The discovered_movies_queues are not empty, meaning that
+                        # We can load the fetch queue from them.
+                        #
+                        # Drop through to the point where you see:
+                        #       if not iteration_successful:
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            clz.logger.debug_extra_verbose(
+                                f'discoveryComplete and discovered_movies_queues NOT '
+                                f'empty',
+                                trace=Trace.TRACE)
+                        pass
+
+                else:
                     #
                     # In the following, Discovery is INCOMPLETE
                     #
-                elif (self._discovered_movies_queue.empty()
-                      and not self._movies_to_fetch_queue.empty):
-                    discovered_and_fetch_queues_empty += 1
-                    # Use what we have
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                         clz.logger.debug_extra_verbose(
-                            'Discovery incomplete._discovered_movies_queue '
-                            'empty and _movies_to_fetch_queue not empty',
+                            'Discovery incomplete',
                             trace=Trace.TRACE)
-                    finished = True
-                elif not self._movies_to_fetch_queue.empty():
-                    # Fetch queue is not empty, nor full. Discovery
-                    # is not complete. Get something from _discoveredTrailerQueue
-                    # if available
-
-                    try:
-                        discovery_incomplete_fetch_not_empty += 1
-                        with self._discovered_movies_lock:
-                            # clz.logger.debug_verbose('Have discovered_trailers_lock')
-
-                            movie = self._discovered_movies_queue.get(timeout=0.25)
-
-                        # if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        #     clz.logger.debug_extra_verbose(' Got', movie[Movie.TITLE],
-                        #                        'from _discoveredTrailerQueue')
-                    except KodiQueue.Empty:
-                        pass
-
-                    if movie is not None:
-                        try:
-                            self.put_in_fetch_queue(
-                                movie, timeout=1)
-                            # if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                            #     clz.logger.debug_verbose('Put in _movies_to_fetch_queue qsize:',
-                            #                        self._movies_to_fetch_queue.qsize(),
-                            #                        movie.get(Movie.TITLE),
-                            #                        trace=Trace.TRACE)
-                            iteration_successful = True
-                        except KodiQueue.Full:
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                                clz.logger.debug_extra_verbose(
-                                    '_movies_to_fetch_queue.put failed',
-                                    trace=Trace.TRACE)
-                        #
-                        # It is not a crisis if the put fails. Since the
-                        # fetch queue does have at least one entry, we are ok
-                        # Even if the movie is lost from the FetchQueue,
-                        # it will get reloaded once the queue is exhausted.
-                        #
-                        # But since iteration_successful is not true, we might
-                        # still fix it at the end.
-                        #
-                else:
-                    # Discovery incomplete, fetch queue is empty
-                    # wait until we get an item, or discovery complete
-
-                    discovery_incomplete_fetch_queue_empty += 1
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose('Discovery incomplete,',
-                                                       '_movies_to_fetch_queue empty, '
-                                                       'will wait',
-                                                       trace=Trace.TRACE)
-
-                if not iteration_successful:
-                    if (self._discovered_movies_queue.empty()
-                            and self._discovered_movies.len() > 0):
+                    if discovered_movies_queues_empty:
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
-                                'Shuffling due to empty _discovered_movies_queue and',
-                                '_discovered_movies not empty')
-                        shuffle = True
+                                'discovered_movies_queues '
+                                'empty',
+                                trace=Trace.TRACE)
+                        if not self._movies_to_fetch_queue.empty():
+
+                            # Nothing available to add to fetch queue, but fetch queue
+                            # is not starving yet. Skip this round.
+
+                            discovered_and_fetch_queues_empty += 1
+                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                clz.logger.debug_extra_verbose(
+                                    '_movies_to_fetch_queue not empty',
+                                    trace=Trace.TRACE)
+                            finished = True
+                            continue
+                        else:
+                            # Discovery incomplete, discovery and fetch queue are empty.
+                            # Don't mark as finished, which will trigger a
+                            # reshuffle and reloading of the discovery queues from
+                            # the master list of trailers found in first-phase of
+                            # discovery. Once the queues are reloaded, this loop will
+                            # try again.
+
+                            discovery_incomplete_fetch_queue_empty += 1
+                            shuffle = True
+                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                clz.logger.debug_extra_verbose('_movies_to_fetch_queue empty, '
+                                                               'reshuffle should occur',
+                                                               trace=Trace.TRACE)
+                    else:  # discovered_queues Not empty
+                        starving: bool = self._movies_to_fetch_queue.empty()
+                        clz.logger.debug(f'discovered_queues not empty starving:'
+                                         f' {starving}')
+                        if starving:
+                            discovery_incomplete_fetch_queue_empty += 1
+                        else:
+                            discovery_incomplete_fetch_not_empty += 1
+
+                        movie = self.get_candidate_movie(starving=starving)
+
+                        if movie is not None:
+                            try:
+                                self.put_in_fetch_queue(
+                                    movie, timeout=1)
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                    clz.logger.debug_verbose(f'Put in '
+                                                       f'_movies_to_fetch_queue qsize:',
+                                                       f'{self._movies_to_fetch_queue.qsize()} '
+                                                       f'{movie.get_title()} {movie.get_id}',
+                                                       trace=Trace.TRACE)
+                                iteration_successful = True
+                            except KodiQueue.Full:
+                                #
+                                # It is not a crisis if the put fails. Since the
+                                # fetch queue does have at least one entry, we are ok
+                                # Even if the movie is lost from the FetchQueue,
+                                # it will get reloaded once the queue is exhausted.
+                                #
+                                # But since iteration_successful is not true, we might
+                                # still fix it at the end.
+                                #
+                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                                    clz.logger.debug_extra_verbose(
+                                        '_movies_to_fetch_queue.put failed',
+                                        trace=Trace.TRACE)
+
+                if not iteration_successful:
+                    # Failed to get a candidate movie to do further discovery
+                    # Is a queue empty, needing re-filling?
+
+                    # No point shuffling if nothing discoverd
+                    clz.logger.debug(f'iteration NOT successful')
+
+                    #  TODO: need complete decision tree
+
+                    if len(self._discovered_movies) > 0:
+                        clz.logger.debug(f'discovered_movies {self._discovered_movies}')
+
+                        # No point shuffling due to empty discovered_movies_queue
+                        # When there will be none added to that queue
+                        if (self._previously_discovered_movies_queue.empty()
+                                and self.is_any_likely_playable()):
+                            self.logger.debug(f'previously_discovered_movies_queue empty and '
+                                              f'is_any_likely_playable')
+                            shuffle = True
+                        elif self._discovered_movies_queue.empty():
+                            # Since there are discovered trailers AND none
+                            # of them are likely playable then the rest
+                            # must require further discovery. Shuffle if
+                            # that queue empty
+                            self.logger.debug(f'discovered_moviews_queue_empty')
+                            shuffle = True
+                        else:
+                            clz.logger.warning(f'LOGIC error: discovered movies '
+                                               f'but none picked for further '
+                                               f'discovery: '
+                                               f'previously_discovered empty: '
+                                               f'{self._previously_discovered_movies_queue.empty()} '
+                                               f'likely_playable: {self.is_any_likely_playable()} '
+                                               f'discovered_movies empty: '
+                                               f'{self._discovered_movies_queue.empty()}')
 
                     if shuffle:  # Because we were empty
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -946,7 +1163,7 @@ class AbstractMovieData:
                         if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 'load_fetch_queue Shuffling because',
-                                'discoveredTrailerQueue empty',
+                                'discovered_movies_queue empty',
                                 trace=Trace.TRACE_DISCOVERY)
                         self.shuffle_discovered_movies(mark_unplayed=True)
 
@@ -957,10 +1174,9 @@ class AbstractMovieData:
                                 get_attempts += 1
                                 with self._discovered_movies_lock:
                                     # clz.logger.debug_verbose(
-                                    # 'Have discovered_trailers_lock')
+                                    # 'Have discovered_movies_lock')
 
-                                    movie = self._discovered_movies_queue.get(
-                                        timeout=0.5)
+                                    movie = self.get_candidate_movie()
                                 get_finished = True
                             except KodiQueue.Empty:
                                 Monitor.throw_exception_if_abort_requested()
@@ -1014,17 +1230,57 @@ class AbstractMovieData:
         duration: datetime.timedelta = stop_time - start_time
         self._load_fetch_total_duration += duration.seconds
 
-        attempts = 0
-        discovery_complete_queue_empty = 0
-        discovered_and_fetch_queues_empty = 0
-        discovery_incomplete_fetch_not_empty = 0
-        discovery_incomplete_fetch_queue_empty = 0
-        get_attempts = 0
-        put_attempts = 0
-
         # if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
         #     clz.logger.debug_verbose('took', duration.seconds,
         #                              'seconds', trace=Trace.STATS)
+
+    def get_candidate_movie(self, starving: bool = False) -> BaseMovie:
+        # Fetch queue is not empty, nor full. Discovery
+        # is not complete. Get something from either
+        # discovered_movies_queue or previously_discovered_movies_queue,
+        # if available
+
+        movie: BaseMovie = None
+        clz = type(self)
+        try:
+            with self._discovered_movies_lock:
+                # clz.logger.debug_verbose('Have discovered_movies_lock')
+
+                # Most of the time, try to prepare an easy to prepare
+                # trailer for viewing (to keep from black screens). Over
+                # time, the % of these will grow.
+                # By adding one to count, which is 0 based, we make sure that
+                # first two trailers are biased to be from movies that are
+                # most likely to be inexpensive to prepare for playing.
+
+                prefer_undiscovered: bool = ((self._fetch_count + 1) %
+                                             LOCAL_TRAILERS_FOR_EACH_REMOTE) == 0
+                prefer_previously_discovered: bool
+                prefer_previously_discovered = (starving
+                                                or not prefer_undiscovered)
+
+                if (prefer_previously_discovered
+                        and not
+                        self._previously_discovered_movies_queue.empty()):
+                    movie = self._previously_discovered_movies_queue.get(
+                        timeout=0.25)
+                    clz.logger.debug(f'fetch_count: {self._fetch_count} '
+                                     f'prev_discovered movie: {movie} '
+                                     f'{movie.get_id}')
+                    self._fetch_count += 1
+                else:
+                    movie = self._discovered_movies_queue.get(timeout=0.25)
+                    clz.logger.debug(f'fetch_count: {self._fetch_count} '
+                                     f'discovered movie: {movie}')
+                    self._fetch_count += 1
+
+            # if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            #     clz.logger.debug_extra_verbose(f'Got {movieget_title()} '
+            #                         f'from _discovered_movies_queue')
+        except KodiQueue.Empty:
+            pass
+
+        return movie
 
     def get_from_fetch_queue(self, player_starving: bool = False) -> BaseMovie:
         """
@@ -1078,12 +1334,14 @@ class AbstractMovieData:
         try:
             if self._starvation_queue.empty():
                 with self._discovered_movies_lock:
-                    # clz.logger.debug('Have discovered_trailers_lock')
+                    # clz.logger.debug('Have discovered_movies_lock')
 
                     starvation_list: List[BaseMovie] = []
                     for movie in self._discovered_movies.get_movies():
-                        if (movie.get_discovery_state() >=
-                                MovieField.DISCOVERY_READY_TO_DISPLAY):
+                        if ((movie.get_discovery_state() >=
+                             MovieField.DISCOVERY_READY_TO_DISPLAY)
+                                or movie.is_been_fully_discovered()
+                                or movie.has_local_trailer()):
                             starvation_list.append(movie)
                     DiskUtils.RandomGenerator.shuffle(starvation_list)
                     for movie in starvation_list:
@@ -1115,7 +1373,8 @@ class AbstractMovieData:
             :return: int
         """
 
-        return self._discovered_movies_queue.qsize()
+        return (self._discovered_movies_queue.qsize() +
+                self._previously_discovered_movies_queue.qsize())
 
     def remove(self) -> None:
         """
@@ -1134,7 +1393,7 @@ class AbstractMovieData:
         # self._discovery_complete: bool = False
         # self._discovery_complete_reported: bool = False
         # self._last_shuffle_time: datetime.datetime = datetime.datetime.fromordinal(1)
-        # self._last_shuffled_index: int = -1
+        # self._last_shuffled_size: int = -1
         # self._discovered_movies_lock: threading.RLock = threading.RLock()
 
         #  Access via self._discovered_movies_lock
@@ -1161,7 +1420,7 @@ class AbstractMovieData:
         # self._movie_source: str = movie_source
 
         # fetcher_thread_name: Final[str] = 'Fetcher_' + movie_source
-        # from discovery.trailer_fetcher import TrailerFetcher
+        # from discovery.trailer_fetcher import AbstractTrailerFetcher
         # self._minimum_shuffle_seconds: int = 10
 
     def increase_play_count(self, movie: BaseMovie) -> None:

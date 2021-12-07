@@ -16,13 +16,8 @@ import threading
 
 import xbmcvfs
 
-from cache.base_reverse_index_cache import BaseReverseIndexCache
-from cache.itunes_json_cache import ITunesJsonCache
 from cache.json_cache_helper import JsonCacheHelper
-from cache.library_json_cache import LibraryJsonCache
-from cache.tfh_json_cache import TFHJsonCache
 from cache.tmdb_cache_index import CacheIndex
-from cache.tmdb_json_cache import TMDbJsonCache
 from common.debug_utils import Debug
 from common.imports import *
 from common.logger import LazyLogger
@@ -30,12 +25,11 @@ from common.exceptions import (AbortException, CommunicationException, TrailerId
 from common.messages import Messages
 from common.monitor import Monitor
 from backend.movie_entry_utils import (MovieEntryUtils)
-from common.movie import AbstractMovie, TMDbMovie
+from common.movie import AbstractMovie, TMDbMovie, AbstractMovieId
 from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
 from backend import backend_constants
 from common.disk_utils import DiskUtils
-from backend.json_utils_basic import (JsonUtilsBasic)
 from diagnostics.statistics import Statistics
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
@@ -202,7 +196,8 @@ class Cache:
         return tmdb_movie
 
     @classmethod
-    def write_tmdb_cache_json(cls, tmdb_movie: TMDbMovie) -> None:
+    def write_tmdb_cache_json(cls, tmdb_movie: TMDbMovie,
+                              library_id: str) -> None:
         """
             Write the given movie information into the cache as JSON
 
@@ -210,8 +205,7 @@ class Cache:
             AbortException during write nor save old version of file.
         """
 
-        tmdb_id_str = tmdb_movie.get_id()
-        source_id_str = tmdb_movie.get_source_id()
+        tmdb_id_str: str = tmdb_movie.get_id()
 
         try:
 
@@ -241,16 +235,16 @@ class Cache:
                 cache_file.write(json_text)
                 cache_file.flush()
                 json_cache = JsonCacheHelper.get_json_cache_for_source(
-                    MovieField.TMDB_SOURCE)
-                json_cache.add_item(source_id_str, tmdb_id_str)
+                    tmdb_movie.get_source())
+                json_cache.add_item(library_id, tmdb_id_str)
                 # del temp_movie
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            cls._logger.exception(f'tmdb_id: {tmdb_id_str}')
+            cls._logger.exception(f'library_id: {library_id }tmdb_id: {tmdb_id_str}')
 
     @classmethod
-    def get_tmdb_video_id(cls, movie: AbstractMovie) -> str:
+    def get_tmdb_video_id(cls, movie: Union[AbstractMovie, AbstractMovieId]) -> str:
         """
             Gets the unique id to use in the cache for the given movie.
             Used for movies which have data from TMDb (
@@ -456,7 +450,9 @@ class Cache:
         return False
 
     @classmethod
-    def get_trailer_cache_file_path_for_movie_id(cls, movie: AbstractMovie,
+    def get_trailer_cache_file_path_for_movie_id(cls,
+                                                 movie: Union[AbstractMovie,
+                                                              AbstractMovieId],
                                                  orig_file_name: str,
                                                  normalized: bool) -> str:
         """

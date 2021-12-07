@@ -169,7 +169,7 @@ class ParseTMDb:
                 trailer_url = trailer_url.replace(
                         'https://www.themoviedb.org/video/play?key=',
                         'https://youtu.be/')
-                self._tmdb_movie.set_trailer(trailer_url)
+                self._tmdb_movie.set_trailer_path(trailer_url)
                 self._tmdb_movie.set_trailer_type(trailer_type)
                 CacheIndex.add_tmdb_id_with_trailer(tmdb_id_int)
             else:
@@ -193,6 +193,9 @@ class ParseTMDb:
                 is_success = False
         except Exception as e:
             reraise(*sys.exc_info())
+
+        if self._tmdb_movie.has_trailer_path():
+            self._tmdb_movie.set_has_trailer(True)
 
         return is_success
 

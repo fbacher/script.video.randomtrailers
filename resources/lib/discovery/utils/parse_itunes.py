@@ -64,6 +64,7 @@ class ParseITunes:
     def parse_title(self) -> str:
         title: str = self._itunes_result.get(MovieField.TITLE,
                                              Messages.get_msg(Messages.MISSING_TITLE))
+        title = title.strip()
         self._itunes_movie.set_title(title)
         return title
 
@@ -165,7 +166,7 @@ class ParseITunes:
         """
         clz = type(self)
         trailer_type: str = ''
-        url: str = ''
+        trailer_url: str = ''
         is_success = False
         title: str = self._itunes_movie.get_title()
 
@@ -201,10 +202,10 @@ class ParseITunes:
                 # post_date = itunes_trailer.get('postdate', '')
                 # clz._logger.debug('post_date: ', post_date)
 
-                url: str = itunes_trailer.get('url', '')
+                trailer_url: str = itunes_trailer.get('url', '')
 
                 if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-                    clz._logger.debug_extra_verbose('url: ', url)
+                    clz._logger.debug_extra_verbose('url: ', trailer_url)
 
                 """
                 Note that iTunes api has movie type info here as well
@@ -213,7 +214,6 @@ class ParseITunes:
                 which can be confusing while debugging.
                 """
                 trailer_type = itunes_trailer.get('type', '')
-                trailer_url = itunes_trailer.get('url', '')
                 if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                     clz._logger.debug_extra_verbose(
                         'type: ', trailer_type)
@@ -252,9 +252,7 @@ class ParseITunes:
                 clz._logger.exception('')
                 is_success = False
 
-        if is_success:
-            self._itunes_movie.set_trailer_type(trailer_type)
-            self._itunes_movie.set_trailer_path(url)
+        # Trailer info filled in later
 
         return is_success
 

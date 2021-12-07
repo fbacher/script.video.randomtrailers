@@ -101,6 +101,10 @@ class Constants:
     TMDB_GLOB_JSON_PATTERN: str = '**/tmdb_[0-9]*.json'
     TMDB_ID_PATTERN: Pattern = re.compile(r'^tmdb_([0-9]+).json')
 
+    # For Testing
+
+    DISABLE_LIBRARY_TRAILERS: bool = True
+
     @staticmethod
     def static_init() -> None:
         """

@@ -25,7 +25,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
     accomplished using the AddonSignals service. 
 """
 
-MAX_LOOPS: int = 150
+MAX_WAIT: float = 100.0
 
 
 class FrontendBridgeStatus(PluginBridgeStatus):
@@ -89,18 +89,26 @@ class FrontendBridge(PluginBridge):
                             source_id=Constants.BACKEND_ID)
 
             # It can take some time before we get responses back
-            # Wait max 30 seconds
+            # Wait max 300 seconds
 
             # TODO: handle case where there are NO trailers to play
-            # Also, server should send ack on receipt of this request
+            #      Also, server should send ack on receipt of this request
+            #
+            # TODO: If exit due to max wait time. Need to catch any trailers
+            #       sent when called again.
 
             cls._status = FrontendBridgeStatus.BUSY
-            count = 0
-            while cls._status == FrontendBridgeStatus.BUSY and count < MAX_LOOPS:
-                Monitor.throw_exception_if_abort_requested(timeout=0.20)
-                count += 1
+            timeout: float = 0.1
+            approx_total_wait: float = 0.0
+            while (cls._next_trailer is None
+                    and cls._status == FrontendBridgeStatus.BUSY
+                    and approx_total_wait < MAX_WAIT):
+                Monitor.throw_exception_if_abort_requested(timeout=timeout)
+                approx_total_wait += timeout
+                if approx_total_wait > 5.0:
+                    timeout = 0.5
 
-            if count >= MAX_LOOPS:
+            if approx_total_wait >= MAX_WAIT:
                 cls._logger.error('Timed out waiting on get_next_trailer')
                 cls._next_trailer = None
                 cls._status = FrontendBridgeStatus.TIMED_OUT
@@ -166,16 +174,15 @@ class FrontendBridge(PluginBridge):
             pickled: bytes = bytes.fromhex(pickled_str)
             cls._next_trailer: AbstractMovie = pickle.loads(pickled)
             cls._status = data.get('status', None)
-            if cls._status == FrontendBridgeStatus.BUSY:
+            if cls._next_trailer is None and cls._status == FrontendBridgeStatus.BUSY:
                 Monitor.throw_exception_if_abort_requested(timeout=2.0)
             elif cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 if cls._next_trailer is None:
                     title = 'No Trailer Received'
                 else:
                     title = cls._next_trailer.get_title()
-                cls._logger.debug_extra_verbose('status:', cls._status,
-                                                'received movie for:',
-                                                title)
+                cls._logger.debug_extra_verbose(f'status: {cls._status} '
+                                                f'received movie for: {title}')
         except AbortException:
             pass  # Don't pass exception to AddonSignals
         except Exception as e:

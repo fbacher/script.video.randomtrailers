@@ -952,7 +952,7 @@ class JsonUtilsBasic:
             request_failed: bool = result.get_rc() != JsonReturnCode.OK
             JsonUtilsBasic.record_request_timestamp(
                 request_index, response_time_stamp, failed=request_failed)
-            if result.get_status() != JsonReturnCode.OK:
+            if result.get_rc() != JsonReturnCode.OK:
                 #
                 # Retry only once
                 #
@@ -986,6 +986,7 @@ class JsonUtilsBasic:
         else:
             NetworkStats.not_failing(url=url)
 
+        # cls._logger.dump_stack(heading='', xbmc_log_level=xbmc.LOGDEBUG)
         return result
 
     @classmethod

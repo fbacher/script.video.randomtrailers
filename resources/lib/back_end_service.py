@@ -105,6 +105,7 @@ class MainThreadLoop:
 
     @classmethod
     def start_back_end_bridge(cls) -> None:
+        module_logger.debug(f'starting BackendBridge')
         from backend.back_end_bridge import BackendBridge
         from discovery.playable_trailer_service import PlayableTrailerService
         BackendBridge(PlayableTrailerService())

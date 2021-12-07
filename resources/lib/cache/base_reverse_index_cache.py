@@ -32,12 +32,13 @@ class BaseReverseIndexCache:
 
     CACHE_PATH: str
     _lock = threading.RLock()
-    _last_saved = datetime.datetime.now()
+    _last_saved = datetime.datetime(year=1900, month=1, day=1)
     _parameters = None
     _unsaved_changes: int = 0
     _logger = None
 
     _cache: Dict[str, str] = {}
+    _cache_loaded: bool = False
     _reverse_cache: Dict[str, str] = {}
 
     @classmethod
@@ -72,6 +73,7 @@ class BaseReverseIndexCache:
             return
 
         with cls._lock:
+            cls.load_cache()
             if item_id not in cls._cache:
                 cls._cache[item_id] = reverse_id
                 cls._reverse_cache[reverse_id] = item_id
@@ -93,6 +95,7 @@ class BaseReverseIndexCache:
         :return:
          """
         with cls._lock:
+            cls.load_cache()
             try:
                 reverse_id: str = cls._cache.get(item_id, None)
                 if reverse_id is not None:
@@ -117,6 +120,7 @@ class BaseReverseIndexCache:
         :return:
         """
         with cls._lock:
+            cls.load_cache()
             return cls._cache.get(item_id, None)
 
     @classmethod
@@ -131,16 +135,19 @@ class BaseReverseIndexCache:
         :return:
         """
         with cls._lock:
+            cls.load_cache()
             return cls._cache.get(reverse_id, None)
 
     @classmethod
     def get_all_ids(cls) -> KeysView[str]:
         with cls._lock:
+            cls.load_cache()
             return cls._cache.keys()
 
     @classmethod
     def get_all_reverse_ids(cls) -> KeysView[str]:
         with cls._lock:
+            cls.load_cache()
             return cls._reverse_cache.keys()
 
     @classmethod
@@ -158,6 +165,9 @@ class BaseReverseIndexCache:
         :return:
         """
         try:
+            if cls._cache_loaded:
+                return
+
             parent_dir, file_name = os.path.split(cls.CACHE_PATH)
             DiskUtils.create_path_if_needed(parent_dir)
 
@@ -195,6 +205,9 @@ class BaseReverseIndexCache:
         :return:
         """
         with cls._lock:
+            if not cls._cache_loaded:
+                return
+
             if (not flush and
                     (cls._unsaved_changes <
                      Constants.TRAILER_CACHE_FLUSH_UPDATES)

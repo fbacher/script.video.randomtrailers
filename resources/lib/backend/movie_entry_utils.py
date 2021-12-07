@@ -40,22 +40,12 @@ class MovieEntryUtils:
         :param movie:
         :return:
         """
-        tmdb_id_int: int = None
-        tmdb_id_str: str = None
+        tmdb_id: int = None
         title: str = movie.get_title()
         source: str = movie.get_source()
         try:
-            tmdb_id_str: str = movie.get_unique_id(MovieField.UNIQUE_ID_TMDB)
-            if tmdb_id_str is not None:
-                # Make sure we don't have a IMDB id in here by error
-                if tmdb_id_str.startswith('tt'):
-                    tmdb_id_str = None
-            if tmdb_id_str is not None:
-                try:
-                    tmdb_id_int = int(tmdb_id_str)
-                except ValueError:
-                    tmdb_id_str = None
-            if tmdb_id_str is None:
+            tmdb_id: int = movie.get_tmdb_id()
+            if tmdb_id is None:
                 imdb_id = movie.get_unique_id(MovieField.UNIQUE_ID_IMDB)
                 if imdb_id is None:
                     imdb_id = movie.get_unique_id(MovieField.UNIQUE_ID_UNKNOWN)
@@ -106,9 +96,9 @@ class MovieEntryUtils:
                                 elif len(movie_results) > 1:
                                     pass
                                 else:
-                                    tmdb_id = movie_results[0].get('id', None)
+                                    tmdb_id_str = movie_results[0].get('id', None)
                                     try:
-                                        tmdb_id_int = int(tmdb_id)
+                                        tmdb_id = int(tmdb_id_str)
                                     except ValueError:
                                         tmdb_id = None
 
@@ -135,10 +125,8 @@ class MovieEntryUtils:
                             f'Title: {title} source: {source}')
         except Exception as e:
             cls._logger.exception(f'Title: {title} source: {source}')
-        if tmdb_id_str is not None:
-            tmdb_id_int = int(tmdb_id_str)
 
-        return tmdb_id_int
+        return tmdb_id
 
     '''
     @classmethod

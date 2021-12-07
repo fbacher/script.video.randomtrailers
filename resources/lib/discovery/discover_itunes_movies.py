@@ -54,9 +54,10 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         clz = DiscoverItunesMovies
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
-        thread_name: Final[str] = 'Discovery iTunes'
-        kwargs = {}
-        kwargs[MovieField.SOURCE] = MovieField.ITUNES_SOURCE
+        thread_name: Final[str] = 'Discover iTunes'
+        kwargs = {
+                 MovieField.SOURCE: MovieField.ITUNES_SOURCE
+                 }
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=kwargs)
         self._movie_data = ItunesMovieData()
@@ -439,7 +440,6 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     self.add_to_discovered_movies(movie)
                     # ItunesCacheIndex.cache_movie(movie)
 
-
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:
@@ -452,11 +452,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                          release_date: datetime.date = None
                                          ) -> int:
 
-        # Get additional trailer and movie information by making a second
-        # api call.
-        #
-        # Sets trailer_path, trailer_type and thumbnail
-        #
+        """ Get additional trailer and movie information by making a second
+            api call.
+
+            Sets trailer_path, trailer_type and thumbnail
+            :param feature_url:
+            :param movie:
+            :param release_date:
+
+        """
 
         clz = type(self)
         thumb: str = ''
@@ -608,7 +612,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                     if keep_promotion:
                         for promotion_format in downloadable_trailer['formats']:
-                            #Debug.dump_json('kept promotion format', promotion_format, LazyLogger.DEBUG)
+                            #Debug.dump_json('kept promotion format',
+                            # promotion_format, LazyLogger.DEBUG)
 
                             language = promotion_format.get('language', '')
                             height = promotion_format.get('height', 0)
@@ -632,14 +637,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                          title, 'from media-type:',
                                                          media_type, 'format:', format)
 
-                            promotion = {}
-                            promotion['type'] = rt_media_type
-                            promotion['language'] = language
-                            promotion['height'] = height
-                            promotion['url'] = url
-                            promotion['title'] = title
-                            promotion['thumbnail'] = thumbnail
-                            promotion['upload_date'] = upload_date
+                            promotion: MovieType = {
+                                    'type': rt_media_type,
+                                    'language': language,
+                                    'height': height,
+                                    'url': url,
+                                    'title': title,
+                                    'thumbnail': thumbnail,
+                                    'upload_date': upload_date
+                                    }
                             promotions.append(promotion)
                             media_types_map[rt_media_type].append(promotion)
                 except KeyError:
@@ -696,6 +702,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 trailer_type: str = chosen_promotion['type']
                 thumb: str = chosen_promotion['thumbnail']
                 movie.set_trailer_path(trailer_url)
+                movie.set_has_trailer(True)
                 movie.set_trailer_type(trailer_type)
                 movie.set_thumbnail(thumb)
             else:

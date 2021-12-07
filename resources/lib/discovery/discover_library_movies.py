@@ -20,6 +20,9 @@ from common.movie import LibraryMovie, BaseMovie
 from common.movie_constants import MovieField
 from common.logger import Trace, LazyLogger
 from common.settings import Settings
+from discovery.library_movie_trailer_fetcher import LibraryMovieTrailerFetcher
+from discovery.library_no_trailer_fetcher import LibraryNoTrailerTrailerFetcher
+from discovery.library_url_trailer_fetcher import LibraryURLTrailerFetcher
 from discovery.utils.db_access import DBAccess
 from discovery.utils.library_filter import LibraryFilter
 
@@ -71,7 +74,10 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         kwargs[MovieField.SOURCE] = MovieField.LIBRARY_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
-        self._movie_data = LibraryMovieData()
+
+        self._movie_data: LibraryMovieData = None
+        if Settings.is_include_library_trailers():
+            self._movie_data = LibraryMovieData()
 
         self._selected_genres = []
         self._selected_keywords = []
@@ -142,10 +148,6 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                         clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
                                          trace=Trace.STATS)
                     finished = True
-                    used_memory: int = self._movie_data.get_size_of()
-                    used_mb: float = float(used_memory) / 1000000.0
-                    self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
-                    # self.wait_until_restart_or_shutdown()
                 except StopDiscoveryException:
                     if clz.logger.isEnabledFor(LazyLogger.DEBUG):
                         clz.logger.debug('Stopping discovery')
@@ -185,7 +187,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         #    what the user wants, it is added to the pool of movies that
         #    can be randomly selected for playing. Once a movie has been
         #    selected, it is placed into a TrailerFetcherQueue. A
-        #    TrailerFetcher then gathers the remaining information so that
+        #    AbstractTrailerFetcher then gathers the remaining information so that
         #    it can be played.
         #
         #    If the lion's share of movies in the pool require significant
@@ -224,6 +226,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         start_time: datetime.datetime = datetime.datetime.now()
         Monitor.throw_exception_if_abort_requested()  # Expensive operation
         query_result: Dict[str, Any] = {}
+        movies: List[Dict[str, Any]] = []
         try:
             query_result: Dict[str, Any] =\
                 JsonUtilsBasic.get_kodi_json(query, dump_results=False)
@@ -252,7 +255,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 import simplejson as json
                 # json_encoded: Dict = json.loads(query)
                 clz.logger.debug_extra_verbose('JASON DUMP:',
-                                            json.dumps(
+                                               json.dumps(
                                                     query, indent=3, sort_keys=True))
             except Exception:
                 pass
@@ -273,7 +276,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         batch_size = \
             Constants.NUMBER_OF_LIBRARY_MOVIES_TO_DISCOVER_DURING_EXCLUSIVE_DISCOVERY
         movie_data = None
-        if Settings.is_enable_movie_stats():
+        if collect_stats:
             movie_data = LibraryMovieStats()
 
         movies_found: int = 0
@@ -343,18 +346,17 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             except Exception:
                 clz.logger.exception('')
 
-        if (clz.logger.isEnabledFor(LazyLogger.DEBUG)
-                and clz.logger.is_trace_enabled(Trace.STATS)):
-            clz.logger.debug('Local movies found in library:',
-                             movies_found, trace=Trace.STATS)
-            clz.logger.debug('Local movies filtered out',
-                             movies_skipped, trace=Trace.STATS)
-            clz.logger.debug('Movies with local trailers:',
-                             movies_with_local_trailers, trace=Trace.STATS)
-            clz.logger.debug('Movies with trailer URLs:',
-                             movies_with_trailer_urls, trace=Trace.STATS)
-            clz.logger.debug('Movies with no trailer information:',
-                             movies_without_trailer_info, trace=Trace.STATS)
+        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            clz.logger.debug(f'Local movies found in library: '
+                             f'{movies_found}')
+            clz.logger.debug(f'Local movies filtered out: '
+                             f'{movies_skipped}')
+            clz.logger.debug(f'Movies with local trailers: '
+                             f'{movies_with_local_trailers}')
+            clz.logger.debug(f'Movies with trailer URLs: '
+                             f'{movies_with_trailer_urls}')
+            clz.logger.debug(f'Movies with no trailer information: '
+                             f'{movies_without_trailer_info}')
 
         if Settings.is_enable_movie_stats():
             movie_data.report_data()
@@ -424,7 +426,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         This manager does not do any discovery, it receives local movies
         with trailer URLs from LibraryManager. This manager primarily
         acts as a container to hold the list of movies while the
-        TrailerFetcher and BaseTrailerManager does the work
+        AbstractTrailerFetcher and BaseTrailerManager does the work
     """
 
     def __init__(self) -> None:
@@ -511,7 +513,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         This manager does not do any discovery, it receives local movies
         without any trailer information from LibraryManager. This manager
         primarily acts as a container to hold the list of movies while the
-        TrailerFetcher and BaseTrailerManager does the work
+        AbstractTrailerFetcher and BaseTrailerManager does the work
     """
 
     def __init__(self) -> None:

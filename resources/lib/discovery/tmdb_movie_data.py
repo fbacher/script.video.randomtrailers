@@ -6,25 +6,27 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-from backend.movie_entry_utils import MovieEntryUtils
 from cache.tmdb_cache_index import CacheIndex
-# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
 from common.imports import *
 from common.movie import TMDbMovie, AbstractMovie, TMDbMovieId, BaseMovie
 from common.movie_constants import MovieField, MovieType
 from discovery.abstract_movie_data import AbstractMovieData
+from discovery.tmdb_trailer_fetcher import TMDbTrailerFetcher
+from discovery.trailer_fetcher_interface import TrailerFetcherInterface
 
 
-class TMDBMovieData(AbstractMovieData):
+class TMDbMovieData(AbstractMovieData):
     """
 
     """
 
-    def __init__(self, movie_source: str = MovieField.TMDB_SOURCE) -> None:
+    def __init__(self, trailer_fetcher_class: Type[TrailerFetcherInterface] = None,
+                 movie_source: str = MovieField.TMDB_SOURCE) -> None:
         """
 
         """
-        super().__init__(movie_source=MovieField.TMDB_SOURCE)
+        super().__init__(trailer_fetcher_class=TMDbTrailerFetcher,
+                         movie_source=MovieField.TMDB_SOURCE)
         self.start_trailer_fetchers()
 
     def add_to_discovered_trailers(self,
@@ -43,7 +45,7 @@ class TMDBMovieData(AbstractMovieData):
             super().remove_discovered_movie(movie)
             CacheIndex.remove_unprocessed_movie(movie)
 
-    def purge_rediscoverable_data(self, movie: TMDbMovie) -> None:
+    def purge_rediscoverable_data(self, movie: TMDbMovie) -> TMDbMovieId:
         """
         Replace fully populated cached entry with light-weight entry.
         Data can easily be rediscovered from locally cached data.
@@ -51,13 +53,12 @@ class TMDBMovieData(AbstractMovieData):
         :param movie:
         :return:
         """
-        cached_movie: BaseMovie = self.get_by_id(movie.get_id())
-        if cached_movie is None:
-            return 
-        
-        tmdb_movie_id: TMDbMovieId = movie.get_as_movie_id_type()
-        if isinstance(cached_movie, TMDbMovie):
+        if isinstance(movie, TMDbMovie):
             with self._discovered_movies_lock:
                 # super().remove_discovered_movie(movie)
+                tmdb_movie_id: TMDbMovieId = movie.get_as_movie_id_type()
                 super().replace(tmdb_movie_id)
+
+        return tmdb_movie_id
+
 

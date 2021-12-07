@@ -21,6 +21,7 @@ from common.movie import LibraryMovie
 from common.movie_constants import MovieField, MovieType
 from common.logger import LazyLogger, Trace
 from common.settings import Settings
+from discovery.folder_trailer_fetcher import FolderTrailerFetcher
 
 from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.base_discover_movies import BaseDiscoverMovies
@@ -52,7 +53,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         kwargs = {MovieField.SOURCE: MovieField.FOLDER_SOURCE}
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=kwargs)
-        self._movie_data = FolderMovieData()
+        self._movie_data = FolderMovieData(trailer_fetcher_class=
+                                           FolderTrailerFetcher)
 
     @classmethod
     def is_enabled(cls) -> bool:

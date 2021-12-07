@@ -98,13 +98,12 @@ class LibraryMovieStats:
         movie_id = movie_name + ' (' + str(movie_year) + ')'
 
         actor_count = 0
-        for actor_entry in actors:
-            if 'name' in actor_entry:
-                actor_count += 1
-                actor = actor_entry['name']
-                if self._actor_map.get(actor) is None:
-                    self._actor_map[actor] = []
-                self._actor_map[actor].append(movie_id)
+        actor: str
+        for actor in actors:
+            actor_count += 1
+            if self._actor_map.get(actor) is None:
+                self._actor_map[actor] = []
+            self._actor_map[actor].append(movie_id)
             if actor_count == Settings.get_report_max_top_actors():
                 break
 

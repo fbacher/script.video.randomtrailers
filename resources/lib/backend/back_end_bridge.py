@@ -122,7 +122,12 @@ class BackendBridge(PluginBridge):
 
         cls._trailer = trailer
         cls._status = BackendBridgeStatus.OK
-        cls.send_trailer(BackendBridgeStatus.OK, trailer)
+        if trailer.is_starving():
+            status: str = BackendBridgeStatus.BUSY
+        else:
+            status: str = BackendBridgeStatus.OK
+
+        cls.send_trailer(status, trailer)
         cls._busy_getting_trailer = False
 
     @classmethod

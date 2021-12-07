@@ -32,6 +32,7 @@ def startup_non_main_thread() -> None:
     try:
         pass
         #  Trace.enable(Trace.TRACE_NETWORK)
+        Trace.enable(Trace.TRACE_PLAY_STATS)
     except Exception as e:
         module_logger.exception(e)
 

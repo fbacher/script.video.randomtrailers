@@ -10,22 +10,31 @@ from collections import OrderedDict
 import threading
 import queue
 
+from cache.library_trailer_index import LibraryTrailerIndex
+from cache.tmdb_trailer_index import TMDbTrailerIndex
+from cache.trailer_cache import TrailerCache
 from common.constants import Constants
 from common.exceptions import AbortException
 from common.imports import *
 from common.debug_utils import Debug
 from common.monitor import Monitor
 from common.logger import LazyLogger
-from common.movie import AbstractMovie
+from common.movie import AbstractMovie, TMDbMovieId, TMDbMovie, LibraryMovie, \
+    LibraryMovieId
+from common.movie_constants import MovieField
 
 from diagnostics.play_stats import PlayStatistics
 from discovery.abstract_movie_data import AbstractMovieData
+from discovery.library_movie_data import LibraryMovieData
+from discovery.playable_trailers_container_interface import \
+    PlayableTrailersContainerInterface
+from discovery.tmdb_movie_data import TMDbMovieData
 from discovery.utils.recently_played_trailers import RecentlyPlayedTrailers
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
 
-class PlayableTrailersContainer:
+class PlayableTrailersContainer(PlayableTrailersContainerInterface):
     """
         Abstract class with common code for all Trailer Managers
 
@@ -42,7 +51,6 @@ class PlayableTrailersContainer:
     _any_trailers_available_to_play:ClassVar[threading.Event] = threading.Event()
     _singleton_instance = None
     _instances = {}
-    logger: ClassVar[LazyLogger] = None
 
     # Avoid playing duplicate trailers when we first start up.
 
@@ -55,8 +63,8 @@ class PlayableTrailersContainer:
 
         :return:
         """
-        self.logger = module_logger.getChild(type(self).__name__
-                                                + ':' + source)
+
+        self.logger = module_logger.getChild(f'{type(self).__name__}:{source}')
 
         PlayableTrailersContainer._instances[source] = self
         self._source = source
@@ -86,7 +94,6 @@ class PlayableTrailersContainer:
 
         return self._movie_data
 
-
     def stop_thread(self) -> None:
         """
         Stop using this instance
@@ -105,7 +112,6 @@ class PlayableTrailersContainer:
         :return:
         """
         self._number_of_added_trailers = 0
-        #self._movie_data = None
         self._aggregate_trailers_queued = 0
         self.clear()
 
@@ -118,7 +124,6 @@ class PlayableTrailersContainer:
         clz = type(self)
         if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
-
 
         if self.logger.isEnabledFor(LazyLogger.DEBUG):
             self.logger.debug_verbose('movie:', movie.get_title(), 'queue empty:',
@@ -139,7 +144,18 @@ class PlayableTrailersContainer:
                     # easily rediscoverable data from movie_data structures. Just keep
                     # movie source & movieid.
 
-                    self.get_movie_data().purge_rediscoverable_data(movie)
+                    if isinstance(movie, TMDbMovie):
+                        tmdb_id_movie: TMDbMovieId
+                        data: TMDbMovieData = self.get_movie_data()
+                        tmdb_id_movie = data.purge_rediscoverable_data(movie)
+
+                        self.logger.debug(f'tmdb_id_movie: {tmdb_id_movie}')
+                        TMDbTrailerIndex.add(tmdb_id_movie)
+                    elif isinstance(movie, LibraryMovie):
+                        library_id_movie: LibraryMovieId
+                        data: LibraryMovieData = self.get_movie_data()
+                        # library_id_movie = data.purge_rediscoverable_data(movie)
+                        LibraryTrailerIndex.add(movie)
 
                 finished = True
                 self._number_of_added_trailers += 1
@@ -196,14 +212,29 @@ class PlayableTrailersContainer:
             movie = None
 
         if movie is not None:
+            TrailerCache.is_more_discovery_needed(movie)
+
+            # If cached movie is invalid, then skip over this MovieField.
+
+            if (movie.get_discovery_state()
+                    != MovieField.DISCOVERY_READY_TO_DISPLAY):
+                movie = None
+        if movie is not None:
             RecentlyPlayedTrailers.add_played_trailer(movie)
+            self.logger.debug(f'Got movie: {movie.get_title()}')
 
             PlayStatistics.increase_play_count(movie)
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 self.logger.exit('movie:', movie.get_title())
-        else:
+        elif self.is_starving():
+            # self.set_starving(True)
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
                 self.logger.exit('No movie in queue')
+            movie = RecentlyPlayedTrailers.get_recently_played()
+            movie.set_starving(True)
+        else:
+            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                self.logger.exit('No movie in queue. Starving not set')
         return movie
 
     @classmethod
@@ -245,7 +276,10 @@ class PlayableTrailersContainer:
         # we just waited a few seconds we would have more options, we put a delay
         # before passing along the starving message.
 
-        self._starving = is_starving
+        # self._starving = is_starving
+        clz = type(self)
+        self.logger.debug(f'starving: {is_starving} checking pending: '
+                          f'{self._starve_check_pending}')
 
         with self._starve_check_lock:
             if self._starving and not self._starve_check_pending:
@@ -259,18 +293,20 @@ class PlayableTrailersContainer:
 
                     self._starve_check_timer = None
 
-                # Wait ten seconds before declaring starvation. This gives the
+                # Wait two seconds before declaring starvation. This gives the
                 # trailer_fetcher time to do something useful while movie is
                 # playing.
 
                 if not self._stop_thread:
                     self._starve_check_pending = True
-                    self._starve_check_timer = threading.Timer(10.0, self.starving_check)
+                    self._starve_check_timer = threading.Timer(2.0, self.starving_check)
                     self._starve_check_timer.setName(f'Starve Check {self._source}')
                     self._starve_check_timer.start()
 
     def starving_check(self) -> None:
+        clz = type(self)
         is_starving = self._ready_to_play_queue.empty()
+        self.logger.debug(f'starving: {is_starving}')
         self._starving = is_starving
         self._starve_check_pending = False
 
@@ -279,7 +315,9 @@ class PlayableTrailersContainer:
 
         :return:
         """
+        clz = type(self)
         starving = self._starving
+        self.logger.debug(f'starving: {starving}')
         self._starving = False
         return starving
 
