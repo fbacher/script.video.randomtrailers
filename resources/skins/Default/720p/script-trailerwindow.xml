@@ -36,7 +36,7 @@
             <control type="videowindow" id="38032">
                 <description>Private Video Window for trailer to avoid default
                     navigation action processing. Leave visible so it can intercept
-                    from native window. Hidden later, in Show Details grop by black image.
+                    from native window. Hidden later, in Show Details group by black image.
                 </description>
                 <visible>true</visible>
                 <left>0</left>
