@@ -50,15 +50,18 @@ class TFHTrailerIndex(BaseTrailerIndex):
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
 
-        cls._logger.debug(f'movie: {movie.get_id()} type: {type(movie)} '
-                          f'class: {type(movie).__name__} has_local: '
-                          f'{movie.has_local_trailer()} '
-                          f'trailer: {movie.get_has_trailer()}')
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug_extra_verbose(f'movie: {movie.get_id()} '
+                                            f'type: {type(movie)} '
+                                            f'class: {type(movie).__name__} '
+                                            f'has_local: '
+                                            f'{movie.has_local_trailer()} '
+                                            f'trailer: {movie.get_has_trailer()}')
 
         if isinstance(movie, TFHMovie):
-            cls._logger.debug(f'Converting to TFHMovie')
+            # cls._logger.debug(f'Converting to TFHMovie')
             movie = movie.get_as_movie_id_type()
-            cls._logger.debug(f'Converted to: {type(movie)}')
+            # cls._logger.debug(f'Converted to: {type(movie)}')
 
         super().add(movie, flush)
 
@@ -77,7 +80,7 @@ class TFHTrailerIndex(BaseTrailerIndex):
         :return:
          """
 
-        cls._logger.debug(f'movie: {movie_id.get_id()} type: {type(movie_id)}')
+        # cls._logger.debug(f'movie: {movie_id.get_id()} type: {type(movie_id)}')
 
         super().remove(movie_id, flush)
 
@@ -94,11 +97,11 @@ class TFHTrailerIndex(BaseTrailerIndex):
 
         :return:
         """
-        cls._logger.debug(f'movie_id: {movie_id}')
+        # cls._logger.debug(f'movie_id: {movie_id}')
 
         movie: AbstractMovieId = super().get(movie_id)
         movie: TFHMovieId
-        cls._logger.debug(f'movie: {movie}')
+        # cls._logger.debug(f'movie: {movie}')
         return movie
 
     @classmethod
@@ -111,7 +114,7 @@ class TFHTrailerIndex(BaseTrailerIndex):
     def get_all_with_local_trailers(cls) -> List[TFHMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_local_trailers()
-            cls._logger.debug(f'# local trailers: {len(values)}')
+            # cls._logger.debug(f'# local trailers: {len(values)}')
             values: List[TFHMovieId]
             return values
         except Exception:
@@ -121,7 +124,7 @@ class TFHTrailerIndex(BaseTrailerIndex):
     def get_all_with_non_local_trailers(cls) -> List[TFHMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_non_local_trailers()
-            cls._logger.debug(f'# non-local trailers: {len(values)}')
+            # cls._logger.debug(f'# non-local trailers: {len(values)}')
             values: List[TFHMovieId]
             return values
         except Exception:
@@ -131,7 +134,7 @@ class TFHTrailerIndex(BaseTrailerIndex):
     def get_all_with_no_known_trailers(cls) -> List[TFHMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_no_known_trailers()
-            cls._logger.debug(f'# no known trailers: {len(values)}')
+            # cls._logger.debug(f'# no known trailers: {len(values)}')
             values: List[TFHMovieId]
             return values
         except Exception:

@@ -81,15 +81,15 @@ class BaseTrailerIndex:
         :param flush:
         :return:
          """
-        cls._logger.debug(f'movie_id: {abstract_movie_id}')
+        # cls._logger.debug(f'movie_id: {abstract_movie_id}')
 
         with cls._lock:
             try:
                 cls.load_cache()
                 if isinstance(abstract_movie_id, TMDbMovie):
-                    cls._logger.debug(f'Converting to TMDBMovie')
+                    # cls._logger.debug(f'Converting to TMDBMovie')
                     movie = abstract_movie_id.get_as_movie_id_type()
-                    cls._logger.debug(f'Converted to: {type(abstract_movie_id)}')
+                    # cls._logger.debug(f'Converted to: {type(abstract_movie_id)}')
                 cls._cache[abstract_movie_id.get_id()] = abstract_movie_id
                 cls._unsaved_changes += 1
                 cls.save_cache(flush=flush)  # If needed
@@ -276,7 +276,7 @@ class BaseTrailerIndex:
                 return
 
             try:
-                cls._logger.debug(f'saving cache {cls._cache_path}')
+                # cls._logger.debug(f'saving cache {cls._cache_path}')
                 parent_dir, file_name = os.path.split(cls._cache_path)
                 DiskUtils.create_path_if_needed(parent_dir)
                 tmp_path: Path = Path(str(cls._cache_path) + '.tmp')

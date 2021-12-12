@@ -760,7 +760,7 @@ class JsonUtilsBasic:
                 #                 log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
 
                 result = Result(rc, status=status_code, msg=reason, data=movie_data )
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
                     cls._logger.debug(
                         f'generated url: {response.url} status_code: {status_code}')
                     # cls._logger.debug(f'{json.dumps(movie_data, indent=3,

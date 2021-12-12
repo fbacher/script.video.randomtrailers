@@ -22,7 +22,7 @@ class TrailerCache:
     for trailers which have had their volume normalized.
     """
 
-    _logger = None
+    _logger: LazyLogger = None
 
     @classmethod
     def config_logger(cls) -> LazyLogger:
@@ -57,7 +57,7 @@ class TrailerCache:
                 if Settings.is_normalize_volume_of_downloaded_trailers():
                     try:
                         if not os.path.exists(normalized_trailer_path):
-                            cls._logger.debug(
+                            cls._logger.debug_extra_verbose(
                                 f'title: {title} does not exist: '
                                 f'{normalized_trailer_path}')
                             movie.set_normalized_trailer_path('')
@@ -68,7 +68,7 @@ class TrailerCache:
                 elif Settings.is_use_trailer_cache():
                     try:
                         if not os.path.exists(cached_trailer_path):
-                            cls._logger.debug(
+                            cls._logger.debug_extra_verbose(
                                 f'title: {title} does not exist: '
                                 f'{cached_trailer_path}')
                             movie.set_cached_trailer('')
@@ -80,7 +80,7 @@ class TrailerCache:
                 # Local movie
                 try:
                     if not os.path.exists(normalized_trailer_path):
-                        cls._logger.debug(
+                        cls._logger.debug_extra_verbose(
                             f'title: {title} normalized trailer does not exist: '
                             f'{normalized_trailer_path}')
                         movie.set_normalized_trailer_path('')
@@ -94,7 +94,7 @@ class TrailerCache:
         if more_discovery_needed:
             movie.set_discovery_state(MovieField.DISCOVERY_NEARLY_COMPLETE)
 
-        cls._logger.debug(f'More discovery needed: {more_discovery_needed} {title}')
+        # cls._logger.debug(f'More discovery needed: {more_discovery_needed} {title}')
 
         return more_discovery_needed
 

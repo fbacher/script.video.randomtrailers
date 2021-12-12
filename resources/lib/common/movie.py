@@ -636,8 +636,6 @@ class RawMovie(BaseMovie):
 
         self._movie_info = temp_movie_info
         self.set_source(source)  # Force sync to movie_info
-        if CHECK_FOR_NULLS:
-            self.null_check()
 
     def __str__(self) -> str:
         return self.get_title()
@@ -910,6 +908,9 @@ class AbstractMovie(RawMovie):
 
     def set_has_trailer(self, has_trailer: bool = True) -> None:
         self._has_trailer = has_trailer
+        if self.has_trailer_path() and not self.is_trailer_url():
+            self.set_local_trailer(True)
+
         self.validate_local_trailer()
 
     def validate_local_trailer(self) -> None:
@@ -1096,11 +1097,22 @@ class AbstractMovie(RawMovie):
         return self._movie_info.setdefault(MovieField.TRAILER, '')
 
     def set_trailer_path(self, path: str) -> None:
-        self._movie_info[MovieField.TRAILER] = path
         #
         # TODO: This is nuts. Need to rework these xxtrailerxx methods
         #
+        self._movie_info[MovieField.TRAILER] = path
+        # clz = type(self)
+        # clz._logger.debug(f'path: {path} '
+        #                   f'get_trailer_path: {self.get_trailer_path()}')
+        # clz._logger.debug(f'has_trailer_path: {self.has_trailer_path()}')
         self.set_has_trailer(self.has_trailer_path())
+        # clz._logger.debug(f'has_trailer_path: {self.has_trailer_path()}')
+        if self.has_trailer_path() and not self.is_trailer_url():
+            # clz._logger.debug(f'setting local_trailer')
+            self.set_local_trailer(True)
+            # clz._logger.debug(f'has_local_trailer: {self._has_local_trailer} '
+            #                   f'has_local_trailer: {self.has_local_trailer()}')
+
         self.validate_local_trailer()
 
     def get_optimal_trailer_path(self) -> Tuple[bool, bool, str]:
@@ -1599,12 +1611,15 @@ class LibraryMovie(AbstractMovie):
         movie_id.set_tmdb_id(self.get_tmdb_id())
         movie_id.set_local_trailer(self.has_local_trailer())
         movie_id.set_has_trailer(self.get_has_trailer())
-        clz._logger.debug(f'movie_id: {movie_id} '
-                          f'type: {type(movie_id)} '
-                          f'id: {movie_id.get_id()} '
-                          f'tmdb_id: {movie_id.get_tmdb_id()} '
-                          f'has_local_trailer: {movie_id.has_local_trailer()} '
-                          f'get_has_trailer: {movie_id.get_has_trailer()}')
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'movie_id: {movie_id} '
+                                            f'type: {type(movie_id)} '
+                                            f'id: {movie_id.get_id()} '
+                                            f'tmdb_id: {movie_id.get_tmdb_id()} '
+                                            f'has_local_trailer: '
+                                            f'{movie_id.has_local_trailer()} '
+                                            f'get_has_trailer: '
+                                            f'{movie_id.get_has_trailer()}')
         return movie_id
 
 
@@ -1641,11 +1656,14 @@ class TMDbMovie(AbstractMovie):
         tmdb_movie_id.set_library_id(self.get_library_id())
         tmdb_movie_id.set_local_trailer(self.has_local_trailer())
         tmdb_movie_id.set_has_trailer(self.get_has_trailer())
-        clz._logger.debug(f'tmdb_movie_id: {tmdb_movie_id} '
-                          f'type: {type(tmdb_movie_id)} '
-                          f'id: {tmdb_movie_id.get_id()} '
-                          f'has_local_trailer: {tmdb_movie_id.has_local_trailer()} '
-                          f'get_has_trailer: {tmdb_movie_id.get_has_trailer()}')
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug(f'tmdb_movie_id: {tmdb_movie_id} '
+                              f'type: {type(tmdb_movie_id)} '
+                              f'id: {tmdb_movie_id.get_id()} '
+                              f'has_local_trailer: '
+                              f'{tmdb_movie_id.has_local_trailer()} '
+                              f'get_has_trailer: '
+                              f'{tmdb_movie_id.get_has_trailer()}')
         return tmdb_movie_id
 
     def get_original_language(self) -> str:
@@ -1742,12 +1760,13 @@ class TFHMovie(AbstractMovie):
         movie_id.set_tmdb_id(self.get_tmdb_id())
         movie_id.set_local_trailer(self.has_local_trailer())
         movie_id.set_has_trailer(self.get_has_trailer())
-        clz._logger.debug(f'movie_id: {movie_id} '
-                          f'type: {type(movie_id)} '
-                          f'id: {movie_id.get_id()} '
-                          f'tmdb_id: {movie_id.get_tmdb_id()} '
-                          f'has_local_trailer: {movie_id.has_local_trailer()} '
-                          f'get_has_trailer: {movie_id.get_has_trailer()}')
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug(f'movie_id: {movie_id} '
+                              f'type: {type(movie_id)} '
+                              f'id: {movie_id.get_id()} '
+                              f'tmdb_id: {movie_id.get_tmdb_id()} '
+                              f'has_local_trailer: {movie_id.has_local_trailer()} '
+                              f'get_has_trailer: {movie_id.get_has_trailer()}')
         return movie_id
 
 
@@ -1806,12 +1825,13 @@ class ITunesMovie(AbstractMovie):
         movie_id.set_tmdb_id(self.get_tmdb_id())
         movie_id.set_local_trailer(self.has_local_trailer())
         movie_id.set_has_trailer(self.get_has_trailer())
-        clz._logger.debug(f'movie_id: {movie_id} '
-                          f'type: {type(movie_id)} '
-                          f'id: {movie_id.get_id()} '
-                          f'tmdb_id: {movie_id.get_tmdb_id()} '
-                          f'has_local_trailer: {movie_id.has_local_trailer()} '
-                          f'get_has_trailer: {movie_id.get_has_trailer()}')
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug(f'movie_id: {movie_id} '
+                              f'type: {type(movie_id)} '
+                              f'id: {movie_id.get_id()} '
+                              f'tmdb_id: {movie_id.get_tmdb_id()} '
+                              f'has_local_trailer: {movie_id.has_local_trailer()} '
+                              f'get_has_trailer: {movie_id.get_has_trailer()}')
         return movie_id
 
 

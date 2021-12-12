@@ -24,3 +24,12 @@ class TrailerFetcherInterface(threading.Thread):
 
         kwargs['daemon'] = False
         super().__init__(*args, **kwargs)
+
+    def start_fetchers(self):
+        pass
+
+    def stop_fetchers(self):
+        pass
+
+    def destroy(self):
+        pass

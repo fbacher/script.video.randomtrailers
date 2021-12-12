@@ -25,7 +25,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
     _last_saved = datetime.datetime(year=1900, month=1, day=1)
     _parameters = None
     _unsaved_changes: int = 0
-    _logger = None
+    _logger: LazyLogger = None
 
     _cache: Dict[str, ITunesMovieId] = {}
     _cache_loaded: bool = False
@@ -51,15 +51,16 @@ class ITunesTrailerIndex(BaseTrailerIndex):
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
 
-        cls._logger.debug(f'movie: {movie.get_id()} type: {type(movie)} '
-                          f'class: {type(movie).__name__} has_local: '
-                          f'{movie.has_local_trailer()} '
-                          f'trailer: {movie.get_has_trailer()}')
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug(f'movie: {movie.get_id()} type: {type(movie)} '
+                              f'class: {type(movie).__name__} has_local: '
+                              f'{movie.has_local_trailer()} '
+                              f'trailer: {movie.get_has_trailer()}')
 
         if isinstance(movie, ITunesMovie):
-            cls._logger.debug(f'Converting to ITunesMovie')
+            # cls._logger.debug(f'Converting to ITunesMovie')
             movie = movie.get_as_movie_id_type()
-            cls._logger.debug(f'Converted to: {type(movie)}')
+            # cls._logger.debug(f'Converted to: {type(movie)}')
 
         super().add(movie, flush)
 
@@ -78,7 +79,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
         :return:
          """
 
-        cls._logger.debug(f'movie: {movie_id.get_id()} type: {type(movie_id)}')
+        # cls._logger.debug(f'movie: {movie_id.get_id()} type: {type(movie_id)}')
 
         super().remove(movie_id, flush)
 
@@ -95,11 +96,11 @@ class ITunesTrailerIndex(BaseTrailerIndex):
 
         :return:
         """
-        cls._logger.debug(f'movie_id: {movie_id}')
+        # cls._logger.debug(f'movie_id: {movie_id}')
 
         movie: AbstractMovieId = super().get(movie_id)
         movie: ITunesMovieId
-        cls._logger.debug(f'movie: {movie}')
+        # cls._logger.debug(f'movie: {movie}')
         return movie
 
     @classmethod
@@ -112,7 +113,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
     def get_all_with_local_trailers(cls) -> List[ITunesMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_local_trailers()
-            cls._logger.debug(f'# local trailers: {len(values)}')
+            # cls._logger.debug(f'# local trailers: {len(values)}')
             values: List[ITunesMovieId]
             return values
         except Exception:
@@ -122,7 +123,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
     def get_all_with_non_local_trailers(cls) -> List[ITunesMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_non_local_trailers()
-            cls._logger.debug(f'# non-local trailers: {len(values)}')
+            # cls._logger.debug(f'# non-local trailers: {len(values)}')
             values: List[ITunesMovieId]
             return values
         except Exception:
@@ -132,7 +133,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
     def get_all_with_no_known_trailers(cls) -> List[ITunesMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_no_known_trailers()
-            cls._logger.debug(f'# no known trailers: {len(values)}')
+            # cls._logger.debug(f'# no known trailers: {len(values)}')
             values: List[ITunesMovieId]
             return values
         except Exception:

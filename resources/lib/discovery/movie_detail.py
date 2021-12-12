@@ -351,24 +351,26 @@ class MovieDetail:
 
     @classmethod
     def clone_fields(cls,
-                     source_movie: AbstractMovie,
-                     destination_movie: AbstractMovie,
+                     source: AbstractMovie,
+                     destination: AbstractMovie,
                      fields_to_copy: Dict[str, Any]
                      ) -> None:
         """
 
         :param cls:
-        :param source_movie:
-        :param destination_movie:
+        :param source:
+        :param destination:
         :param fields_to_copy:
         :return:
         """
         try:
             for key, default_value in fields_to_copy.items():
-                value = source_movie.get_property(key, default_value)
-                destination_movie.set_property(key, value)
-            destination_movie.set_local_trailer(source_movie.has_local_trailer())
-            destination_movie.set_has_trailer(source_movie.get_has_trailer())
+                value = source.get_property(key, default_value)
+                destination.set_property(key, value)
+
+            if destination.has_trailer_path() and not destination.is_trailer_url():
+                destination.set_local_trailer(True)
+
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:

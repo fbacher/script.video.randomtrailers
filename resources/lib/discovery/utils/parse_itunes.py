@@ -24,7 +24,7 @@ from common.utils import Utils
 STRIP_TZ_PATTERN: Final[Pattern] = re.compile(' .[0-9]{4}$')
 # Map trailer-type strings from iTunes to what this app uses
 
-EPOCH_TIME: Final[datetime.datetime] = datetime.datetime(1970, 1, 1, 0, 1)
+EPOCH_TIME: Final[datetime.date] = datetime.date(1970, 1, 1)
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -74,12 +74,13 @@ class ParseITunes:
         # if clz._logger.isEnabledFor(LazyLogger.DEBUG):
         # clz._logger.debug('release_date_string: ',
         #            release_date_string)
+        release_date: datetime.date
         if release_date_string != '':
             release_date_string = STRIP_TZ_PATTERN.sub('', release_date_string)
 
             # "Thu, 14 Feb 2019 00:00:00 -0800",
-            release_date: datetime = Utils.strptime(release_date_string,
-                                                    '%a, %d %b %Y %H:%M:%S')
+            release_date = Utils.strptime(release_date_string,
+                                          '%a, %d %b %Y %H:%M:%S').date()
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 title: str = self._itunes_movie.get_title()
                 clz._logger.debug_extra_verbose(
@@ -89,14 +90,14 @@ class ParseITunes:
         else:
             release_date = datetime.date.today()
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            if abs((release_date - EPOCH_TIME).total_seconds()) < 3600 * 25:
+        if abs((release_date - EPOCH_TIME).total_seconds()) < (3600 * 25):
+            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose('Suspicious looking release date:',
-                                               release_date.strftime('%d-%m-%Y'))
-                #
-                # Force date to be today since it looks like it was never
-                # set
-                release_date = datetime.date.today()
+                                                release_date.strftime('%d-%m-%Y'))
+            #
+            # Force date to be today since it looks like it was never
+            # set
+            release_date = datetime.date.today()
 
         self._itunes_movie.set_release_date(release_date)
         return release_date
@@ -135,7 +136,7 @@ class ParseITunes:
             # "Thu, 14 Feb 2019 00:00:00 -0800",
             release_date: datetime = Utils.strptime(release_date_string,
                                                     '%a, %d %b %Y %H:%M:%S')
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                 title: str = self._itunes_movie.get_title()
                 clz._logger.debug_extra_verbose(
                     f'title: {title} release_date_string: {release_date_string} '
@@ -144,10 +145,10 @@ class ParseITunes:
         else:
             release_date = datetime.date.today()
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
             if abs((release_date - EPOCH_TIME).total_seconds()) < 3600 * 25:
                 clz._logger.debug_extra_verbose('Suspicious looking release date:',
-                                               release_date.strftime('%d-%m-%Y'))
+                                                release_date.strftime('%d-%m-%Y'))
                 #
                 # Force date to be today since it looks like it was never
                 # set
@@ -195,7 +196,7 @@ class ParseITunes:
         for itunes_trailer in itunes_trailers_list:
             try:
                 Monitor.throw_exception_if_abort_requested()
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz._logger.isEnabledFor(LazyLogger.DISABLED):
                     clz._logger.debug_extra_verbose(
                         'itunes_trailer: ', itunes_trailer)
 

@@ -55,7 +55,7 @@ YOUTUBE_DL_PATH = os.path.join(Constants.BACKEND_ADDON_UTIL.PATH,
 # Delay two hours after encountering 429 (too many requests)
 RETRY_DELAY = datetime.timedelta(0, float(60 * 60 * 2))
 
-LOG_ALL = True
+LOG_ALL = False
 LOGGER_ENABLE_LEVEL = LazyLogger.DEBUG
 LOG_LOCK: bool = False
 DUMP_JSON: bool = False
@@ -221,7 +221,7 @@ class VideoDownloader:
                         datetime.datetime.now() - cls._last_youtube_request_timestamp)
             time_to_wait = delay - waited.total_seconds()
             if time_to_wait > 0.0:
-                cls._logger.debug(f'Delaying {int(time_to_wait)} seconds for source: {source}')
+                # cls._logger.debug(f'Delaying {int(time_to_wait)} seconds for source: {source}')
                 Monitor.throw_exception_if_abort_requested(time_to_wait)
 
         finally:

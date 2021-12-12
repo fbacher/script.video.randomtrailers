@@ -385,9 +385,10 @@ class BaseCache:
             movie_id: str = movie.get_id()
             prefix = BaseCache.generate_unique_id_from_source(movie_id, source,
                                                               error_msg=error_msg)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                cls._logger.debug(f'movie_id: {movie_id} source: {source} '
-                                  f'prefix: {prefix}')
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls._logger.debug_extra_verbose(f'movie_id: {movie_id} '
+                                                f'source: {source} '
+                                                f'prefix: {prefix}')
             #
             # To reduce clutter, put cached data into a folder named after the
             # SOURCE and first character of the id
@@ -432,7 +433,9 @@ class BaseCache:
                                 folder, cache_file)
             path = xbmcvfs.validatePath(path)
 
-            cls._logger.debug(f'path: {path} source: {source} movie_id: {movie_id}')
+            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls._logger.debug_extra_verbose(f'path: {path} source: {source} '
+                                                f'movie_id: {movie_id}')
             return path
         except AbortException:
             reraise(*sys.exc_info())

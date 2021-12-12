@@ -223,7 +223,8 @@ class PlayableTrailerService:
                         'manager:', found_playable_trailers.__class__.__name__)
                 trailer = found_playable_trailers.get_next_movie()
             except queue.Empty:
-                clz.logger.debug(f'source queue empty {source}')
+                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    clz.logger.debug_verbose(f'source queue empty {source}')
                 # found_playable_trailers.set_starving(True)
                 trailer = None
 
@@ -279,14 +280,17 @@ class PlayableTrailerService:
                             f'manager: {playable_trailers.__class__.__name__}')
                     trailer = playable_trailers.get_next_movie()
                 except queue.Empty:
-                    clz.logger.debug(f'source queue empty {source}')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        clz.logger.debug_verbose(f'source queue empty {source}')
                     # playable_trailers.set_starving(True)
                     trailer = None
 
                 if trailer is not None:
-                    clz.logger.debug_verbose(f'movie: {trailer.get_title()} '
-                                             f'found in second method '
-                                             f'starving: {is_starving}')
+                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        clz.logger.debug_extra_verbose(f'movie: '
+                                                       f'{trailer.get_title()} '
+                                                       f'found in second method '
+                                                       f'starving: {is_starving}')
                     break
 
             if second_method_attempts is not None:
@@ -340,8 +344,9 @@ class PlayableTrailerService:
 
                     trailer = RecentlyPlayedTrailers.get_recently_played()
                     if trailer is not None:
-                        clz.logger.debug_verbose(f'movie: {trailer.get_title()} '
-                                                 f'found in third method')
+                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            clz.logger.debug_verbose(f'movie: {trailer.get_title()} '
+                                                     f'found in third method')
                         break
 
                 third_method_attempts += 1
@@ -488,24 +493,29 @@ class PlayableTrailerService:
                     playable_trailers.get_ready_to_play_queue().qsize()
                 trailer_fetch_queue_size: int = \
                     movie_data.get_trailers_to_fetch_queue_size()
-                clz.logger.debug_extra_verbose(f'{source} trailers: {number_of_trailers} '
-                                               f'movies: {number_of_movies}'
-                                               f'discoveredTrailersQueue size:'
-                                               f'{trailers_queue_size} '
-                                               f'readyToPlayQueue size: '
-                                               f'{ready_to_play_queue_size} '
-                                               f'trailersToFetchQueue size: '
-                                               f'{trailer_fetch_queue_size}')
+                if ready_to_play_queue_size < playable_trailers.READY_TO_PLAY_QUEUE_SIZE:
+                    clz.logger.debug_extra_verbose(f'{source} trailers: '
+                                                   f'{number_of_trailers} '
+                                                   f'movies: {number_of_movies} '
+                                                   f'discoveredTrailersQueue size:'
+                                                   f'{trailers_queue_size} '
+                                                   f'readyToPlayQueue size: '
+                                                   f'{ready_to_play_queue_size} '
+                                                   f'trailersToFetchQueue size: '
+                                                   f'{trailer_fetch_queue_size}')
 
             projected_size = playable_trailers.get_projected_number_of_trailers()
             projected_sizes_map[source] = projected_size
+            previous_projected_size: int = playable_trailers.previous_projected_size
 
-            if (clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+            if (previous_projected_size != projected_size
+                    and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
                     and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
                 clz.logger.debug_extra_verbose('source:', source,
                                                'projected size:',
                                                projected_size,
                                                trace=Trace.TRACE_PLAY_STATS)
+            playable_trailers.previous_projected_size = previous_projected_size
             total_number_of_trailers += projected_size
             if not movie_data.is_discovery_complete() or number_of_trailers != 0:
                 nothing_to_play = False

@@ -19,7 +19,7 @@ class RecentTrailerHistory:
 
     MAXIMUM_HISTORY: Final[int] = 20
 
-    logger: ClassVar[LazyLogger] = None
+    logger: LazyLogger = None
 
     _trailer_history: Final[List[AbstractMovie]] = []
     _lock: Final[threading.RLock] = threading.RLock()
@@ -35,18 +35,22 @@ class RecentTrailerHistory:
                 return None
 
             index: int = random.randint(0, len(cls._trailer_history) - 1)
-            cls.logger.debug(f'len: {len(cls._trailer_history)} '
-                             f'getting: {cls._trailer_history[index].get_title()}')
+            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                cls.logger.debug_extra_verbose(f'len: {len(cls._trailer_history)} '
+                                               f'getting: {cls._trailer_history[index].get_title()}')
             return cls._trailer_history[index]
 
     @classmethod
     def add_trailer(cls, movie: AbstractMovie) -> None:
         with cls._lock:
             cls._trailer_history.append(movie)
-            cls.logger.debug(f'adding: {movie.get_title()}')
+            if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+                cls.logger.debug_extra_verbose(f'adding: {movie.get_title()}')
             if len(cls._trailer_history) > cls.MAXIMUM_HISTORY:
                 del cls._trailer_history[0]
-                cls.logger.debug(f'history[0]: {cls._trailer_history[0].get_title()}')
+                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    cls.logger.debug_extra_verbose(f'history[0]:'
+                                                   f'{cls._trailer_history[0].get_title()}')
 
     @classmethod
     def get_number_of_trailers(cls) -> int:

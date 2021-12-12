@@ -55,16 +55,17 @@ class LibraryTrailerIndex(BaseTrailerIndex):
         :return:
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
-        cls._logger.debug(f'library id: {movie.get_library_id()} '
-                          f'tmdb id: {movie.get_tmdb_id()} type: {type(movie)} '
-                          f'has_local: '
-                          f'{movie.has_local_trailer()} '
-                          f'trailer: {movie.get_trailer_path()}')
+        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            cls._logger.debug(f'library id: {movie.get_library_id()} '
+                              f'tmdb id: {movie.get_tmdb_id()} type: {type(movie)} '
+                              f'has_local: '
+                              f'{movie.has_local_trailer()} '
+                              f'trailer: {movie.get_trailer_path()}')
 
         if isinstance(movie, LibraryMovie):
-            cls._logger.debug(f'Converting to LibraryMovie')
+            # cls._logger.debug(f'Converting to LibraryMovie')
             movie = movie.get_as_movie_id_type()
-            cls._logger.debug(f'Converted to: {type(movie)}')
+            # cls._logger.debug(f'Converted to: {type(movie)}')
 
         if cls._first_use:
             cls.check_local_trailer_entries()
@@ -87,11 +88,11 @@ class LibraryTrailerIndex(BaseTrailerIndex):
         :return:
          """
 
-        cls._logger.debug(f'movie: {movie.get_library_id()} type: {type(movie)}')
+        # cls._logger.debug(f'movie: {movie.get_library_id()} type: {type(movie)}')
         if isinstance(movie, LibraryMovie):
-            cls._logger.debug(f'Converting to LibraryMovie')
+            # cls._logger.debug(f'Converting to LibraryMovie')
             movie = movie.get_as_movie_id_type()
-            cls._logger.debug(f'Converted to: {type(movie)}')
+            # cls._logger.debug(f'Converted to: {type(movie)}')
         super().remove(movie, flush)
 
     @classmethod
@@ -107,11 +108,8 @@ class LibraryTrailerIndex(BaseTrailerIndex):
 
         :return:
         """
-        cls._logger.debug(f'movie_id: {movie_id}')
-
         movie: AbstractMovieId = super().get(movie_id)
         movie: LibraryMovieId
-        cls._logger.debug(f'movie: {movie}')
         return movie
 
     @classmethod
@@ -152,14 +150,14 @@ class LibraryTrailerIndex(BaseTrailerIndex):
         if changed:
             cls.save_cache(flush=True)
         cls._first_use = False
-        cls._logger.debug(f'changed: {changed}')
+        # cls._logger.debug(f'changed: {changed}')
         return changed
 
     @classmethod
     def get_all_with_local_trailers(cls) -> List[LibraryMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_local_trailers()
-            cls._logger.debug(f'# local trailers: {len(values)}')
+            # cls._logger.debug(f'# local trailers: {len(values)}')
             values: List[LibraryMovieId]
             return values
         except Exception:
@@ -169,7 +167,7 @@ class LibraryTrailerIndex(BaseTrailerIndex):
     def get_all_with_non_local_trailers(cls) -> List[LibraryMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_non_local_trailers()
-            cls._logger.debug(f'# local trailers: {len(values)}')
+            # cls._logger.debug(f'# local trailers: {len(values)}')
             values: List[LibraryMovieId]
             return values
         except Exception:
@@ -179,7 +177,7 @@ class LibraryTrailerIndex(BaseTrailerIndex):
     def get_all_with_no_known_trailers(cls) -> List[LibraryMovieId]:
         try:
             values: List[AbstractMovieId] = super().get_all_with_no_known_trailers()
-            cls._logger.debug(f'# no known trailers: {len(values)}')
+            # cls._logger.debug(f'# no known trailers: {len(values)}')
             values: List[LibraryMovieId]
             return values
         except Exception:

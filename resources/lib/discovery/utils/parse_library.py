@@ -242,11 +242,7 @@ class ParseLibrary:
 
             movie: LibraryMovie = movie_parser.get_movie()
             movie_id: LibraryMovieId = LibraryTrailerIndex.get(movie.get_id())
-            cls._logger.debug(f'title: {movie.get_title()} '
-                              f'id: {movie.get_id()} movie_id: {movie_id}')
             if movie_id is not None:
-                cls._logger.debug(f'local_trailer: {movie_id.has_local_trailer()} '
-                                  f'has_trailer: {movie_id.get_has_trailer()}')
                 movie.set_local_trailer(movie_id.has_local_trailer())
                 movie.set_has_trailer(movie_id.get_has_trailer())
                 movie.set_tmdb_id(movie.get_tmdb_id())

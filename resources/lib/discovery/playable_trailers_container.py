@@ -47,6 +47,7 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         interfaces would be largely the same.
     """
     DUPLICATE_TRAILER_CHECK_LIMIT: Final[int] = 15
+    READY_TO_PLAY_QUEUE_SIZE: int = 3
 
     _any_trailers_available_to_play:ClassVar[threading.Event] = threading.Event()
     _singleton_instance = None
@@ -64,12 +65,14 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         :return:
         """
 
+        self.logger: LazyLogger
         self.logger = module_logger.getChild(f'{type(self).__name__}:{source}')
 
         PlayableTrailersContainer._instances[source] = self
         self._source = source
         self._movie_data: AbstractMovieData = None
-        self._ready_to_play_queue: queue.Queue = queue.Queue(maxsize=3)
+        self._ready_to_play_queue: queue.Queue = queue.Queue(
+                maxsize=PlayableTrailersContainer.READY_TO_PLAY_QUEUE_SIZE)
         self._number_of_added_trailers: int = 0
         self._starving: bool = False
         self._starve_check_timer: threading.Timer = None
@@ -78,6 +81,7 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         self._is_playable_trailers: threading.Event = threading.Event()
         self._stop_thread = False
         self._shuffled: bool = False
+        self.previous_projected_size: int = 0
 
     def set_movie_data(self, movie_data: AbstractMovieData) -> None:
         """
@@ -124,8 +128,6 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         clz = type(self)
         if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
-
-        if self.logger.isEnabledFor(LazyLogger.DEBUG):
             self.logger.debug_verbose('movie:', movie.get_title(), 'queue empty:',
                                       self._ready_to_play_queue.empty(), 'full:',
                                       self._ready_to_play_queue.full())
@@ -149,7 +151,7 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
                         data: TMDbMovieData = self.get_movie_data()
                         tmdb_id_movie = data.purge_rediscoverable_data(movie)
 
-                        self.logger.debug(f'tmdb_id_movie: {tmdb_id_movie}')
+                        # self.logger.debug(f'tmdb_id_movie: {tmdb_id_movie}')
                         TMDbTrailerIndex.add(tmdb_id_movie)
                     elif isinstance(movie, LibraryMovie):
                         library_id_movie: LibraryMovieId
@@ -173,9 +175,9 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         self._is_playable_trailers.set()
 
         if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            self.logger.debug_extra_verbose('readyToPlayQueue size:',
-                                            self._ready_to_play_queue.qsize(), 'waited:',
-                                            waited)
+            self.logger.debug_extra_verbose(f'readyToPlayQueue size: '
+                                            f'{self._ready_to_play_queue.qsize()} '
+                                            f'waited: {waited}')
         return
 
     def get_ready_to_play_queue(self) -> queue.Queue:
@@ -221,11 +223,11 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
                 movie = None
         if movie is not None:
             RecentlyPlayedTrailers.add_played_trailer(movie)
-            self.logger.debug(f'Got movie: {movie.get_title()}')
+            # self.logger.debug(f'Got movie: {movie.get_title()}')
 
             PlayStatistics.increase_play_count(movie)
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.exit('movie:', movie.get_title())
+                self.logger.exit(f'movie: {movie.get_title()}')
         elif self.is_starving():
             # self.set_starving(True)
             if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
@@ -278,8 +280,8 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
 
         # self._starving = is_starving
         clz = type(self)
-        self.logger.debug(f'starving: {is_starving} checking pending: '
-                          f'{self._starve_check_pending}')
+        # self.logger.debug(f'starving: {is_starving} checking pending: '
+        #                   f'{self._starve_check_pending}')
 
         with self._starve_check_lock:
             if self._starving and not self._starve_check_pending:
@@ -306,7 +308,7 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
     def starving_check(self) -> None:
         clz = type(self)
         is_starving = self._ready_to_play_queue.empty()
-        self.logger.debug(f'starving: {is_starving}')
+        # self.logger.debug(f'starving: {is_starving}')
         self._starving = is_starving
         self._starve_check_pending = False
 
@@ -317,7 +319,7 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         """
         clz = type(self)
         starving = self._starving
-        self.logger.debug(f'starving: {starving}')
+        # self.logger.debug(f'starving: {starving}')
         self._starving = False
         return starving
 

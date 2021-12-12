@@ -542,12 +542,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             promotions = []
             for downloadable_trailer in downloadable_trailers:
                 try:
-                    raw_movie = RawMovie(movie_info=downloadable_trailer,
-                                         source=MovieField.ITUNES_SOURCE)
-                    movie_id: str = movie.get_id() + '_X'
-                    raw_movie.set_id(movie_id)
-                    raw_movie.set_property(MovieField.TITLE, title)
-                    BaseCache.write_cache_json(raw_movie)
+                    '''
+                        raw_movie: RawMovie
+                        raw_movie = RawMovie(movie_info=downloadable_trailer,
+                                             source=MovieField.ITUNES_SOURCE)
+                        movie_id: str = movie.get_id() + '_X'
+                        raw_movie.set_id(movie_id)
+                        raw_movie.set_property(MovieField.TITLE, title)
+                        BaseCache.write_cache_json(raw_movie)
+                    '''
                    # Debug.dump_json('downloadable_trailer', downloadable_trailer,
                    #                  LazyLogger.DEBUG)
                     Monitor.throw_exception_if_abort_requested()
@@ -691,12 +694,15 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 chosen_promotion = best_promotions[0]
                 # Debug.dump_json('chosen promotion', chosen_promotion, LazyLogger.DEBUG)
 
-                raw_movie = RawMovie(movie_info=chosen_promotion,
-                                     source=MovieField.ITUNES_SOURCE)
-                movie_id: str = movie.get_id() + '_C'
-                raw_movie.set_id(movie_id)
-                raw_movie.set_property(MovieField.TITLE, title)
-                BaseCache.write_cache_json(raw_movie)
+                '''
+                    raw_movie: RawMovie
+                    raw_movie = RawMovie(movie_info=chosen_promotion,
+                                         source=MovieField.ITUNES_SOURCE)
+                    movie_id: str = movie.get_id() + '_C'
+                    raw_movie.set_id(movie_id)
+                    raw_movie.set_property(MovieField.TITLE, title)
+                    BaseCache.write_cache_json(raw_movie)
+                '''
 
                 trailer_url: str = chosen_promotion['url']
                 trailer_type: str = chosen_promotion['type']
