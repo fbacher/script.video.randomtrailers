@@ -103,7 +103,10 @@ class Constants:
 
     # For Testing
 
-    DISABLE_LIBRARY_TRAILERS: bool = True
+    # Causes local library trailers to be ignored, thereby forcing all trailers
+    # for local movies to be downloaded from TMDb
+
+    DISABLE_LIBRARY_TRAILERS: bool = False
 
     @staticmethod
     def static_init() -> None:
