@@ -9,6 +9,8 @@ Created on Feb 10, 2019
 import sys
 import datetime
 import io
+import unicodedata
+
 import simplejson as json
 import os
 import re
@@ -432,6 +434,11 @@ class BaseCache:
             path = os.path.join(Settings.get_remote_db_cache_path(),
                                 folder, cache_file)
             path = xbmcvfs.validatePath(path)
+
+            # Use only ASCII file names (Fix Linux weirdness using utf-8).
+            # TODO: Use straight UTF-8, but investigate usage on Linux, etc.
+
+            path = unicodedata.normalize('NFKC', path)
 
             if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(f'path: {path} source: {source} '

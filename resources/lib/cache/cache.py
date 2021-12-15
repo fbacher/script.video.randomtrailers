@@ -9,6 +9,8 @@ Created on Feb 10, 2019
 import sys
 import datetime
 import io
+import unicodedata
+
 import simplejson as json
 import os
 import re
@@ -515,6 +517,12 @@ class Cache:
                                     folder, file_name)
                 # Should not be needed
                 path = xbmcvfs.validatePath(path)
+
+                # Use only ASCII file names (Fix Linux weirdness using utf-8).
+                # TODO: Use straight UTF-8, but investigate usage on Linux, etc.
+
+                path = unicodedata.normalize('NFKC', path)
+
 
         except AbortException:
             reraise(*sys.exc_info())
