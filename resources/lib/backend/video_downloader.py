@@ -17,7 +17,9 @@ import random
 import sys
 import threading
 
-import youtube_dl
+import yt_dlp as youtube_dl
+from common.utils import Utils
+from yt_dlp.utils import DownloadError
 
 from common.constants import Constants
 from common.logger import LazyLogger
@@ -26,7 +28,7 @@ from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
 from common.certification import Certifications, WorldCertifications
 from common.settings import Settings
-from youtube_dl.utils import DownloadError
+# from youtube_dl.utils import DownloadError
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -906,6 +908,7 @@ class BaseYDLogger:
             # "id" describes single downloaded movie
             try:
                 self.raw_data = json.loads(line)
+                Utils.strip_null_entries(self.raw_data)
                 if DUMP_JSON and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
                     try:
                         json_text = json.dumps(self.raw_data,
