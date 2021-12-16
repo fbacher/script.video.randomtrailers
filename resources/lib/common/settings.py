@@ -1240,6 +1240,11 @@ class Settings:
         """
         # locale.setlocale(locale.LC_ALL, 'en_US')
         language_code, encoding = locale.getdefaultlocale()
+        if language_code is None:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            language_code, encoding = locale.getdefaultlocale()
+        if language_code is None:
+            language_code = 'en_US'
 
         return language_code
 
