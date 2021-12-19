@@ -545,7 +545,7 @@ class MovieDetail:
     
                     temp_file = os.path.join(trailer_folder, str(tmdb_id) + '.json')
                     import io
-                    with io.open(temp_file, mode='wt', newline=None,
+                    with io.open(temp_file.encode('utf-8'), mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         jsonText = utils.py2_decode(json.dumps(downloaded_trailer,
                                                                encoding='utf-8',

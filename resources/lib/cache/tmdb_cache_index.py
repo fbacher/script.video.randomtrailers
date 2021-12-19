@@ -417,7 +417,7 @@ class CacheParameters(CacheParametersType):
             try:
                 Monitor.throw_exception_if_abort_requested()
 
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     json_text = cls.to_json()
                     cacheFile.write(json_text)
@@ -517,7 +517,7 @@ class CacheParameters(CacheParametersType):
 
                 Monitor.throw_exception_if_abort_requested()
 
-                with io.open(path, mode='rt', newline=None,
+                with io.open(path.encode('utf-8'), mode='rt', newline=None,
                              encoding='utf-8') as cacheFile:
                     saved_preferences = json.load(cacheFile, encoding='utf-8')
                     saved_preferences = CacheParameters(saved_preferences)
@@ -940,7 +940,7 @@ class CachedPagesData:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(temp_path, mode='wt', newline=None,
+                with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8') as cacheFile:
                     json_dict = self.to_json()
 
@@ -990,7 +990,8 @@ class CachedPagesData:
 
             if os.path.exists(path):
                 Monitor.throw_exception_if_abort_requested()
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     encoded_values = json.load(
                         cacheFile, encoding='utf-8',
@@ -1248,7 +1249,8 @@ class CacheIndex:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
             if os.path.exists(path):
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     found_trailers_list = json.load(
                         cacheFile, encoding='utf-8',
@@ -1298,7 +1300,7 @@ class CacheIndex:
                 parent_dir, file_name = os.path.split(path)
                 if not os.path.exists(parent_dir):
                     DiskUtils.create_path_if_needed(parent_dir)
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     found_trailer_id_list = list(
                         cls._found_tmdb_trailer_ids)
@@ -1409,7 +1411,8 @@ class CacheIndex:
             DiskUtils.create_path_if_needed(parent_dir)
 
             if os.path.exists(path):
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     unprocessed_trailers_list = json.load(
                         cacheFile, encoding='utf-8',
@@ -1457,7 +1460,7 @@ class CacheIndex:
                 parent_dir, file_name = os.path.split(path)
                 if not os.path.exists(parent_dir):
                     DiskUtils.create_path_if_needed(parent_dir)
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     unprocessed_trailer_ids = list(
                         cls._unprocessed_tmdb_trailer_ids)

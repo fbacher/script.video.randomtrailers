@@ -154,7 +154,7 @@ class ITunesCache:
                     DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(tmp_path, mode='wt', newline=None,
+                with io.open(tmp_path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
 
                     cls._logger.debug(f'complete: {complete} cache_complete: '
@@ -253,7 +253,7 @@ class ITunesCache:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 if os.path.exists(path):
-                    with io.open(path, mode='rt', newline=None,
+                    with io.open(path.encode('utf-8'), mode='rt', newline=None,
                                  encoding='utf-8') as cacheFile:
                         cls._cached_movies = json.load(
                             cacheFile,

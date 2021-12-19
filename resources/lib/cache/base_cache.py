@@ -5,11 +5,12 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-
+import locale
 import sys
 import datetime
 import io
 import unicodedata
+from pathlib import PurePath
 
 import simplejson as json
 import os
@@ -170,7 +171,8 @@ class BaseCache:
                 return None
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
+            with io.open(path.encode('utf-8'), mode='rt', newline=None,
+                         encoding='utf-8') as cacheFile:
                 try:
                     serializable: MovieType = json.load(cacheFile, encoding='utf-8')
                     serializable[MovieField.CACHED] = True
@@ -237,7 +239,7 @@ class BaseCache:
             serializable: MovieType = movie.serialize()
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='wt', newline=None,
+            with io.open(path.encode("utf-8"), mode='wt', newline=None,
                          encoding='utf-8', ) as cache_file:
                 json_text = json.dumps(serializable,
                                        ensure_ascii=False,

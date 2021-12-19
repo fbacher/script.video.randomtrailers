@@ -1229,7 +1229,14 @@ class Settings:
         """
         language_code = Settings.get_locale()
         # en_US
-        lang, country = language_code.split('_')
+        # Settings._logger.debug(f'language: {language_code}')
+        # Settings._logger.debug(f'split: {language_code.split("_")}')
+        elements = language_code.split('_')
+        if len(elements) == 2:
+            country: str = elements[1]
+        else:
+            Settings._logger.warning(f'Invalid country code: {elements}')
+            country = 'US'
         return country
 
     @staticmethod
@@ -1240,11 +1247,17 @@ class Settings:
         """
         # locale.setlocale(locale.LC_ALL, 'en_US')
         language_code, encoding = locale.getdefaultlocale()
+        '''
+        Settings._logger.debug(f'language_code default: {language_code}')
+        Settings._logger.debug(f'langauge_code: {locale.getlocale()}')
+        Settings._logger.debug(f'langauge_code set null: '
+                               f'{locale.setlocale(locale.LC_ALL)}')
+        Settings._logger.debug(f'language_code set empty: '
+                               f'{locale.setlocale(locale.LC_ALL, "")}')
+
         if language_code is None:
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-            language_code, encoding = locale.getdefaultlocale()
-        if language_code is None:
-            language_code = 'en_US'
+            language_code, encoding = locale.getlocale()
+        '''
 
         return language_code
 

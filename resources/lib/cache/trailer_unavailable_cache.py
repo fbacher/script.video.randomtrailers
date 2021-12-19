@@ -282,7 +282,7 @@ class TrailerUnavailableCache:
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
 
-                    with io.open(temp_path, mode='wt', newline=None,
+                    with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         json_text = \
                             json.dumps(cls._all_missing_tmdb_trailers,
@@ -342,7 +342,7 @@ class TrailerUnavailableCache:
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
 
-                    with io.open(temp_path, mode='wt', newline=None,
+                    with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
 
                         # TODO: Need ability to interrupt when ABORT. Object_handler
@@ -436,7 +436,7 @@ class TrailerUnavailableCache:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 if os.path.exists(path):
-                    with io.open(path, mode='rt',
+                    with io.open(path.encode('utf-8'), mode='rt',
                                  newline=None,
                                  encoding='utf-8') as cacheFile:
                         cls._all_missing_tmdb_trailers = json.load(
@@ -461,9 +461,9 @@ class TrailerUnavailableCache:
                 parent_dir, file_name = os.path.split(path)
                 DiskUtils.create_path_if_needed(parent_dir)
                 if os.path.exists(path):
-                    with io.open(path, mode='rt',
-                                           newline=None,
-                                           encoding='utf-8') as cacheFile:
+                    with io.open(path.encode('utf-8'), mode='rt',
+                                 newline=None,
+                                 encoding='utf-8') as cacheFile:
                         cls._all_missing_library_trailers = json.load(
                             cacheFile, encoding='utf-8',
                             object_hook=TrailerUnavailableCache.datetime_parser)

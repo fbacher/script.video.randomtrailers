@@ -225,7 +225,8 @@ class BaseTrailerIndex:
 
             with cls._lock:
                 if os.path.exists(cls._cache_path):
-                    with io.open(cls._cache_path, mode='rt', newline=None,
+                    with io.open(str(cls._cache_path).encode('utf-8'), mode='rt',
+                                 newline=None,
                                  encoding='utf-8') as cache_file:
                         temp_cache: Dict[str, Dict[str, str]] = json.load(
                             cache_file, encoding='utf-8')
@@ -285,7 +286,8 @@ class BaseTrailerIndex:
                 for movie in cls._cache.values():
                     tmp_cache[movie.get_id()] = movie.serialize()
 
-                with cls._lock, io.open(tmp_path, mode='wt', newline=None,
+                with cls._lock, io.open(str(tmp_path).encode('utf-8'), mode='wt',
+                                        newline=None,
                                         encoding='utf-8') as cache_file:
                     # Can create reverse_cache from cache
                     json_text = json.dumps(tmp_cache,

@@ -124,7 +124,8 @@ class Playlist:
                     clz._logger.exception('')
 
             try:
-                self._file = io.open(self.path, mode=self.mode, buffering=1,
+                self._file = io.open(self.path.encode('utf-8'), mode=self.mode,
+                                     buffering=1,
                                      newline=None, encoding='utf-8')
             except Exception as e:
                 clz._logger.exception('')
@@ -134,7 +135,7 @@ class Playlist:
         playlist_dict = None
         try:
             if os.path.exists(self.path):
-                with io.open(self.path, mode='rt', newline=None,
+                with io.open(self.path.encode('utf-8'), mode='rt', newline=None,
                              encoding='utf-8') as playlist_file:
                     buffer = playlist_file.read()
                     playlist_dict = xmltodict.parse(buffer)
@@ -177,7 +178,8 @@ class Playlist:
         rule_list.append(new_rule)
         playlist_dict['smartplaylist']['rule'] = rule_list
         try:
-            with io.open(self.path, mode='wt', buffering=1, newline=None,
+            with io.open(self.path.encode('utf-8'), mode='wt', buffering=1,
+                         newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 
@@ -188,7 +190,8 @@ class Playlist:
     def write_playlist(self, playlist_dict: Dict[str, 'Playlist']) -> None:
         clz = type(self)
         try:
-            with io.open(self.path, mode=self.mode, buffering=1, newline=None,
+            with io.open(self.path.encode('utf-8'), mode=self.mode, buffering=1,
+                         newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 

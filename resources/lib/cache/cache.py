@@ -154,7 +154,8 @@ class Cache:
                 return None
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
+            with io.open(path.encode('utf-8'), mode='rt', newline=None,
+                         encoding='utf-8') as cacheFile:
                 try:
                     serializable: MovieType = json.load(cacheFile, encoding='utf-8')
                     serializable[MovieField.CACHED] = True
@@ -229,7 +230,7 @@ class Cache:
             serializable: MovieType = tmdb_movie.get_serializable()
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='wt', newline=None,
+            with io.open(path.encode('utf-8'), mode='wt', newline=None,
                          encoding='utf-8', ) as cache_file:
                 json_text = json.dumps(serializable,
                                        ensure_ascii=False,

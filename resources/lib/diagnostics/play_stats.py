@@ -130,7 +130,7 @@ class PlayStatistics:
                 clz.first_call = False
 
             with cls._lock, \
-                io.open(path, 'at',
+                io.open(path.encode('utf-8'), 'at',
                         newline=None, encoding='utf-8') as cls.report:
                 Monitor.throw_exception_if_abort_requested()
                 timestamp = datetime.datetime.now().strftime('%c')

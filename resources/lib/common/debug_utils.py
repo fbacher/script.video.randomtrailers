@@ -142,7 +142,8 @@ class Debug:
             dump_path = f'{xbmcvfs.translatePath("special://temp")}' \
                         f'{CriticalSettings.get_plugin_name()}_thread_dump.txt'
 
-            with io.open(dump_path, mode='at', buffering=1, newline=None) as dump_file:
+            with io.open(dump_path.encode('utf-8'), mode='at', buffering=1,
+                         newline=None) as dump_file:
 
                 dump_file.write(f'\n{datetime.datetime.now()}'
                                 f'   *** STACKTRACE - START ***\n\n')
