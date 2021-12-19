@@ -684,11 +684,14 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # Get best resolution
             best_height = 0
             for promotion in promotions:
-                if promotion['height'] > best_height:
-                    best_height = promotion['height']
-                    del best_promotions[:]
-                if promotion['height'] == best_height:
-                    best_promotions.append(promotion)
+                try:
+                    if promotion.get('height', 0) > best_height:
+                        best_height = promotion.get('height', 0)
+                        del best_promotions[:]
+                    if promotion['height'] == best_height:
+                        best_promotions.append(promotion)
+                except:
+                    pass
 
             if len(best_promotions) > 0:
                 chosen_promotion = best_promotions[0]
