@@ -34,8 +34,8 @@ from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, CommunicationException, reraise
 from common.logger import LazyLogger, Trace
 from common.monitor import Monitor
-from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie, LibraryMovie, \
-    Movies
+from common.movie import (AbstractMovie, FolderMovie, ITunesMovie, TFHMovie, TMDbMovie,
+                          LibraryMovie, Movies)
 from common.movie_constants import MovieField
 from common.playlist import Playlist
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
@@ -189,6 +189,11 @@ class MovieDetail:
                 if tmdb_id is not None:
                     CacheIndex.remove_tmdb_id_with_trailer(tmdb_id)
             else:
+                if isinstance(movie, FolderMovie):
+                    # Supply fake values to displayed fields to make code happy.
+
+                    cls.clone_fields(movie, movie, MovieField.DEFAULT_MOVIE)
+
                 if (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
                         and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
                     cls._logger.debug_verbose('Fully discovered and ready to play:',

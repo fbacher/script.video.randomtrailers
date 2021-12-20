@@ -10,6 +10,8 @@ import threading
 
 from common.imports import *
 from common.logger import LazyLogger
+from common.movie import AbstractMovie, FolderMovie
+from common.settings import Settings
 
 module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -42,3 +44,14 @@ class ReasonEvent:
     def wait(self, timeout=None):
         self._reason = ReasonEvent.TIMED_OUT
         self._event.wait(timeout)
+
+
+class FrontendUtils:
+    @staticmethod
+    def show_details(movie: AbstractMovie) -> bool:
+        detail_info_display_seconds: int
+        detail_info_display_seconds = Settings.get_time_to_display_detail_info()
+
+        show_movie_details = (not isinstance(movie, FolderMovie) and
+                              detail_info_display_seconds > 0)
+        return show_movie_details

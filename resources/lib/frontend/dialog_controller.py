@@ -29,7 +29,7 @@ from frontend.abstract_dialog_state import BaseDialogStateMgr, DialogState
 from player.my_player import MyPlayer
 from frontend.movie_manager import MovieManager, MovieStatus
 from frontend.history_empty import HistoryEmpty
-from frontend.utils import ReasonEvent
+from frontend.frontend_utils import ReasonEvent
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 SKIP_NOTIFICATION_SECONDS: int = 5
@@ -776,6 +776,8 @@ class TaskLoop(threading.Thread):
                                               f'trailers to play. May see '
                                               f'repeats.',
                                               debug_label=self._movie.get_title())
+        else:
+            clz.callback_show_details_finished()
 
     @classmethod
     def callback_show_details_finished(cls, stop_play: bool = False):

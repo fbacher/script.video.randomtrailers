@@ -41,7 +41,7 @@ from player.my_player import MyPlayer
 from player.player_container import PlayerContainer
 from frontend.black_background import BlackBackground
 from frontend.movie_manager import MovieManager, MovieStatus
-from frontend.utils import ReasonEvent
+from frontend.frontend_utils import FrontendUtils, ReasonEvent
 
 module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
 
@@ -327,7 +327,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             clz._logger.exception('')
 
     def get_player(self) -> MyPlayer:
-        return self._player_container.get_player()
+        player: MyPlayer = self._player_container.get_player()
+        return player
 
     def update_detail_view(self, movie: AbstractMovie) -> None:
         """
@@ -346,20 +347,20 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
                 clz._logger.enter(f'movie: {movie.get_title()}')
 
             control: Union[ControlImage, Control] = self.getControl(38002)
-            thumbnail = self._movie.get_thumbnail()
-            if thumbnail is None:
-                control.setVisible(False)
-            else:
+            if self._movie.has_thumbnail():
+                thumbnail = self._movie.get_thumbnail()
                 control.setImage(thumbnail)
                 control.setVisible(True)
+            else:
+                control.setVisible(False)
 
             control: Union[ControlImage, Control] = self.getControl(38004)
-            image = self._movie.get_fanart()
-            if image is None:
-                control.setVisible(False)
-            else:
+            if self._movie.has_fanart():
+                image = self._movie.get_fanart()
                 control.setVisible(True)
                 control.setImage(self._movie.get_fanart())
+            else:
+                control.setVisible(False)
 
             verbose = False
             if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
@@ -378,12 +379,12 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             control.setVisible(True)
 
             control: Union[ControlLabel, Control] = self.getControl(38005)
-            movie_directors: List[str] = self._movie.get_directors()
-            if movie_directors is None:
-                control.setVisible(False)
-            else:
-                control.setLabel(', '.join(movie_directors))
+            if self._movie.has_directors():
+                movie_directors: str = self._movie.get_detail_directors()
+                control.setLabel(movie_directors)
                 control.setVisible(True)
+            else:
+                control.setVisible(False)
 
             control: Union[ControlLabel, Control] = self.getControl(38026)
             control.setLabel(self.bold(Messages.get_msg(Messages.WRITER_LABEL)))
@@ -393,23 +394,22 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
             control.setLabel(self.bold(Messages.get_msg(Messages.STARS_LABEL)))
             control.setVisible(True)
 
-            movie_actors: List[str] = self._movie.get_actors()
             control: Union[ControlLabel, Control] = self.getControl(38006)
-            control.setLabel(', '.join(movie_actors))
-            control.setVisible(True)
+            if self._movie.has_actors():
+                control.setLabel(self._movie.get_detail_actors())
+                control.setVisible(True)
+            else:
+                control.setVisible(False)
 
             control: Union[ControlLabel, Control] = self.getControl(38007)
-            movie_writers = ', '.join(self._movie.get_writers())
-            if movie_writers is None:
-                control.setVisible(False)
-            else:
-                control.setLabel(movie_writers)
+            if self._movie.has_writers():
+                control.setLabel(self._movie.get_detail_writers())
                 control.setVisible(True)
+            else:
+                control.setVisible(False)
 
             control: Union[ControlTextBox, Control] = self.getControl(38009)
             plot: str = self._movie.get_plot()
-            if plot is None:
-                plot = ''
 
             cleaned_plot = plot
             if isinstance(self._movie, TFHMovie):
@@ -446,19 +446,18 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
 
                     cleaned_plot += '\n=======Original Text===========\n' + plot
 
-            if cleaned_plot is None:
+            if cleaned_plot == '':
                 control.setVisible(False)
             else:
                 control.setText(cleaned_plot)
                 control.setVisible(True)
 
             control: Union[ControlLabel, Control] = self.getControl(38010)
-            movie_studios = ', '.join(self._movie.get_studios())
-            if movie_studios is None:
-                control.setVisible(False)
-            else:
-                control.setLabel(movie_studios)
+            if self._movie.has_studios():
+                control.setLabel(self._movie.get_detail_studios())
                 control.setVisible(True)
+            else:
+                control.setVisible(False)
 
             label = Messages.get_formatted_msg(Messages.RUNTIME_GENRE,
                                                self._movie.get_detail_runtime(),
@@ -824,7 +823,8 @@ class TrailerDialog(xbmcgui.WindowXMLDialog):
         ##############################################################3##
 
         if action_id == xbmcgui.ACTION_SHOW_INFO:
-            self.do_toggle_show_info()
+            if FrontendUtils.show_details(self._movie):
+                self.do_toggle_show_info()
 
         ##################################################################
         elif (action_id == xbmcgui.ACTION_STOP

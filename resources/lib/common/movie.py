@@ -32,6 +32,7 @@ class BaseMovie:
         self._has_local_trailer = False
         self._has_trailer = False
         self._library_id: int = None
+        self._folder_id: str = None
         self._tmdb_id: int = None
 
     @classmethod
@@ -157,6 +158,9 @@ class BaseMovie:
 
     def set_library_id(self, library_id: int = None) -> None:
         self._library_id = library_id
+
+    def set_folder_id(self, folder_id: str = None) -> None:
+        self._folder_id = folder_id
 
     def get_tmdb_id(self) -> int:
         return self._tmdb_id
@@ -436,6 +440,13 @@ class TMDbMoviePageData(TMDbMovieId):
         return self._movie_info.get(MovieField.YEAR, 0)
 
     def set_year(self, year: int) -> None:
+        try:
+            int_year: int = int(year)
+        except:
+            clz = type(self)
+            clz._logger.error(f'Invalid year: {year} for movie: {self.get_title()} '
+                              f'source: {self.get_source()}')
+            return
         if year is not None:
             self._movie_info[MovieField.YEAR] = year
 
@@ -592,6 +603,26 @@ class LibraryMovieId(AbstractMovieId):
 
     def get_source(self) -> str:
         return MovieField.LIBRARY_SOURCE
+
+    @classmethod
+    def class_init(cls):
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+
+
+class FolderMovieId(AbstractMovieId):
+    _logger: LazyLogger = None
+
+    '''
+    For a Folder movie, the id is the file name. We know nothing else
+    about the movie.
+    '''
+    def __init__(self, movie_id: str) -> None:
+        super().__init__(movie_id, MovieField.FOLDER_SOURCE)
+        self.set_folder_id(movie_id)
+
+    def get_source(self) -> str:
+        return MovieField.FOLDER_SOURCE
 
     @classmethod
     def class_init(cls):
@@ -765,6 +796,7 @@ class AbstractMovie(RawMovie):
 
         # Fix transient data
 
+        self.set_has_trailer(self.has_trailer_path())
         self.validate_local_trailer()
         self.set_has_trailer(self.has_trailer_path())
         self.set_has_been_fully_discovered(
@@ -858,6 +890,13 @@ class AbstractMovie(RawMovie):
         return self._movie_info.get(MovieField.YEAR, 0)
 
     def set_year(self, year: int) -> None:
+        try:
+            int_year: int = int(year)
+        except:
+            clz = type(self)
+            clz._logger.error(f'Invalid year: {year} for movie: {self.get_title()} '
+                              f'source: {self.get_source()}')
+            return
         if year is not None:
             self._movie_info[MovieField.YEAR] = year
 
@@ -961,6 +1000,9 @@ class AbstractMovie(RawMovie):
     def set_certification_id(self, certification: str) -> None:
         self._movie_info[MovieField.CERTIFICATION_ID] = certification
 
+    def has_directors(self) -> bool:
+        return len(self.get_directors()) > 0
+
     def get_directors(self) -> List[str]:
         return self._movie_info.setdefault(MovieField.DIRECTOR, [])
 
@@ -971,8 +1013,11 @@ class AbstractMovie(RawMovie):
     def get_detail_directors(self) -> str:
         return ', '.join(self.get_directors())
 
-    def get_fanart(self) -> Union[str, None]:
-        return self._movie_info.get(MovieField.FANART, None)
+    def has_fanart(self) -> bool:
+        return self.get_fanart('') != ''
+
+    def get_fanart(self, default=None) -> Union[str, None]:
+        return self._movie_info.get(MovieField.FANART, default)
 
     def set_fanart(self, path: str) -> None:
         self._movie_info[MovieField.FANART] = path
@@ -1048,6 +1093,9 @@ class AbstractMovie(RawMovie):
 
         self._movie_info[MovieField.RUNTIME] = seconds
 
+    def has_studios(self) -> bool:
+        return len(self.get_studios()) > 0
+
     def get_studios(self) -> List[str]:
         return self._movie_info.setdefault(MovieField.STUDIO, [])
 
@@ -1059,6 +1107,9 @@ class AbstractMovie(RawMovie):
             studios = studios_arg
 
         self._movie_info[MovieField.STUDIO] = studios
+
+    def get_detail_studios(self) -> str:
+        return ', '.join(self.get_studios())
 
     def set_unique_ids(self, ids: Dict[str, str]):
         self._movie_info[MovieField.UNIQUE_ID] = ids
@@ -1086,6 +1137,9 @@ class AbstractMovie(RawMovie):
 
     def set_tag_ids(self, keywords: List[str]) -> None:
         self._movie_info[MovieField.TMDB_TAG_IDS] = keywords
+
+    def has_thumbnail(self) -> bool:
+        return self.get_thumbnail('') != ''
 
     def get_thumbnail(self, default: str = None) -> Union[str, None]:
         return self._movie_info.get(MovieField.THUMBNAIL, default)
@@ -1190,6 +1244,9 @@ class AbstractMovie(RawMovie):
     def set_votes(self, votes: int) -> None:
         self._movie_info[MovieField.VOTES] = votes
 
+    def has_actors(self) -> bool:
+        return len(self.get_actors()) > 0
+
     def get_actors(self) -> List[str]:
         """
         Gets ordered list of actors for this movies, in order of billing.
@@ -1203,6 +1260,12 @@ class AbstractMovie(RawMovie):
             actors = actors[:MovieField.MAX_ACTORS - 1]
 
         self._movie_info[MovieField.ACTORS] = actors
+
+    def has_writers(self) -> bool:
+        return len(self.get_writers()) > 0
+
+    def get_detail_actors(self) -> str:
+        return', '.join(self.get_actors())
 
     def get_writers(self) -> List[str]:
         return self._movie_info.setdefault(MovieField.WRITER, [])
@@ -1221,6 +1284,10 @@ class AbstractMovie(RawMovie):
             writers = writers[:MovieField.MAX_WRITERS - 1]
 
         self._movie_info[MovieField.WRITER] = writers
+
+    def get_detail_writers(self) -> str:
+        movie_writers = ', '.join(self.get_writers())
+        return movie_writers
 
     def get_voiced_detail_writers(self) -> List[str]:
         writers = self.get_writers()
@@ -1839,11 +1906,10 @@ class FolderMovie(AbstractMovie):
     _logger: LazyLogger = None
 
     def __init__(self, movie_info: MovieType = None) -> None:
-        if movie_info is None:
-            movie_info: MovieType = MovieField.DEFAULT_MOVIE.copy()
         super().__init__(None, MovieField.FOLDER_SOURCE, movie_info)
         if self._movie_id is None:
             self._movie_id = self.get_id()
+        self.set_tmdb_id_findable(False)
 
     @classmethod
     def class_init(cls):
@@ -1855,6 +1921,23 @@ class FolderMovie(AbstractMovie):
             self._movie_id = self.get_trailer_path()
 
         return self.get_trailer_path()
+
+    def get_as_movie_id_type(self) -> FolderMovieId:
+        clz = type(self)
+        movie_id: FolderMovieId = FolderMovieId(self.get_id())
+        movie_id.set_tmdb_id(self.get_tmdb_id())
+        movie_id.set_local_trailer(self.has_local_trailer())
+        movie_id.set_has_trailer(self.get_has_trailer())
+        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'movie_id: {movie_id} '
+                                            f'type: {type(movie_id)} '
+                                            f'id: {movie_id.get_id()} '
+                                            f'tmdb_id: {movie_id.get_tmdb_id()} '
+                                            f'has_local_trailer: '
+                                            f'{movie_id.has_local_trailer()} '
+                                            f'get_has_trailer: '
+                                            f'{movie_id.get_has_trailer()}')
+        return movie_id
 
     def get_source(self) -> str:
         return MovieField.FOLDER_SOURCE

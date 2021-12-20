@@ -256,7 +256,27 @@ class Debug:
                 is_failed = True
                 movie.setdefault(
                     property_name, basic_properties[property_name])
-
+            else:
+                if isinstance(basic_properties[property_name], int):
+                    value =  movie.get(property_name)
+                    try:
+                        int_value: int = int(value)
+                    except:
+                        cls._logger.error(f'Invalid {property_name} int value: '
+                                          f'{value} for movie: '
+                                          f'{movie.get(MovieField.TITLE, "title missing")} '
+                                          f'source: {movie.get(MovieField.SOURCE)}')
+                        continue
+                elif isinstance(basic_properties[property_name], float):
+                    value =  movie.get(property_name)
+                    try:
+                        float_value: float = float(value)
+                    except:
+                        cls._logger.error(f'Invalid {property_name} float value: '
+                                          f'{value} for movie: '
+                                          f'{movie.get(MovieField.TITLE, "title missing")} '
+                                          f'source: {movie.get(MovieField.SOURCE)}')
+                        continue
         if len(failing_properties) > 0:
             msg = f'title: {movie.get(MovieField.TITLE, "title missing")} ' \
                 f'{",".join(failing_properties)}'
@@ -275,7 +295,7 @@ class Debug:
         """
             Similar to validate_basic_movie_properties. Validates additional
             fields
-        :param movie:
+        :param movie_arg:
         :param stack_trace:
         :param force_check: Check even if debug level less than DEBUG_VERBOSE
         :return: True if no problems found

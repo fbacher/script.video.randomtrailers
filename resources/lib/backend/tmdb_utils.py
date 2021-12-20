@@ -561,8 +561,8 @@ class TMDBUtils:
             reraise(*sys.exc_info())
 
         except Exception:
-            TMDBUtils._logger.exception('Error finding tmdb_id for movie:', title,
-                                        'year:', year)
+            TMDBUtils._logger.exception(f'Error finding tmdb_id for movie: {title} '
+                                        f'year: {year}')
 
         return tmdb_id
 

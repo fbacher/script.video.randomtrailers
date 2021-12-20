@@ -421,7 +421,7 @@ class BaseTimer:
                     # If not busy, then finished. No cancel needed.
 
                     if not cls._busy_event.is_set():
-                        cls._logger.error(f'debug_label: {cls._debug_label}'
+                        cls._logger.debug(f'debug_label: {cls._debug_label}'
                                           f' _busy_event is NOT set')
 
                         # Just to make sure
