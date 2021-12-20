@@ -24,6 +24,13 @@ from common.exceptions import AbortException
 from common.minimal_monitor import MinimalMonitor
 from common.imports import *
 
+# PATCH PATCH PATCH
+# To avoid HANG on some systems (haven't yet determined exact cause),
+# Disable loading keyring module. This occurs in yt-dlp module. Bug is a known
+# issue, but not sure why it sometimes shows up and sometimes not.
+
+sys.modules['keyring'] = None
+
 
 def exit_randomtrailers():
     if PythonDebugger.is_enabled():
