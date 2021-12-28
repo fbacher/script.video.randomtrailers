@@ -24,7 +24,13 @@ class ParseTMDbPageData:
     def __init__(self, movie_entry: Dict[str, Any]):
         type(self).class_init()
         self._movie_entry: Dict[str, Any] = movie_entry
-        self._tmdb_movie: TMDbMoviePageData = TMDbMoviePageData()
+        #
+        # Normally would let parse_tmdb_id do this, but we need ID now
+        #
+        tmdb_id: str = str(self._movie_entry.get('id'))
+        if tmdb_id is None:
+            raise ValueError
+        self._tmdb_movie: TMDbMoviePageData = TMDbMoviePageData(tmdb_id)
         self._tmdb_movie.set_cached(False)
 
     @classmethod

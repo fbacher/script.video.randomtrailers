@@ -379,25 +379,25 @@ class TMDbMoviePageData(TMDbMovieId):
 
     def __init__(self, movie_id: str = None, movie_info: MovieType = None):
         """
-        Sometimes called with no args, or either arg.
+        TMDbMoviePageData is different from other movie ID types in that
+        it has movie_info in addition to just the id. To be consistent with
+        the other types, we need the ID, either through the movie_id field,
+        or from movie_info.
 
         :param movie_id:
         :param movie_info:
         """
 
         # Assume movie_id was passed
+        if movie_id is None:
+            movie_id = str(movie_info['id'])
         super().__init__(movie_id)
+        self._cached: bool = False
         if movie_info is None:
-            self._movie_info: MovieType = {}
+            self._movie_info = {}
         else:
             self._movie_info = movie_info
-
-        if movie_info is not None:
-            tmdb_id = movie_info.get('id', None)
-            if tmdb_id is not None:
-                self.set_id(int(tmdb_id))
-
-        self._cached: bool = False
+        self.set_id(int(movie_id))
 
     def get_certification_id(self) -> str:
         return self._movie_info[MovieField.CERTIFICATION_ID]

@@ -1939,7 +1939,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                                                       sort_keys=True))
                         self.throw_exception_on_forced_to_stop()
 
-                        movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(movie_entry)
+                        movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(
+                                movie_entry)
                         movie_id: int = movie_summary_parser.parse_tmdb_id()
 
                         movie_summary_parser.parse_total_number_of_pages()
