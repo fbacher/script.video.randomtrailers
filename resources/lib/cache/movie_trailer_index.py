@@ -4,7 +4,6 @@ Created on 9/30/21
 
 @author: Frank Feuerbacher
 """
-from pathlib import Path
 
 from cache.base_trailer_index import BaseTrailerIndex
 from cache.itunes_trailer_index import ITunesTrailerIndex
@@ -12,28 +11,11 @@ from cache.library_trailer_index import LibraryTrailerIndex
 from cache.tfh_trailer_index import TFHTrailerIndex
 from cache.tmdb_trailer_index import TMDbTrailerIndex
 from common.imports import *
-
-import datetime
-import io
-import simplejson as json
+from common.logger import *
 from common.movie import AbstractMovieId, TMDbMovieId, TMDbMovie, AbstractMovie, \
     LibraryMovie, LibraryMovieId, TFHMovieId, ITunesMovieId, TFHMovie, ITunesMovie
-from simplejson import (JSONDecodeError)
-import os
-import sys
-import threading
 
-import xbmcvfs
-
-from common.imports import *
-from common.constants import Constants
-from common.exceptions import AbortException
-from common.logger import LazyLogger
-from common.monitor import Monitor
-from common.settings import Settings
-from common.disk_utils import DiskUtils
-
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class MovieTrailerIndex(BaseTrailerIndex):
@@ -43,7 +25,7 @@ class MovieTrailerIndex(BaseTrailerIndex):
 
     """
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls, cache_name: str) -> None:

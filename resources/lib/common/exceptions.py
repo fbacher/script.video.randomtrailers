@@ -30,27 +30,27 @@ def reraise(tp, value, tb=None):
 
 class AbortException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 
 class LaunchException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 
 class TrailerIdException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 
 class LogicError(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 
 class DuplicateException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 # Something went wrong trying to communicate. Could be network failure
 # or could be api failure, perhaps even failure in RandomTrailers
@@ -58,4 +58,4 @@ class DuplicateException(Exception):
 
 class CommunicationException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()

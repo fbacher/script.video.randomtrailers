@@ -16,14 +16,14 @@ from xbmcgui import (Control, ControlImage, ControlButton, ControlEdit,
 
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from frontend.text_to_speech import TTS
 from action_map import Action
 
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LegalInfo(xbmcgui.WindowXMLDialog):
@@ -158,16 +158,16 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         """
         action_id = action.getId()
 
-        if self._logger.isEnabledFor(LazyLogger.DISABLED):
+        if self._logger.isEnabledFor(DISABLED):
             self._logger.debug_extra_verbose(f'In onAction id: {action_id}')
 
         if action_id != 107:  # Mouse Move
-            if self._logger.isEnabledFor(LazyLogger.DISABLED):
-                self._logger.debug_extra_verbose('Action.id:', action_id,
-                                                 hex(action_id),
-                                                 'Action.button_code:',
-                                                 action.getButtonCode(),
-                                                 hex(action.getButtonCode()),
+            if self._logger.isEnabledFor(DISABLED):
+                self._logger.debug_extra_verbose(f'Action.id: {action_id}'
+                                                 f'{hex(action_id)} '
+                                                 f'Action.button_code: '
+                                                 f'{action.getButtonCode()} '
+                                                 f'{hex(action.getButtonCode())}',
                                                  trace=Trace.TRACE)
 
         action_mapper = Action.get_instance()
@@ -175,12 +175,12 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         # Mouse Move
         if action_id != 107 and self._logger.isEnabledFor(
-                LazyLogger.DISABLED):
+                DISABLED):
             for line in matches:
                 self._logger.debug_extra_verbose(line)
 
         key = ''
-        if self._logger.isEnabledFor(LazyLogger.DISABLED):
+        if self._logger.isEnabledFor(DISABLED):
             button_code = action.getButtonCode()
 
             # These return empty string if not found
@@ -204,7 +204,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
                 key = action_button
             # Mouse Move
             if action_id != 107:
-                self._logger.debug_extra_verbose('Key found:', key)
+                self._logger.debug_extra_verbose(f'Key found: {key}')
 
         #################################################################
         #   ACTIONS
@@ -212,7 +212,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         #    DEBUG thread dump
         #################################################################
 
-        if (self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+        if (self._logger.isEnabledFor(DEBUG_VERBOSE)
                 and (action_id == xbmcgui.ACTION_PAGE_UP
                      or action_id == xbmcgui.ACTION_MOVE_UP)):
 
@@ -222,9 +222,9 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         ##################################################################
         elif (action_id == xbmcgui.ACTION_STOP
               or action_id == xbmcgui.ACTION_MOVE_RIGHT):
-            if self._logger.isEnabledFor(LazyLogger.DISABLED):
+            if self._logger.isEnabledFor(DISABLED):
                 self._logger.debug_extra_verbose(
-                    key, 'Exit display license at user\'s request')
+                    f'{key} Exit display license at user\'s request')
             self.exit_dialog()
             # self._logger.debug_extra_verbose(
             #    f'just set: {self._wait_or_interrupt_event.is_set()}')
@@ -233,9 +233,9 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         elif (action_id == xbmcgui.ACTION_PREVIOUS_MENU
               or action_id == xbmcgui.ACTION_NAV_BACK):
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 self._logger.debug_extra_verbose(
-                    key, 'Exiting RandomTrailers at user request')
+                    f'{key} Exiting RandomTrailers at user request')
 
             Monitor.abort_requested()
             self.on_abort_event()
@@ -246,8 +246,8 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         # handle. Sigh
 
         elif action_id == xbmcgui.ACTION_BUILT_IN_FUNCTION:
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self._logger.debug_verbose(key, 'Exiting RandomTrailers due to',
+            if self._logger.isEnabledFor(DEBUG_VERBOSE):
+                self._logger.debug_verbose(f'{key} Exiting RandomTrailers due to '
                                            'ACTION_BUILT_IN_FUNCTION',
                                            trace=Trace.TRACE_SCREENSAVER)
             Monitor.abort_requested()

@@ -9,9 +9,9 @@ Created on Feb 10, 2019
 import os
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Statistics:
@@ -396,8 +396,8 @@ class Statistics:
         cls._next_trailer_second_attempt_wait_time_attempts += attempts
 
     @classmethod
-    def add_next_trailer_second_attempt_wait_time(cls,
-                                                  elapsed_seconds: int,
-                                                  attempts: int) -> None:
+    def add_next_trailer_third_attempt_wait_time(cls,
+                                                 elapsed_seconds: int,
+                                                 attempts: int) -> None:
         cls._next_trailer_third_attempt_wait_time_elapsed_seconds += elapsed_seconds
         cls._next_trailer_third_attempt_wait_time_attempts += attempts

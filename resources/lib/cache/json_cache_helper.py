@@ -13,16 +13,16 @@ from cache.itunes_json_cache import ITunesJsonCache
 from cache.library_json_cache import LibraryJsonCache
 from cache.tfh_json_cache import TFHJsonCache
 from cache.tmdb_json_cache import TMDbJsonCache
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie, AbstractMovieId, LibraryMovie, LibraryMovieId, \
     ITunesMovieId, ITunesMovie, TFHMovie, TFHMovieId, TMDbMovie, TMDbMovieId
 from common.movie_constants import MovieField
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class JsonCacheHelper:
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def get_json_cache_for_source(cls, source: str) -> Type[BaseReverseIndexCache]:
@@ -30,7 +30,7 @@ class JsonCacheHelper:
             cls._logger = module_logger.getChild(type(cls).__name__)
 
         # cls._logger.debug(f'source: {source}')
-        # cls._logger.dump_stack(msg=f'source: {source}', xbmc_log_level=xbmc.LOGDEBUG)
+        # cls._logger.dump_stack(msg=f'source: {source}', xbmc_level=xbmc.LOGDEBUG)
         if source == MovieField.LIBRARY_SOURCE:
             return LibraryJsonCache
         elif source == MovieField.TMDB_SOURCE:

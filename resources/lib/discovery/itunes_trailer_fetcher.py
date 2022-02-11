@@ -8,7 +8,7 @@ Created on 10/15/21
 import datetime
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie_constants import MovieField
 from common.playlist import Playlist
 from discovery.abstract_movie_data import AbstractMovieData
@@ -16,7 +16,7 @@ from discovery.abstract_trailer_fetcher import AbstractTrailerFetcher
 from discovery.playable_trailers_container_interface import \
     PlayableTrailersContainerInterface
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ITunesTrailerFetcher(AbstractTrailerFetcher):
@@ -33,7 +33,7 @@ class ITunesTrailerFetcher(AbstractTrailerFetcher):
           someday someone should get rid of the extra 'manager'.
     """
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, *args: Any, movie_data: AbstractMovieData = None,
                  **kwargs: Any) -> None:

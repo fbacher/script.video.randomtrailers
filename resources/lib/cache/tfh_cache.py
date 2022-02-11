@@ -9,6 +9,9 @@ Created on Feb 10, 2019
 import datetime
 
 import io
+
+import xbmc
+
 import simplejson as json
 from cache.json_cache_helper import JsonCacheHelper
 from simplejson import JSONDecodeError
@@ -19,7 +22,7 @@ import xbmcvfs
 from common.imports import *
 
 from common.debug_utils import Debug
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.movie import TFHMovie
 from common.movie_constants import MovieField, MovieType
@@ -27,7 +30,7 @@ from common.settings import Settings
 from common.disk_utils import DiskUtils
 from common.utils import Utils
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TFHCache:
@@ -74,7 +77,7 @@ class TFHCache:
 
     _initialized = threading.Event()
     lock = threading.RLock()
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _cached_movies: Dict[str, TFHMovie] = {}
     _last_saved_movie_timestamp = datetime.datetime.now()
     _tfh_json_cache = JsonCacheHelper.get_json_cache_for_source(
@@ -96,6 +99,7 @@ class TFHCache:
         """
         :return:
         """
+        xbmc.log(f'tfh.class_init')
         cls._logger = module_logger.getChild(type(cls).__name__)
         if Settings.is_include_tfh_trailers():
             cls.load_cache()
@@ -103,7 +107,7 @@ class TFHCache:
             cls._logger.debug_extra_verbose('TFH not enabled')
 
     @classmethod
-    def logger(cls) -> LazyLogger:
+    def logger(cls) -> BasicLogger:
         """
 
         :return:
@@ -130,7 +134,7 @@ class TFHCache:
                     (cls._unsaved_changes > cls.MAX_UNSAVED_CHANGES)
                     or (minutes_since_last_save > cls.MIN_MINUTES_BETWEEN_SAVES)):
                 do_flush = True
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     delta = int((datetime.datetime.now() -
                                 cls._last_saved_movie_timestamp).total_seconds() / 60)
                     cls._logger.debug_extra_verbose(f'flush: {flush} '
@@ -154,7 +158,7 @@ class TFHCache:
                     DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(tmp_path, mode='wt', newline=None,
+                with io.open(tmp_path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
 
                     cls._logger.debug(f'complete: {complete} cache_complete: '
@@ -254,7 +258,7 @@ class TFHCache:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 if os.path.exists(path):
-                    with io.open(path, mode='rt', newline=None,
+                    with io.open(path.encode('utf-8'), mode='rt', newline=None,
                                  encoding='utf-8') as cacheFile:
                         cls._cached_movies = json.load(
                             cacheFile,
@@ -300,17 +304,17 @@ class TFHCache:
         # Loads the last time the index was created from a cached entry.
         # If no cached entry with the timestamp exists, set it to now.
 
-        cls._logger.enter()
         try:
             creation_date = None
             creation_date_movie: TFHMovie = cls._cached_movies.get(cls.INDEX_CREATION_DATE,
                                                                    None)
+            creation_date_entry: MovieType = None
             if creation_date_movie is not None:
                 creation_date_entry: MovieType = creation_date_movie.get_as_movie_type()
 
             # Debug.dump_json(text='TFH INDEX_CREATION_DATE',
             #                 data=creation_date_entry,
-            #                 log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+            #                 level=DEBUG_EXTRA_VERBOSE)
             # cls._logger.debug(f'creation_date_entry: {creation_date_entry}')
             if creation_date_entry is not None:
                 creation_date = creation_date_entry.get(cls.INDEX_CREATION_DATE,
@@ -339,7 +343,7 @@ class TFHCache:
 
             cls._time_of_index_creation = Utils.strptime(creation_date, '%Y:%m:%d')
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
         return
 
     @classmethod
@@ -397,8 +401,7 @@ class TFHCache:
             cls.save_cache(flush=flush)
 
     @classmethod
-    def update_movie(cls, movie: TFHMovie,
-                       flush=False) -> None:
+    def update_movie(cls, movie: TFHMovie, flush=False) -> None:
         """
             Nearly identical (for now) to add_movie.
 
@@ -460,7 +463,7 @@ class TFHCache:
             #             return dct
             #         break
             # Debug.dump_json(text='decoder1', data=dct,
-            #                 log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+            #                 level=DEBUG_EXTRA_VERBOSE)
 
             if MovieField.TFH_ID in dct:
                 tfh_id: str = dct.get(MovieField.TFH_ID)
@@ -468,7 +471,7 @@ class TFHCache:
                 return movie
 
         except Exception as e:
-            TFHCache._logger.exception()
+            TFHCache._logger.exception(msg='')
         return dct
 
 

@@ -8,12 +8,12 @@ Created on Dec 3, 2019
 import os
 
 from common.imports import *
-from common.logger import (LazyLogger)
+from common.logger import *
 from common.movie import BaseMovie, AbstractMovie
 from common.movie_constants import MovieField
 from common.settings import Settings
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TrailerCache:
@@ -22,10 +22,10 @@ class TrailerCache:
     for trailers which have had their volume normalized.
     """
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
-    def config_logger(cls) -> LazyLogger:
+    def config_logger(cls) -> BasicLogger:
         """
 
         :return:
@@ -89,7 +89,7 @@ class TrailerCache:
                     cls._logger.log_exception(e)
 
         except Exception as e:
-            cls._logger.log_exception()
+            cls._logger.log_exception(msg='')
 
         if more_discovery_needed:
             movie.set_discovery_state(MovieField.DISCOVERY_NEARLY_COMPLETE)

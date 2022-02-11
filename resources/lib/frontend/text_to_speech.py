@@ -6,9 +6,9 @@ import threading
 import xbmc
 import simplejson as json
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 _RE_COMBINE_WHITESPACE: Pattern = re.compile(r"\s+")
 
@@ -85,7 +85,7 @@ class TTS:
             for listener in TTS.stop_listeners:
                 listener()
         except Exception:
-            module_logger.exception()
+            module_logger.exception(msg='')
 
     @staticmethod
     def tts_stopped() -> None:

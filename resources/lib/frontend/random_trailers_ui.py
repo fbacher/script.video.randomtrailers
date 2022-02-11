@@ -16,7 +16,7 @@ import xbmcvfs
 from common.constants import Constants
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.playlist import Playlist
 from common.settings import Settings
@@ -26,7 +26,7 @@ from frontend.black_background import BlackBackground
 from player.player_container import PlayerContainer
 from frontend.legal_info import LegalInfo
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 '''
@@ -70,7 +70,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
 
 '''
 
-logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 def get_title_font() -> str:
@@ -146,7 +146,7 @@ def play_trailers() -> None:
             black_background.destroy()
             del black_background
         if exiting_playing_movie:
-            if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if logger.isEnabledFor(DEBUG_VERBOSE):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
 
@@ -170,7 +170,7 @@ class StartUI(threading.Thread):
     """
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, started_as_screesaver: bool) -> None:
         """
@@ -201,7 +201,7 @@ class StartUI(threading.Thread):
             clz._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(LazyLogger.DEBUG):
+            if logger.isEnabledFor(DEBUG):
                 clz._logger.debug('Stopping random_trailers player')
 
             Monitor.abort_requested()
@@ -257,7 +257,7 @@ class StartUI(threading.Thread):
                         xbmc.executebuiltin(f'SetVolume({current_volume})') 
                 '''
 
-                if logger.isEnabledFor(LazyLogger.DEBUG):
+                if logger.isEnabledFor(DEBUG):
                     clz._logger.debug('Shutting down')
                 Playlist.shutdown()
             else:
@@ -269,7 +269,7 @@ class StartUI(threading.Thread):
             clz._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if logger.isEnabledFor(DEBUG_VERBOSE):
                 clz._logger.debug_verbose('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
@@ -291,7 +291,7 @@ class StartUI(threading.Thread):
         :return:
         """
         clz = type(self)
-        clz._logger.enter()
+        clz._logger.debug('enter')
         key_map_dest_file = os.path.join(xbmcvfs.translatePath(
             'special://userdata/keymaps'), "xsqueeze.xml")
         if os.path.isfile(key_map_dest_file):

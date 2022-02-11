@@ -12,14 +12,14 @@ from common.playlist import Playlist
 from common.exceptions import AbortException, CommunicationException, reraise
 from common.imports import *
 from common.settings import Settings
-from common.logger import Trace, LazyLogger
+from common.logger import *
 
 from discovery.abstract_movie_data import AbstractMovieData
 from discovery.abstract_trailer_fetcher import AbstractTrailerFetcher
 from discovery.playable_trailers_container_interface import \
     PlayableTrailersContainerInterface
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LibraryURLTrailerFetcher(AbstractTrailerFetcher):
@@ -36,7 +36,7 @@ class LibraryURLTrailerFetcher(AbstractTrailerFetcher):
           someday someone should get rid of the extra 'manager'.
     """
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, *args: Any, movie_data: AbstractMovieData = None,
                  **kwargs: Any) -> None:

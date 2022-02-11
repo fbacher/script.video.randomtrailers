@@ -10,9 +10,9 @@ import threading
 
 from common.monitor import Monitor
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class GarbageCollector:
@@ -22,7 +22,7 @@ class GarbageCollector:
     _lock = threading.RLock()
     _stopped = False
     _threads_to_join: List[threading.Thread] = []
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self) -> None:
         raise NotImplemented()
@@ -33,11 +33,11 @@ class GarbageCollector:
             if not cls._stopped:
                 if thread not in cls._threads_to_join:
                     cls._threads_to_join.append(thread)
-                    if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                    if cls._logger.isEnabledFor(DISABLED):
                         cls._logger.debug_extra_verbose(f'Adding thread: {thread.name} '
                                                         f'{thread.ident}')
                 else:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls._logger.debug_extra_verbose(f'Duplicate thread: {thread.name} '
                                                         f'{thread.ident}')
 
@@ -66,26 +66,26 @@ class GarbageCollector:
                 joined_threads: List[threading.Thread] = []
                 for thread in cls._threads_to_join:
                     if not thread.is_alive():
-                        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                        if cls._logger.isEnabledFor(DISABLED):
                             cls._logger.debug_extra_verbose(
                                 f'Purging dead thread: {thread.name} '
                                 f'{thread.ident}')
                         joined_threads.append(thread)
                     else:
-                        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                        if cls._logger.isEnabledFor(DISABLED):
                             cls._logger.debug_extra_verbose(
                                 f'Joining thread: {thread.name} '
                                 f'{thread.ident}')
                         thread.join(timeout=0.2)
                         if not thread.is_alive():
-                            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                            if cls._logger.isEnabledFor(DISABLED):
                                 cls._logger.debug_extra_verbose(
                                     f'Purging dead thread: {thread.name} '
                                     f'{thread.ident}')
                             joined_threads.append(thread)
 
                 for thread in joined_threads:
-                    if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                    if cls._logger.isEnabledFor(DISABLED):
                         cls._logger.debug_extra_verbose(f'Removing dead thread: '
                                                         f'{thread.name} '
                                                         f'{thread.ident}')

@@ -19,7 +19,7 @@ import xbmcvfs
 from common.imports import *
 
 from common.debug_utils import Debug
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.movie import ITunesMovie
 from common.movie_constants import MovieField, MovieType
@@ -27,7 +27,7 @@ from common.settings import Settings
 from common.disk_utils import DiskUtils
 from common.utils import Utils
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ITunesCache:
@@ -74,7 +74,7 @@ class ITunesCache:
 
     _initialized = threading.Event()
     lock = threading.RLock()
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _cached_movies: Dict[str, ITunesMovie] = {}
     _last_saved_movie_timestamp = datetime.datetime.now()
     _itunes_json_cache = JsonCacheHelper.get_json_cache_for_source(
@@ -103,7 +103,7 @@ class ITunesCache:
             cls._logger.debug_extra_verbose('iTunes not enabled')
 
     @classmethod
-    def logger(cls) -> LazyLogger:
+    def logger(cls) -> BasicLogger:
         """
 
         :return:
@@ -130,7 +130,7 @@ class ITunesCache:
                     (cls._unsaved_changes > cls.MAX_UNSAVED_CHANGES)
                     or (minutes_since_last_save > cls.MIN_MINUTES_BETWEEN_SAVES)):
                 do_flush = True
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     delta = int((datetime.datetime.now() -
                                 cls._last_saved_movie_timestamp).total_seconds() / 60)
                     cls._logger.debug_extra_verbose(f'flush: {flush} '
@@ -154,7 +154,7 @@ class ITunesCache:
                     DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(tmp_path, mode='wt', newline=None,
+                with io.open(tmp_path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
 
                     cls._logger.debug(f'complete: {complete} cache_complete: '
@@ -253,7 +253,7 @@ class ITunesCache:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 if os.path.exists(path):
-                    with io.open(path, mode='rt', newline=None,
+                    with io.open(path.encode('utf-8'), mode='rt', newline=None,
                                  encoding='utf-8') as cacheFile:
                         cls._cached_movies = json.load(
                             cacheFile,
@@ -299,7 +299,6 @@ class ITunesCache:
         # Loads the last time the index was created from a cached entry.
         # If no cached entry with the timestamp exists, set it to now.
 
-        cls._logger.enter()
         creation_date = None
         creation_date_entry: MovieType = cls._cached_movies.get(cls.INDEX_CREATION_DATE, {})
         cls._logger.debug(f'creation_date_entry: {creation_date_entry}')
@@ -312,8 +311,8 @@ class ITunesCache:
             if creation_date is not None:
                 x = Utils.strptime(creation_date, '%Y:%m:%d')
         cls._logger.debug(f'creation_date: {creation_date} '
-                         f'creation_date_entry: {creation_date_entry} '
-                         f'x: {x}')
+                          f'creation_date_entry: {creation_date_entry} '
+                          f'x: {x}')
 
         cls._logger.debug(f'cache_complete: {cls._cache_complete} '
                              f' creation_date: {creation_date} '
@@ -458,7 +457,7 @@ class ITunesCache:
                 return dct
 
         except Exception as e:
-            ITunesCache._logger.exception()
+            ITunesCache._logger.exception(msg='')
         return dct
 
 

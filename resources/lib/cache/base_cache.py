@@ -5,10 +5,13 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-
+import locale
 import sys
 import datetime
 import io
+import unicodedata
+from pathlib import PurePath
+
 import simplejson as json
 import os
 import re
@@ -18,7 +21,7 @@ import xbmcvfs
 
 from cache.json_cache_helper import JsonCacheHelper
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.exceptions import (AbortException, CommunicationException, TrailerIdException)
 from common.messages import Messages
 from common.monitor import Monitor
@@ -31,7 +34,7 @@ from common.disk_utils import DiskUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 from diagnostics.statistics import Statistics
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BaseCache:
@@ -138,10 +141,10 @@ class BaseCache:
         movie: AbstractMovie = None
         try:
             # Keep cached files from the source the data/trailer comes from
-            path = BaseCache.get_json_cache_file_path_for_movie_id(movie_id, source,
+            path = BaseCache.get_json_cache_file_path_for_movie_id(movie_id,
                                                                    error_msg=error_msg)
             if path is None or not os.path.exists(path):
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls._logger.debug_extra_verbose(f'cache file not found for: '
                                                     f'{error_msg} '
                                                     f'movie_id: {movie_id} '
@@ -161,14 +164,15 @@ class BaseCache:
                 Settings.get_expire_trailer_cache_days())
 
             if file_mod_time < expiration_time:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls._logger.debug_extra_verbose('cache file EXPIRED for:', error_msg,
                                                     'movie_id:', movie_id,
                                                     'path:', path)
                 return None
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
+            with io.open(path.encode('utf-8'), mode='rt', newline=None,
+                         encoding='utf-8') as cacheFile:
                 try:
                     serializable: MovieType = json.load(cacheFile, encoding='utf-8')
                     serializable[MovieField.CACHED] = True
@@ -177,7 +181,7 @@ class BaseCache:
                         movie = TMDbMovie.de_serialize(serializable)
                     else:
                         if (cls._logger.isEnabledFor(
-                                LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                                DEBUG_EXTRA_VERBOSE)):
                             cls._logger.debug_extra_verbose(
                                 f'Expected CLASS entry indicating TMDbMovie')
 
@@ -235,7 +239,7 @@ class BaseCache:
             serializable: MovieType = movie.serialize()
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='wt', newline=None,
+            with io.open(path.encode("utf-8"), mode='wt', newline=None,
                          encoding='utf-8', ) as cache_file:
                 json_text = json.dumps(serializable,
                                        ensure_ascii=False,
@@ -272,7 +276,7 @@ class BaseCache:
             movie_id = movie.get_id()
 
             if movie_id is None:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_VERBOSE):
                     cls._logger.debug_verbose(f'TMDBid is None: for: {movie.get_title()} '
                                               f'source: {movie.get_source()}')
 
@@ -317,9 +321,9 @@ class BaseCache:
                 movie_id = MovieEntryUtils.get_movie_id(movie)
 
                 if movie_id is None:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        cls._logger.debug_verbose('TMDBid is None for ITunes movie:',
-                                                  movie.get_title())
+                    if cls._logger.isEnabledFor(DEBUG_VERBOSE):
+                        cls._logger.debug_verbose('TMDBid is None for ITunes movie: '
+                                                  f'{movie.get_title()}')
             if movie_id is not None:
                 movie_id = BaseCache.generate_unique_id_from_source(movie_id, source)
         except AbortException:
@@ -349,9 +353,9 @@ class BaseCache:
                          MovieField.ITUNES_SOURCE, MovieField.TFH_SOURCE]
         unique_id = None
         if source not in valid_sources:
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                cls._logger.debug('Unsupported source:', source, 'movie_id:',
-                                  movie_id, error_msg)
+            if cls._logger.isEnabledFor(DEBUG):
+                cls._logger.debug(f'Unsupported source: {source} '
+                                  f'movie_id: {movie_id} {error_msg}')
 
         if source == MovieField.LIBRARY_SOURCE:
             unique_id = str(movie_id)
@@ -385,7 +389,7 @@ class BaseCache:
             movie_id: str = movie.get_id()
             prefix = BaseCache.generate_unique_id_from_source(movie_id, source,
                                                               error_msg=error_msg)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(f'movie_id: {movie_id} '
                                                 f'source: {source} '
                                                 f'prefix: {prefix}')
@@ -424,8 +428,8 @@ class BaseCache:
                 x = prefix.split('_', 1)
                 folder = 'a' + x[1][0]
             else:
-                cls._logger.debug('Unexpected source:', source,
-                                  'movie_id:', movie_id)
+                cls._logger.debug(f'Unexpected source: {source} '
+                                  f'movie_id:{movie_id}')
                 return None
 
             cache_file = prefix + '.json'
@@ -433,7 +437,12 @@ class BaseCache:
                                 folder, cache_file)
             path = xbmcvfs.validatePath(path)
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            # Use only ASCII file names (Fix Linux weirdness using utf-8).
+            # TODO: Use straight UTF-8, but investigate usage on Linux, etc.
+
+            path = unicodedata.normalize('NFKC', path)
+
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(f'path: {path} source: {source} '
                                                 f'movie_id: {movie_id}')
             return path
@@ -476,10 +485,10 @@ class BaseCache:
                 movie_id = BaseCache.get_tmdb_video_id(movie)
                 source = movie.get_source()
             else:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug('Not valid video source title:',
-                                      movie.get_title(),
-                                      'source:', movie.get_source())
+                if cls._logger.isEnabledFor(DEBUG):
+                    cls._logger.debug(f'Not valid video source '
+                                      f' title: {movie.get_title()} '
+                                      f'source: {movie.get_source()}')
 
             if movie_id is not None:
 
@@ -506,14 +515,13 @@ class BaseCache:
 
                 if normalized:
                     if 'normalized_' in orig_file_name:
-                        cls._logger.debug('Already normalized:',
-                                          movie.get_title(),
-                                          'orig_file_name:', orig_file_name)
-                        file_name = prefix + orig_file_name
+                        cls._logger.debug(f'Already normalized: {movie.get_title()} '
+                                          f'orig_file_name: {orig_file_name}')
+                        file_name = f'{prefix}{orig_file_name}'
                     else:
-                        file_name = prefix + 'normalized_' + orig_file_name
+                        file_name = f'{prefix}normalized_{orig_file_name}'
                 else:
-                    file_name = prefix + orig_file_name
+                    file_name = f'{prefix}{orig_file_name}'
 
                 path = os.path.join(Settings.get_downloaded_trailer_cache_path(),
                                     folder, file_name)
@@ -528,8 +536,8 @@ class BaseCache:
 
             path = ''
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_extra_verbose('Path:', path)
+        if cls._logger.isEnabledFor(DISABLED):
+            cls._logger.debug_extra_verbose(f'Path: {path}')
         return path
 
 

@@ -9,6 +9,8 @@ Created on Feb 10, 2019
 import sys
 import datetime
 import io
+import unicodedata
+
 import simplejson as json
 import os
 import re
@@ -20,7 +22,7 @@ from cache.json_cache_helper import JsonCacheHelper
 from cache.tmdb_cache_index import CacheIndex
 from common.debug_utils import Debug
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.exceptions import (AbortException, CommunicationException, TrailerIdException)
 from common.messages import Messages
 from common.monitor import Monitor
@@ -32,7 +34,7 @@ from backend import backend_constants
 from common.disk_utils import DiskUtils
 from diagnostics.statistics import Statistics
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Cache:
@@ -53,7 +55,7 @@ class Cache:
         from settings once actually removed.
 
     """
-    _logger = module_logger.getChild('Cache')
+    _logger = module_logger.getChild(__file__)
     _instance = None
 
     def __init__(self) -> None:
@@ -125,7 +127,7 @@ class Cache:
             path = Cache.get_json_cache_file_path_for_movie_id(tmdb_id,
                                                                error_msg=error_msg)
             if path is None or not os.path.exists(path):
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls._logger.debug_extra_verbose(f'cache file not found for: '
                                                     f'{error_msg} '
                                                     f'tmdb_id: {tmdb_id} '
@@ -145,14 +147,16 @@ class Cache:
                 Settings.get_expire_trailer_cache_days())
 
             if file_mod_time < expiration_time:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    cls._logger.debug_extra_verbose('cache file EXPIRED for:', error_msg,
-                                                    'tmdb_id:', tmdb_id,
-                                                    'path:', path)
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                    cls._logger.debug_extra_verbose(f'cache file EXPIRED for: '
+                                                    f'{error_msg} '
+                                                    f'tmdb_id: {tmdb_id} '
+                                                    f'path: {path}')
                 return None
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='rt', newline=None, encoding='utf-8') as cacheFile:
+            with io.open(path.encode('utf-8'), mode='rt', newline=None,
+                         encoding='utf-8') as cacheFile:
                 try:
                     serializable: MovieType = json.load(cacheFile, encoding='utf-8')
                     serializable[MovieField.CACHED] = True
@@ -161,12 +165,12 @@ class Cache:
                         tmdb_movie = TMDbMovie.de_serialize(serializable)
                     else:
                         if (cls._logger.isEnabledFor(
-                                LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                                DEBUG_EXTRA_VERBOSE)):
                             cls._logger.debug_extra_verbose(
                                 f'Expected CLASS entry indicating TMDbMovie not '
                                 f'{MovieField.CLASS}')
                             Debug.dump_dictionary(serializable,
-                                                  log_level=LazyLogger.DEBUG)
+                                                  level=DEBUG)
 
                 except Exception as e:
                     cls._logger.exception(e)
@@ -227,7 +231,7 @@ class Cache:
             serializable: MovieType = tmdb_movie.get_serializable()
 
             Monitor.throw_exception_if_abort_requested()
-            with io.open(path, mode='wt', newline=None,
+            with io.open(path.encode('utf-8'), mode='wt', newline=None,
                          encoding='utf-8', ) as cache_file:
                 json_text = json.dumps(serializable,
                                        ensure_ascii=False,
@@ -269,7 +273,7 @@ class Cache:
             tmdb_id = movie.get_id()
 
             if tmdb_id is None:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_VERBOSE):
                     cls._logger.debug_verbose(f'TMDBid is None: for: {movie.get_title()} '
                                               f'source: {movie.get_source()}')
 
@@ -314,9 +318,9 @@ class Cache:
                 movie_id = MovieEntryUtils.get_tmdb_id(movie)
 
                 if movie_id is None:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        cls._logger.debug_verbose('TMDBid is None for ITunes movie:',
-                                                  movie.get_title())
+                    if cls._logger.isEnabledFor(DEBUG_VERBOSE):
+                        cls._logger.debug_verbose('TMDBid is None for ITunes movie: '
+                                                  f'{movie.get_title()}')
             if movie_id is not None:
                 movie_id = Cache.generate_unique_id_from_source(movie_id, source)
         except AbortException:
@@ -346,9 +350,9 @@ class Cache:
                          MovieField.ITUNES_SOURCE, MovieField.TFH_SOURCE]
         unique_id = None
         if source not in valid_sources:
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                cls._logger.debug('Unsupported source:', source, 'tmdb_id:',
-                                  movie_id, error_msg)
+            if cls._logger.isEnabledFor(DEBUG):
+                cls._logger.debug(f'Unsupported source: {source} '
+                                  f'tmdb_id: {movie_id} {error_msg}')
 
         if source == MovieField.LIBRARY_SOURCE:
             unique_id = str(movie_id)
@@ -383,7 +387,7 @@ class Cache:
             source = MovieField.TMDB_SOURCE
             prefix = Cache.generate_unique_id_from_source(movie_id, source,
                                                           error_msg=error_msg)
-            # if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            # if cls._logger.isEnabledFor(DEBUG):
             #     cls._logger.debug('tmdb_id:', tmdb_id, 'source:', source,
             #                        'prefix:', prefix)
             #
@@ -472,10 +476,10 @@ class Cache:
                 movie_id = Cache.get_tmdb_video_id(movie)
                 source = movie.get_source()
             else:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                    cls._logger.debug('Not valid video source title:',
-                                      movie.get_title(),
-                                      'source:', movie.get_source())
+                if cls._logger.isEnabledFor(DEBUG):
+                    cls._logger.debug('Not valid video source'
+                                      f'title: {movie.get_title()} '
+                                      f'source: {movie.get_source()}')
 
             if movie_id is not None:
 
@@ -502,28 +506,34 @@ class Cache:
 
                 if normalized:
                     if 'normalized_' in orig_file_name:
-                        cls._logger.debug('Already normalized:',
-                                          movie.get_title(),
-                                          'orig_file_name:', orig_file_name)
-                        file_name = prefix + orig_file_name
+                        cls._logger.debug('Already normalized: '
+                                          f'{movie.get_title()} '
+                                          f'orig_file_name: {orig_file_name}')
+                        file_name = f'{prefix}{orig_file_name}'
                     else:
-                        file_name = prefix + 'normalized_' + orig_file_name
+                        file_name = f'{prefix}normalized_{orig_file_name}'
                 else:
-                    file_name = prefix + orig_file_name
+                    file_name = f'{prefix}{orig_file_name}'
 
                 path = os.path.join(Settings.get_downloaded_trailer_cache_path(),
                                     folder, file_name)
                 # Should not be needed
                 path = xbmcvfs.validatePath(path)
 
+                # Use only ASCII file names (Fix Linux weirdness using utf-8).
+                # TODO: Use straight UTF-8, but investigate usage on Linux, etc.
+
+                path = unicodedata.normalize('NFKC', path)
+
+
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
             title = movie.get_title()
-            cls._logger.exception('title:', title)
+            cls._logger.exception(f'title: {title}')
 
             path = ''
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_extra_verbose('Path:', path)
+        if cls._logger.isEnabledFor(DISABLED):
+            cls._logger.debug_extra_verbose(f'Path: {path}')
         return path

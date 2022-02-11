@@ -8,6 +8,17 @@
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
+				<setting help="" id="country_code" label="32295" type="string">
+					<!-- This is a hack setting to work around Kodi bug -->
+					<level>0</level>
+					<default>us</default>
+					<constraints>
+						<allowempty>false</allowempty>
+					</constraints>
+					<control type="edit" format="string">
+						<heading>32001</heading>
+					</control>
+				</setting>
 			</group>
 			<group id="2" label="32058">
 				<setting help="32247" id="rating_limit" label="32040" type="integer">

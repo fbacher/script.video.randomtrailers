@@ -16,7 +16,7 @@ from common.exceptions import AbortException
 from common.imports import *
 from common.movie import AbstractMovie
 from common.playlist import Playlist
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
@@ -29,15 +29,15 @@ from frontend.abstract_dialog_state import BaseDialogStateMgr, DialogState
 from player.my_player import MyPlayer
 from frontend.movie_manager import MovieManager, MovieStatus
 from frontend.history_empty import HistoryEmpty
-from frontend.utils import ReasonEvent
+from frontend.frontend_utils import ReasonEvent
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 SKIP_NOTIFICATION_SECONDS: int = 5
 
 
 class DialogStateMgr(BaseDialogStateMgr):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _dialog_state: DialogState = DialogState.NORMAL
     _trailer_dialog: ForwardRef('frontend.TrailerDialog') = None
 
@@ -94,7 +94,7 @@ class DialogStateMgr(BaseDialogStateMgr):
         :return:
         """
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'state: {dialog_state}',
                                             trace=Trace.TRACE_SCREENSAVER)
 
@@ -163,7 +163,7 @@ class Task(Enum):
 
 class TaskQueue(deque):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     instance: ForwardRef('TaskQueue') = None
     lock: threading.RLock = threading.RLock()
 
@@ -199,7 +199,7 @@ class TaskLoop(threading.Thread):
 
     QUEUE_OPERATIONS = (Task.QUEUE_NEXT_TRAILER, Task.QUEUE_PREV_TRAILER)
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _worker_thread: ForwardRef('TaskLoop') = None
     _movie_manager: MovieManager = None
     _trailer_dialog: ForwardRef('TrailerDialog') = None
@@ -214,7 +214,7 @@ class TaskLoop(threading.Thread):
     def class_init(cls):
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
-            cls._logger.enter()
+            cls._logger.debug('enter')
 
             # Last time since Epoch that a notification was issued for
             # skipping trailers
@@ -229,7 +229,7 @@ class TaskLoop(threading.Thread):
         # def __init__(self, group=None, target=None, name=None,
         #              args=(), kwargs=None, *, daemon=None):
         clz = type(self)
-        clz._logger.enter()
+        clz._logger.debug('enter')
         super().__init__(name=name)
 
         self._future_details_timed: bool = False
@@ -254,7 +254,7 @@ class TaskLoop(threading.Thread):
 
     @classmethod
     def start_playing_trailers(cls):
-        cls._logger.enter()
+        cls._logger.debug('enter')
         cls._worker_thread = TaskLoop(name='TaskLoop')
         cls._worker_thread.start()
         cls._worker_thread._finished.wait()
@@ -318,7 +318,7 @@ class TaskLoop(threading.Thread):
                     continue
 
                 if my_kwargs[task] is not None:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    if cls._logger.isEnabledFor(DEBUG):
                         cls._logger.debug_extra_verbose(f'args to Tasks not yet '
                                                         f'supported. Args ignored')
 
@@ -336,7 +336,7 @@ class TaskLoop(threading.Thread):
                                 tasks_to_keep.append(existing_task)
                             else:
                                 cls._logger.debug_extra_verbose(f'purging task '
-                                                                 f'{task}')
+                                                                f'{task}')
 
                         if len(tasks_to_keep) != len(TaskQueue.instance):
                             TaskQueue.instance.clear()
@@ -351,13 +351,13 @@ class TaskLoop(threading.Thread):
 
                     task = (task, arg)
 
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls._logger.debug_extra_verbose(f'adding task: {task}')
                 TaskQueue.instance.append(task)
 
     def run(self) -> None:
         clz = type(self)
-        clz._logger.enter()
+        clz._logger.debug('enter')
         clz._trailer_dialog = DialogStateMgr.get_trailer_dialog()
         clz._movie_manager = clz._trailer_dialog.get_movie_manager()
         try:
@@ -376,7 +376,7 @@ class TaskLoop(threading.Thread):
                 with TaskQueue.lock:
                     if len(TaskQueue.instance) == 0:
                         if not self.is_trailer_playing(debug=False):
-                            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                                 clz._logger.debug_extra_verbose(f'pushing request to'
                                                                 f' queue_next_trailer')
                             # Insert a trailer to play
@@ -392,7 +392,7 @@ class TaskLoop(threading.Thread):
                         else:
                             task = item
                             arg = 'no arg'
-                        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             clz._logger.debug_extra_verbose(f'Popped task: {task} arg: '
                                                             f'{arg}')
 
@@ -564,17 +564,17 @@ class TaskLoop(threading.Thread):
                         break # Exit loop
 
         except SkipMovieException:
-            self._logger.exception()
+            self._logger.exception(msg='')
         except UserExitException:
             reraise(*sys.exc_info())
         except HistoryEmpty:
-            self._logger.exception()
+            self._logger.exception(msg='')
         except AbortException:
             pass  # Let thread die
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
         finally:
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 self._logger.debug_extra_verbose('Exiting')
             self._finished.set()
 
@@ -589,7 +589,7 @@ class TaskLoop(threading.Thread):
         if about_to_play is not None:
             self._trailer_almost_playing = about_to_play
 
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose(f'playing: {playing} about_to_play: '
                                             f'{about_to_play} '
                                             f'trailer_playing: {self._trailer_playing} '
@@ -632,7 +632,7 @@ class TaskLoop(threading.Thread):
                                                            timeout=5.0)
                 trailer_playing = clz.get_player().is_playing_file(trailer_path)
 
-            if debug and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if debug and clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'actively_playing: {actively_playing} '
                                                 f'really playing: {trailer_playing} '
                                                 f'should be playing: '
@@ -642,15 +642,15 @@ class TaskLoop(threading.Thread):
 
             if self._trailer_playing and not trailer_playing:
                 # trailer_playing = True
-                if self._logger.isEnabledFor(LazyLogger.DEBUG):
+                if self._logger.isEnabledFor(DEBUG):
                     clz._logger.debug(f'Disagreement about trailer playing: '
-                                          f'{self._movie.get_title()} ')
+                                      f'{self._movie.get_title()} ')
         result: bool
         if actively_playing:
             result = trailer_playing
         else:
             result = self._trailer_playing or self._trailer_almost_playing
-        if debug and self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if debug and self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             if self._movie is not None:
                 is_normalized, is_cached, trailer_path = \
                     self._movie.get_optimal_trailer_path()
@@ -689,11 +689,10 @@ class TaskLoop(threading.Thread):
         clz = type(self)
 
         movie_file = self._movie.get_movie_path()
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose(
-                f'Playing movie for currently playing trailer.',
-                'movie_file:', movie_file, 'source:',
-                self._movie.get_source())
+                f'Playing movie for currently playing trailer. '
+                f'movie_file: {movie_file} source: {self._movie.get_source()}')
         if movie_file == '':
             message = Messages.get_msg(Messages.NO_MOVIE_TO_PLAY)
             NotificationTimer.start_timer(notification_msg=message,
@@ -714,7 +713,7 @@ class TaskLoop(threading.Thread):
     def _play(self) -> None:
         clz = type(self)
         if self.get_player() is not None and self.get_player().is_paused():
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'Resuming Play',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
             self.get_player().resume_play()
@@ -723,7 +722,7 @@ class TaskLoop(threading.Thread):
         clz = type(self)
         if self.get_player() is not None and self.get_player().isPlaying():
             # Pause playing trailer
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'Pausing Player',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
             self.get_player().pause_play()
@@ -739,7 +738,7 @@ class TaskLoop(threading.Thread):
         if ((DialogStateMgr.is_random_trailers_play_state(
                 DialogState.NO_TRAILERS_TO_PLAY, exact_match=True))
                 and clz._trailer_dialog.is_movie_details_visible()):
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'Not re-displaying unchanged movie '
                                                 f'details.')
             return
@@ -776,6 +775,8 @@ class TaskLoop(threading.Thread):
                                               f'trailers to play. May see '
                                               f'repeats.',
                                               debug_label=self._movie.get_title())
+        else:
+            clz.callback_show_details_finished()
 
     @classmethod
     def callback_show_details_finished(cls, stop_play: bool = False):
@@ -784,7 +785,7 @@ class TaskLoop(threading.Thread):
         :param stop_play:
         :return:
         """
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'enter')
         cls.add_task(Task.SHOW_DETAILS_FINISHED)
 
@@ -830,7 +831,7 @@ class TaskLoop(threading.Thread):
         try:
             # Start playing the trailer
 
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'_start playing: '
                                                 f'{movie.get_title()}',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
@@ -838,7 +839,7 @@ class TaskLoop(threading.Thread):
             is_normalized, is_cached, trailer_path = movie.get_optimal_trailer_path()
             clz.get_player().play_trailer(trailer_path, movie)
 
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'wait for trailer to _start playing: '
                                                 f'{movie.get_title()}',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
@@ -847,7 +848,7 @@ class TaskLoop(threading.Thread):
 
             if not self.get_player().wait_for_is_playing_video(path=trailer_path,
                                                                timeout=5.0):
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose('Timed out Waiting for Player.',
                                                     trace=Trace.TRACE_UI_CONTROLLER)
             else:
@@ -860,13 +861,13 @@ class TaskLoop(threading.Thread):
                                          debug_label=self._movie.get_title(),
                                          callback_on_stop=callback)
 
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose(f'Waiting for trailer to stop playing')
 
                 # Wait until trailer completes, or is killed by the timer
 
                 clz.get_player().wait_for_is_not_playing_video(path=trailer_path)
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     clz._logger.debug_extra_verbose(f'Finished playing trailer:'
                                                     f' {movie.get_title()}',
                                                     trace=Trace.TRACE_UI_CONTROLLER)
@@ -880,11 +881,11 @@ class TaskLoop(threading.Thread):
             pass  # Let thread die
 
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
     def play_trailer_finished(self, stop_play: bool = False):
         clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose(f'enter')
         clz.add_task(Task.PLAY_TRAILER_FINISHED)
 
@@ -893,7 +894,7 @@ class TaskLoop(threading.Thread):
         trailer_play_time: float
         trailer_play_time = float(Settings.get_max_trailer_play_seconds())
         trailer_play_time -= clz.get_player().getTime()
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose(f'played time: {clz.get_player().getTime()} '
                                             f'remaining_time: {trailer_play_time}',
                                             trace=Trace.TRACE_UI_CONTROLLER)
@@ -906,7 +907,7 @@ class TaskLoop(threading.Thread):
 
     def _exit_frontend(self) -> None:
         clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose('Exit application',
                                             trace=Trace.TRACE_SCREENSAVER)
 
@@ -966,13 +967,13 @@ class TaskLoop(threading.Thread):
         """
         clz = type(self)
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_VERBOSE):
             clz._logger.debug_verbose(f'got trailer to play: '
                                       f'{self._movie.get_title()}')
 
         video_is_curtain: bool = (self._movie.get_source() == 'curtain')
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose('wait for not playing 1')
 
         _, _, trailer_path = self._movie.get_optimal_trailer_path()
@@ -994,11 +995,11 @@ class TaskLoop(threading.Thread):
             while attempts > 0:
                 try:
                     attempts += 1
-                    if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+                    if clz._logger.isEnabledFor(DISABLED):
                         clz._logger.debug_extra_verbose(f'In _get_trailer')
                     next_movie_status, next_movie = clz._movie_manager.get_next_trailer()
 
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(f'status: {next_movie_status} '
                                                         f'movie: '
                                                         f'{next_movie}')
@@ -1028,11 +1029,10 @@ class TaskLoop(threading.Thread):
                                     DialogState.NO_TRAILERS_TO_PLAY)
                             raise SkipMovieException()  # Try again
                         else:
-                            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                                 clz._logger.debug_extra_verbose(
                                     f'status: {next_movie_status} '
-                                    f'movie: '
-                                    f'{next_movie}')
+                                    f'movie: {next_movie}')
 
                     DialogStateMgr.set_random_trailers_play_state(
                             DialogState.NORMAL)
@@ -1069,7 +1069,7 @@ class TaskLoop(threading.Thread):
                     reraise(*sys.exc_info())
 
                 except Exception:
-                    clz._logger.exception()
+                    clz._logger.exception(msg='')
 
                 Monitor.throw_exception_if_abort_requested(timeout=timeout)
                 attempts += 1
@@ -1094,22 +1094,22 @@ class TaskLoop(threading.Thread):
         :return:
         """
         clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz._logger.debug_extra_verbose('checking play_state 2 movie:',
-                                            self._movie.get_title())
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'checking play_state 2 movie: '
+                                            f'{self._movie.get_title()}')
         if DialogStateMgr.is_random_trailers_play_state(DialogState.SKIP_PLAYING_TRAILER,
                                                         exact_match=True):
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'SKIP_PLAYING_TRAILER: '
                                                 f'{self._movie.get_title()}',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
             raise SkipMovieException()
         if DialogStateMgr.is_random_trailers_play_state(
                 minimum_exit_state=DialogState.USER_REQUESTED_EXIT):
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(
-                        'Breaking due to play_state 2 movie:',
-                        self._movie.get_title(),
+                        'Breaking due to play_state 2 movie: '
+                        f'{self._movie.get_title()} ',
                         trace=Trace.TRACE_UI_CONTROLLER)
             raise UserExitException()
 

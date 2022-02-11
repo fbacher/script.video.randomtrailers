@@ -9,12 +9,12 @@ Created on Feb 10, 2019
 import queue
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie
 
 from discovery.abstract_movie_data import AbstractMovieData
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayableTrailersContainerInterface:

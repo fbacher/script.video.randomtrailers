@@ -7,17 +7,17 @@ Created on Feb 12, 2019
 import xbmc
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from player.abstract_player import AbstractPlayer
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayerContainer:
     _instance = None
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @staticmethod
     def get_instance() -> ForwardRef('PlayerContainer'):
@@ -62,8 +62,8 @@ class PlayerContainer:
 
     def use_dummy_player(self, delete=False):
         clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-            clz._logger.enter('delete:', delete)
+        if clz._logger.isEnabledFor(DEBUG):
+            clz._logger.debug('delete:', delete)
 
         self._saved_player = self._player
         self._player = DummyPlayer()
@@ -74,5 +74,5 @@ class PlayerContainer:
             del self._saved_player
             self._saved_player = None
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-            clz._logger.exit()
+        if clz._logger.isEnabledFor(DEBUG):
+            clz._logger.debug('exiting')

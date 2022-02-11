@@ -16,11 +16,11 @@ import xbmc
 
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 '''
     Normalizes the volume of video using ffmpeg. Normalizing volumes is particularly
@@ -176,7 +176,7 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
 
 
 class RunCommand:
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self, args: List[str], movie_name: str) -> None:
         RunCommand.logger = module_logger.getChild(RunCommand.__name__)
@@ -319,11 +319,11 @@ class RunCommand:
             return
 
         clz = RunCommand
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             if self.rc != 0:
                 clz.logger.debug(
                     f'ffmpeg failed for {self.movie_name} rc: {self.rc}')
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 stdout = '\n'.join(self.stdout_lines)
                 clz.logger.debug_verbose(f'STDOUT: {stdout}')
                 stderr = '\n'.join(self.stderr_lines)

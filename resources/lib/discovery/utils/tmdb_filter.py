@@ -10,7 +10,7 @@ import sys
 from backend.genreutils import GenreUtils
 from common.constants import RemoteTrailerPreference
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import TMDbMovie, TMDbMoviePageData
 from common.movie_constants import MovieField
 from common.certification import Certification, WorldCertifications
@@ -19,18 +19,18 @@ from common.settings import Settings
 from common.exceptions import AbortException, reraise
 from discovery.restart_discovery_exception import StopDiscoveryException
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TMDbFilter:
 
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     @classmethod
     def class_init(cls,) -> None:
 
         if cls.logger is None:
-            cls.logger: LazyLogger = module_logger.getChild(cls.__name__)
+            cls.logger: BasicLogger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def pre_filter_movie(cls,
@@ -70,21 +70,17 @@ class TMDbFilter:
             if minimum_year != 0 \
                     and movie.get_year() < minimum_year:
                 filter_passes = False
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
-                        'Omitting movie_entry older than minimum Year:',
-                        minimum_year, 'movie_entry:',
-                        movie_title,
-                        'release:', movie.get_year())
+                        f'Omitting movie_entry older than minimum Year: {minimum_year} '
+                        f'movie_entry: {movie_title} release: {movie.get_year()}')
             elif maximum_year != 0 \
                     and movie.get_year() > maximum_year:
                 filter_passes = False
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
-                        'Omitting movie_entry newer than maximum Year:',
-                        minimum_year, 'movie_entry:',
-                        movie_title,
-                        'release:', movie.get_year())
+                        f'Omitting movie_entry newer than maximum Year: {maximum_year} '
+                        f'movie_entry: {movie_title} release: {movie.get_year()}')
 
             # Trailer Type is unknown for TMDbMoviePageData objects, so '' is
             # returned instead, which filter ignores.
@@ -129,21 +125,21 @@ class TMDbFilter:
 
             if not GenreUtils.include_movie(genre_names=genre_ids, tag_names=None):
                 filter_passes = False
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_VERBOSE):
                     cls.logger.debug_verbose('Rejected due to Genre')
 
             if vote_comparison == \
                     RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
                 if vote_average < vote_value:
                     filter_passes = False
-                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls.logger.debug_extra_verbose(
                             f'Rejected due to vote_average < {movie_title}')
             elif vote_comparison == \
                     RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
                 if vote_average > vote_value:
                     filter_passes = False
-                    if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls.logger.debug_extra_verbose(
                             f'Rejected due to vote_average > {movie_title}')
 
@@ -155,7 +151,7 @@ class TMDbFilter:
             adult_movie = tmdb_result['adult'] == 'true'
             if adult_movie and not include_adult:
                 add_movie = False
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls.logger.isEnabledFor(DEBUG):
                     cls.logger.debug('Rejected due to adult')
 
             dict_info[MovieField.ADULT] = adult_movie
@@ -166,7 +162,7 @@ class TMDbFilter:
             mpaa = Rating.get_certification_id(mpaa_rating=mpaa, adult_rating=None)
             if not Rating.filter(mpaa):
                 add_movie = False
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls.logger.isEnabledFor(DEBUG):
                     cls.logger.debug('Rejected due to rating')
                     # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
 
@@ -201,9 +197,8 @@ class TMDbFilter:
 
             if movie.get_trailer_path() == '':
                 rejection_reasons.append(MovieField.REJECTED_NO_TRAILER)
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    cls.logger.debug_verbose('No trailer found for movie:',
-                                             movie_title,
+                if cls.logger.isEnabledFor(DEBUG_VERBOSE):
+                    cls.logger.debug_verbose(f'No trailer found for movie: {movie_title} '
                                              'Continuing to process other data')
 
             # Year check not needed for movies downloaded by tmdb_id, but is used
@@ -222,7 +217,7 @@ class TMDbFilter:
 
             if not GenreUtils.include_movie(genre_names=movie.get_genre_ids(),
                                             tag_names=movie.get_tag_ids()):
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
                         f'Rejected due to Genre or Keyword: {movie_title}')
                 add_movie = False
@@ -230,7 +225,7 @@ class TMDbFilter:
 
             is_original_language_found: bool = movie.is_original_language_found()
             if not (is_original_language_found or Settings.is_allow_foreign_languages()):
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
                         f'Rejected due to foreign language: {movie_title}')
                 add_movie = False
@@ -243,7 +238,7 @@ class TMDbFilter:
                     if movie.get_rating() < vote_value:
                         add_movie = False
                         rejection_reasons.append(MovieField.REJECTED_VOTE)
-                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             cls.logger.debug_extra_verbose(
                                 f'Rejected due to vote_average < {movie_title}')
                 elif vote_comparison == \
@@ -251,7 +246,7 @@ class TMDbFilter:
                     if movie.get_rating() > vote_value:
                         add_movie = False
                         rejection_reasons.append(MovieField.REJECTED_VOTE)
-                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             cls.logger.debug_extra_verbose(
                                 f'Rejected due to vote_average > {movie_title}')
 
@@ -265,7 +260,7 @@ class TMDbFilter:
             if not certifications.filter(certification):
                 add_movie = False
                 rejection_reasons.append(MovieField.REJECTED_CERTIFICATION)
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
                         f'Rejected due to rating: {movie_title} cert: {str(certification)}'
                         f' mpaa: {movie.get_certification_id()}')
@@ -277,7 +272,7 @@ class TMDbFilter:
             cls.logger.exception(
                 f'Error filtering tmdb movie: {movie.get_title()}')
 
-        cls.logger.exit(f'Finished processing movie: {movie.get_title()} year: '
+        cls.logger.debug(f'Finished processing movie: {movie.get_title()} year: '
                         f'{movie.get_year()} id: {movie.get_tmdb_id()} '
                         f'rejection_reason count: {len(rejection_reasons)}')
 

@@ -196,9 +196,6 @@ class DummyPlayer(AbstractPlayer):
     def onPlayBackPaused(self):
         return
 
-    def onPlayBackPaused(self) -> None:
-        return
-
     def onPlayBackResumed(self) -> None:
         return
 

@@ -18,12 +18,19 @@ import sys
 import xbmc
 import xbmcaddon
 
-from common.imports import *
-from common.exceptions import AbortException
-from common.logger import LazyLogger
+from __init__ import *
+from common.logger import *
 
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
+
+
+# PATCH PATCH PATCH
+# Monkey-Patch a well known, embedded Python problem
+#
+from common.strptime_patch import StripTimePatch
+#  from kutils.strptime_patch import StripTimePatch
+StripTimePatch.monkey_patch_strptime()
 
 addon = xbmcaddon.Addon()
 
@@ -56,7 +63,7 @@ try:
 
         message_received = False
         if not message_received:
-            if module_logger.isEnabledFor(LazyLogger.DEBUG):
+            if module_logger.isEnabledFor(DEBUG):
                 module_logger.debug('About to start randomtrailers as screensaver')
 
             cmd = '{"jsonrpc": "2.0", "method": "Addons.ExecuteAddon", \

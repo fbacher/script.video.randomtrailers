@@ -14,7 +14,7 @@ import threading
 from common.debug_utils import Debug
 from common.exceptions import AbortException, LogicError
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.movie import AbstractMovie, FolderMovie
 from common.movie_constants import MovieField
@@ -23,7 +23,7 @@ from common.settings import Settings
 from frontend.history_list import HistoryList
 from frontend.history_empty import HistoryEmpty
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class MovieStatus(FrontendBridgeStatus):
@@ -44,7 +44,7 @@ class MovieManager:
     OPEN_CURTAIN: Final[bool] = True
     CLOSE_CURTAIN: Final[bool] = False
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     instance: ForwardRef('MovieManager') = None
 
     def __init__(self) -> None:
@@ -99,7 +99,7 @@ class MovieManager:
         # recent action. Likely this will only impact expensive operations, such
         # as get next trailer.
 
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             self._logger.debug(f'play_state: {self._play_state}')
         while self._changed:
             self._changed = False  # Flip to True if additional user event occurs
@@ -173,7 +173,7 @@ class MovieManager:
                 if trailer is not None:
                     title = trailer.get_title()
 
-                if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     self._logger.debug(f'movie: {title} '
                                        f'play_state: {self._play_state} '
                                        f'changed: {self._changed}')
@@ -200,8 +200,8 @@ class MovieManager:
 
         if trailer is not None:
             title = trailer.get_title()
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
-            clz._logger.exit('status:', status, 'movie', title)
+        if clz._logger.isEnabledFor(DISABLED):
+            clz._logger.debug(f'status: {status} movie: {title}')
 
         return status, trailer
 
@@ -223,14 +223,14 @@ class MovieManager:
             trailer_path = trailer.get_cached_trailer()
             if not os.path.exists(trailer_path):
                 trailer.set_cached_trailer('')
-                clz._logger.debug_verbose('Does not exist:', trailer_path)
+                clz._logger.debug_verbose(f'Does not exist: {trailer_path}')
         else:
             trailer_path = trailer.get_trailer_path()
             if not trailer.has_trailer_path():
                 trailer_path = None
             elif not (trailer_path.startswith('plugin') or os.path.exists(trailer_path)):
                 trailer.set_trailer_path('')
-                clz._logger.debug_verbose('Does not exist:', trailer_path)
+                clz._logger.debug_verbose(f'Does not exist: {trailer_path}')
                 trailer_path = None
         return trailer_path is None
 
@@ -276,7 +276,7 @@ class MovieManager:
 
         # TODO: probably not needed
         clz = type(self)
-        #  clz._logger.enter()
+        #  clz._logger.debug('enter')
         self._play_state = TrailerPlayState.PLAY_PREVIOUS_TRAILER
         self._changed = True
 
@@ -289,7 +289,7 @@ class MovieManager:
 
         # TODO: probably not needed
         clz = type(self)
-        #  clz._logger.enter()
+        #  clz._logger.debug('enter')
         self._play_state = TrailerPlayState.PLAY_NEXT_TRAILER
         self._changed = True
 
@@ -300,7 +300,7 @@ class MovieManager:
         elif curtain_type == MovieManager.CLOSE_CURTAIN:
             self._play_state = TrailerPlayState.PLAY_CLOSE_CURTAIN_NEXT
         else:
-            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            if clz._logger.isEnabledFor(DISABLED):
                 clz._logger.debug('Must specify OPEN or CLOSE curtain')
             raise LogicError()
 
@@ -309,7 +309,7 @@ class MovieManager:
 
 class TrailerPlayEvent(threading.Thread):
     def __init__(self):
-        pass
+        super().__init__()
 
     def run(self) -> None:
         pass

@@ -9,12 +9,12 @@ Created on Apr 17, 2019
 
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
 import xbmc
 import xbmcgui
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BlackBackground(xbmcgui.WindowXML):

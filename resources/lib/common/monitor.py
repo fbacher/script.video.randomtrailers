@@ -19,10 +19,10 @@ import xbmc
 from common.constants import Constants
 from common.critical_settings import CriticalSettings
 from common.exceptions import AbortException
-from common.logger import (Logger, LazyLogger, Trace)
+from common.logger import *
 from common.minimal_monitor import MinimalMonitor
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Monitor(MinimalMonitor):
@@ -34,7 +34,7 @@ class Monitor(MinimalMonitor):
     """
     startup_complete_event: threading.Event = None
     _monitor_changes_in_settings_thread: threading.Thread = None
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _screen_saver_listeners: Dict[Callable[[None], None], str] = None
     _screen_saver_listener_lock: threading.RLock = None
     _settings_changed_listeners: Dict[Callable[[None], None], str] = None
@@ -57,7 +57,7 @@ class Monitor(MinimalMonitor):
 
         """
         if cls._logger is None:
-            cls._logger: LazyLogger = module_logger.getChild(cls.__class__.__name__)
+            cls._logger: BasicLogger = module_logger.getChild(cls.__class__.__name__)
             # Weird problems with recursion if we make requests to the super
 
             cls._screen_saver_listeners = {}
@@ -151,7 +151,7 @@ class Monitor(MinimalMonitor):
                 delta: datetime.timedelta = now - mod_time
 
                 if delta.total_seconds() > 60:
-                    if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+                    if cls._logger.isEnabledFor(DEBUG_VERBOSE):
                         cls._logger.debug_verbose('Settings Changed!')
                     last_time_changed = mod_time
                     cls.on_settings_changed()
@@ -285,8 +285,8 @@ class Monitor(MinimalMonitor):
         with cls._abort_listener_lock:
             if cls._abort_listeners_informed:
                 return
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                cls._logger.enter()
+            if cls._logger.isEnabledFor(DEBUG_VERBOSE):
+                cls._logger.debug_verbose('Entered')
             listeners_copy = copy.copy(cls._abort_listeners)
             cls._abort_listeners.clear() # Unregister all
             cls._abort_listeners_informed = True
@@ -305,7 +305,7 @@ class Monitor(MinimalMonitor):
         with cls._screen_saver_listener_lock:
             cls._screen_saver_listeners.clear()
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             from common.debug_utils import Debug
             Debug.dump_all_threads(delay=0.25)
             Debug.dump_all_threads(delay=0.50)
@@ -322,9 +322,9 @@ class Monitor(MinimalMonitor):
                 cls._settings_changed_listeners.clear()
 
         for listener, listener_name in listeners.items():
-            if cls._logger.isEnabledFor(Logger.DEBUG_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_VERBOSE):
                 cls._logger.debug_verbose(
-                    'Notifying listener:', listener_name)
+                    f'Notifying listener: {listener_name}')
             thread = threading.Thread(
                 target=listener, name='Monitor.inform_' + listener_name)
             thread.start()
@@ -342,7 +342,7 @@ class Monitor(MinimalMonitor):
             if cls.is_abort_requested():
                 cls._screen_saver_listeners.clear()
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_VERBOSE):
             cls._logger.debug_verbose(f'Screensaver activated: {activated}')
         for listener, listener_name in listeners_copy.items():
             thread = threading.Thread(
@@ -406,7 +406,7 @@ class Monitor(MinimalMonitor):
 
         Will be called when Kodi receives or sends a notification
         """
-        # if type(self)._logger.isEnabledFor(Logger.DEBUG):
+        # if type(self)._logger.isEnabledFor(BasicLogger.DEBUG):
         #    type(self)._logger.debug('sender:', sender, 'method:', method)
         pass
 
@@ -495,7 +495,7 @@ class Monitor(MinimalMonitor):
         :return:
         """
         cls.startup_complete_event.set()
-        if cls._logger.isEnabledFor(Logger.DEBUG):
+        if cls._logger.isEnabledFor(DEBUG):
             cls._logger.debug(
                 'startup_complete_event set', trace=Trace.TRACE_MONITOR)
 

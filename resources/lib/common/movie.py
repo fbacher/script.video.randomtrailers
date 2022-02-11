@@ -9,18 +9,18 @@ import sys
 
 from common.exceptions import AbortException
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie_constants import MovieField, MovieType
 from common.certification import Certification, WorldCertifications
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 CHECK_FOR_NULLS: bool = True
 
 
 class BaseMovie:
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = None) -> None:
         self._movie_id = None
@@ -32,6 +32,7 @@ class BaseMovie:
         self._has_local_trailer = False
         self._has_trailer = False
         self._library_id: int = None
+        self._folder_id: str = None
         self._tmdb_id: int = None
 
     @classmethod
@@ -40,7 +41,7 @@ class BaseMovie:
             cls._logger = module_logger.getChild(cls.__name__)
 
     def __str__(self) -> str:
-        return None
+        return f'{type(self).__name__} id: {self._movie_id} tmdb_id: {self._tmdb_id}'
 
     def get_source(self) -> str:
         return self._source
@@ -141,7 +142,7 @@ class BaseMovie:
             None if it has not been determined if the trailer is
                 local or remote. This is the case when a movie does not
                 have a local trailer, but we have not yet determined if
-                there is a trailer remotely (which requires a TMDb query)
+                there is a trailer remotely (which referenced_addons a TMDb query)
 
         """
         self._has_local_trailer = has_local_trailer
@@ -157,6 +158,9 @@ class BaseMovie:
 
     def set_library_id(self, library_id: int = None) -> None:
         self._library_id = library_id
+
+    def set_folder_id(self, folder_id: str = None) -> None:
+        self._folder_id = folder_id
 
     def get_tmdb_id(self) -> int:
         return self._tmdb_id
@@ -239,13 +243,13 @@ class BaseMovie:
 
 class AbstractMovieId(BaseMovie):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str, source: str) -> None:
         super().__init__(movie_id, source)
 
-    def __str__(self) -> str:
-        return str(self._movie_id)
+    def __str__(self):
+        return f'{type(self)}.__name__ id: {self.get_id()}'
 
     @classmethod
     def class_init(cls):
@@ -341,7 +345,7 @@ class AbstractMovieId(BaseMovie):
 
 
 class TMDbMovieId(AbstractMovieId):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str) -> None:
         super().__init__(movie_id, MovieField.TMDB_SOURCE)
@@ -370,30 +374,34 @@ class TMDbMovieId(AbstractMovieId):
     def set_library_id(self, library_id: str = None) -> None:
         self._library_id = library_id
 
+    def __str__(self):
+        return f'{type(self).__name__} id: {self.get_id()}' \
+               f' lib_id: {self.get_library_id()}'
+
 
 class TMDbMoviePageData(TMDbMovieId):
 
     def __init__(self, movie_id: str = None, movie_info: MovieType = None):
         """
-        Sometimes called with no args, or either arg.
+        TMDbMoviePageData is different from other movie ID types in that
+        it has movie_info in addition to just the id. To be consistent with
+        the other types, we need the ID, either through the movie_id field,
+        or from movie_info.
 
         :param movie_id:
         :param movie_info:
         """
 
         # Assume movie_id was passed
+        if movie_id is None:
+            movie_id = str(movie_info['id'])
         super().__init__(movie_id)
+        self._cached: bool = False
         if movie_info is None:
-            self._movie_info: MovieType = {}
+            self._movie_info = {}
         else:
             self._movie_info = movie_info
-
-        if movie_info is not None:
-            tmdb_id = movie_info.get('id', None)
-            if tmdb_id is not None:
-                self.set_id(int(tmdb_id))
-
-        self._cached: bool = False
+        self.set_id(int(movie_id))
 
     def get_certification_id(self) -> str:
         return self._movie_info[MovieField.CERTIFICATION_ID]
@@ -436,6 +444,13 @@ class TMDbMoviePageData(TMDbMovieId):
         return self._movie_info.get(MovieField.YEAR, 0)
 
     def set_year(self, year: int) -> None:
+        try:
+            int_year: int = int(year)
+        except:
+            clz = type(self)
+            clz._logger.error(f'Invalid year: {year} for movie: {self.get_title()} '
+                              f'source: {self.get_source()}')
+            return
         if year is not None:
             self._movie_info[MovieField.YEAR] = year
 
@@ -569,7 +584,7 @@ class TMDbMoviePageData(TMDbMovieId):
 
 
 class TFHMovieId(AbstractMovieId):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str) -> None:
         super().__init__(movie_id, MovieField.TFH_SOURCE)
@@ -584,7 +599,7 @@ class TFHMovieId(AbstractMovieId):
 
 
 class LibraryMovieId(AbstractMovieId):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str) -> None:
         super().__init__(movie_id, MovieField.LIBRARY_SOURCE)
@@ -599,8 +614,28 @@ class LibraryMovieId(AbstractMovieId):
             cls._logger = module_logger.getChild(cls.__name__)
 
 
+class FolderMovieId(AbstractMovieId):
+    _logger: BasicLogger = None
+
+    '''
+    For a Folder movie, the id is the file name. We know nothing else
+    about the movie.
+    '''
+    def __init__(self, movie_id: str) -> None:
+        super().__init__(movie_id, MovieField.FOLDER_SOURCE)
+        self.set_folder_id(movie_id)
+
+    def get_source(self) -> str:
+        return MovieField.FOLDER_SOURCE
+
+    @classmethod
+    def class_init(cls):
+        if cls._logger is None:
+            cls._logger = module_logger.getChild(cls.__name__)
+
+
 class ITunesMovieId(AbstractMovieId):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str) -> None:
         super().__init__(movie_id, MovieField.ITUNES_SOURCE)
@@ -616,7 +651,7 @@ class ITunesMovieId(AbstractMovieId):
 
 class RawMovie(BaseMovie):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = None,
                  movie_info: MovieType = None) -> None:
@@ -638,7 +673,8 @@ class RawMovie(BaseMovie):
         self.set_source(source)  # Force sync to movie_info
 
     def __str__(self) -> str:
-        return self.get_title()
+        return f'{type(self).__name__} {self.get_title()} id: {self.get_id()} ' \
+               f'tmdb_id: {self.get_tmdb_id()}'
 
     def null_check(self) -> None:
         clz = type(self)
@@ -647,7 +683,7 @@ class RawMovie(BaseMovie):
             if value is None:
                 nulls_found.append(key)
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             if len(nulls_found) > 0:
                 clz._logger.debug_extra_verbose(', '.join(nulls_found))
 
@@ -681,9 +717,9 @@ class RawMovie(BaseMovie):
         TODO: Rename this
 
         :param: source Source is the movie source (Library, TFH, etc.) that
-                      requires this object. Normally this is the same as
+                      referenced_addons this object. Normally this is the same as
                       the database that this object's data originated.
-                      However, if a movie requires additional information,
+                      However, if a movie referenced_addons additional information,
                       such as when a TFH movie needs supplemental info
                       from TMDb, then the source of the TMDBMovie is
                       TFH.
@@ -729,7 +765,7 @@ class RawMovie(BaseMovie):
 
 class AbstractMovie(RawMovie):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = None,
                  movie_info: MovieType = None) -> None:
@@ -765,13 +801,15 @@ class AbstractMovie(RawMovie):
 
         # Fix transient data
 
+        self.set_has_trailer(self.has_trailer_path())
         self.validate_local_trailer()
         self.set_has_trailer(self.has_trailer_path())
         self.set_has_been_fully_discovered(
             movie_info.get(MovieField.FULLY_DISCOVERED, False))
 
     def __str__(self) -> str:
-        return self.get_title()
+        return f'{type(self).__name__} {self.get_title()} ({self.get_year()}) id:' \
+               f' {self.get_id()} tmdb_id: {self.get_tmdb_id()}'
 
     def null_check(self) -> None:
         clz = type(self)
@@ -780,7 +818,7 @@ class AbstractMovie(RawMovie):
             if value is None:
                 nulls_found.append(key)
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             if len(nulls_found) > 0:
                 clz._logger.debug_extra_verbose(', '.join(nulls_found))
 
@@ -858,6 +896,13 @@ class AbstractMovie(RawMovie):
         return self._movie_info.get(MovieField.YEAR, 0)
 
     def set_year(self, year: int) -> None:
+        try:
+            int_year: int = int(year)
+        except:
+            clz = type(self)
+            clz._logger.error(f'Invalid year: {year} for movie: {self.get_title()} '
+                              f'source: {self.get_source()}')
+            return
         if year is not None:
             self._movie_info[MovieField.YEAR] = year
 
@@ -872,7 +917,7 @@ class AbstractMovie(RawMovie):
     def get_cached_trailer(self) -> Union[str, None]:
         clz = type(self)
         cached_path: str = self._movie_info.setdefault(MovieField.CACHED_TRAILER, '')
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(f'movie: {self.get_title()} source: '
                                             f'{self.get_source()} '
                                             f'cached_path: {cached_path}')
@@ -881,7 +926,7 @@ class AbstractMovie(RawMovie):
     def has_cached_trailer(self):
         clz = type(self)
         is_cached: bool = self.get_cached_trailer() != ''
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(f'cached: {is_cached}')
         return is_cached
 
@@ -891,7 +936,7 @@ class AbstractMovie(RawMovie):
     def get_normalized_trailer_path(self) -> Union[str, None]:
         norm_path: str = self._movie_info.setdefault(MovieField.NORMALIZED_TRAILER, '')
         clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(f'movie: {self.get_title()} source: '
                                             f'{self.get_source()} '
                                             f'normalized path: {norm_path}')
@@ -900,7 +945,7 @@ class AbstractMovie(RawMovie):
     def has_normalized_trailer(self) -> bool:
         clz = type(self)
         is_normalized = self.get_normalized_trailer_path() != ''
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(f'movie: {self.get_title()} source: '
                                             f'{self.get_source()} '
                                             f'is_normalized: {is_normalized}')
@@ -948,7 +993,7 @@ class AbstractMovie(RawMovie):
                                   f'set value: {self._has_local_trailer} '
                                   f'calculated: {local_trailer} '
                                   f'path: {self.get_trailer_path()}')
-                LazyLogger.dump_stack(heading="calculated local trailer")
+                BasicLogger.dump_stack(heading="calculated local trailer")
 
     def set_normalized_trailer_path(self, path: str) -> None:
         self._movie_info[MovieField.NORMALIZED_TRAILER] = path
@@ -961,6 +1006,9 @@ class AbstractMovie(RawMovie):
     def set_certification_id(self, certification: str) -> None:
         self._movie_info[MovieField.CERTIFICATION_ID] = certification
 
+    def has_directors(self) -> bool:
+        return len(self.get_directors()) > 0
+
     def get_directors(self) -> List[str]:
         return self._movie_info.setdefault(MovieField.DIRECTOR, [])
 
@@ -971,8 +1019,11 @@ class AbstractMovie(RawMovie):
     def get_detail_directors(self) -> str:
         return ', '.join(self.get_directors())
 
-    def get_fanart(self) -> Union[str, None]:
-        return self._movie_info.get(MovieField.FANART, None)
+    def has_fanart(self) -> bool:
+        return self.get_fanart('') != ''
+
+    def get_fanart(self, default=None) -> Union[str, None]:
+        return self._movie_info.get(MovieField.FANART, default)
 
     def set_fanart(self, path: str) -> None:
         self._movie_info[MovieField.FANART] = path
@@ -1048,6 +1099,9 @@ class AbstractMovie(RawMovie):
 
         self._movie_info[MovieField.RUNTIME] = seconds
 
+    def has_studios(self) -> bool:
+        return len(self.get_studios()) > 0
+
     def get_studios(self) -> List[str]:
         return self._movie_info.setdefault(MovieField.STUDIO, [])
 
@@ -1059,6 +1113,9 @@ class AbstractMovie(RawMovie):
             studios = studios_arg
 
         self._movie_info[MovieField.STUDIO] = studios
+
+    def get_detail_studios(self) -> str:
+        return ', '.join(self.get_studios())
 
     def set_unique_ids(self, ids: Dict[str, str]):
         self._movie_info[MovieField.UNIQUE_ID] = ids
@@ -1086,6 +1143,9 @@ class AbstractMovie(RawMovie):
 
     def set_tag_ids(self, keywords: List[str]) -> None:
         self._movie_info[MovieField.TMDB_TAG_IDS] = keywords
+
+    def has_thumbnail(self) -> bool:
+        return self.get_thumbnail('') != ''
 
     def get_thumbnail(self, default: str = None) -> Union[str, None]:
         return self._movie_info.get(MovieField.THUMBNAIL, default)
@@ -1137,7 +1197,7 @@ class AbstractMovie(RawMovie):
         else:
             trailer_path = self.get_trailer_path()
 
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(f'normalized: {is_normalized} cached: '
                                             f'{is_cached} path: {trailer_path}')
         return is_normalized, is_cached, trailer_path
@@ -1168,7 +1228,7 @@ class AbstractMovie(RawMovie):
     def set_trailer_type(self, trailer_type: str) -> None:
         clz = type(self)
         if trailer_type not in MovieField.TRAILER_TYPES:
-            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            if clz._logger.isEnabledFor(DISABLED):
                 clz._logger.debug_extra_verbose(f'trailer_type {trailer_type}'
                                                 f' not found. Movie:'
                                                 f' {self.get_title()} source:'
@@ -1190,6 +1250,9 @@ class AbstractMovie(RawMovie):
     def set_votes(self, votes: int) -> None:
         self._movie_info[MovieField.VOTES] = votes
 
+    def has_actors(self) -> bool:
+        return len(self.get_actors()) > 0
+
     def get_actors(self) -> List[str]:
         """
         Gets ordered list of actors for this movies, in order of billing.
@@ -1203,6 +1266,12 @@ class AbstractMovie(RawMovie):
             actors = actors[:MovieField.MAX_ACTORS - 1]
 
         self._movie_info[MovieField.ACTORS] = actors
+
+    def has_writers(self) -> bool:
+        return len(self.get_writers()) > 0
+
+    def get_detail_actors(self) -> str:
+        return', '.join(self.get_actors())
 
     def get_writers(self) -> List[str]:
         return self._movie_info.setdefault(MovieField.WRITER, [])
@@ -1221,6 +1290,10 @@ class AbstractMovie(RawMovie):
             writers = writers[:MovieField.MAX_WRITERS - 1]
 
         self._movie_info[MovieField.WRITER] = writers
+
+    def get_detail_writers(self) -> str:
+        movie_writers = ', '.join(self.get_writers())
+        return movie_writers
 
     def get_voiced_detail_writers(self) -> List[str]:
         writers = self.get_writers()
@@ -1330,7 +1403,7 @@ class AbstractMovie(RawMovie):
             return tmdb_id
         except Exception as e:
             clz = type(self)
-            clz._logger.log_exception()
+            clz._logger.exception(msg='')
 
     def set_tmdb_id(self, tmdb_id: int = None) -> bool:
         super().set_tmdb_id(tmdb_id)
@@ -1341,7 +1414,7 @@ class AbstractMovie(RawMovie):
         try:
             return self.get_unique_ids().get(key, None)
         except Exception as e:
-            clz._logger.log_exception()
+            clz._logger.exception(msg='')
 
     def get_unique_ids(self) -> Dict[str, str]:
         clz = type(self)
@@ -1352,7 +1425,7 @@ class AbstractMovie(RawMovie):
         try:
             return self._movie_info.setdefault(MovieField.UNIQUE_ID, {})
         except Exception as e:
-            clz._logger.log_exception()
+            clz._logger.exception(msg='')
 
     def add_unique_id(self, id_type: str, value: str) -> bool:
         clz = type(self)
@@ -1367,10 +1440,10 @@ class AbstractMovie(RawMovie):
                 except ValueError:
                     pass
                 except Exception:
-                    clz._logger.exception()
+                    clz._logger.exception(msg='')
                 super().set_tmdb_id()
         except Exception as e:
-            clz._logger.log_exception()
+            clz._logger.exception(msg='')
 
         changed: bool = False
         if old_value is None and value is not None:
@@ -1385,7 +1458,7 @@ class AbstractMovie(RawMovie):
             return self.set_tmdb_id(tmdb_id)
         except Exception as e:
             clz = type(self)
-            clz._logger.log_exception()
+            clz._logger.exception(msg='')
 
     def get_imdb_id(self) -> int:
         try:
@@ -1407,7 +1480,7 @@ class AbstractMovie(RawMovie):
             return imdb_id
         except Exception as e:
             clz = type(self)
-            clz._logger.log_exception()
+            clz._logger.exception(msg='')
 
     def is_starving(self, reset: bool = True) -> bool:
         """
@@ -1458,7 +1531,7 @@ class AbstractMovie(RawMovie):
 
     def is_sane(self, sane_values: MovieType) -> bool:
         clz = type(self)
-        if not clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if not clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             return True
 
         sane = True
@@ -1487,7 +1560,7 @@ class AbstractMovie(RawMovie):
         if len(missing_keys) > 0 or len(missing_values) > 0 or len(wrong_types) > 0:
             clz._logger.debug_extra_verbose(f'movie: {title} {self._movie_id}')
         if len(missing_keys) > 0:
-            clz._logger.debug_extra_verbose(f'  Missing values:'
+            clz._logger.debug_extra_verbose(f'Missing values:'
                                             f' {", ".join(missing_keys)}')
         if len(missing_values) > 0:
             clz._logger.debug_extra_verbose(f'None values for: '
@@ -1514,7 +1587,7 @@ class MovieWrapper(AbstractMovie):
     AbstractMovie). Likely, the data is minimally property and may
     not represent a movie at all.
     '''
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = None,
                  movie_info: MovieType = None) -> None:
@@ -1529,7 +1602,7 @@ class MovieWrapper(AbstractMovie):
 
 
 class LibraryMovie(AbstractMovie):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = None,
                  movie_info: MovieType = None) -> None:
@@ -1611,7 +1684,7 @@ class LibraryMovie(AbstractMovie):
         movie_id.set_tmdb_id(self.get_tmdb_id())
         movie_id.set_local_trailer(self.has_local_trailer())
         movie_id.set_has_trailer(self.get_has_trailer())
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose(f'movie_id: {movie_id} '
                                             f'type: {type(movie_id)} '
                                             f'id: {movie_id.get_id()} '
@@ -1624,7 +1697,7 @@ class LibraryMovie(AbstractMovie):
 
 
 class TMDbMovie(AbstractMovie):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = None,
                  movie_info: MovieType = None) -> None:
@@ -1650,13 +1723,17 @@ class TMDbMovie(AbstractMovie):
         self.set_tmdb_id(int(tmdb_id))
         self._movie_id = tmdb_id
 
+    def __str__(self) -> str:
+        return f'{type(self).__name__} {self.get_title()} ({self.get_year()}) id:' \
+               f' {self.get_id()} library_id: {self.get_library_id()}'
+
     def get_as_movie_id_type(self) -> TMDbMovieId:
         clz = type(self)
         tmdb_movie_id: TMDbMovieId = TMDbMovieId(self.get_id())
         tmdb_movie_id.set_library_id(self.get_library_id())
         tmdb_movie_id.set_local_trailer(self.has_local_trailer())
         tmdb_movie_id.set_has_trailer(self.get_has_trailer())
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug(f'tmdb_movie_id: {tmdb_movie_id} '
                               f'type: {type(tmdb_movie_id)} '
                               f'id: {tmdb_movie_id.get_id()} '
@@ -1708,7 +1785,7 @@ class TMDbMovie(AbstractMovie):
 
 
 class TFHMovie(AbstractMovie):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = MovieField.TFH_SOURCE,
                  movie_info: MovieType = None) -> None:
@@ -1760,7 +1837,7 @@ class TFHMovie(AbstractMovie):
         movie_id.set_tmdb_id(self.get_tmdb_id())
         movie_id.set_local_trailer(self.has_local_trailer())
         movie_id.set_has_trailer(self.get_has_trailer())
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug(f'movie_id: {movie_id} '
                               f'type: {type(movie_id)} '
                               f'id: {movie_id.get_id()} '
@@ -1771,7 +1848,7 @@ class TFHMovie(AbstractMovie):
 
 
 class ITunesMovie(AbstractMovie):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_id: str = None, source: str = MovieField.ITUNES_SOURCE,
                  movie_info: MovieType = None) -> None:
@@ -1825,7 +1902,7 @@ class ITunesMovie(AbstractMovie):
         movie_id.set_tmdb_id(self.get_tmdb_id())
         movie_id.set_local_trailer(self.has_local_trailer())
         movie_id.set_has_trailer(self.get_has_trailer())
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug(f'movie_id: {movie_id} '
                               f'type: {type(movie_id)} '
                               f'id: {movie_id.get_id()} '
@@ -1836,14 +1913,13 @@ class ITunesMovie(AbstractMovie):
 
 
 class FolderMovie(AbstractMovie):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, movie_info: MovieType = None) -> None:
-        if movie_info is None:
-            movie_info: MovieType = MovieField.DEFAULT_MOVIE.copy()
         super().__init__(None, MovieField.FOLDER_SOURCE, movie_info)
         if self._movie_id is None:
             self._movie_id = self.get_id()
+        self.set_tmdb_id_findable(False)
 
     @classmethod
     def class_init(cls):
@@ -1855,6 +1931,23 @@ class FolderMovie(AbstractMovie):
             self._movie_id = self.get_trailer_path()
 
         return self.get_trailer_path()
+
+    def get_as_movie_id_type(self) -> FolderMovieId:
+        clz = type(self)
+        movie_id: FolderMovieId = FolderMovieId(self.get_id())
+        movie_id.set_tmdb_id(self.get_tmdb_id())
+        movie_id.set_local_trailer(self.has_local_trailer())
+        movie_id.set_has_trailer(self.get_has_trailer())
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            clz._logger.debug_extra_verbose(f'movie_id: {movie_id} '
+                                            f'type: {type(movie_id)} '
+                                            f'id: {movie_id.get_id()} '
+                                            f'tmdb_id: {movie_id.get_tmdb_id()} '
+                                            f'has_local_trailer: '
+                                            f'{movie_id.has_local_trailer()} '
+                                            f'get_has_trailer: '
+                                            f'{movie_id.get_has_trailer()}')
+        return movie_id
 
     def get_source(self) -> str:
         return MovieField.FOLDER_SOURCE

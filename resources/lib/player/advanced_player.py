@@ -8,19 +8,19 @@ import xbmcgui
 from xbmc import PlayList, InfoTagVideo, InfoTagMusic, InfoTagRadioRDS
 
 from common.imports import *
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.monitor import Monitor
 from player.abstract_player import AbstractPlayer
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
-DEBUG_PLAYER: int = LazyLogger.DEBUG
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
+DEBUG_PLAYER: int = DEBUG
 
 class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     """
 
     """
     DEBUG_MONITOR: Final[bool] = True
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self):
         super().__init__()
@@ -68,8 +68,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
 
     def reset(self) -> None:
         clz = AdvancedPlayer
-        if clz._logger.isEnabledFor(DEBUG_PLAYER):
-            clz._logger.enter()
+        if clz._logger.isEnabledFor(DEBUG):
+            clz._logger.debug('reset')
         self.started = False
 
     '''
@@ -150,7 +150,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         Monitor.throw_exception_if_abort_requested()
 
         if type(self).DEBUG_MONITOR:
-            clz._logger.enter()
+            clz._logger.debug('enter')
         super().play(item, listitem, windowed, startpos)
         self.enable_advanced_monitoring()
         self._play_started = True
@@ -163,8 +163,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
 
         if (type(self).DEBUG_MONITOR and
-                clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-            clz._logger.enter()
+                clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
+            clz._logger.debug_extra_verbose('enter')
         self._is_playing = False
         self._play_started = False
         self._is_paused = False
@@ -181,18 +181,18 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
 
         if (type(self).DEBUG_MONITOR and
-                clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
             clz._logger.debug_extra_verbose(f'is_playing: {self._is_playing} '
-                                                    f'is_paused: {self._is_paused}')
+                                            f'is_paused: {self._is_paused}')
         super().pause()
 
     def pause_play(self) -> None:
         clz = AdvancedPlayer
 
         if (clz._logger.isEnabledFor(DEBUG_PLAYER)
-                and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                and clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
             clz._logger.debug_extra_verbose(f'is_playing: {self._is_playing} '
-                                                    f'is_paused: {self._is_paused}')
+                                            f'is_paused: {self._is_paused}')
         if not self._is_playing:
             self._is_paused = False
             return
@@ -205,9 +205,9 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
 
         if (clz._logger.isEnabledFor(DEBUG_PLAYER)
-                and clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                and clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
             clz._logger.debug_extra_verbose(f'is_playing: {self._is_playing} '
-                                                    f'is_paused: {self._is_paused}')
+                                            f'is_paused: {self._is_paused}')
         if not self._is_playing:
             self._is_paused = False
             return
@@ -224,7 +224,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
 
         if clz._logger.isEnabledFor(DEBUG_PLAYER):
-            clz._logger.enter()
+            clz._logger.debug('enter')
 
         # Don't set playing state until we get onAVStarted
         # self._is_playing = True
@@ -239,7 +239,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
 
         if clz._logger.isEnabledFor(DEBUG_PLAYER):
-            clz._logger.enter()
+            clz._logger.debug('enter')
 
         # Don't set playing state until we get onAVStarted
         # self._is_playing = True
@@ -256,7 +256,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
 
         if clz._logger.isEnabledFor(DEBUG_PLAYER):
-            clz._logger.enter()
+            clz._logger.debug('enter')
 
         # Don't set playing state until we get onAVStarted
         # self._is_playing = True
@@ -301,7 +301,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
 
         is_playing_video: bool = super().isPlayingVideo()
         if self._is_playing != is_playing_video:
-            clz.error(f'internal play state != xbmc play state')
+            clz._logger.error(f'internal play state != xbmc play state')
             self._is_playing = is_playing_video
 
         #  Does not take pause into account!
@@ -367,17 +367,17 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             playing_file = super().getPlayingFile()
             self._is_playing = True
 
-            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            if clz._logger.isEnabledFor(DISABLED):
                 clz._logger.debug_extra_verbose('playing_file: ' + playing_file)
         except Exception as e:
-            # clz._logger.exception()
+            # clz._logger.exception(msg='')
             self._is_playing = False
         finally:
             return playing_file
 
     def _dump_state(self) -> None:
         clz = AdvancedPlayer
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             self.is_video_fullscreen()
             self.isPlaying()
             self.isPlayingAudio()
@@ -386,7 +386,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             self.isExternalPlayer()
             self.is_finished()
             clz._logger.debug_extra_verbose(f'is_paused: {self._is_paused} '
-                                                    f'is_playing: {self._is_playing}')
+                                            f'is_playing: {self._is_playing}')
 
             # self.getPlayingFile()
             # self.getTime()
@@ -627,7 +627,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             info_tag = self.getVideoInfoTag()
             title = info_tag.getTitle()
         except Exception as e:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
             title = "Exception- Nothing Playing?"
             self._is_finished = True
 
@@ -658,7 +658,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     def kill_player(self) -> None:
         clz = AdvancedPlayer
         if clz._logger.isEnabledFor(DEBUG_PLAYER):
-            clz._logger.enter()
+            clz._logger.debug('enter')
         if not self._is_finished:
             xbmc.executebuiltin('PlayerControl(Stop)')
 
@@ -685,7 +685,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         a media file (i.e, if a stream is available)
         """
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_VERBOSE):
             clz._logger.debug_verbose('You probably want to use onAVStarted instead')
         # self._dump_state()  # TODO: remove
 
@@ -700,11 +700,11 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             New function added.
         """
         clz = AdvancedPlayer
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_VERBOSE):
             try:
                 clz._logger.debug_verbose(
                     f'{self.get_playing_title()} path: {self.getPlayingFile()}',
-                        trace=Trace.TRACE)
+                    trace=Trace.TRACE)
             except RuntimeError:
                 clz._logger.debug_verbose('Movie info not yet available')
 
@@ -749,15 +749,15 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         # TODO: Add check for failures: onPlabackFailed/Ended/Error
         while not Monitor.wait_for_abort(0.250):
             playing_path = self.getPlayingFile()
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'is_playing: {path} '
-                                                        f'playing path: '
-                                                        f'{playing_path} '
-                                                        f'paused: {self._is_paused} '
-                                                        f'playing: '
-                                                        f'{self._is_playing} '
-                                                        f'play_started: '
-                                                        f'{self._play_started}')
+                                                f'playing path: '
+                                                f'{playing_path} '
+                                                f'paused: {self._is_paused} '
+                                                f'playing: '
+                                                f'{self._is_playing} '
+                                                f'play_started: '
+                                                f'{self._play_started}')
             if playing_path == path:
                 break
 
@@ -837,20 +837,20 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         """
         clz = AdvancedPlayer
         try:
-            if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+            if clz._logger.isEnabledFor(DISABLED):
                 clz._logger.debug(f'onAVChange path: {self.getPlayingFile()}')
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             if (type(self).DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG)):
+                    clz._logger.isEnabledFor(DEBUG)):
                 clz._logger.debug_extra_verbose(f'{self.get_playing_title()} '
-                                                        f'playing: {self._is_playing} '
-                                                        f'paused: {self._is_paused} '
-                                                        f'play_started: '
-                                                        f'{self._play_started}',
-                                                        trace=Trace.TRACE)
+                                                f'playing: {self._is_playing} '
+                                                f'paused: {self._is_paused} '
+                                                f'play_started: '
+                                                f'{self._play_started}',
+                                                trace=Trace.TRACE)
 
     # Defined in xbmc.Player
     def onPlayBackEnded(self)  -> None:
@@ -866,7 +866,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         try:
             clz._logger.debug(f'onPlayBackEnded path: {self.getPlayingFile()}')
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
 
     # Defined in xbmc.Player
@@ -883,7 +883,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         try:
             clz._logger.debug(f'onPlayBackStopped path: {self.getPlayingFile()}')
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
     # Defined in xbmc.Player
     def onPlayBackError(self) -> None:
@@ -898,7 +898,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         try:
             clz._logger.debug(f'onPlayBackError path: {self.getPlayingFile()}')
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
     # Defined in xbmc.Player
     def onPlayBackPaused(self) -> None:
@@ -912,11 +912,11 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
             clz._logger.error(f'Paused and not Playing!')
 
         try:
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(self.getPlayingFile(),
                                                 trace=Trace.TRACE)
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
         # self._dump_state()  # TODO: remove
 
@@ -927,7 +927,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         """
 
         clz = AdvancedPlayer
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz._logger.debug_extra_verbose(self.get_playing_title(),
                                             trace=Trace.TRACE)
         self._is_paused = False
@@ -937,7 +937,7 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         try:
             clz._logger.debug(f'onPlayBackResumed path: {self.getPlayingFile()}')
         except Exception:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
     # Defined in xbmc.Player
     def onPlayBackSeek(self, time: int, seekOffset: int) -> None:
@@ -966,9 +966,9 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         """
         clz = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
-                clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
             clz._logger.debug_extra_verbose(self.get_playing_title(),
-                                                    trace=Trace.TRACE)
+                                            trace=Trace.TRACE)
 
     '''
     def on_video_window_opened(self) -> None:
@@ -994,8 +994,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         """
         clz = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
-                clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
-            clz._logger.enter()
+                clz._logger.isEnabledFor(DEBUG_VERBOSE)):
+            clz._logger.debug('enter')
         self._player_window_open = False
         # self.hide_osd()
         # self._dump_state()  # TODO: remove
@@ -1022,14 +1022,14 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
     def on_seek_osd(self) -> None:
         clz = AdvancedPlayer
         if (type(self).DEBUG_MONITOR and
-                clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-            clz._logger.enter()
+                clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
+            clz._logger.debug('enter')
         # self._dump_state()  # TODO: remove
 
     def kill_playing_trailer(self) -> None:
         clz = AdvancedPlayer
         if clz._logger.isEnabledFor(DEBUG_PLAYER):
-            clz._logger.enter()
+            clz._logger.debug('enter')
 
     def monitor(self) -> None:
         Monitor.throw_exception_if_abort_requested()
@@ -1046,11 +1046,11 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
         try:
             if clz.DEBUG_MONITOR:
-                clz._logger.enter()
+                clz._logger.debug('enter')
 
             while not Monitor.wait_for_abort(0.1) and not self._closed:
                 if (clz.DEBUG_MONITOR and
-                        clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                        clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
                     if not self.isPlaying():
                         clz._logger.debug_extra_verbose('Player: Idling...')
 
@@ -1059,22 +1059,22 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
 
                 if self.isPlayingVideo():
                     if (clz.DEBUG_MONITOR and
-                            clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
+                            clz._logger.isEnabledFor(DEBUG_VERBOSE)):
                         clz._logger.debug_verbose('Monitoring video...')
                     self._video_monitor()
                 elif self.isPlayingAudio():
                     if (clz.DEBUG_MONITOR and
-                            clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
+                            clz._logger.isEnabledFor(DEBUG_VERBOSE)):
                         clz._logger.debug_verbose('Monitoring audio...')
                     # self._audio_monitor()
                 elif self.isPlaying():
                     if (clz.DEBUG_MONITOR and
-                            clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
+                            clz._logger.isEnabledFor(DEBUG_VERBOSE)):
                         clz._logger.debug_verbose('Monitoring pre-play...')
                     self._preplay_monitor()
 
             if (clz.DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
+                    clz._logger.isEnabledFor(DEBUG_VERBOSE)):
                 clz._logger.debug_verbose('Player: Closed')
         except AbortException:
             pass  # Just exit thread
@@ -1088,8 +1088,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
         try:
             if (clz.DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
-                clz._logger.enter()
+                    clz._logger.isEnabledFor(DEBUG_VERBOSE)):
+                clz._logger.debug('enter')
             self.on_preplay_started()
             while (self.isPlaying() and not self.isPlayingVideo()
                    and not self.isPlayingAudio()
@@ -1100,8 +1100,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
                 self.on_playback_failed()
 
             if (clz.DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
-                clz._logger.exit()
+                    clz._logger.isEnabledFor(DEBUG_VERBOSE)):
+                clz._logger.debug()
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -1112,8 +1112,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
         try:
             if (clz.DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
-                clz._logger.enter()
+                    clz._logger.isEnabledFor(DEBUG_VERBOSE)):
+                clz._logger.debug('enter')
             has_full_screened = False
 
             ct = 0
@@ -1164,8 +1164,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
                 self.on_video_window_closed()
 
             if (clz.DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
-                clz._logger.exit()
+                    clz._logger.isEnabledFor(DEBUG_VERBOSE)):
+                clz._logger.debug()
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -1176,8 +1176,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
         clz = AdvancedPlayer
         try:
             if (type(self).DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-                clz._logger.enter()
+                    clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
+                clz._logger.debug('enter')
             ct = 0
             while (self.isPlayingAudio() and not Monitor.is_abort_requested() 
                    and not self._closed):
@@ -1189,8 +1189,8 @@ class AdvancedPlayer(xbmc.Player, AbstractPlayer, ABC):
                     self.tick()
 
             if (type(self).DEBUG_MONITOR and
-                    clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
-                clz._logger.exit()
+                    clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
+                clz._logger.debug()
         except AbortException:
             raise AbortException
         except Exception as e:

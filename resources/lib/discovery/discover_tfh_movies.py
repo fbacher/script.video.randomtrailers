@@ -16,7 +16,7 @@ from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, reraise
 from common.imports import *
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.monitor import Monitor
 from common.movie import TFHMovie
 from common.movie_constants import MovieField, MovieType
@@ -28,7 +28,7 @@ from discovery.tfh_movie_data import TFHMovieData
 from backend.video_downloader import VideoDownloader
 from discovery.utils.parse_tfh import ParseTFH
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverTFHMovies(BaseDiscoverMovies):
@@ -39,7 +39,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
     FORCE_TFH_REDISCOVERY: Final[bool] = False  # For development use
 
     _singleton_instance = None
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
@@ -70,7 +70,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
         # self._parent_trailer_fetcher.start_fetchers(self)
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(': started')
 
     def on_settings_changed(self) -> None:
@@ -82,7 +82,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
         """
         clz = DiscoverTFHMovies
 
-        clz.logger.enter()
+        clz.logger.debug('enter')
 
         if Settings.is_tfh_loading_settings_changed():
             stop_thread = not Settings.is_include_tfh_trailers()
@@ -124,7 +124,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
                     self.wait_until_restart_or_shutdown()
                 except StopDiscoveryException:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz.logger.isEnabledFor(DEBUG):
                         clz.logger.debug('Stopping discovery')
                     # self.destroy()
                     finished = True
@@ -133,8 +133,8 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
 
             self.finished_discovery()
             duration = datetime.datetime.now() - start_time
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('Time to discover:', duration.seconds, ' seconds',
+            if clz.logger.isEnabledFor(DEBUG):
+                clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
                                  trace=Trace.STATS)
 
         except AbortException:
@@ -292,7 +292,9 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                                                                            force_check=True)
                     if (tfh_trailer.get_title() == tfh_trailer.get_tfh_title()
                             or dirty or tfh_trailer.get_year() == 0):
-                        tfh_trailer.set_title(self.fix_title(tfh_trailer))
+                        title, year = self.fix_title(tfh_trailer)
+                        tfh_trailer.set_title(title)
+                        tfh_trailer.set_year(year)
                         tfh_trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
                         if dirty:
                             tfh_trailer.set_fanart('')
@@ -557,7 +559,7 @@ class DiscoverTFHMovies(BaseDiscoverMovies):
                       be allowed to die without restart
         """
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug('enter')
 
         restart_needed = False
         if Settings.is_include_tfh_trailers():

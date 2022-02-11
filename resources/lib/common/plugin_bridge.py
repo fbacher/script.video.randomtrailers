@@ -14,10 +14,10 @@ from common.imports import *
 import AddonSignals as AddonSignals
 
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PluginBridgeStatus:
@@ -37,7 +37,7 @@ class PluginBridge:
         communicate with one another. Communication is accomplished using
         the AddonSignals service.
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _registered_slots: List[Tuple[str, str]] = None
 
     def __init__(self) -> None:
@@ -69,7 +69,7 @@ class PluginBridge:
 
         :return:
         """
-        PluginBridge._logger.enter('Override me')
+        PluginBridge._logger.debug('Override me')
 
     @classmethod
     def send_signal(cls, signal: str, data: Any = None,
@@ -105,7 +105,7 @@ class PluginBridge:
         :param source_id:
         :return:
         """
-        # if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        # if PluginBridge._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             # PluginBridge._logger.debug_extra_verbose('signal:', signal,
             #                                          'source_id:', source_id)
         Monitor.throw_exception_if_abort_requested()
@@ -126,7 +126,7 @@ class PluginBridge:
         :param callback:
         :return:
         """
-        # if PluginBridge._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        # if PluginBridge._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             # PluginBridge._logger.debug_extra_verbose('signaler_id:', signaler_id,
                                        # 'signal:', signal, 'callback:',
                                        # callback.__name__)

@@ -5,17 +5,43 @@ Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
 """
+from time import sleep
 
 from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
 CriticalSettings.set_plugin_name('rt_backend')
-REMOTE_DEBUG: bool = False
+REMOTE_DEBUG: bool = True
+
+# PATCH PATCH PATCH
+# Monkey-Patch a well known, embedded Python problem
+#
+from common.strptime_patch import StripTimePatch
+StripTimePatch.monkey_patch_strptime()
+
+import faulthandler
+import signal
+import io
+debug_file = io.open("/home/fbacher/.kodi/temp/kodi.crash", mode='w', buffering=1,
+                         newline=None,
+                         encoding='ASCII')
+
+faulthandler.register(signal.SIGUSR1, file=debug_file, all_threads=True)
+
 if REMOTE_DEBUG:
+
     PythonDebugger.enable('randomtrailers.backend')
+    sleep(1)
+try:
+    pass
+    # import web_pdb;
 
-from common.logger import LazyLogger
+    # web_pdb.set_trace()
+except Exception as e:
+    pass
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+from common.logger import *
+
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 import sys
 import threading
@@ -23,6 +49,9 @@ import xbmc
 from common.exceptions import AbortException
 from common.minimal_monitor import MinimalMonitor
 from common.imports import *
+
+import locale
+# module_logger.debug(f'preferredencoding: {locale.getpreferredencoding()}')
 
 
 def exit_randomtrailers():
@@ -101,11 +130,11 @@ class MainThreadLoop:
             reraise(*sys.exc_info())
         except Exception as e:
             # xbmc.log('xbmc.log Exception: ' + str(e), xbmc.LOGERROR)
-            module_logger.exception(e, lazy_logger=True)
+            module_logger.exception(e)
 
     @classmethod
     def start_back_end_bridge(cls) -> None:
-        module_logger.debug(f'starting BackendBridge')
+        module_logger.debug_verbose(f'starting BackendBridge')
         from backend.back_end_bridge import BackendBridge
         from discovery.playable_trailer_service import PlayableTrailerService
         BackendBridge(PlayableTrailerService())
@@ -148,7 +177,6 @@ def bootstrap_random_trailers() -> None:
 
 def bootstrap_unit_test() -> None:
     from test.backend_test_suite import (BackendTestSuite)
-    # module_logger.enter()
     suite = BackendTestSuite()
     suite.run_suite()
 
@@ -180,4 +208,4 @@ if __name__ == '__main__':
     except AbortException:
         pass  # Die, Die, Die
     finally:
-        exit
+        exit()

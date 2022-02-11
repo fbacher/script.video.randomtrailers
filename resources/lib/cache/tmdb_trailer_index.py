@@ -10,10 +10,10 @@ from pathlib import Path
 
 from cache.base_trailer_index import BaseTrailerIndex
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import TMDbMovieId, TMDbMovie, AbstractMovieId
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TMDbTrailerIndex(BaseTrailerIndex):
@@ -24,7 +24,7 @@ class TMDbTrailerIndex(BaseTrailerIndex):
     _last_saved = datetime.datetime(year=1900, month=1, day=1)
     _parameters = None
     _unsaved_changes: int = 0
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     _cache: Dict[str, TMDbMovieId] = {}
     _cache_loaded: bool = False
@@ -50,7 +50,7 @@ class TMDbTrailerIndex(BaseTrailerIndex):
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+        if cls._logger.isEnabledFor(DISABLED):
             cls._logger.debug_extra_verbose(f'movie: {movie.get_tmdb_id()} '
                                             f'type: {type(movie)} '
                                             f'class: {type(movie).__name__} '
@@ -118,7 +118,7 @@ class TMDbTrailerIndex(BaseTrailerIndex):
             values: List[TMDbMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_non_local_trailers(cls) -> List[TMDbMovieId]:
@@ -128,7 +128,7 @@ class TMDbTrailerIndex(BaseTrailerIndex):
             values: List[TMDbMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_no_known_trailers(cls) -> List[TMDbMovieId]:
@@ -138,7 +138,7 @@ class TMDbTrailerIndex(BaseTrailerIndex):
             values: List[TMDbMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def clear(cls) -> None:

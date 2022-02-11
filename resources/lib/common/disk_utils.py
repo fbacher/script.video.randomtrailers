@@ -19,13 +19,13 @@ import random
 import sys
 
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 from common.utils import Delay
 from common.garbage_collector import GarbageCollector
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class UsageData:
@@ -39,7 +39,7 @@ class UsageData:
         :param cache_name
         :param pattern
         """
-        self._logger: LazyLogger = module_logger.getChild(self.__class__.__name__)
+        self._logger: BasicLogger = module_logger.getChild(self.__class__.__name__)
         self._cache_name: str = cache_name
         self._pattern: str = pattern
         self._aggregate_cache_file_size: int = 0
@@ -157,9 +157,9 @@ class UsageData:
         :param file_data:
         :return:
         """
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            self._logger.debug_extra_verbose('will delete path:', file_data.get_path(),
-                                             'creation:', file_data.get_creation_date())
+        if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            self._logger.debug_extra_verbose(f'will delete path: {file_data.get_path()} '
+                                             f'creation: {file_data.get_creation_date()}')
         os.remove(file_data.get_path())
         self._aggregate_deleted_size += file_data.get_size()
         self._aggregate_cache_file_size -= file_data.get_size()
@@ -378,17 +378,17 @@ class DiskUtils:
         # 'cluster_sectors:', cluster_sectors, 'sector_size:',
         # sector_size)
         else:
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            if cls._logger.isEnabledFor(DEBUG):
                 cls._logger.debug('Not supported on this platform')
             usage = None
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             if usage is None:
                 cls._logger.debug_extra_verbose('Result: None')
             else:
-                cls._logger.debug_extra_verbose('total:', usage['total'],
-                                  'used', usage['used'],
-                                  'free',  usage['free'])
+                cls._logger.debug_extra_verbose(f'total: {usage["total"]}'
+                                                f'used: {usage["used"]} '
+                                                f'free: {usage["free"]}')
 
         return usage
 
@@ -501,9 +501,8 @@ class DiskUtils:
                                     and cache_type == 'json'):
                                 if ((now - mod_time).total_seconds() >
                                         db_cache_file_expiration_seconds):
-                                    if cls._logger.isEnabledFor(LazyLogger.INFO):
-                                        cls._logger.info(
-                                            'deleting:', path.absolute())
+                                    if cls._logger.isEnabledFor(INFO):
+                                        cls._logger.info(f'deleting: {path.absolute()}')
                                     path.unlink()
                                     deleted = True
                                     usage_data.add_to_disk_deleted(
@@ -514,9 +513,9 @@ class DiskUtils:
                                     and cache_type == 'movie'):
                                 if ((now - mod_time).total_seconds() >
                                         trailer_cache_file_expiration_seconds):
-                                    if cls._logger.isEnabledFor(LazyLogger.INFO):
+                                    if cls._logger.isEnabledFor(INFO):
                                         cls._logger.info(
-                                            'deleting:', path.absolute())
+                                            f'deleting: {path.absolute()}')
                                     path.unlink()
                                     deleted = True
                                     usage_data.add_to_disk_deleted(
@@ -551,7 +550,7 @@ class DiskUtils:
         except Exception as e:
             cls._logger.exception('')
 
-        cls._logger.exit()
+        cls._logger.debug()
         return usage_data_map
 
     @staticmethod
@@ -571,7 +570,7 @@ class DiskUtils:
 
 
 class FindFiles(Iterable[Path]):
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self,
                  top: str,
@@ -633,7 +632,7 @@ class FindFiles(Iterable[Path]):
             self._die = True   # Let thread die
 
         except Exception as e:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
         finally:
             #  clz._logger.debug('queue complete')
             self._queue_complete = True
@@ -661,7 +660,7 @@ class FindFiles(Iterable[Path]):
                     try:
                         GarbageCollector.add_thread(self._find_thread)
                     except Exception as e:
-                        clz._logger.exception()
+                        clz._logger.exception(msg='')
                     finally:
                         self._find_thread = None
                         self._file_queue = None
@@ -670,7 +669,7 @@ class FindFiles(Iterable[Path]):
                 reraise(*sys.exc_info())
 
             except BaseException as e:
-                clz._logger.exception()
+                clz._logger.exception(msg='')
 
         #  clz._logger.debug(f'next_path: {next_path}')
         return next_path
@@ -688,7 +687,7 @@ class FindFiles(Iterable[Path]):
 
 class FindFilesIterator(Iterator):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, files: FindFiles):
         clz = type(self)
@@ -709,7 +708,7 @@ class FindFilesIterator(Iterator):
             reraise(*sys.exc_info())
 
         except Exception as e:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
         if path is None:
             clz._logger.debug('iterator path None raising StopIteration')

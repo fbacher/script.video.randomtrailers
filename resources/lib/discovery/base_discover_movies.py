@@ -15,14 +15,14 @@ from common.constants import Constants
 from common.exceptions import AbortException, reraise
 from common.monitor import Monitor
 from common.movie_constants import MovieField
-from common.logger import Trace, LazyLogger
+from common.logger import *
 from common.movie import BaseMovie
 
 from diagnostics.play_stats import PlayStatistics
 from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.abstract_movie_data import AbstractMovieData
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BaseDiscoverMovies(threading.Thread):
@@ -37,7 +37,7 @@ class BaseDiscoverMovies(threading.Thread):
         Discovery classes for the various TrailerManager subclasses. The
         interfaces would be largely the same.
     """
-    logger: ClassVar[LazyLogger] = None
+    logger: ClassVar[BasicLogger] = None
 
     def __init__(self,
                  group=None,
@@ -93,7 +93,7 @@ class BaseDiscoverMovies(threading.Thread):
         clz = type(self)
 
         with self._movie_data._discovered_movies_lock:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 # clz.logger.debug('got self._movie_data.lock')
                 clz.logger.debug_verbose('Shuffling because finished_discovery',
                                          trace=Trace.TRACE_DISCOVERY)
@@ -126,7 +126,7 @@ class BaseDiscoverMovies(threading.Thread):
         """
         clz = type(self)
 
-        # clz.logger.enter()
+        # clz.logger.debug('enter')
         self._movie_data.add_to_discovered_movies(movies)
         if shuffle:
             self._movie_data.shuffle_discovered_movies()
@@ -206,7 +206,7 @@ class BaseDiscoverMovies(threading.Thread):
             if self._movie_data.stop_discovery_event.isSet():
                 raise StopDiscoveryException()
         except AbortException:
-            if clz.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+            if Trace.is_enabled(Trace.TRACE_PLAY_STATS):
                 PlayStatistics.report_play_count_stats()
             reraise(*sys.exc_info())
 
@@ -216,8 +216,8 @@ class BaseDiscoverMovies(threading.Thread):
         :return:
         """
         clz = type(self)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.enter()
+        if clz.logger.isEnabledFor(DEBUG):
+            clz.logger.debug(f'Enter stop_thread')
 
         self._stop_thread = True
         self._movie_data.stop_discovery()
@@ -229,7 +229,7 @@ class BaseDiscoverMovies(threading.Thread):
         """
         clz = type(self)
 
-        clz.logger.enter()
+        clz.logger.debug(f'Enter')
         count: int = 0
         while  not Monitor.wait_for_abort(timeout=0.2):
             if not self.is_alive():

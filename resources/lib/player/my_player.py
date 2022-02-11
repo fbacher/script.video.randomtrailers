@@ -8,17 +8,17 @@ import xbmcgui
 from common.imports import *
 from common.movie import AbstractMovie
 from player.advanced_player import AdvancedPlayer
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.disk_utils import DiskUtils
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class MyPlayer(AdvancedPlayer, ABC):
     """
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
@@ -54,7 +54,7 @@ class MyPlayer(AdvancedPlayer, ABC):
         file_name: str = os.path.basename(file_path)
         passed_file_name: str = os.path.basename(path)
         if file_name != passed_file_name:
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(f'passed file name: {passed_file_name} '
                                                 f'trailer file_name: {file_name}')
 
@@ -69,7 +69,7 @@ class MyPlayer(AdvancedPlayer, ABC):
 
         self.set_playing_title(title)
         self.set_playing_file_path(file_path)
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(
                 'path:', file_name, 'title:', title)
 
@@ -144,7 +144,7 @@ class MyPlayer(AdvancedPlayer, ABC):
             if genre != 'randomtrailers':
                 playing_file: str = super().getPlayingFile()
                 if not (self._is_url and DiskUtils.is_url(playing_file)):
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz._logger.isEnabledFor(DEBUG):
                         clz._logger.debug(
                             'Player is playing video:', playing_file)
                     self.notify_non_random_trailer_video()
@@ -180,13 +180,13 @@ class MyPlayer(AdvancedPlayer, ABC):
         try:
             if self.isPlayingVideo():
                 info_tag_video = self.getVideoInfoTag()
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz._logger.debug('context:', context, 'title:',
-                                       info_tag_video.getTitle(),
-                                       'genre:', info_tag_video.getGenre(),
-                                       'trailer:', info_tag_video.getTrailer())
+                if clz._logger.isEnabledFor(DEBUG):
+                    clz._logger.debug(f'context: {context} '
+                                      f'title: {info_tag_video.getTitle()} '
+                                      f'genre: {info_tag_video.getGenre()} '
+                                      f'trailer: {info_tag_video.getTrailer()}')
             else:
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                if clz._logger.isEnabledFor(DEBUG):
                     clz._logger.debug('Not playing video')
         except Exception as e:
             clz._logger.exception('')

@@ -10,11 +10,11 @@ from pathlib import Path
 
 from cache.base_trailer_index import BaseTrailerIndex
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import ITunesMovieId, ITunesMovie, AbstractMovieId, ITunesMovieId, \
     ITunesMovie
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ITunesTrailerIndex(BaseTrailerIndex):
@@ -25,7 +25,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
     _last_saved = datetime.datetime(year=1900, month=1, day=1)
     _parameters = None
     _unsaved_changes: int = 0
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     _cache: Dict[str, ITunesMovieId] = {}
     _cache_loaded: bool = False
@@ -51,7 +51,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+        if cls._logger.isEnabledFor(DISABLED):
             cls._logger.debug(f'movie: {movie.get_id()} type: {type(movie)} '
                               f'class: {type(movie).__name__} has_local: '
                               f'{movie.has_local_trailer()} '
@@ -117,7 +117,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
             values: List[ITunesMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_non_local_trailers(cls) -> List[ITunesMovieId]:
@@ -127,7 +127,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
             values: List[ITunesMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_no_known_trailers(cls) -> List[ITunesMovieId]:
@@ -137,7 +137,7 @@ class ITunesTrailerIndex(BaseTrailerIndex):
             values: List[ITunesMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def clear(cls) -> None:

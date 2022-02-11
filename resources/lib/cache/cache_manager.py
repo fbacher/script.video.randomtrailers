@@ -17,7 +17,7 @@ import xbmcvfs
 
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.exceptions import AbortException
 from common.messages import Messages
 from common.monitor import Monitor
@@ -26,7 +26,7 @@ from common.disk_utils import DiskUtils, UsageData
 
 RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class CacheData:
@@ -44,9 +44,9 @@ class CacheData:
 
         :param trailer_cache:
         """
-        local_class = CacheData
-        if local_class._logger is None:
-            local_class._logger = module_logger.getChild(local_class.__name__)
+        clz = CacheData
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
 
         self._usage_data: UsageData = None
         self._remaining_allowed_files: int = None
@@ -100,7 +100,7 @@ class CacheData:
                 # self._max_percent_of_cache_disk = 0.0058
 
         if self._is_limit_number_of_cached_files:
-            self._max_number_of_files_str = locale.format("%d",
+            self._max_number_of_files_str = locale.format_string("%d",
                                                           self._max_number_of_files,
                                                           grouping=True)
         else:
@@ -139,7 +139,7 @@ class CacheData:
 
         :return:
         """
-        local_class = CacheData
+        clz = CacheData
 
         try:
             if self._is_trailer_cache:
@@ -168,22 +168,22 @@ class CacheData:
                                               'cache:'
                 msg_disk_used_by_cache = 'Actual disk used by json cache:'
 
-            if local_class._logger.isEnabledFor(LazyLogger.INFO):
-                local_class._logger.info(msg_max_trailers,
-                                                self._max_number_of_files_str,
-                                                trace=Trace.STATS_CACHE)
-                local_class._logger.info(msg_disk_usage,
-                                                self._max_cache_size_mb_str,
-                                                trace=Trace.STATS_CACHE)
-                local_class._logger.info(msg_cache_percent,
-                                                self._max_percent_of_cache_disk_str,
-                                                trace=Trace.STATS_CACHE)
+            if clz._logger.isEnabledFor(INFO):
+                clz._logger.info(f'{msg_max_trailers} '
+                                         f'{self._max_number_of_files_str} ',
+                                         trace=Trace.STATS_CACHE)
+                clz._logger.info(f'{msg_disk_usage} '
+                                         f'{self._max_cache_size_mb_str}',
+                                         trace=Trace.STATS_CACHE)
+                clz._logger.info(f'{msg_cache_percent} '
+                                         f'{self._max_percent_of_cache_disk_str}',
+                                         trace=Trace.STATS_CACHE)
 
             files_in_cache = self._usage_data.get_number_of_files()
             if self._is_limit_number_of_cached_files:
                 self._remaining_allowed_files = (self._max_number_of_files -
                                                  files_in_cache)
-                remaining_allowed_files_str = locale.format("%d",
+                remaining_allowed_files_str = locale.format_string("%d",
                                                             self._remaining_allowed_files,
                                                             grouping=True)
             else:
@@ -198,30 +198,28 @@ class CacheData:
             self._actual_cache_percent = (self._disk_used_by_cache /
                                           self._total_size_of_cache_fs) * 100.0
 
-            if local_class._logger.isEnabledFor(LazyLogger.INFO):
-                local_class._logger.info(msg_total_size_of_cache_fs,
-                                   DiskUtils.sizeof_fmt(self._total_size_of_cache_fs))
-                local_class._logger.info(msg_used_space_in_cache_fs,
-                                   DiskUtils.sizeof_fmt(self._used_space_in_cache_fs))
-                local_class._logger.info(msg_free_space_in_cache_fs,
-                                   DiskUtils.sizeof_fmt(self._free_disk_in_cache_fs))
+            if clz._logger.isEnabledFor(INFO):
+                clz._logger.info(f'{msg_total_size_of_cache_fs} '
+                                  f'{DiskUtils.sizeof_fmt(self._total_size_of_cache_fs)}')
+                clz._logger.info(f'{msg_used_space_in_cache_fs} '
+                                   f'{DiskUtils.sizeof_fmt(self._used_space_in_cache_fs)}')
+                clz._logger.info(f'{msg_free_space_in_cache_fs} '
+                                   f'{DiskUtils.sizeof_fmt(self._free_disk_in_cache_fs)}')
 
-                local_class._logger.info(msg_files_in_cache,
-                                   locale.format_string("%d", files_in_cache,
-                                                        grouping=True))
-                local_class._logger.info(msg_remaining_allowed_files,
-                                   remaining_allowed_files_str)
+                clz._logger.info(f'{msg_files_in_cache} '
+                                   f'{locale.format_string("%d", files_in_cache, grouping=True)}')
+                clz._logger.info(f'{msg_remaining_allowed_files} '
+                                         f'{remaining_allowed_files_str}')
 
-                local_class._logger.info(msg_actual_fs_cache_percent,
-                                   RATIO_DECIMAL_DIGITS_TO_PRINT.format(
-                                       self._actual_cache_percent) + '%')
+                clz._logger.info(f'{msg_actual_fs_cache_percent} '
+                                  f'{RATIO_DECIMAL_DIGITS_TO_PRINT.format(self._actual_cache_percent) + "%"}')
 
-                local_class._logger.info(msg_disk_used_by_cache,
-                                   DiskUtils.sizeof_fmt(self._disk_used_by_cache))
+                clz._logger.info(f'{msg_disk_used_by_cache} '
+                                   f'{DiskUtils.sizeof_fmt(self._disk_used_by_cache)}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            local_class._logger.exception('')
+            clz._logger.exception('')
 
     def collect_garbage(self) -> None:
         """
@@ -233,13 +231,13 @@ class CacheData:
 
         :return:
         """
-        local_class = CacheData
+        clz = CacheData
         try:
-            if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 if self._is_trailer_cache:
-                    local_class._logger.debug_extra_verbose('TRAILER CACHE')
+                    clz._logger.debug_extra_verbose('TRAILER CACHE')
                 else:
-                    local_class._logger.debug_extra_verbose('JSON CACHE')
+                    clz._logger.debug_extra_verbose('JSON CACHE')
 
             if self._is_limit_number_of_cached_files:
                 #
@@ -248,11 +246,10 @@ class CacheData:
 
                 number_of_cache_files_to_delete = - self._remaining_allowed_files
                 if number_of_cache_files_to_delete > 0:
-                    if local_class._logger.isEnabledFor(LazyLogger.INFO):
-                        local_class._logger.info(
-                            'limit_number_of_cached_files. number_of_files_to_delete:',
-                            locale.format("%d", number_of_cache_files_to_delete,
-                                          grouping=True))
+                    if clz._logger.isEnabledFor(INFO):
+                        clz._logger.info(
+                            f'limit_number_of_cached_files.number_of_files_to_delete: '
+                            f'{locale.format_string("%d", number_of_cache_files_to_delete, grouping=True)}')
                     # Order json files by age
 
                     for cache_file in self._usage_data.get_file_data_by_creation_date():
@@ -262,11 +259,10 @@ class CacheData:
                         if number_of_cache_files_to_delete <= 0:
                             break
                 else:
-                    if local_class._logger.isEnabledFor(LazyLogger.INFO):
-                        local_class._logger.info(
-                            'limit_number_of_cached_files. Additional allowed files:',
-                            locale.format("%d", number_of_cache_files_to_delete,
-                                          grouping=True))
+                    if clz._logger.isEnabledFor(INFO):
+                        clz._logger.info(
+                            'limit_number_of_cached_files. Additional allowed files: '
+                            f'{locale.format_string("%d", number_of_cache_files_to_delete, grouping=True)}')
 
             if self._is_limit_size_of_cache:
                 #
@@ -276,14 +272,13 @@ class CacheData:
                 max_bytes_in_cache = (self._max_cache_size_mb * 1024 * 1024)
                 bytes_of_files_to_delete = (self._usage_data.get_disk_used_by_cache()
                                             - max_bytes_in_cache)
-                if local_class._logger.isEnabledFor(LazyLogger.INFO):
-                    local_class._logger.info('limit_size_of_cache. max allowed size:',
-                                       DiskUtils.sizeof_fmt(max_bytes_in_cache))
-                    local_class._logger.debug('actual disk used in cache:',
-                                       DiskUtils.sizeof_fmt(
-                                           self._usage_data.get_disk_used_by_cache()))
-                    local_class._logger.debug('Amount to delete:',
-                                       DiskUtils.sizeof_fmt(bytes_of_files_to_delete))
+                if clz._logger.isEnabledFor(INFO):
+                    clz._logger.info('limit_size_of_cache. max allowed size: '
+                                       f'{DiskUtils.sizeof_fmt(max_bytes_in_cache)}')
+                    clz._logger.debug('actual disk used in cache: '
+                                              f'{DiskUtils.sizeof_fmt(self._usage_data.get_disk_used_by_cache())}')
+                    clz._logger.debug(f'Amount to delete: '
+                                       f'{DiskUtils.sizeof_fmt(bytes_of_files_to_delete)}')
                 if bytes_of_files_to_delete > 0:
                     # Order json files by age
 
@@ -306,13 +301,12 @@ class CacheData:
                 bytes_of_files_to_delete = (self._usage_data.get_disk_used_by_cache() -
                                             max_bytes_in_cache)
 
-                if local_class._logger.isEnabledFor(LazyLogger.INFO):
-                    local_class._logger.info(
-                        'limit_percent of cached files. Calculated max size:',
-                        DiskUtils.sizeof_fmt(max_bytes_in_cache))
-                    local_class._logger.info('size to delete:',
-                                             DiskUtils.sizeof_fmt(
-                                                 bytes_of_files_to_delete))
+                if clz._logger.isEnabledFor(INFO):
+                    clz._logger.info(
+                        'limit_percent of cached files. Calculated max size: '
+                        f'{DiskUtils.sizeof_fmt(max_bytes_in_cache)}')
+                    clz._logger.info('size to delete: '
+                                             f'{DiskUtils.sizeof_fmt(bytes_of_files_to_delete)}')
                 if bytes_of_files_to_delete > 0:
                     # Order json files by age
 
@@ -328,7 +322,7 @@ class CacheData:
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            local_class._logger.exception('')
+            clz._logger.exception('')
 
 
 class CacheManager:
@@ -343,9 +337,9 @@ class CacheManager:
         """
         :return: None
         """
-        local_class = CacheManager
-        if local_class._logger is None:
-            local_class._logger = module_logger.getChild(local_class.__name__)
+        clz = CacheManager
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(clz.__name__)
 
         self._initial_run = True
         self._cache_monitor_thread = None
@@ -369,7 +363,7 @@ class CacheManager:
 
         :return:
         """
-        local_class = CacheManager
+        clz = CacheManager
 
 
         TRAILER_TYPE = 'trailer'
@@ -419,7 +413,7 @@ class CacheManager:
 
         :return:
         """
-        local_class = CacheManager
+        clz = CacheManager
         try:
             # sometimes the thread name is not set properly.
             # Perhaps a pydevd thing?
@@ -429,7 +423,7 @@ class CacheManager:
         except AbortException as e:
             pass  # Thread dies
         except Exception as e:
-            local_class._logger.exception('')
+            clz._logger.exception('')
 
     def drive_garbage_collection(self) -> None:
         """
@@ -438,7 +432,7 @@ class CacheManager:
 
             :return:
         """
-        local_class = CacheManager
+        clz = CacheManager
 
         # Purge off any stray undeleted temp files
         folder = xbmcvfs.translatePath('special://temp')
@@ -486,14 +480,11 @@ class CacheManager:
                 start_time_delta = datetime.datetime.now() - start_time
                 start_seconds_from_now = start_time_delta.total_seconds()
 
-                if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    local_class._logger.debug_extra_verbose('Daily Schedule',
-                                                            'start_time:',
-                                                            start_time.strftime(
-                                                                "%d/%m/%d %H:%M"),
-                                                            'delay:',
-                                                            start_seconds_from_now,
-                                                            trace=Trace.STATS_CACHE)
+                if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                    clz._logger.debug_extra_verbose(
+                        f'Daily Schedule start_time: '
+                        f'{start_time.strftime("%d/%m/%d %H:%M")} '
+                        f'delay:{start_seconds_from_now}', trace=Trace.STATS_CACHE)
 
                 # If start time is less than 5 hours into future, then add a
                 # day
@@ -501,15 +492,15 @@ class CacheManager:
                 if start_seconds_from_now < 5 * 60 * 60:
                     start_seconds_from_now = start_seconds_from_now + \
                         (24 * 60 * 60)
-                    if local_class._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        local_class._logger.debug_extra_verbose('New delay:',
-                                                                start_seconds_from_now,
-                                                                trace=Trace.STATS_CACHE)
+                    if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                        clz._logger.debug_extra_verbose('New delay: '
+                                                        f'{start_seconds_from_now}',
+                                                        trace=Trace.STATS_CACHE)
 
         except AbortException as e:
             reraise(*sys.exc_info())
         except Exception as e:
-            local_class._logger.exception('')
+            clz._logger.exception('')
         finally:
             del usage_data_map
 

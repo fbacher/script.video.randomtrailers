@@ -22,12 +22,12 @@ import xbmcvfs
 from common.imports import *
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BaseTrailerIndex:
@@ -71,7 +71,7 @@ class BaseTrailerIndex:
         try:
             cls._cache_path = Path(f'{cls.CACHE_PATH_DIR}/{cache_name}.json')
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def add(cls, abstract_movie_id: AbstractMovieId, flush: bool = False) -> None:
@@ -94,7 +94,7 @@ class BaseTrailerIndex:
                 cls._unsaved_changes += 1
                 cls.save_cache(flush=flush)  # If needed
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def remove(cls, abstract_movie_id: AbstractMovieId, flush: bool = False) -> None:
@@ -123,7 +123,7 @@ class BaseTrailerIndex:
 
                 cls.save_cache(flush=flush)  # If needed
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def get(cls, movie_id: str) -> AbstractMovieId:
@@ -143,7 +143,7 @@ class BaseTrailerIndex:
                 cls.load_cache()
                 return cls._cache.get(movie_id, None)
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def get_all(cls) -> List[AbstractMovieId]:
@@ -155,7 +155,7 @@ class BaseTrailerIndex:
                 values.extend(x)
                 return values
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_local_trailers(cls) -> List[AbstractMovieId]:
@@ -169,7 +169,7 @@ class BaseTrailerIndex:
                         ids_with_local_trailers.append(abstract_movie_id)
                 return ids_with_local_trailers
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_non_local_trailers(cls) -> List[AbstractMovieId]:
@@ -184,7 +184,7 @@ class BaseTrailerIndex:
                         ids_with_trailers.append(abstract_movie_id)
                 return ids_with_trailers
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_no_known_trailers(cls) -> List[AbstractMovieId]:
@@ -198,7 +198,7 @@ class BaseTrailerIndex:
                         ids_without_trailers.append(abstract_movie_id)
                 return ids_without_trailers
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def clear(cls) -> None:
@@ -207,7 +207,7 @@ class BaseTrailerIndex:
                 cls._cache.clear()
                 cls.save_cache(flush=True)
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
     @classmethod
     def load_cache(cls) -> None:
@@ -225,7 +225,8 @@ class BaseTrailerIndex:
 
             with cls._lock:
                 if os.path.exists(cls._cache_path):
-                    with io.open(cls._cache_path, mode='rt', newline=None,
+                    with io.open(str(cls._cache_path).encode('utf-8'), mode='rt',
+                                 newline=None,
                                  encoding='utf-8') as cache_file:
                         temp_cache: Dict[str, Dict[str, str]] = json.load(
                             cache_file, encoding='utf-8')
@@ -235,7 +236,7 @@ class BaseTrailerIndex:
                                 movie_id = AbstractMovieId.de_serialize(data)
                                 new_cache[movie_id.get_id()] = movie_id
                             except Exception:
-                                cls._logger.exception()
+                                cls._logger.exception(msg='')
 
                         cls._cache = new_cache
                         cls._last_saved = datetime.datetime.now()
@@ -285,7 +286,8 @@ class BaseTrailerIndex:
                 for movie in cls._cache.values():
                     tmp_cache[movie.get_id()] = movie.serialize()
 
-                with cls._lock, io.open(tmp_path, mode='wt', newline=None,
+                with cls._lock, io.open(str(tmp_path).encode('utf-8'), mode='wt',
+                                        newline=None,
                                         encoding='utf-8') as cache_file:
                     # Can create reverse_cache from cache
                     json_text = json.dumps(tmp_cache,
@@ -306,9 +308,9 @@ class BaseTrailerIndex:
             except AbortException:
                 reraise(*sys.exc_info())
             except IOError as e:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
             except Exception as e:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
 
 BaseTrailerIndex.class_init(cache_name='Dummy_cache_name')

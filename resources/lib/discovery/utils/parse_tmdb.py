@@ -10,13 +10,13 @@ from backend.backend_constants import iTunes, YOUTUBE_URL_PREFIX, VIMEO_URL_PREF
 from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import TrailerUnavailableCache
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import TMDbMovie
 from common.movie_constants import MovieField
 from common.certification import Certification, Certifications, WorldCertifications
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 DOWNLOAD_SITE_PREFIXES: Dict[str, str] = {
     'YouTube': YOUTUBE_URL_PREFIX,
@@ -26,7 +26,7 @@ DOWNLOAD_SITE_PREFIXES: Dict[str, str] = {
 
 class ParseTMDb:
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, tmdb_result: Dict[str, Any], library_id: int) -> None:
         type(self).class_init()
@@ -124,7 +124,7 @@ class ParseTMDb:
                     continue
 
                 if trailer_type not in best_size_map:
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz._logger.isEnabledFor(DEBUG):
                         clz._logger.debug(f'Unrecognized trailer type: '
                                           f'{trailer_type}')
                     continue
@@ -207,7 +207,7 @@ class ParseTMDb:
         try:
             tmdb_countries = self._tmdb_result['releases']['countries']
         except Exception as e:
-            clz._logger.exception()
+            clz._logger.exception(msg='')
 
         certification_id: str = ''
         for c in tmdb_countries:

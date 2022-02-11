@@ -18,7 +18,7 @@ from common.imports import *
 from common.monitor import Monitor
 from common.movie import LibraryMovie, BaseMovie
 from common.movie_constants import MovieField
-from common.logger import Trace, LazyLogger
+from common.logger import *
 from common.settings import Settings
 from discovery.library_movie_trailer_fetcher import LibraryMovieTrailerFetcher
 from discovery.library_no_trailer_fetcher import LibraryNoTrailerTrailerFetcher
@@ -35,7 +35,7 @@ from discovery.library_movie_data import (LibraryMovieData, LibraryNoTrailerMovi
                                           LibraryURLMovieData)
 from discovery.utils.parse_library import ParseLibrary
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverLibraryMovies(BaseDiscoverMovies):
@@ -48,7 +48,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
     """
 
     _singleton_instance = None
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self,
                  group: Any = None,  # Not used
@@ -111,7 +111,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             if countdown <= 0:
                 break
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
             clz.logger.debug_verbose(': started')
 
     @classmethod
@@ -144,12 +144,12 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                     self._some_movies_discovered_event.set()
 
                     duration = datetime.datetime.now() - start_time
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
+                    if clz.logger.isEnabledFor(DEBUG):
+                        clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
                                          trace=Trace.STATS)
                     finished = True
                 except StopDiscoveryException:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz.logger.isEnabledFor(DEBUG):
                         clz.logger.debug('Stopping discovery')
                     self.destroy()
                     GarbageCollector.add_thread(self)
@@ -235,9 +235,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
 
             Monitor.throw_exception_if_abort_requested()
             elapsed_time = datetime.datetime.now() - start_time
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('Library query seconds:',
-                                         elapsed_time.total_seconds())
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                clz.logger.debug_verbose(f'Library query seconds: '
+                                         f'{elapsed_time.total_seconds()}')
 
             self.throw_exception_on_forced_to_stop()
             result: Dict[str, Any] = query_result.get('result', {})
@@ -254,9 +254,8 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             try:
                 import simplejson as json
                 # json_encoded: Dict = json.loads(query)
-                clz.logger.debug_extra_verbose('JASON DUMP:',
-                                               json.dumps(
-                                                    query, indent=3, sort_keys=True))
+                dump: str =  json.dumps(query, indent=3, sort_keys=True)
+                clz.logger.debug_extra_verbose(f'JASON DUMP: {dump}')
             except Exception:
                 pass
 
@@ -313,7 +312,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                     if self._include_library_no_trailers:
                         library_no_trailer_movies.append(movie)
 
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     if len(rejection_reasons) > 0:
                         rejection_reasons_str: List[str] = \
                             BaseMovie.get_rejection_reasons_str(rejection_reasons)
@@ -322,7 +321,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                             f'{movie.get_title()} '
                             f'- {", ".join(rejection_reasons_str)}')
 
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     Debug.validate_basic_movie_properties(movie)
 
                 if collect_stats:
@@ -341,12 +340,12 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 except AbortException:
                     reraise(*sys.exc_info())
                 except Exception:
-                    clz.logger.exception()
+                    clz.logger.exception(msg='')
                 break
             except Exception:
                 clz.logger.exception('')
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(f'Local movies found in library: '
                              f'{movies_found}')
             clz.logger.debug(f'Local movies filtered out: '
@@ -414,7 +413,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                   be allowed to die without restart
         """
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug(f'Enter')
         restart_needed: bool = False
         if Settings.is_include_library_trailers():
             restart_needed = Settings.is_library_loading_settings_changed()
@@ -459,7 +458,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryURLTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.warning('dummy method')
 
     def run(self) -> None:
@@ -468,7 +467,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryURLTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.warning('dummy thread, Join Me!')
         finished = False
         while not finished:
@@ -476,7 +475,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
             except StopDiscoveryException:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     clz.logger.debug_verbose('Stopping discovery')
                 try:
                     self.destroy()
@@ -484,7 +483,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                 except AbortException:
                     reraise(*sys.exc_info())
                 except Exception:
-                    clz.logger.exception()
+                    clz.logger.exception(msg='')
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
@@ -500,7 +499,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
                   be allowed to die without restart
         """
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug(f'Enter')
         restart_needed: bool = False
         if Settings.is_include_library_remote_trailers():
             restart_needed = Settings.is_library_loading_settings_changed()
@@ -548,7 +547,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryNoTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.warning('dummy method')
 
     def run(self) -> None:
@@ -557,7 +556,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryNoTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.WARNING):
+        if clz.logger.isEnabledFor(WARNING):
             clz.logger.warning('dummy thread, Join Me!')
         finished = False
         while not finished:
@@ -565,7 +564,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
             except StopDiscoveryException:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                if clz.logger.isEnabledFor(DEBUG):
                     clz.logger.debug('Stopping discovery')
                 try:
                     self.destroy()
@@ -573,7 +572,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                 except AbortException:
                     reraise(*sys.exc_info())
                 except Exception:
-                    clz.logger.exception()
+                    clz.logger.exception(msg='')
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
@@ -589,7 +588,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
                   be allowed to die without restart
         """
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug('Enter')
         restart_needed: bool = False
         if Settings.is_include_library_no_trailer_info():
             restart_needed = Settings.is_library_loading_settings_changed()

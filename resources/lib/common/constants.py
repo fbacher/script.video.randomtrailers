@@ -30,9 +30,9 @@ class Constants:
     CURRENT_ADDON_SHORT_NAME: str = None
     ADDON_UTIL: Addon = None
     ADDON: xbmcaddon.Addon = None
-    BACKEND_ADDON: Addon = None
+    BACKEND_ADDON: xbmcaddon.Addon = None
     BACKEND_ADDON_UTIL: Addon = None
-    FRONTEND_ADDON: Addon = None
+    FRONTEND_ADDON: xbmcaddon.Addon = None
     FRONTEND_ADDON_UTIL: Addon = None
     ADDON_PATH: str = None
     PYTHON_ROOT_PATH: str = None
@@ -103,7 +103,10 @@ class Constants:
 
     # For Testing
 
-    DISABLE_LIBRARY_TRAILERS: bool = True
+    # Causes local library trailers to be ignored, thereby forcing all trailers
+    # for local movies to be downloaded from TMDb
+
+    DISABLE_LIBRARY_TRAILERS: bool = False
 
     @staticmethod
     def static_init() -> None:
@@ -125,7 +128,7 @@ class Constants:
         except Exception as e:
             pass
 
-        Constants.YOUTUBE_DL_ADDON_UTIL = Addon('script.module.youtube.dl')
+        Constants.YOUTUBE_DL_ADDON_UTIL = Addon('script.module.yt-dlp')
         Constants.YOUTUBE_DL_ADDON = Constants.YOUTUBE_DL_ADDON_UTIL.addon
         Constants.YOUTUBE_DL_ADDON_PATH = \
             xbmcvfs.translatePath(Constants.YOUTUBE_DL_ADDON_UTIL.PATH)

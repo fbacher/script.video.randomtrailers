@@ -22,7 +22,7 @@ from common.constants import Constants
 from common.flexible_timer import FlexibleTimer
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
@@ -30,7 +30,7 @@ from frontend.abstract_dialog_state import BaseDialogStateMgr, DialogState
 from frontend.text_to_speech import TTS
 from player.my_player import MyPlayer
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Glue:
@@ -99,7 +99,7 @@ class TimerState(Enum):
 
 class DialogStateMgrAccess:
     _dialog_state_mgr: BaseDialogStateMgr = None
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls):
@@ -123,7 +123,7 @@ class BaseTimer:
     # All inheriting classes must override these class variables or
     # they will clobber each other
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     # All changes to state must be accessed using _lock_cv
     # Variables declared here, but not instantiated or initialized
@@ -176,7 +176,7 @@ class BaseTimer:
                         cls._cancel_event.clear()  # Just in case
                         return
 
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls._logger.debug_extra_verbose(f'debug_label: {cls._debug_label} '
                                                         f'display_seconds: '
                                                         f'{cls._display_seconds} '
@@ -241,7 +241,7 @@ class BaseTimer:
                     return
                 cls._lock_cv.notify_all()
 
-            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            if cls._logger.isEnabledFor(DISABLED):
                 cls._logger.debug_extra_verbose(f'STATE: {cls._timer_state}',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
 
@@ -251,7 +251,7 @@ class BaseTimer:
             reraise(*sys.exc_info())
 
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def _incorrect_state(cls, timerstate: TimerState) -> bool:
@@ -260,8 +260,8 @@ class BaseTimer:
                               f'{timerstate} not: '
                               f'{cls._timer_state}. CANCELING LOCK',
                               trace=Trace.TRACE_UI_CONTROLLER)
-            cls._logger.dump_stack(heading=f'TimerState should be {timerstate} not: '
-                                           f'{cls._timer_state}. CANCELING LOCK')
+            cls._logger.dump_stack(msg=f'TimerState should be {timerstate} not: '
+                                   f'{cls._timer_state}. CANCELING LOCK')
             cls.cancel()
             return True
         return False
@@ -309,7 +309,7 @@ class BaseTimer:
                         return
 
                     cls._timer_state = TimerState.CLEANUP_IN_PROGRESS
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls._logger.debug_extra_verbose(f'debug_label: {cls._debug_label} '
                                                         f'Setting _timer_state to: '
                                                         f'{cls._timer_state}',
@@ -317,7 +317,7 @@ class BaseTimer:
                 finally:
                     cls._lock_cv.notify_all()
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(f'debug_label: {cls._debug_label} '
                                                 f'Stopping',
                                                 trace=Trace.TRACE_UI_CONTROLLER)
@@ -351,7 +351,7 @@ class BaseTimer:
                         next_state = TimerState.IDLE
 
                     cls._timer_state = next_state
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls._logger.debug_extra_verbose(f'debug_label: {cls._debug_label} '
                                                         f'Setting _timer_state to: '
                                                         f'{cls._timer_state}',
@@ -381,7 +381,7 @@ class BaseTimer:
         except Exception as e:
             cls._logger.exception(msg='')
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             cls._logger.debug_extra_verbose(f'debug_label: {cls._debug_label} exit',
                                             trace=Trace.TRACE_UI_CONTROLLER)
 
@@ -421,7 +421,7 @@ class BaseTimer:
                     # If not busy, then finished. No cancel needed.
 
                     if not cls._busy_event.is_set():
-                        cls._logger.error(f'debug_label: {cls._debug_label}'
+                        cls._logger.debug(f'debug_label: {cls._debug_label}'
                                           f' _busy_event is NOT set')
 
                         # Just to make sure
@@ -450,12 +450,12 @@ class BaseTimer:
                     reraise(*sys.exc_info())
 
                 except Exception:
-                    cls._logger.exception()
+                    cls._logger.exception(msg='')
 
                 finally:
                     cls._lock_cv.notify_all()
 
-            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            if cls._logger.isEnabledFor(DISABLED):
                 cls._logger.debug(f'debug_label: {cls._debug_label} Canceling for '
                                   f'{reason}',
                                   trace=[Trace.TRACE_UI_CONTROLLER])
@@ -475,7 +475,7 @@ class BaseTimer:
             # _cleanup takes care of resetting:
             # _cancel_event, _busy_event, _stop_called
             #
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(f'debug_label: {cls._debug_label} '
                                                 f'exit cancel_event.is_set: '
                                                 f'{cls._cancel_event.is_set()}',
@@ -485,7 +485,7 @@ class BaseTimer:
             reraise(*sys.exc_info())
 
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
         finally:
             i: int = 0
@@ -528,7 +528,7 @@ class BaseTimer:
 
                         if cls._timer_state == TimerState.CLEANUP_FINISHED:
                             cls._timer_state = TimerState.IDLE
-                            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                                 cls._logger.debug_extra_verbose(f'debug_label: '
                                                                 f'{cls._debug_label} '
                                                                 f'Setting _timer_state to:'
@@ -555,7 +555,7 @@ class BaseTimer:
             reraise(*sys.exc_info())
 
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def start_action(cls):
@@ -582,7 +582,7 @@ class NotificationTimer(BaseTimer):
        the timer.
 
    """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     # All changes to state must be accessed using _lock_cv
     # Variables declared here, but not instantiated or initialized
@@ -664,7 +664,7 @@ class NotificationTimer(BaseTimer):
                 reraise(*sys.exc_info())
 
             except Exception:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
             finally:
                 cls._lock_cv.notify_all()
 
@@ -712,7 +712,7 @@ class MovieDetailsTimer(BaseTimer):
     to other events that impact the display.
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     # All changes to state must be accessed using _lock_cv
     # Variables declared here, but not instantiated or initialized
@@ -847,7 +847,7 @@ MovieDetailsTimer.class_init()
 
 class TrailerTimer(BaseTimer):
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     # All changes to state must be accessed using _lock_cv
     # Variables declared here, but not instantiated or initialized
@@ -928,7 +928,7 @@ class TrailerTimer(BaseTimer):
                 TrailerStatus.set_show_trailer()
 
                 trailer_dialog: ForwardRef('TrailerDialog') = Glue.get_dialog()
-                verbose: bool = cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                verbose: bool = cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)
                 title = trailer_dialog.get_title_string(trailer_dialog._movie, verbose)
                 trailer_dialog.set_playing_trailer_title_control(title)
             finally:
@@ -1017,7 +1017,7 @@ class TrailerStatus:
         VisibleFields.TITLE
     ]
 
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     # show_title_while_playing: bool = Settings.get_show_movie_title()
     show_notification: bool = False
@@ -1150,7 +1150,7 @@ class TrailerStatus:
             Glue.get_dialog().set_visibility(False, ControlId.SHOW_TRAILER)
 
         for command in commands:
-            if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+            if cls.logger.isEnabledFor(DEBUG):
                 cls.logger.debug_extra_verbose(command,
                                                trace=Trace.TRACE_UI_CONTROLLER)
             xbmc.executebuiltin(command, wait=False)

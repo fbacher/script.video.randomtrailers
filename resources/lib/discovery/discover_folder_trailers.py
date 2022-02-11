@@ -12,14 +12,15 @@ import sys
 
 import xbmcvfs
 
+from common.certification import Certification, Certifications, WorldCertifications
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, reraise
 from common.imports import *
 from common.monitor import Monitor
-from common.movie import LibraryMovie
+from common.movie import FolderMovie, LibraryMovie
 from common.movie_constants import MovieField, MovieType
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.settings import Settings
 from discovery.folder_trailer_fetcher import FolderTrailerFetcher
 
@@ -27,7 +28,7 @@ from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.folder_movie_data import FolderMovieData
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverFolderTrailers(BaseDiscoverMovies):
@@ -39,7 +40,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
     """
 
     _singleton_instance: ForwardRef('DiscoverFolderTrailers') = None
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
@@ -75,7 +76,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
         self.start()
         # self._parent_trailer_fetcher.start_fetchers(self)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz.logger.debug_extra_verbose(': started')
 
     def run(self) -> None:
@@ -99,7 +100,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
                 except StopDiscoveryException:
                     # Restart discovery
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz.logger.isEnabledFor(DEBUG):
                         clz.logger.debug('Restarting discovery')
                     if not Settings.is_include_trailer_folders():
                         finished = True
@@ -112,7 +113,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
         self.finished_discovery()
         duration = datetime.datetime.now() - start_time
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
                              trace=Trace.STATS)
 
@@ -125,21 +126,31 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         clz = type(self)
 
         try:
+            _country_id: str = Settings.get_country_iso_3166_1().lower()
+            _certifications: Certifications = \
+                WorldCertifications.get_certifications(_country_id)
+            unrated_certification: Certification = \
+                _certifications.get_unrated_certification()
+            unrated_certification_id = unrated_certification.get_preferred_id()
             folders: List[str] = []
             if str(path).startswith('multipath://'):
                 # get all paths from the multipath
                 paths: List[str] = path[12:-1].split('/')
                 for item in paths:
-                    folders.append(requests.utils.unquote_unreserved(item))
+                    folders.append(item)
             else:
                 folders.append(path)
             DiskUtils.RandomGenerator.shuffle(folders)
             for folder in folders:
                 Monitor.throw_exception_if_abort_requested()
+                translated_path: str = xbmcvfs.translatePath(folder)
+                # translated_path MUST end in backslash (weird)
+                if translated_path[-1] != '/':
+                    translated_path += '/'
 
-                if xbmcvfs.exists(xbmcvfs.translatePath(folder)):
+                if xbmcvfs.exists(translated_path):
                     # get all files and sub-folders
-                    dirs, files = xbmcvfs.listdir(folder)
+                    dirs, files = xbmcvfs.listdir(translated_path)
 
                     # Assume every file is a movie movie. Manufacture
                     # a movie name and other info from the filename.
@@ -149,24 +160,28 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                             file_path: str = os.path.join(
                                 folder, item)
 
-                            title: str = xbmcvfs.translatePath(file_path)
+                            file_path: str = xbmcvfs.translatePath(file_path)
                             # TODO: DELETE ME
 
-                            title = os.path.basename(title)
+                            title = os.path.basename(file_path)
                             title = os.path.splitext(title)[0]
                             new_movie_data: MovieType = {MovieField.TITLE: title,
                                                          MovieField.TRAILER: file_path,
                                                          MovieField.TRAILER_TYPE:
-                                                             'movie file',
+                                                             MovieField.TRAILER_TYPE_TRAILER,
                                                          MovieField.SOURCE:
                                                              MovieField.FOLDER_SOURCE,
                                                          MovieField.FANART: '',
                                                          MovieField.THUMBNAIL: '',
                                                          MovieField.FILE: '',
-                                                         MovieField.YEAR: ''}
-                            new_movie: LibraryMovie = LibraryMovie(
+                                                         MovieField.YEAR: 0,
+                                                         MovieField.RATING: 0}
+                            new_movie: FolderMovie = FolderMovie(
                                 movie_info=new_movie_data)
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                            new_movie.set_certification_id(unrated_certification_id)
+                            if clz.logger.isEnabledFor(DEBUG):
+                                clz.logger.debug_extra_verbose(f'title: {title} '
+                                                               f'path: {file_path}')
                                 Debug.validate_basic_movie_properties(
                                     new_movie)
                             self.add_to_discovered_movies(
@@ -197,7 +212,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             active.
         """
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug('Enter')
 
         try:
             stop_thread: bool = not Settings.is_include_trailer_folders()

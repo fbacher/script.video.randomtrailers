@@ -7,10 +7,10 @@ Created on Jul 23, 2021
 from threading import Event, RLock, Thread
 from typing import Callable
 
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class FlexibleTimer(Thread):
@@ -27,7 +27,7 @@ class FlexibleTimer(Thread):
                            # called_early=True
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, interval: float, function: Callable[[], None],
                  label: str = None, args=None, kwargs=None):

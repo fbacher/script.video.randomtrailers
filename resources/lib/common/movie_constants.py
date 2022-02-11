@@ -6,9 +6,9 @@ Created on 5/17/21
 """
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 CHECK_FOR_NULLS: bool = True
 
 

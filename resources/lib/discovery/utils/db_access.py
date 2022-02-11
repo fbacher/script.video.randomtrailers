@@ -14,11 +14,11 @@ import simplejson
 from backend.json_utils_basic import JsonUtilsBasic
 from common.exceptions import AbortException
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DBAccess:
@@ -69,7 +69,7 @@ class DBAccess:
         "genre"
     ]
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def _class_init_(cls):
@@ -180,11 +180,12 @@ class DBAccess:
         query = f'{query_prefix}[{query_properties}]' \
                 f'{query_filter_prefix}{query_filter}{query_suffix}'
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.debug_verbose('query', 'genres:', included_genres,
-                                      'excluded_genres:', excluded_genres, 'tags:',
-                                      included_tags, 'excluded_tags:',
-                                      excluded_tags, query)
+        if cls._logger.isEnabledFor(DISABLED):
+            cls._logger.debug_verbose(f'genres: {included_genres} '
+                                      f'excluded_genres: {excluded_genres} '
+                                      f' tags: {included_tags} '
+                                      f'excluded_tags: {excluded_tags} '
+                                      f'query: {query}')
 
         return query
 
@@ -209,7 +210,7 @@ class DBAccess:
 
         query = f'{prefix}{query_properties}{query_suffix}'
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+        if cls._logger.isEnabledFor(DISABLED):
             cls._logger.debug_verbose(f'query: {query}')
 
         return query
@@ -218,12 +219,11 @@ class DBAccess:
     def get_movie_details(cls, query: str) -> List[MovieType]:
         movies: List[MovieType] = []
         try:
-            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+            if cls._logger.isEnabledFor(DISABLED):
                 import simplejson as json
                 # json_encoded: Dict = json.loads(query)
-                cls._logger.debug_extra_verbose('JASON DUMP:',
-                                               json.dumps(
-                                                   query, indent=3, sort_keys=True))
+                dump: str = json.dumps(query, indent=3, sort_keys=True)
+                cls._logger.debug_extra_verbose(f'JASON DUMP: {dump}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
@@ -244,9 +244,9 @@ class DBAccess:
             movie: MovieType = result.get('moviedetails', None)
             if movie is None:
                 movies = result.get('movies', [])
-                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                if cls._logger.isEnabledFor(DISABLED):
                     cls._logger.error(f'Got back movies {len(movies)} '
-                                     f'instead of moviedetails.')
+                                      f'instead of moviedetails.')
             else:
                 movies.append(movie)
 
@@ -263,9 +263,8 @@ class DBAccess:
             try:
                 import simplejson as json
                 # json_encoded: Dict = json.loads(query)
-                cls._logger.debug_extra_verbose('JASON DUMP:',
-                                               json.dumps(
-                                                   query, indent=3, sort_keys=True))
+                dump: str = json.dumps(query, indent=3, sort_keys=True)
+                cls._logger.debug_extra_verbose(f'JASON DUMP: {dump}')
             except Exception:
                 movies = []
 
@@ -313,7 +312,7 @@ class DBAccess:
                        f'{{ "field": "year", "operator": "is", "value": "{year}" }} ' \
                        f'] }} }}, "id": 1}}'
 
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+        if cls._logger.isEnabledFor(DISABLED):
             cls._logger.debug_verbose(f'title: {title} year: {year}')
             cls._logger.debug_verbose(f'query: {query}')
             try:

@@ -31,27 +31,27 @@ except ImportError:
 import xbmc
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie, LibraryMovie
 from common.movie_constants import MovieField, MovieType
 from common.certification import WorldCertifications
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Debug:
     """
         Define several methods useful for debugging
     """
-    _logger: LazyLogger = module_logger.getChild('Debug')
+    _logger: BasicLogger = module_logger.getChild('Debug')
     _currentAddonName = Constants.CURRENT_ADDON_NAME
 
     @classmethod
     def dump_dictionary(cls, d: Dict[str, Any], prefix: str = '',
                         heading: str = '',
                         include_type: bool = False,
-                        log_level=LazyLogger.DISABLED) -> None:
+                        level=DISABLED) -> None:
         """
             Dump key and value fields of a dictionary in human
             readable form.
@@ -59,11 +59,12 @@ class Debug:
         :param d:
         :param prefix:
         :param heading:
-        :param log_level:
+        :param include_type:
+        :param level:
         :return:
         """
-        if cls._logger.isEnabledFor(log_level):
-            cls._logger.debug(heading, log_level=log_level)
+        if cls._logger.isEnabledFor(level):
+            cls._logger.debug(heading, level=level)
             if d is None:
                 cls._logger.debug('None')
             else:
@@ -76,26 +77,27 @@ class Debug:
                         if include_type:
                             the_type = f'{type(v)} -'
                         cls._logger.debug(f'{prefix}{k} : {the_type}{v}',
-                                          log_level=log_level)
+                                          level=level)
 
     @classmethod
     def dump_json(cls, text: str = '', data: Any = '',
-                  log_level: int = LazyLogger.DISABLED) -> None:
+                  level: int = DISABLED) -> None:
         """
             Log Json values using the json.dumps utility
 
         :param text:
         :param data: Any json serializable object
-        :param log_level:
+        :param level:
         :return:
         """
-        if cls._logger.isEnabledFor(log_level):
+        if cls._logger.isEnabledFor(level):
             if data is None:
-                cls._logger.log('json None', log_level=log_level)
+                cls._logger.log('json None', level=level)
             else:
-                cls._logger.log(text, json.dumps(data, ensure_ascii=False,
-                                                 encoding='unicode', indent=4,
-                                                 sort_keys=True), log_level=log_level)
+                dump = json.dumps(data, ensure_ascii=False,
+                                  encoding='unicode', indent=4,
+                                  sort_keys=True)
+                cls._logger.log(f'{text} {dump}',  level=level)
 
     @classmethod
     def dump_all_threads(cls, delay: float = None) -> None:
@@ -142,7 +144,8 @@ class Debug:
             dump_path = f'{xbmcvfs.translatePath("special://temp")}' \
                         f'{CriticalSettings.get_plugin_name()}_thread_dump.txt'
 
-            with io.open(dump_path, mode='at', buffering=1, newline=None) as dump_file:
+            with io.open(dump_path.encode('utf-8'), mode='at', buffering=1,
+                         newline=None) as dump_file:
 
                 dump_file.write(f'\n{datetime.datetime.now()}'
                                 f'   *** STACKTRACE - START ***\n\n')
@@ -151,7 +154,7 @@ class Debug:
                                 f'   *** STACKTRACE - END ***\n\n')
 
         except Exception as e:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def compare_movies(cls,
@@ -167,7 +170,7 @@ class Debug:
         :param max_value_length:
         :return:
         """
-        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if not cls._logger.isEnabledFor(DEBUG_VERBOSE):
             return
         if trailer is None or new_trailer is None:
             cls._logger.debug_verbose('At least one argument is None')
@@ -186,9 +189,8 @@ class Debug:
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
-                cls._logger.debug_verbose('CompareMovies- key:', key,
-                                          'is missing from new. Value:',
-                                          value)
+                cls._logger.debug_verbose(f'CompareMovies- key: {key} '
+                                          'is missing from new. Value: {value}')
 
         for key in trailer:
             if key in keys_of_primary_interest and (trailer.get(key) is not None
@@ -201,16 +203,16 @@ class Debug:
                 new_value = str(new_trailer.get(key))
                 if len(new_value) > max_value_length:
                     new_value = new_value[:max_value_length]
-                cls._logger.debug_verbose('Values for:', key, 'different:', value,
-                                          'new:', new_value)
+                cls._logger.debug_verbose(f'Values for: {key} different: {value} '
+                                          f'new: {new_value}')
 
         for key in new_trailer:
             if key in keys_of_interest and trailer.get(key) is None:
                 value = str(new_trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
-                cls._logger.debug_verbose('key:', key, 'is missing from old. Value:',
-                                          value)
+                cls._logger.debug_verbose(f'key: {key} is missing from old. '
+                                          f'Value: {value}')
 
     @classmethod
     def validate_basic_movie_properties(cls,
@@ -224,7 +226,7 @@ class Debug:
         :param stack_trace:
         :return:
         """
-        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if not cls._logger.isEnabledFor(DEBUG_VERBOSE):
             return
 
         if movie_arg is None:
@@ -255,14 +257,34 @@ class Debug:
                 is_failed = True
                 movie.setdefault(
                     property_name, basic_properties[property_name])
-
+            else:
+                if isinstance(basic_properties[property_name], int):
+                    value =  movie.get(property_name)
+                    try:
+                        int_value: int = int(value)
+                    except:
+                        cls._logger.error(f'Invalid {property_name} int value: '
+                                          f'{value} for movie: '
+                                          f'{movie.get(MovieField.TITLE, "title missing")} '
+                                          f'source: {movie.get(MovieField.SOURCE)}')
+                        continue
+                elif isinstance(basic_properties[property_name], float):
+                    value =  movie.get(property_name)
+                    try:
+                        float_value: float = float(value)
+                    except:
+                        cls._logger.error(f'Invalid {property_name} float value: '
+                                          f'{value} for movie: '
+                                          f'{movie.get(MovieField.TITLE, "title missing")} '
+                                          f'source: {movie.get(MovieField.SOURCE)}')
+                        continue
         if len(failing_properties) > 0:
             msg = f'title: {movie.get(MovieField.TITLE, "title missing")} ' \
                 f'{",".join(failing_properties)}'
             if stack_trace:
-                LazyLogger.dump_stack('Missing basic property: ' + msg)
+                BasicLogger.dump_stack(f'Missing basic property: {msg}')
             else:
-                cls._logger.debug_verbose('Missing properties:', msg)
+                cls._logger.debug_verbose(f'Missing properties: {msg}')
 
         assert not is_failed, 'LEAK: Invalid property values'
 
@@ -274,12 +296,12 @@ class Debug:
         """
             Similar to validate_basic_movie_properties. Validates additional
             fields
-        :param movie:
+        :param movie_arg:
         :param stack_trace:
         :param force_check: Check even if debug level less than DEBUG_VERBOSE
         :return: True if no problems found
         """
-        if not (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE) or force_check):
+        if not (cls._logger.isEnabledFor(DEBUG_VERBOSE) or force_check):
             return True
 
         if movie_arg is None:
@@ -301,13 +323,13 @@ class Debug:
                     property_name, MovieField.DEFAULT_MOVIE[property_name])
                 is_ok = False
 
-        if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+        if (cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)
                                      and len(failing_properties) > 0):
             msg = ', '.join(failing_properties)
             if stack_trace:
-                LazyLogger.dump_stack('Missing details property: ' + msg)
+                BasicLogger.dump_stack(f'Missing details property: {msg}')
             else:
-                cls._logger.debug_verbose('Missing properties:', msg)
+                cls._logger.debug_verbose(f'Missing properties: {msg}')
 
         country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
@@ -315,8 +337,8 @@ class Debug:
             is_ok = False
             if movie[MovieField.CERTIFICATION_ID] != '':
                 cls._logger.debug_verbose(
-                    f'Invalid certification: {movie[MovieField.CERTIFICATION_ID]} for movie: '
-                    '{movie[MovieField.TITLE]} set to NR')
+                    f'Invalid certification: {movie[MovieField.CERTIFICATION_ID]} '
+                    f'for movie: {movie[MovieField.TITLE]} set to NR')
             movie[MovieField.CERTIFICATION_ID] = certifications.get_unrated_certification() \
                 .get_preferred_id()
 

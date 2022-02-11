@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
-'''
+"""
 
 from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
@@ -20,18 +20,25 @@ import threading
 
 import xbmc
 
+from __init__ import *
 from common.monitor import Monitor
 from common.constants import Constants
-from common.exceptions import AbortException
 from common.imports import *
 from common.settings import Settings
 from frontend.front_end_bridge import FrontendBridge
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
 
 from frontend import random_trailers_ui
 
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
+
+
+# PATCH PATCH PATCH
+# Monkey-Patch a well known, embedded Python problem
+#
+from common.strptime_patch import StripTimePatch
+StripTimePatch.monkey_patch_strptime()
 
 
 def exit_randomtrailers():
@@ -43,7 +50,7 @@ def exit_randomtrailers():
 class MainThreadLoop:
     """
         Kodi's Monitor class has some quirks in it that strongly favor creating
-        it from the main thread as well as callng xbmc.sleep/xbmc.wait_for_abort.
+        it from the main thread as well as calling xbmc.sleep/xbmc.wait_for_abort.
         The main issue is that a Monitor event can not be received until
         xbmc.sleep/xbmc.wait_for_abort is called FROM THE SAME THREAD THAT THE
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
@@ -192,15 +199,15 @@ def bootstrap_random_trailers(screensaver: bool) -> None:
             Settings.on_settings_changed, 'Settings.on_settings_changed')
 
         Monitor.register_settings_changed_listener(
-            LazyLogger.on_settings_changed, 'LazyLogger.on_settings_changed')
+            BasicLogger.on_settings_changed, 'BasicLogger.on_settings_changed')
 
         MainThreadLoop.class_init(screensaver)
         MainThreadLoop.startup()
 
-        # LazyLogger can be unusable during shutdown
+        # BasicLogger can be unusable during shutdown
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            module_logger.exit('Exiting plugin')
+        if module_logger.isEnabledFor(DEBUG):
+            module_logger.debug('Exiting plugin')
 
     except AbortException:
         pass  # Exit in finally block

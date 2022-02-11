@@ -18,7 +18,7 @@ from common.exceptions import AbortException
 from common.imports import *
 from common.debug_utils import Debug
 from common.monitor import Monitor
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie, TMDbMovieId, TMDbMovie, LibraryMovie, \
     LibraryMovieId
 from common.movie_constants import MovieField
@@ -31,7 +31,7 @@ from discovery.playable_trailers_container_interface import \
 from discovery.tmdb_movie_data import TMDbMovieData
 from discovery.utils.recently_played_trailers import RecentlyPlayedTrailers
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayableTrailersContainer(PlayableTrailersContainerInterface):
@@ -64,8 +64,9 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
 
         :return:
         """
+        super().__init__(source)
 
-        self.logger: LazyLogger
+        self.logger: BasicLogger
         self.logger = module_logger.getChild(f'{type(self).__name__}:{source}')
 
         PlayableTrailersContainer._instances[source] = self
@@ -126,11 +127,11 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
         :return:
         """
         clz = type(self)
-        if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if self.logger.isEnabledFor(DEBUG_VERBOSE):
             Debug.validate_detailed_movie_properties(movie, stack_trace=False)
-            self.logger.debug_verbose('movie:', movie.get_title(), 'queue empty:',
-                                      self._ready_to_play_queue.empty(), 'full:',
-                                      self._ready_to_play_queue.full())
+            self.logger.debug_verbose(f'movie: {movie.get_title()} '
+                                      f'queue empty: {self._ready_to_play_queue.empty()} '
+                                      f'full: {self._ready_to_play_queue.full()}')
 
         finished: bool = False
         waited: int = 0
@@ -167,14 +168,14 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
             Monitor.throw_exception_if_abort_requested(timeout=0.5)
 
         if not clz._any_trailers_available_to_play.isSet():
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if self.logger.isEnabledFor(DEBUG_VERBOSE):
                 self.logger.debug_verbose(
                     'Setting _any_trailers_available_to_play')
             clz._any_trailers_available_to_play.set()
 
         self._is_playable_trailers.set()
 
-        if self.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             self.logger.debug_extra_verbose(f'readyToPlayQueue size: '
                                             f'{self._ready_to_play_queue.qsize()} '
                                             f'waited: {waited}')
@@ -226,17 +227,17 @@ class PlayableTrailersContainer(PlayableTrailersContainerInterface):
             # self.logger.debug(f'Got movie: {movie.get_title()}')
 
             PlayStatistics.increase_play_count(movie)
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.exit(f'movie: {movie.get_title()}')
+            if self.logger.isEnabledFor(DEBUG_VERBOSE):
+                self.logger.debug(f'movie: {movie.get_title()}')
         elif self.is_starving():
             # self.set_starving(True)
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.exit('No movie in queue')
+            if self.logger.isEnabledFor(DEBUG_VERBOSE):
+                self.logger.debug('No movie in queue')
             movie = RecentlyPlayedTrailers.get_recently_played()
             movie.set_starving(True)
         else:
-            if self.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self.logger.exit('No movie in queue. Starving not set')
+            if self.logger.isEnabledFor(DEBUG_VERBOSE):
+                self.logger.debug('No movie in queue. Starving not set')
         return movie
 
     @classmethod

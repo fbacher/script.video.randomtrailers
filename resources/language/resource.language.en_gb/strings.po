@@ -1485,3 +1485,9 @@ msgstr ""
 msgctxt "#32294"
 msgid "Get YouTube account information from .netrc"
 msgstr ""
+
+# In US, movie certifications come from MPAA
+
+msgctxt "#32295"
+msgid "Enter the Certification country code"
+msgstr ""

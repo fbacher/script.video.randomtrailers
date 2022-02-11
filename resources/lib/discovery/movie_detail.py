@@ -32,21 +32,21 @@ from backend.video_downloader import VideoDownloader
 from cache.cache import Cache
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, CommunicationException, reraise
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.monitor import Monitor
-from common.movie import AbstractMovie, ITunesMovie, TFHMovie, TMDbMovie, LibraryMovie, \
-    Movies
+from common.movie import (AbstractMovie, FolderMovie, ITunesMovie, TFHMovie, TMDbMovie,
+                          LibraryMovie, Movies)
 from common.movie_constants import MovieField
 from common.playlist import Playlist
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
 from discovery.utils.db_access import DBAccess
 from discovery.utils.parse_library import ParseLibrary
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class MovieDetail:
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls):
@@ -74,8 +74,8 @@ class MovieDetail:
 
         try:
             tmdb_id: int = movie.get_tmdb_id()
-            if (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
-                    and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+            if (cls._logger.isEnabledFor(DEBUG_VERBOSE)
+                    and Trace.is_enabled(Trace.TRACE_DISCOVERY)):
                 cls._logger.debug_verbose(f'title: {movie.get_title()}'
                                           f' source: {movie.get_source()}'
                                           f' tmdb_id: {tmdb_id}'
@@ -159,7 +159,7 @@ class MovieDetail:
                                 kodi_movie = ParseLibrary.parse_movie(is_sparse=True,
                                                                       raw_movie=
                                                                       raw_movies[0])
-                            if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                            if cls._logger.isEnabledFor(DISABLED):
                                 if kodi_movie is not None:
                                     cls._logger.debug(f'Kodi movie found!')
                                 else:
@@ -167,10 +167,10 @@ class MovieDetail:
                         except AbortException:
                             reraise(*sys.exc_info())
                         except Exception:
-                            cls._logger.exception()
+                            cls._logger.exception(msg='')
 
-                if (cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
-                            and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                if (cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)
+                            and Trace.is_enabled(Trace.TRACE_DISCOVERY)):
                         cls._logger.debug_extra_verbose(
                             f'{movie.get_title()}: '
                             f' source: {movie.get_source()}'
@@ -189,11 +189,16 @@ class MovieDetail:
                 if tmdb_id is not None:
                     CacheIndex.remove_tmdb_id_with_trailer(tmdb_id)
             else:
-                if (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
-                        and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
-                    cls._logger.debug_verbose('Fully discovered and ready to play:',
-                                              movie.get_title(),
-                                              movie.get_detail_title(),
+                if isinstance(movie, FolderMovie):
+                    # Supply fake values to displayed fields to make code happy.
+
+                    cls.clone_fields(movie, movie, MovieField.DEFAULT_MOVIE)
+
+                if (cls._logger.isEnabledFor(DEBUG_VERBOSE)
+                        and Trace.is_enabled(Trace.TRACE_DISCOVERY)):
+                    cls._logger.debug_verbose(f'Fully discovered and ready to play: '
+                                              f'{movie.get_title()} '
+                                              f'{movie.get_detail_title()}',
                                               trace=Trace.TRACE_DISCOVERY)
                 if isinstance(movie, TFHMovie):
                     TFHCache.update_movie(movie)
@@ -279,18 +284,18 @@ class MovieDetail:
                 #
                 # if (MovieField.REJECTED_ADULT, MovieField.REJECTED_CERTIFICATION,
                 #         MovieField.REJECTED_FAIL) in rejection_reasons:
-                #     if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                #     if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 #         cls._logger.debug_extra_verbose(f'Rejecting TFH movie'
                 #                                         f' {movie.get_title()} '
                 #                                         f'due to Certification')
 
             if tmdb_detail_info is not None:
-                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
-                        and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                if (cls._logger.isEnabledFor(DISABLED)
+                        and Trace.is_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
                                           heading='Dumping TFH movie_info',
-                                          log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+                                          level=DEBUG_EXTRA_VERBOSE)
 
                 cls.clone_fields(tmdb_detail_info, movie, MovieField.TFH_CLONE_FIELDS)
 
@@ -305,12 +310,12 @@ class MovieDetail:
                 if movie.get_rating() == 0.0 and tmdb_detail_info.get_rating() != 0.0:
                     movie.set_rating(tmdb_detail_info.get_rating())
 
-                if (cls._logger.isEnabledFor(LazyLogger.DISABLED)
-                        and cls._logger.is_trace_enabled(Trace.TRACE_DISCOVERY)):
+                if (cls._logger.isEnabledFor(DISABLED)
+                        and Trace.is_enabled(Trace.TRACE_DISCOVERY)):
                     from common.debug_utils import Debug
                     Debug.dump_dictionary(movie.get_as_movie_type(),
                                           heading='Dumping Modified movie info',
-                                          log_level=LazyLogger.DEBUG_EXTRA_VERBOSE)
+                                          level=DEBUG_EXTRA_VERBOSE)
             else:
                 # TODO: Revisit this. Should we display when we can't filter based
                 #       on user's wishes?
@@ -404,7 +409,7 @@ class MovieDetail:
             #
             trailer_path = movie.get_trailer_path()
             is_url = movie.is_trailer_url()
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_VERBOSE):
                 cls._logger.debug_verbose(
                     f'{movie.get_title()} {movie.get_trailer_path()} url: {is_url}')
 
@@ -483,16 +488,17 @@ class MovieDetail:
                             cls._logger.debug(
                                 f'Already normalized trailer {movie.get_title()} '
                                 f'path: {movie.get_normalized_trailer_path()}',
-                                Trace.TRACE_DISCOVERY)
+                                trace=Trace.TRACE_DISCOVERY)
 
                     if not already_normalized:
                         movie.set_cached_trailer(cached_trailers[0])
                         stop = datetime.datetime.now()
                         locate_time = stop - start
-                        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                            cls._logger.debug_extra_verbose('time to locate movie:',
-                                                            locate_time.seconds, 'path:',
-                                                            movie.get_cached_trailer())
+                        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                            cls._logger.debug_extra_verbose(f'time to locate movie: '
+                                                            f'{locate_time.seconds} '
+                                                            f'path: '
+                                                            f'{movie.get_cached_trailer()}')
                         cls._logger.debug(f'Already cached trailer {movie.get_title()} '
                                           f'path: {movie.get_cached_trailer()}',
                                           trace=Trace.TRACE_DISCOVERY)
@@ -517,7 +523,7 @@ class MovieDetail:
                                       f'{downloaded_trailer}')
                     if error_code == Constants.HTTP_TOO_MANY_REQUESTS:
                         rc = Constants.HTTP_TOO_MANY_REQUESTS
-                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                        if cls._logger.isEnabledFor(DEBUG):
                             cls._logger.debug_extra_verbose(
                                 'Too Many Requests')
                             cls._logger.debug(
@@ -534,7 +540,7 @@ class MovieDetail:
                                                   f'userid/password not configured.')
                     if downloaded_trailer is not None:
                         download_path = downloaded_trailer[MovieField.TRAILER]
-                        if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             cls._logger.debug_extra_verbose(f'Successful Download path: '
                                                             f'{download_path}',
                                                             trace=Trace.TRACE_DISCOVERY)
@@ -545,7 +551,7 @@ class MovieDetail:
     
                     temp_file = os.path.join(trailer_folder, str(tmdb_id) + '.json')
                     import io
-                    with io.open(temp_file, mode='wt', newline=None,
+                    with io.open(temp_file.encode('utf-8'), mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         jsonText = utils.py2_decode(json.dumps(downloaded_trailer,
                                                                encoding='utf-8',
@@ -593,18 +599,17 @@ class MovieDetail:
 
                             stop = datetime.datetime.now()
                             locate_time = stop - start
-                            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                                 cls._logger.debug_extra_verbose(
-                                    'movie download to cache time:',
-                                    locate_time.seconds)
+                                    f'movie download to cache time: {locate_time.seconds}')
                         except AbortException:
                             reraise(*sys.exc_info())
                         except Exception as e:
-                            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                                 cls._logger.debug_extra_verbose(
-                                    'Failed to move movie to cache.',
-                                    'movie:', trailer_path,
-                                    'cachePath:', download_path)
+                                    'Failed to move movie to cache.'
+                                    f'movie: {trailer_path} '
+                                    f'cachePath: {download_path}')
                             # cls._logger.exception(
                             #                          'Failed to move movie to
                             #                          cache: ' +
@@ -613,8 +618,8 @@ class MovieDetail:
         except AbortException as e:
             reraise(*sys.exc_info())
         except Exception as e:
-            cls._logger.exception(f'Exception. Movie: {movie.get_title()}',
-                                  'ID:', movie_id, 'Path:', cached_path)
+            cls._logger.exception(f'Movie: {movie.get_title()} ID: {movie_id} '
+                                  f'Path: {cached_path}')
 
         movie.validate_local_trailer()
         if isinstance(movie, TMDbMovie):
@@ -644,11 +649,11 @@ class MovieDetail:
         msg: str = 'Download FAILED'
         if error_code == VideoDownloader.UNAVAILABLE:
             msg = 'Download permanently unavailable'
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls._logger.isEnabledFor(DEBUG):
             cls._logger.debug(f'Video Download failed {movie.get_title()} '
                               f'tmdb_id: {movie.get_tmdb_id()}')
             Debug.dump_dictionary(movie.get_as_movie_type(),
-                                  log_level=LazyLogger.DISABLED)
+                                  level=DISABLED)
         missing_trailers_playlist: Playlist = Playlist.get_playlist(
                 Playlist.MISSING_TRAILERS_PLAYLIST, append=False,
                 rotate=True)

@@ -9,24 +9,28 @@ Created on Feb 11, 2019
 from common.imports import *
 from common.movie import LibraryMovie
 from common.playlist import Playlist
-from common.logger import LazyLogger
+from common.logger import *
 from backend.json_utils import JsonUtils
 
 from common.settings import Settings
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LibraryMovieStats:
     """
 
     """
+    _logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
 
         """
-        self._logger = module_logger.getChild(self.__class__.__name__)
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(self.__class__.__name__)
+
         self._genre_map = {}
         self._actor_map = {}
         self._tag_map = {}
@@ -35,12 +39,12 @@ class LibraryMovieStats:
        Determine which genres are represented in the movie library
     '''
 
-    def get_genres_in_library(self) -> List[str]:
+    @classmethod
+    def get_genres_in_library(cls) -> List[str]:
         """
 
         :return:
         """
-        self._logger.enter()
         my_genres = []
 
         query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetGenres", \

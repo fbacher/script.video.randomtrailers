@@ -10,13 +10,13 @@ import threading
 from common.flexible_timer import FlexibleTimer
 from common.imports import *
 from common.playlist import Playlist
-from common.logger import LazyLogger
+from common.logger import *
 
 from common.settings import Settings
 
 THIRTY_MINUTES: Final[int] = 30
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class FailingURL:
@@ -45,7 +45,7 @@ class FailingURL:
 
 class NetworkStats:
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _failing_url_map: Dict[str, FailingURL] = {}
     _total_failures: int = 0
     _total_was_failing: int = 0
@@ -75,7 +75,7 @@ class NetworkStats:
                                                            })
             next_report.start()
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def do_report(cls, frequency_minutes: int = THIRTY_MINUTES,
@@ -84,7 +84,7 @@ class NetworkStats:
             cls.report_summary()
             cls.auto_report(frequency_minutes=frequency_minutes)
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def add_failing_url(cls, url: str):
@@ -98,7 +98,7 @@ class NetworkStats:
 
             cls._total_failures += 1
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def not_failing(cls, url: str):
@@ -108,7 +108,7 @@ class NetworkStats:
                 cls._total_was_failing += 1
             cls._total_successes += 1
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_summary(cls) -> Tuple[int, int, float, int, str]:
@@ -149,12 +149,12 @@ class NetworkStats:
                     max_failures,
                     most_failing_url)
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def report_summary(cls) -> None:
         try:
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls._logger.debug_extra_verbose(f'Failing URLs')
                 total_successes: int
                 number_of_failures: int
@@ -178,7 +178,7 @@ class NetworkStats:
                 cls._logger.debug_extra_verbose(f'No longer failing: '
                                                 f'{cls._total_was_failing}')
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def full_report(cls, min_failures: int = 0, include_timestamps: bool = False) -> None:
@@ -227,7 +227,7 @@ class NetworkStats:
 
             playlist.close()
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
 
 NetworkStats.class_init()

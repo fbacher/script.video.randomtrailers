@@ -7,19 +7,19 @@ from common.constants import Constants
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import LibraryMovie, LibraryMovieId
 from common.movie_constants import MovieField
 from common.certification import Certification, WorldCertifications
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ParseLibrary:
     DEFAULT_LAST_PLAYED_DATE: str = '1900-01-01 01:01:01'
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, library_entry: Dict[str, Any]) -> None:
         type(self).class_init()
@@ -64,10 +64,10 @@ class ParseLibrary:
         except OverflowError:
             timestamp = 0.0
 
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug(f'last_played mktime: {timestamp}')
         last_played_time: datetime = datetime.fromtimestamp(timestamp)
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug(f'last_played final: {type(last_played_time)} '
                               f'{last_played_time}')
         self._movie.set_last_played(last_played_time)

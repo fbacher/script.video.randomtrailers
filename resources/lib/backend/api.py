@@ -9,8 +9,8 @@ import sys
 
 from common.exceptions import AbortException
 from common.garbage_collector import GarbageCollector
-from common.imports import *
-from common.logger import LazyLogger
+from __init__ import *
+from common.logger import *
 from common.monitor import Monitor
 from backend.movie_stats import LibraryMovieStats
 from discovery.base_discover_movies import BaseDiscoverMovies
@@ -20,7 +20,7 @@ from discovery.discover_itunes_movies import DiscoverItunesMovies
 from discovery.discover_tmdb_movies import DiscoverTmdbMovies
 from discovery.discover_tfh_movies import DiscoverTFHMovies
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoveryInstance:
@@ -90,7 +90,7 @@ class DiscoveryManager:
         DiscoveryInstance(DISCOVERY_INFO[TFH])
     ]
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _initialized: bool = False
 
     _lib_instance: DiscoverLibraryMovies = None
@@ -140,7 +140,7 @@ class DiscoveryManager:
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:
-                cls._logger.exception()
+                cls._logger.exception(msg='')
 
         if not cls._initialized:
             Monitor.throw_exception_if_abort_requested(timeout=1.0)

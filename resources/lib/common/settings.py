@@ -11,15 +11,15 @@ import os
 import xbmc
 import xbmcvfs
 
-from common.movie_constants import MovieField, MovieType
+from common.movie_constants import MovieField
 from kutils.kodiaddon import Addon
 
 from common.imports import *
-from common.constants import (Constants, DebugLevel,
-                              RemoteTrailerPreference, GenreEnum)
-from common.logger import (LazyLogger, Trace)
+from common.constants import (Constants,
+                              RemoteTrailerPreference)
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Settings:
@@ -27,7 +27,7 @@ class Settings:
 
     """
     _addon_singleton = None
-    _logger: LazyLogger = module_logger.getChild('Settings')
+    _logger: BasicLogger = module_logger.getChild('Settings')
     _previous_settings: Dict[str, Any] = {}
     DEFAULT_ROTTEN_TOMATOES_API_KEY: str = 'ynyq3vsaps7u8rb9nk98rcr'
     DEFAULT_TMDB_API_KEY = '35f17ee61909355c4b5d5c4f2c967f6c'
@@ -36,6 +36,7 @@ class Settings:
     TMDB_ALLOW_FOREIGN_LANGUAGES = 'tmdb_allow_foreign_languages'
     TMDB_VOTE_FILTER = 'tmdb_vote_filter'
     TMDB_VOTE_VALUE = 'tmdb_vote_value'
+    COUNTRY_CODE = 'country_code'
     DO_NOT_RATED = 'do_nr'
     DO_DEBUG = 'do_debug'
     FILTER_GENRES = 'do_genre'
@@ -74,6 +75,7 @@ class Settings:
     GROUP_DELAY = 'group_delay'
     TRAILERS_PER_GROUP = 'trailers_per_group'
     LIBRARY_HIDE_WATCHED_MOVIES = 'hide_watched'
+    LOGGING_LEVEL = 'log_level'
     INCLUDE_CLIPS = 'do_clips'
     INCLUDE_FEATURETTES = 'do_featurettes'
     INCLUDE_TEASERS = 'do_teasers'
@@ -166,6 +168,7 @@ class Settings:
 
     ALL_SETTINGS: List[str] = [
         ADJUST_VOLUME,
+        COUNTRY_CODE,
         TMDB_ALLOW_FOREIGN_LANGUAGES,
         TMDB_VOTE_FILTER,
         TMDB_VOTE_VALUE,
@@ -207,6 +210,7 @@ class Settings:
         GROUP_DELAY,
         TRAILERS_PER_GROUP,
         LIBRARY_HIDE_WATCHED_MOVIES,
+        LOGGING_LEVEL,
         INCLUDE_CLIPS,
         INCLUDE_FEATURETTES,
         INCLUDE_TEASERS,
@@ -291,6 +295,7 @@ class Settings:
     ]
 
     TRAILER_LOADING_SETTINGS: List[str] = [
+        COUNTRY_CODE,
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -349,6 +354,7 @@ class Settings:
         TMDB_MAX_DOWNLOAD_MOVIES]
 
     COMMON_TRAILER_LOADING_SETTINGS: List[str] = [
+        COUNTRY_CODE,
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -435,8 +441,7 @@ class Settings:
             # installed, such that script.video.randomtrailers doesn't
             # exist
             try:
-                Settings._addon_singleton = Addon(
-                    Constants.ADDON_ID)
+                Settings._addon_singleton = Addon(Constants.ADDON_ID)
             except Exception:
                 pass
 
@@ -491,7 +496,7 @@ class Settings:
         :return:
         """
 
-        Settings._logger.enter()
+        Settings._logger.debug('entered')
         changed_settings = []
         for setting in settings_to_check:
             previous_value = Settings._previous_settings.get(setting, None)
@@ -502,9 +507,10 @@ class Settings:
 
             if previous_value != current_value:
                 changed = True
-                if module_logger.isEnabledFor(LazyLogger.DEBUG):
-                    Settings._logger.debug('setting changed:', setting, 'previous_value:',
-                                           previous_value, 'current_value:', current_value)
+                if module_logger.isEnabledFor(DEBUG):
+                    Settings._logger.debug(f'setting changed: {setting} '
+                                           f'previous_value: {previous_value} '
+                                           f'current_value: {current_value}')
             else:
                 changed = False
 
@@ -525,8 +531,8 @@ class Settings:
         else:
             result = False
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -541,8 +547,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
         return result
 
     @staticmethod
@@ -557,8 +563,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -573,8 +579,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -589,8 +595,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -697,7 +703,7 @@ class Settings:
             if Settings.get_filter_genres():
                 value = Settings.get_setting_int(genre_name)
         except Exception as e:
-            LazyLogger.exception('setting: ' + genre_name)
+            module_logger.exception(f'setting: {genre_name}')
         return value
 
     @staticmethod
@@ -723,7 +729,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_ADVENTURE)
 
     @staticmethod
-    def get_genre_animation() -> bool:
+    def get_genre_animation() -> int:
         """
 
         :return:
@@ -830,7 +836,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_FANTASY)
 
     @staticmethod
-    def get_genre_film_noir() -> bool:
+    def get_genre_film_noir() -> int:
         """
 
         :return:
@@ -861,8 +867,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_HISTORY)
 
     @staticmethod
-    def get_genre_horror():
-        # type: () -> bool
+    def get_genre_horror() -> int:
         """
 
         :return:
@@ -870,7 +875,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_HORROR)
 
     @staticmethod
-    def get_genre_melodrama() -> bool:
+    def get_genre_melodrama() -> int:
         """
 
         :return:
@@ -878,7 +883,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MELODRAMA)
 
     @staticmethod
-    def get_genre_music() -> bool:
+    def get_genre_music() -> int:
         """
 
         :return:
@@ -908,7 +913,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MYSTERY)
 
     @staticmethod
-    def get_genre_pre_code() -> bool:
+    def get_genre_pre_code() -> int:
         """
 
         :return:
@@ -1226,11 +1231,27 @@ class Settings:
             TODO: Make a setting. Since this is used (at least part of
             the time) to determine the certification body (mpaa) then
             should change name. Also, only US is supported.
+
+            Currently broken due to Kodi NLS bug (not passing locale
+            to addons).
         """
+        country_code = Settings.get_setting_str(Settings.COUNTRY_CODE)
+        return country_code
+
+        '''
         language_code = Settings.get_locale()
         # en_US
-        lang, country = language_code.split('_')
+        # Settings._logger.debug(f'language: {language_code}')
+        # Settings._logger.debug(f'split: {language_code.split("_")}')
+        elements = language_code.split('_')
+        if len(elements) == 2:
+            country: str = elements[1]
+        else:
+            Settings._logger.warning(f'Invalid country code: {elements}')
+            country = 'US'
+        Settings._logger.debug(f'Country code: {country}')
         return country
+        '''
 
     @staticmethod
     def get_locale() -> str:
@@ -1240,6 +1261,27 @@ class Settings:
         """
         # locale.setlocale(locale.LC_ALL, 'en_US')
         language_code, encoding = locale.getdefaultlocale()
+        if language_code is None:
+            language_code = ''
+        '''
+        Settings._logger.debug(f'default language_code: {language_code} '
+                               f'encoding: {encoding}')
+        envars = ['LC_ALL', 'LC_CTYPE', 'LANG', 'LANGUAGE']
+        for var in envars:
+            language_code, encoding = locale.getdefaultlocale((var,))
+            Settings._logger.debug(f'getdefaultlocale({var})')
+            Settings._logger.debug(f'language_code default: {language_code} '
+                                   f'encoding: {encoding}')
+            Settings._logger.debug(f'langauge_code: {locale.getlocale()}')
+            Settings._logger.debug(f'langauge_code set null: '
+                                   f'{locale.setlocale(locale.LC_ALL)}')
+            Settings._logger.debug(f'language_code set empty: '
+                                   f'{locale.setlocale(locale.LC_ALL, "")}')
+
+        if language_code is None:
+            language_code, encoding = locale.getlocale()
+            Settings._logger.debug(f'language_code from locale.getlocale: {language_code}')
+        '''
 
         return language_code
 
@@ -1307,7 +1349,7 @@ class Settings:
             Maximum seconds to play a trailer
         :return:
         """
-        return Settings.get_setting_float(Settings.MAXIMUM_TRAILER_PLAY_SECONDS)
+        return Settings.get_setting_int(Settings.MAXIMUM_TRAILER_PLAY_SECONDS)
 
     @staticmethod
     def get_media_path() -> str:
@@ -1540,15 +1582,11 @@ class Settings:
         :return:
         """
         try:
-            value = Settings.get_addon().addon.getSetting(setting)
-        except Exception as e:
-            value = 1.0
-        try:
-            value = float(value)
-        except Exception as e:
-            Settings._logger.error('Setting:', setting,
-                                   ' value is not an float. Setting to 0')
-            value = 0
+            value = Settings.get_addon().addon.getSettingNumber(setting)
+        except:
+            Settings._logger.error(f'Setting: {setting} '
+                                   f'value is not a float. Setting to 0.0')
+            value = 0.0
         return value
 
     @staticmethod
@@ -1558,14 +1596,10 @@ class Settings:
         :return:
         """
         try:
-            value = Settings.get_addon().addon.getSetting(setting)
+            value = Settings.get_addon().addon.getSettingInt(setting)
         except Exception as e:
-            value = 1
-        try:
-            value = int(value)
-        except Exception as e:
-            Settings._logger.error('Setting:', setting,
-                                   ' value is not an integer. Setting to 0')
+            Settings._logger.error(f'Setting: {setting} value is not an integer.'
+                                   f' Setting to 0')
             value = 0
         return value
 
@@ -1774,7 +1808,7 @@ class Settings:
                 Settings.get_addon().setting(Settings.CACHE_PATH))
         except Exception as e:
             path = None
-            Settings._logger.exception()
+            Settings._logger.exception('')
 
         return path
 
@@ -1851,8 +1885,8 @@ class Settings:
         """
         value = None
         if Settings.is_limit_percent_of_cached_trailers():
-            value = Settings.get_setting_float(
-                Settings.MAX_PERCENT_OF_CACHED_TRAILERS) / 100.0
+            value = float(Settings.get_setting_int(
+                Settings.MAX_PERCENT_OF_CACHED_TRAILERS)) / 100.0
         return value
 
     @staticmethod
@@ -1931,8 +1965,8 @@ class Settings:
         """
         value = None
         if Settings.is_limit_percent_of_cached_json():
-            value = Settings.get_setting_float(
-                Settings.MAX_PERCENT_OF_CACHED_JSON) / 100.0
+            value = float(Settings.get_setting_int(
+                Settings.MAX_PERCENT_OF_CACHED_JSON)) / 100.0
         return value
 
     '''

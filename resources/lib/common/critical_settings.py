@@ -4,8 +4,11 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
+import os
 
 import xbmc
+import xbmcaddon
+
 from kutils.kodiaddon import Addon
 from common.imports import *
 
@@ -17,6 +20,8 @@ class CriticalSettings:
 
     """
 
+    # Values based on Python logging
+
     DISABLED = 0
     FATAL = 50  # logging.CRITICAL
     ERROR = 40  # logging.ERROR  # 40
@@ -27,18 +32,30 @@ class CriticalSettings:
     DEBUG_EXTRA_VERBOSE = 6
     NOTSET = 0  # logging.NOTSET  # 0
 
+    DEFAULT_DEBUG_LEVEL = WARNING
+
     POLL_MONITOR_WAIT_FOR_ABORT: bool = False  # If False, wait on abort_event
     SHORT_POLL_DELAY: float = 0.2  # Seconds
     LONG_POLL_DELAY: float = 0.4  # Seconds
 
     DEBUG_INCLUDE_THREAD_INFO: Final[str] = 'debug_include_thread_info'
+
+    ADDON: xbmcaddon = None
+    ADDON_ID: Final[str] = 'script.video.randomtrailers'  # same as in addon.xml
+    ADDON_LOG_NAME: Final[str] = 'randomtrailers'  # friendly name for logs
+
+    try:
+        ADDON = xbmcaddon.Addon(ADDON_ID)
+    except Exception:
+        xbmc.log(f'xbmcaddon.Addon({ADDON_ID}) was not found.', level=xbmc.LOGERROR)
+    TOP_PACKAGE_PATH: Final[str] = os.path.join(ADDON.getAddonInfo('path'),
+                                                'resources', 'lib')
     addon = None
     _plugin_name: str = ""
     try:
-        addon = Addon('script.video.randomtrailers')
+        addon = Addon(ADDON_ID)
     except Exception:
-        xbmc.log('script.video.randomtrailers was not found.',
-                 level=xbmc.LOGERROR)
+        xbmc.log(f'{ADDON_ID} not found', level=xbmc.LOGERROR)
 
     @staticmethod
     def is_debug_enabled() -> bool:
@@ -49,7 +66,7 @@ class CriticalSettings:
         if CriticalSettings.addon is None:
             return False
 
-        debug_enabled = CriticalSettings.addon.bool_setting('do_debug')
+        debug_enabled = CriticalSettings.ADDON.getSettingBool('do_debug')
         return debug_enabled
 
     @staticmethod
@@ -61,7 +78,7 @@ class CriticalSettings:
         if CriticalSettings.addon is None:
             return False
 
-        is_debug_include_thread_info = CriticalSettings.addon.bool_setting(
+        is_debug_include_thread_info = CriticalSettings.ADDON.getSettingBool(
                                             CriticalSettings.DEBUG_INCLUDE_THREAD_INFO)
         return (bool(is_debug_include_thread_info)
                 and CriticalSettings.get_logging_level() <= CriticalSettings.DEBUG)
@@ -72,69 +89,72 @@ class CriticalSettings:
 
         :return:
         """
-        # log_level_setting is an enum from settings.xml
-        # log_level_setting 0 -> xbmc.LOGWARNING
-        # log_level_setting 1 => xbmc.LOGINFO
-        # log_level_setting 2 => xbmc.LOGDEBUG
-        # log_level_setting 3 => DEBUG_VERBOSE
-        # log_level_setting 4 => DEBUG_EXTRA_VERBOSE
+        # level_setting is an enum from settings.xml
+        # level_setting 0 -> xbmc.LOGWARNING
+        # level_setting 1 => xbmc.LOGINFO
+        # level_setting 2 => xbmc.LOGDEBUG
+        # level_setting 3 => DEBUG_VERBOSE
+        # level_setting 4 => DEBUG_EXTRA_VERBOSE
 
-        # translated_value is a transformation to values that Logger uses:
+        # python_logging_value is a transformation to values that Logger uses:
         #
         # Critical is most important.
         # DISABLED is least important
         # DEBUG_EXTRA_VERBOSE less important that DEBUG
 
-        log_level_setting: int = 0  # WARNING
-        translated_value = None
+        python_logging_value = None
 
         try:
             # Kodi log values
             # WARNING|INFO|DEBUG|VERBOSE DEBUG|EXTRA VERBOSE DEBUG"
 
-            translated_value = CriticalSettings.WARNING
+            python_logging_value = CriticalSettings.DEFAULT_DEBUG_LEVEL
             try:
-                CriticalSettings.addon
+                CriticalSettings.ADDON
             except NameError:
-                CriticalSettings.addon = None
-                xbmc.log('addon was not defined.', level=xbmc.LOGDEBUG)
+                CriticalSettings.ADDON = None
+                xbmc.log('ADDON was not defined.', level=xbmc.LOGDEBUG)
 
-            if CriticalSettings.addon is None:
-                xbmc.log('Can not access script.video.randomtrailers',
+            if CriticalSettings.ADDON is None:
+                xbmc.log(f'Can not access {CriticalSettings.ADDON_ID}',
                          level=xbmc.LOGERROR)
-                translated_value = CriticalSettings.WARNING
+                python_logging_value = CriticalSettings.DEFAULT_DEBUG_LEVEL
             elif not CriticalSettings.is_debug_enabled():
-                log_level_setting = 0
-                translated_value = CriticalSettings.WARNING
+                level_setting = 0
+                python_logging_value = CriticalSettings.DEFAULT_DEBUG_LEVEL
             else:   # Debug is enabled in Random Trailers Config Experimental Tab
-                log_level_setting = CriticalSettings.addon.setting('log_level')
-                # msg = f'got log_level_setting from settings: {log_level_setting}'
-                # xbmc.log(msg, level=xbmc.LOGDEBUG)
-                log_level_setting = int(log_level_setting)
-                if log_level_setting <= 0:  # Warning
-                    translated_value = CriticalSettings.WARNING
-                elif log_level_setting == 1:  # Info
-                    translated_value = CriticalSettings.INFO
-                elif log_level_setting == 2:  # Debug
-                    translated_value = CriticalSettings.DEBUG
-                elif log_level_setting == 3:  # Verbose Debug
-                    translated_value = CriticalSettings.DEBUG_VERBOSE
-                elif log_level_setting >= 4:  # Extra Verbose Debug
-                    translated_value = CriticalSettings.DEBUG_EXTRA_VERBOSE
+                level_setting: int = CriticalSettings.ADDON.getSettingInt('log_level')
+                if level_setting <= 0:  # Use DEFAULT value
+                    python_logging_value = CriticalSettings.DEFAULT_DEBUG_LEVEL
+                elif level_setting == 1:  # Info
+                    python_logging_value = CriticalSettings.INFO
+                elif level_setting == 2:  # Debug
+                    python_logging_value = CriticalSettings.DEBUG
+                elif level_setting == 3:  # Verbose Debug
+                    python_logging_value = CriticalSettings.DEBUG_VERBOSE
+                elif level_setting >= 4:  # Extra Verbose Debug
+                    python_logging_value = CriticalSettings.DEBUG_EXTRA_VERBOSE
 
                 # prefix = '[Thread {!s} {!s}.{!s}:{!s}]'.format(
                 # record.threadName, record.name, record.funcName,
                 # record.lineno)
-                # msg = f'get_logging_level got log_level_setting: {translated_value}'
+                # msg = f'get_logging_level got level_setting: {python_logging_value}'
                 # xbmc.log(msg, level=xbmc.LOGDEBUG)
         except Exception:
             xbmc.log('Exception occurred in get_logging_level',
                      level=xbmc.LOGERROR)
 
-        return translated_value
+        return python_logging_value
 
     @classmethod
     def set_plugin_name(cls, plugin_name: str):
+        """
+        Debug-Log friendly name for addon. Since multiple plugins/scripts, etc.
+        can exist in a addon, there must be a configurable way to set it at startup.
+        It is the responsibility of the app to do this at startup and preferably
+        BEFORE import logger.
+
+        """
         cls._plugin_name = plugin_name
 
     @classmethod

@@ -12,21 +12,21 @@ from backend.backend_constants import TMDbConstants
 from common.imports import *
 from common.exceptions import AbortException
 from common.monitor import Monitor
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie, LibraryMovie, TFHMovie
 from common.movie_constants import MovieField
 from common.certification import Certifications, WorldCertifications, Certification
 from common.settings import Settings
 from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class MovieEntryUtils:
     """
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls) -> None:
@@ -103,7 +103,7 @@ class MovieEntryUtils:
                                         tmdb_id = None
 
                                     if tmdb_id is None:
-                                        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                                        if cls._logger.isEnabledFor(DEBUG):
                                             cls._logger.debug('Did not find movie for',
                                                               'imdb_id:', imdb_id,
                                                               'title:', title)
@@ -141,7 +141,7 @@ class MovieEntryUtils:
         :param tmdb_id:
         :return:
         """
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls._logger.isEnabledFor(DEBUG):
             cls._logger.debug('title:', movie_title, 'tmdb_id:', tmdb_id)
 
         data = {
@@ -167,7 +167,7 @@ class MovieEntryUtils:
                 s_code = tmdb_result.get('status_code', None)
                 if s_code is not None:
                     status_code = s_code
-            if status_code != 0 and cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            if status_code != 0 and cls._logger.isEnabledFor(DEBUG):
                 cls._logger.debug(
                     'Error getting TMDB data for:', movie_title,
                     'status:', status_code)
@@ -192,7 +192,7 @@ class MovieEntryUtils:
             movie.set_year(year)
 
             title = tmdb_result[MovieField.TITLE]
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            if cls._logger.isEnabledFor(DEBUG):
                 cls._logger.debug('Processing:', title, 'type:',
                                   type(title).__name__)
             movie.set_title(title)
@@ -234,7 +234,7 @@ class MovieEntryUtils:
             cls._logger.exception('%s %s'.format(
                 'Error getting info for tmdb_id:', tmdb_id))
             try:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._logger.isEnabledFor(DEBUG):
                     json_text = json.dumps(
                         tmdb_result, indent=3, sort_keys=True)
                     cls._logger.debug(json_text)
@@ -245,7 +245,7 @@ class MovieEntryUtils:
 
             movie = None
 
-        cls._logger.exit('Finished processing movie: ', movie_title, 'year:',
+        cls._logger.debug('Finished processing movie: ', movie_title, 'year:',
                          year)
         return movie
     '''
@@ -278,9 +278,9 @@ class MovieEntryUtils:
                 update, dump_results=True)
             Monitor.throw_exception_if_abort_requested()
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                cls._logger.debug('Update TMDBID for:', movie.get_title(),
-                                  'update json:', update)
+            if cls._logger.isEnabledFor(DEBUG):
+                cls._logger.debug(f'Update TMDBID for: {movie.get_title()} '
+                                  f'update json: {update}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:

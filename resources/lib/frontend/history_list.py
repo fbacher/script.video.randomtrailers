@@ -9,12 +9,12 @@ import sys
 import random
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie
 
 from frontend.history_empty import HistoryEmpty
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class HistoryList:
@@ -22,7 +22,7 @@ class HistoryList:
 
     """
     MAX_HISTORY: int = 20
-    logger: LazyLogger = None
+    logger: BasicLogger = None
     _buffer: List[AbstractMovie] = []
     _cursor: int = -1
     _previous_trailer_was_duplicate: bool = False
@@ -44,10 +44,9 @@ class HistoryList:
         :param movie:
         :return:
         """
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls.logger.enter(f'Adding movie: {movie.get_title()} '
-                             f'len: '
-                             f'{len(cls._buffer)} cursor: {cls._cursor}')
+        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            cls.logger.debug_extra_verbose(f'Adding movie: {movie.get_title()} '
+                             f'len: {len(cls._buffer)} cursor: {cls._cursor}')
         duplicate = False
         a_movie: AbstractMovie
         for a_movie in cls._buffer:
@@ -78,7 +77,7 @@ class HistoryList:
             else:
                 cls._previous_trailer_was_duplicate = True
                 cls._starving = False
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(f'Not adding duplicate movie to history: '
                                                    f'{movie.get_title()}')
                     cls.dump_history()
@@ -104,12 +103,12 @@ class HistoryList:
             # for this and will set it to 0.
 
             cls._cursor -= 1
-            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls.dump_history()
 
     @classmethod
     def dump_history(cls) -> None:
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG):
+        if cls.logger.isEnabledFor(DEBUG):
             i: int = 0
             for a_movie in cls._buffer:
                 cls.logger.debug_extra_verbose(f'index: {i} movie: {a_movie.get_title()}')
@@ -132,8 +131,9 @@ class HistoryList:
 
         :return:
         """
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls.logger.enter(f'len: {len(cls._buffer)} cursor: {cls._cursor}')
+        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            cls.logger.debug_extra_verbose(f'len: {len(cls._buffer)} '
+                                           f'cursor: {cls._cursor}')
 
         movie: AbstractMovie = None
 
@@ -150,16 +150,16 @@ class HistoryList:
 
             movie = cls._buffer[cls._cursor]
         except HistoryEmpty:
-            if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 cls.logger.debug_extra_verbose(f'HistoryEmpty')
             reraise(*sys.exc_info())
 
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             title: str = 'None'
             if movie is not None:
                 title = movie.get_title()
-            cls.logger.exit(f'movie: {title} len: '
-                            f'{len(cls._buffer)} cursor: {cls._cursor}')
+            cls.logger.debug(f'movie: {title} len: '
+                             f'{len(cls._buffer)} cursor: {cls._cursor}')
         return movie
 
     @classmethod
@@ -173,8 +173,9 @@ class HistoryList:
         # When NOT starving, cursor points to currently playing
         # movie or -1. When starving, cursor is ignored.
 
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls.logger.enter(f'len: {len(cls._buffer)} cursor: {cls._cursor}')
+        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            cls.logger.debug_extra_verbose(f'len: {len(cls._buffer)}'
+                                           f' cursor: {cls._cursor}')
 
         movie: AbstractMovie = None
         if len(cls._buffer) == 0:
@@ -195,13 +196,13 @@ class HistoryList:
                 movie.set_starving(True)
             cls._starving = False
 
-        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             title: str = 'None'
             if movie is not None:
                 title = movie.get_title()
 
-            cls.logger.exit(f'movie: {title} len: '
-                            f'{len(cls._buffer)} cursor: {cls._cursor}')
+            cls.logger.debug(f'movie: {title} len: '
+                             f'{len(cls._buffer)} cursor: {cls._cursor}')
         return movie
 
     @classmethod

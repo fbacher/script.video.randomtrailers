@@ -16,10 +16,10 @@ import xbmcvfs
 from common.exceptions import AbortException
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LoadCertificationDefinitions:
@@ -29,7 +29,7 @@ class LoadCertificationDefinitions:
     for multiple countries can be in the same file).
     """
 
-    _logger: ClassVar[LazyLogger] = None
+    _logger: ClassVar[BasicLogger] = None
 
     def __init__(self) -> None:
         cls = type(self)
@@ -45,7 +45,7 @@ class LoadCertificationDefinitions:
                     if (file.endswith('.xml') and
                             os.path.isfile(xml_file)):
                         with closing(xbmcvfs.File(xml_file)) as content_file:
-                            rules: Dict[str, Any]  = xmltodict.parse(
+                            rules: Dict[str, Any] = xmltodict.parse(
                                 bytes(content_file.readBytes()))
                             self._create_certifications(xml_file, rules)
 
@@ -64,18 +64,16 @@ class LoadCertificationDefinitions:
                                rules: Dict[str, Any]) -> None:
         cls = type(self)
         if rules is None:
-            cls._logger.error('{} contains invalid XML.'.format(pathname))
+            cls._logger.error(f'{pathname} contains invalid XML.')
             return
         certifications_element = rules.get('certifications', None)
         if certifications_element is None:
-            cls._logger.error('Can not find "certifications" entity in {}'
-                              .format(pathname))
+            cls._logger.error(f'Can not find "certifications" entity in {pathname}')
             return
 
         countries_element = certifications_element.get('country', None)
         if countries_element is None:
-            cls._logger.error('Can not find "country" entity in {}'
-                              .format(pathname))
+            cls._logger.error(f'Can not find "country" entity in {pathname}')
             return
         if not isinstance(countries_element, list):
             countries_element = [countries_element]
@@ -83,21 +81,21 @@ class LoadCertificationDefinitions:
         for country_element in countries_element:
             country_label = country_element.get('@name', None)
             if country_label is None or country_label == '':
-                cls._logger.error('Missing or empty country "name" attribute in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing or empty country "name" attribute '
+                                  f'in {pathname}')
                 country_label = 'Missing'
 
             country_id = country_element.get('@id', None)
             if country_id is None or country_id == '':
-                cls._logger.error('Missing or empty "country_id" attribute in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing or empty "country_id" attribute '
+                                  f'in {pathname}')
                 country_id = 'Missing'
 
             certification_label = country_element.get(
                 '@certification_name', None)
             if certification_label is None or certification_label == '':
-                cls._logger.error('Missing or empty "certification_name" attribute in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing or empty "certification_name" '
+                                  f'attribute in {pathname}')
                 certification_label = 'Missing'
 
             certification_label_id = int(country_element.get('@label_id', None))
@@ -119,8 +117,7 @@ class LoadCertificationDefinitions:
             certification_element_list = country_element.get(
                 'certification', None)
             if certification_element_list is None:
-                cls._logger.error('Missing "certification element in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing "certification element in {pathname}')
             else:
                 if not isinstance(certification_element_list, list):
                     certification_element_list = [certification_element_list]
@@ -170,16 +167,14 @@ class LoadCertificationDefinitions:
                     image_id = certification_element.get(
                         '@image_id', None)
                     if 'patterns' not in certification_element:
-                        cls._logger.error('Missing "patterns" element in {}'
-                                          .format(pathname))
+                        cls._logger.error(f'Missing "patterns" element in {pathname}')
                         break
                     patterns = []
                     patterns_element = certification_element['patterns']
                     pattern_element_list = patterns_element.get(
                         'pattern', None)
                     if pattern_element_list is None:
-                        cls._logger.error('Missing "pattern" elements in {}'
-                                          .format(pathname))
+                        cls._logger.error(f'Missing "pattern" elements in {pathname}')
                         break
 
                     if not isinstance(pattern_element_list, list):
@@ -197,9 +192,6 @@ class LoadCertificationDefinitions:
                                                        certifications)
 
 
-LoadCertificationDefinitions()
-
-
 class Certification:
     """
     Represents a single certification (i.e. 'G', General Admission). Includes
@@ -212,7 +204,7 @@ class Certification:
     """
     UNRATED_RANK: Final[int] = 0
     NOT_YET_RATED_RANK: Final[int] = 1
-    _logger: ClassVar[LazyLogger] = None
+    _logger: ClassVar[BasicLogger] = None
 
     def __init__(self, rank: int, label: str, label_id: int, age: int,
                  patterns: List[Pattern],
@@ -293,7 +285,7 @@ class Certification:
 
 class Certifications:
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, country_id: str, country_label: str,
                  certification_label: str, certification_label_id: int) -> None:
@@ -328,9 +320,9 @@ class Certifications:
         try:
             certification = self.get_certification_by_id(certification_id)
         except ValueError:
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.debug('Certification not found for:',
-                                  certification_id, 'assuming Not Rated')
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                cls._logger.debug(f'Certification not found for: {certification_id} '
+                                  'assuming Not Rated')
             certification = self._certifications[1]  # Default / Not Rated
 
         return certification
@@ -405,7 +397,7 @@ class Certifications:
 
     @staticmethod
     def filter(certification: Certification) -> bool:
-        '''
+        """
         Checks whether a film's certification is within the configured
         allowable range of certifications. The configurable settings
         are:
@@ -415,12 +407,12 @@ class Certifications:
 
         :param certification:
         :return:
-        '''
+        """
         passed = False
         #
         maximum_allowed_certification: int = Settings.get_rating_limit_setting()
 
-        # if Rating._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        # if Rating._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
         #    Rating._logger.enter('rating:', rating, 'limit:',
         #    maximum_allowed_certification)
 
@@ -454,6 +446,7 @@ class Certifications:
 
 
 class WorldCertifications:
+    DEFAULT_CERTIFICATION_COUNTRY_CODE = 'us'
     _certifications_by_country: Dict[str, Certifications] = {}
     _initialized: bool = False
     _lock: threading.RLock = threading.RLock()
@@ -482,7 +475,12 @@ class WorldCertifications:
 
         if country_id is None:
             country_id = Settings.get_country_iso_3166_1().lower()
-        return cls._certifications_by_country.get(country_id)
+        certifications: Certifications
+        certifications = cls._certifications_by_country.get(country_id)
+        if certifications is None:
+            country_id = cls.DEFAULT_CERTIFICATION_COUNTRY_CODE
+            certifications = cls._certifications_by_country.get(country_id)
+        return certifications
 
     @classmethod
     def get_certification_by_id(cls,
@@ -525,7 +523,7 @@ class WorldCertifications:
     def get_adult_certification(cls, country_id: str = None) -> Certification:
         certifications: Certifications = cls.get_certifications(country_id)
 
-        return certifications[-1]
+        return certifications.get_adult_certification()
 
     @classmethod
     def filter(cls, country_id: str = None, certification_id: str = '',
@@ -567,6 +565,9 @@ class WorldCertifications:
         return certification.get_preferred_id()
 
 
+LoadCertificationDefinitions()
+
+
 WorldCertifications()
 
 '''
@@ -592,7 +593,7 @@ TMDB ratings
       },
       {
         "certification": "R",
-        "meaning": "Under 17 requires accompanying parent or adult guardian 21 or 
+        "meaning": "Under 17 referenced_addons accompanying parent or adult guardian 21 or 
         older. The parent/guardian is required to stay with the child under 17 through 
         the entire movie, even if the parent gives the child/teenager permission to see 
         the film alone. These films may contain strong profanity, graphic sexuality, 
@@ -906,7 +907,7 @@ TMDB ratings
         "certification": "12",
         "meaning": "Home media only since 2002. 12A-rated films are usually given a 12 
         certificate for the VHS/DVD version unless extra material has been added that 
-        requires a higher rating. Nobody younger than 12 can rent or buy a 12-rated 
+        referenced_addons a higher rating. Nobody younger than 12 can rent or buy a 12-rated 
         VHS, DVD, Blu-ray Disc, UMD or game. The content guidelines are identical to 
         those used for the 12A certificate.",
         "order": 4

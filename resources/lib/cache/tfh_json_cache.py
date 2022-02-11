@@ -9,10 +9,10 @@ import threading
 
 from common.imports import *
 
-from common.logger import LazyLogger
+from common.logger import *
 from cache.base_reverse_index_cache import BaseReverseIndexCache
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TFHJsonCache(BaseReverseIndexCache):

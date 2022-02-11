@@ -17,14 +17,14 @@ import xmltodict
 
 from common.imports import *
 from common.constants import Constants
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from common.disk_utils import DiskUtils
 from common.movie import AbstractMovie
 from common.settings import (Settings)
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Playlist:
@@ -71,7 +71,7 @@ class Playlist:
 
     _playlist_lock: threading.RLock = threading.RLock()
     _playlists: Dict[str, 'Playlist'] = {}
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, *args: str, **kwargs: Any) -> None:
         """
@@ -124,7 +124,8 @@ class Playlist:
                     clz._logger.exception('')
 
             try:
-                self._file = io.open(self.path, mode=self.mode, buffering=1,
+                self._file = io.open(self.path.encode('utf-8'), mode=self.mode,
+                                     buffering=1,
                                      newline=None, encoding='utf-8')
             except Exception as e:
                 clz._logger.exception('')
@@ -134,7 +135,7 @@ class Playlist:
         playlist_dict = None
         try:
             if os.path.exists(self.path):
-                with io.open(self.path, mode='rt', newline=None,
+                with io.open(self.path.encode('utf-8'), mode='rt', newline=None,
                              encoding='utf-8') as playlist_file:
                     buffer = playlist_file.read()
                     playlist_dict = xmltodict.parse(buffer)
@@ -177,7 +178,8 @@ class Playlist:
         rule_list.append(new_rule)
         playlist_dict['smartplaylist']['rule'] = rule_list
         try:
-            with io.open(self.path, mode='wt', buffering=1, newline=None,
+            with io.open(self.path.encode('utf-8'), mode='wt', buffering=1,
+                         newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 
@@ -188,7 +190,8 @@ class Playlist:
     def write_playlist(self, playlist_dict: Dict[str, 'Playlist']) -> None:
         clz = type(self)
         try:
-            with io.open(self.path, mode=self.mode, buffering=1, newline=None,
+            with io.open(self.path.encode('utf-8'), mode=self.mode, buffering=1,
+                         newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 

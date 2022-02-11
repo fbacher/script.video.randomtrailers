@@ -22,14 +22,14 @@ import xbmcvfs
 from common.imports import *
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from common.movie import AbstractMovie, TMDbMovieId, BaseMovie
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class CachedPage:
@@ -417,7 +417,7 @@ class CacheParameters(CacheParametersType):
             try:
                 Monitor.throw_exception_if_abort_requested()
 
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     json_text = cls.to_json()
                     cacheFile.write(json_text)
@@ -511,13 +511,13 @@ class CacheParameters(CacheParametersType):
                     Settings.get_expire_remote_db_cache_entry_days())
 
                 if file_mod_time < expiration_time:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                        cls._logger.debug('cache file EXPIRED for:', path)
+                    if cls._logger.isEnabledFor(DEBUG):
+                        cls._logger.debug(f'cache file EXPIRED for: {path}')
                     return None
 
                 Monitor.throw_exception_if_abort_requested()
 
-                with io.open(path, mode='rt', newline=None,
+                with io.open(path.encode('utf-8'), mode='rt', newline=None,
                              encoding='utf-8') as cacheFile:
                     saved_preferences = json.load(cacheFile, encoding='utf-8')
                     saved_preferences = CacheParameters(saved_preferences)
@@ -571,7 +571,7 @@ class CachedPagesData:
         :param key:
         :param total_pages:
         """
-        self._logger: LazyLogger = module_logger.getChild(type(self).__name__)
+        self._logger: BasicLogger = module_logger.getChild(type(self).__name__)
         self._number_of_unsaved_changes: int = 0
         self._time_of_last_save = None
         self._key: str = key
@@ -581,8 +581,8 @@ class CachedPagesData:
         self._years_to_query = None
         self._search_pages_configured: bool = False
 
-        self._logger.debug('remote_db_cache_path:',
-                           Settings.get_remote_db_cache_path())
+        self._logger.debug(f'remote_db_cache_path: '
+                           f'{Settings.get_remote_db_cache_path()}')
         self._path: str = os.path.join(Settings.get_remote_db_cache_path(),
                                   'index', f'tmdb_{key}.json')
         self._temp_path: str = os.path.join(Settings.get_remote_db_cache_path(),
@@ -940,7 +940,7 @@ class CachedPagesData:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(temp_path, mode='wt', newline=None,
+                with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8') as cacheFile:
                     json_dict = self.to_json()
 
@@ -972,7 +972,7 @@ class CachedPagesData:
             except Exception as e:
                 self._logger.exception('')
 
-        self._logger.debug_verbose("Entries Saved: ", saved_pages)
+        self._logger.debug_verbose(f'Entries Saved: {saved_pages}')
 
     def load_search_pages(self) -> None:
         """
@@ -990,7 +990,8 @@ class CachedPagesData:
 
             if os.path.exists(path):
                 Monitor.throw_exception_if_abort_requested()
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     encoded_values = json.load(
                         cacheFile, encoding='utf-8',
@@ -1153,7 +1154,7 @@ class CacheIndex:
         return int(number_of_discovered_pages)
 
     @classmethod
-    def logger(cls) -> LazyLogger:
+    def logger(cls) -> BasicLogger:
         """
 
         :return:
@@ -1248,7 +1249,8 @@ class CacheIndex:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
             if os.path.exists(path):
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     found_trailers_list = json.load(
                         cacheFile, encoding='utf-8',
@@ -1298,7 +1300,7 @@ class CacheIndex:
                 parent_dir, file_name = os.path.split(path)
                 if not os.path.exists(parent_dir):
                     DiskUtils.create_path_if_needed(parent_dir)
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     found_trailer_id_list = list(
                         cls._found_tmdb_trailer_ids)
@@ -1409,7 +1411,8 @@ class CacheIndex:
             DiskUtils.create_path_if_needed(parent_dir)
 
             if os.path.exists(path):
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     unprocessed_trailers_list = json.load(
                         cacheFile, encoding='utf-8',
@@ -1457,7 +1460,7 @@ class CacheIndex:
                 parent_dir, file_name = os.path.split(path)
                 if not os.path.exists(parent_dir):
                     DiskUtils.create_path_if_needed(parent_dir)
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     unprocessed_trailer_ids = list(
                         cls._unprocessed_tmdb_trailer_ids)

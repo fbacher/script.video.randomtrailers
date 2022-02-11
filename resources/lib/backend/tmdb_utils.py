@@ -22,14 +22,14 @@ from common.minimal_monitor import MinimalMonitor
 from common.movie import LibraryMovie
 from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
-from common.logger import LazyLogger
+from common.logger import *
 from common.certification import WorldCertifications
 from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic, JsonReturnCode, Result)
 from common.utils import Delay
 from discovery.utils.parse_library import ParseLibrary
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TMDBMatcher:
@@ -37,10 +37,10 @@ class TMDBMatcher:
     #  TODO:  Add ability to convert 20000 to 20,000, etc.
 
     FILTER_TITLE_PATTERN = re.compile(r'(?:(?:the)|(?:a) )(.*)(?:[?!:-]?)')
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     class CandidateMovie:
-        _logger: LazyLogger = None
+        _logger: BasicLogger = None
 
         def __init__(self, tmdb_movie: [Dict[str, Any]],
                      tmdb_title: str,
@@ -101,7 +101,7 @@ class TMDBMatcher:
                     elif self._lower_title == filtered_movie_title:
                         score = 900
 
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(
                             f'tmdb_title: {self._lower_title}'
                             f' filtered: {filtered_tmdb_title}'
@@ -219,7 +219,7 @@ class TMDBMatcher:
                         MinimalMonitor.throw_exception_if_abort_requested(timeout=delay)
                         delay += delay
 
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 clz._logger.debug_extra_verbose(
                     f'Getting TMDB movie for title: {title} year: {year} '
                     f'runtime: {runtime_seconds}')
@@ -227,7 +227,7 @@ class TMDBMatcher:
             if result.get_data() is not None:
                 results = result.get_data().get('results', [])
                 if len(results) > 1:
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(
                             f'Got multiple matching movies: {title} '
                             f'year: {year} runtime: {runtime_seconds}')
@@ -253,7 +253,7 @@ class TMDBMatcher:
                         alt_title = (title['title'], title['iso_3166_1'])
                         alt_titles.append(alt_title)
 
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         clz._logger.debug_extra_verbose(
                             f'Matching Movie date: {tmdb_year}'
                             f' tmdb_title: {tmdb_title}'
@@ -296,8 +296,8 @@ class TMDBMatcher:
                 best_score = candidate.get_score()
                 best_match = candidate.get_movie()
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            title = 'Not Found: ' + self._title_to_match
+        if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            title = f'Not Found: {self._title_to_match}'
             if best_match is not None:
                 title = best_match[MovieField.TITLE]
 
@@ -358,7 +358,7 @@ class TMDBUtils:
         For movies that do not include the TMDb_id,
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     kodi_data_for_tmdb_id: Dict[int, TMDbIdForKodiId] = None  # Must be None!
     _library_json_cache: Type[BaseReverseIndexCache]
 
@@ -419,7 +419,7 @@ class TMDBUtils:
             pass  # Quietly die
 
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def _load_cache_worker(cls) -> None:
@@ -455,12 +455,11 @@ class TMDBUtils:
                 # Create partially populated LibraryMove to unify access.
                 # Remember that it is only partially populated!
 
-                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-                    cls._logger.debug_extra_verbose('Movie DUMP:',
-                                                    simplejson.dumps(
-                                                            movie_entry, indent=3,
-                                                            sort_keys=True))
-                # Debug.dump_dictionary(d=movie_entry, log_level=LazyLogger.DEBUG)
+                if cls._logger.isEnabledFor(DISABLED):
+                    dump: str = simplejson.dumps(movie_entry, indent=3,
+                                                 sort_keys=True)
+                    cls._logger.debug_extra_verbose(f'Movie DUMP: {dump}')
+                # Debug.dump_dictionary(d=movie_entry, level=DEBUG)
                 lib_parser = ParseLibrary(movie_entry)
                 title: str = lib_parser.parse_title()
                 kodi_file: str = lib_parser.parse_movie_path()
@@ -471,7 +470,7 @@ class TMDBUtils:
                 movie: LibraryMovie = lib_parser.get_movie()
                 tmdb_id: int = movie.get_tmdb_id()
                 kodi_id: int = movie.get_library_id()
-                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                if cls._logger.isEnabledFor(DISABLED):
                     cls._logger.debug_extra_verbose(f'title: {title} - {movie.get_title()} '
                                                     f'year: {year} - {movie.get_year()} '
                                                     f'tmdb_id: {tmdb_id} kodi-id: {kodi_id}')
@@ -481,6 +480,11 @@ class TMDBUtils:
                 if title is None or len(title) == 0 or year == 0:
                     cls._logger.debug(
                         f'The movie: {kodi_file} does not appear to be scraped')
+                    if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                        cls._logger.debug_extra_verbose(
+                            f'title: {title} - {movie.get_title()} '
+                            f'year: {year} - {movie.get_year()} '
+                            f'tmdb_id: {tmdb_id} kodi-id: {kodi_id}')
                     continue
 
                 if tmdb_id is None:
@@ -561,8 +565,8 @@ class TMDBUtils:
             reraise(*sys.exc_info())
 
         except Exception:
-            TMDBUtils._logger.exception('Error finding tmdb_id for movie:', title,
-                                        'year:', year)
+            TMDBUtils._logger.exception(f'Error finding tmdb_id for movie: {title} '
+                                        f'year: {year}')
 
         return tmdb_id
 

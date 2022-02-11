@@ -29,7 +29,7 @@ from common.exceptions import AbortException, CommunicationException, reraise
 from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.movie import TMDbMovieId, BaseMovie, TMDbMoviePageData
 from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
@@ -46,7 +46,7 @@ from discovery.tmdb_movie_data import TMDbMovieData
 from discovery.utils.parse_tmdb_page_data import ParseTMDbPageData
 from gc import garbage
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverTmdbMovies(BaseDiscoverMovies):
@@ -58,14 +58,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
     MOVIES_PER_PAGE: Final[int] = 20
 
     _singleton_instance: ForwardRef('DiscoverTmdbMovies') = None
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
 
         """
         clz = type(self)
-        type(self).logger: LazyLogger = module_logger.getChild(clz.__name__)
+        type(self).logger: BasicLogger = module_logger.getChild(clz.__name__)
         thread_name = 'Discover TMDB'
         kwargs = {MovieField.SOURCE: MovieField.TMDB_SOURCE}
 
@@ -103,7 +103,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         clz = type(self)
 
         self.start()
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(': started')
 
     @classmethod
@@ -137,7 +137,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     self.wait_until_restart_or_shutdown()
                     self.finished_discovery()
                     duration = datetime.datetime.now() - start_time
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                         clz.logger.debug_verbose(f'Time to discover: {duration.seconds} '
                                                  f'seconds',
                                                  trace=Trace.STATS)
@@ -146,7 +146,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         used_mb: float = float(used_memory) / 1000000.0
                         self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
                 except StopDiscoveryException:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                         clz.logger.debug_verbose('Stopping discovery')
                     # self.destroy()
                     finished = True
@@ -507,8 +507,13 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         page_data: MovieType = {}
         while not finished:
             try:
+                if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                    dump_json = True
+                else:
+                    dump_json = False
+
                 result: Result = JsonUtilsBasic.get_json(
-                    url, params=data)
+                    url, params=data, dump_results=dump_json)
 
                 s_code = result.get_api_status_code()
                 if s_code is not None:
@@ -520,7 +525,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
                     page_data = result.get_data()
                     if page_data is None:
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                        if clz.logger.isEnabledFor(DEBUG):
                             clz.logger.debug(f'page_data None status OK. Skipping page')
 
                 if status_code in (JsonReturnCode.FAILURE_NO_RETRY,
@@ -564,11 +569,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         movies: List[TMDbMoviePageData]
         movies = self.process_page(page_data, url=url)
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug('Search Query type:', tmdb_search_query,
-                             'TMDB movies:', total_results,
-                             'total_pages:', total_pages,
-                             'query_by_year:', query_by_year)
+        if clz.logger.isEnabledFor(DEBUG):
+            clz.logger.debug(f'Search Query type: {tmdb_search_query} '
+                             f'TMDB movies: {total_results} '
+                             f'total_pages: {total_pages} '
+                             f'query_by_year: {query_by_year}')
 
         return movies
 
@@ -658,9 +663,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 DiskUtils.RandomGenerator.shuffle(years_to_get)
                 cached_pages_data.set_years_to_query(years_to_get)
                 cached_pages_data.save_search_pages(flush=True)
-                clz.logger.debug('# years to get:',
-                                         len(years_to_get),
-                                         trace=Trace.TRACE_CACHE_PAGE_DATA)
+                clz.logger.debug(f'# years to get: {len(years_to_get)}',
+                                 trace=Trace.TRACE_CACHE_PAGE_DATA)
             #
             # Cache now has years to query
 
@@ -763,11 +767,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             # Grand total of TMDB pages for all of the years read
 
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('configuring search pages',
-                                 'query_by_year: True',
-                                 'total_pages_for_years:',
-                                 total_pages_for_years,
+            if clz.logger.isEnabledFor(DEBUG):
+                clz.logger.debug(f'configuring search pages query_by_year: True '
+                                 f'total_pages_for_years: {total_pages_for_years}',
                                  trace=Trace.TRACE_DISCOVERY)
 
             # Now that one page per year has been read and we also know
@@ -834,9 +836,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 except KeyError:
                     pages_for_year = []
                 except ValueError:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz.logger.isEnabledFor(DEBUG):
                         clz.logger.debug(f'ValueError: 1 {total_pages_in_year}  '
-                                        f'scaled_pages: {scaled_pages}')
+                                         f'scaled_pages: {scaled_pages}')
 
         if not query_by_year:
             # This is much easier. Just plan on what pages to read from TMDB.
@@ -858,8 +860,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                         search_pages, flush=True)
 
         cached_pages_data.set_search_pages_configured(flush=True)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug(f'SEARCH_PAGES_CONFIGURED: len(cached_pages_data): ',
+        if clz.logger.isEnabledFor(DEBUG):
+            clz.logger.debug(f'SEARCH_PAGES_CONFIGURED: {len(cached_pages_data)}: ',
                              f'{cached_pages_data.get_number_of_search_pages()} ',
                              trace=Trace.TRACE_DISCOVERY)
         return True  # finished
@@ -949,7 +951,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 except (AbortException, StopDiscoveryException):
                     reraise(*sys.exc_info())
                 except Exception as e:
-                    clz.logger.exception()
+                    clz.logger.exception(msg='')
 
                 # Get leftovers
 
@@ -968,7 +970,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
-            clz.logger.exception()
+            clz.logger.exception(msg='')
 
     def send_cached_movies_to_discovery(self) -> None:
         """
@@ -1012,7 +1014,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # TMDb
             additional_movies_to_get -= len(tmdb_movies)
             
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 clz.logger.debug_verbose(
                     f"Sending {len(tmdb_movies)} TMDb movies with trailers to "
                     f"discovery. Additional to get: {additional_movies_to_get} "
@@ -1157,7 +1159,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     except (AbortException, StopDiscoveryException):
                         reraise(*sys.exc_info())
                     except Exception as e:
-                        clz.logger.exception()
+                        clz.logger.exception(msg='')
 
                     # Get leftovers
 
@@ -1183,7 +1185,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:
-                clz.logger.exception()
+                clz.logger.exception(msg='')
             '''
 
     def discover_movies_using_search_pages(self,
@@ -1234,9 +1236,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 pages_in_chunk = min(pages_in_chunk, len(search_pages))
                 search_pages = search_pages[:pages_in_chunk]
 
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('length of year/page pairs:',
-                                     len(search_pages),
+                if clz.logger.isEnabledFor(DEBUG):
+                    clz.logger.debug(f'length of year/page pairs: {len(search_pages)}',
                                      trace=Trace.TRACE_CACHE_PAGE_DATA)
 
                 for cached_page in search_pages:
@@ -1252,7 +1253,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         break
                     self.throw_exception_on_forced_to_stop()
                     year = cached_page.get_year()
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz.logger.isEnabledFor(DEBUG):
                         clz.logger.debug(f'Getting trailers for year: {year} '
                                          f'page: {cached_page.get_page_number()}',
                                          trace=Trace.TRACE_CACHE_PAGE_DATA)
@@ -1370,7 +1371,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
-            clz.logger.exception()
+            clz.logger.exception(msg='')
         return more_to_get
 
     def is_exceeded_limit_of_trailers(self) -> bool:
@@ -1727,7 +1728,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         try:
             page: CachedPage
             for page in pages_to_get:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                if clz.logger.isEnabledFor(DEBUG):
                     clz.logger.debug(f'year: {year} page: {page.get_page_number()}')
 
                 # Pages are read faster at the beginning, then progressively
@@ -1817,7 +1818,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 number_of_movies_processed += len(movies)
                 DiskUtils.RandomGenerator.shuffle(movies)
                 clz.logger.debug(f'adding {len(movies)} movies to unprocessed and '
-                                 f'discoverved_movies')
+                                 f'discovered_movies')
                 CacheIndex.add_unprocessed_tmdb_movies(movies)
                 self.add_to_discovered_movies(movies)
                 cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
@@ -1853,8 +1854,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             :param viewed_page:
             """
             clz = type(self)
-            clz.logger = module_logger.getChild(
-                self.__class__.__name__)
+            clz.logger = module_logger.getChild(self.__class__.__name__)
             self._total_pages = total_pages
             self._viewed_page = viewed_page
 
@@ -1916,14 +1916,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             total_pages: int = page_data.get('total_pages', -1)
             movie_entries: Dict[str, MovieType] = page_data.get('results', None)
             if total_pages == -1:
-                clz.logger.error('total_pages missing',
-                                 json.dumps(page_data, indent=3, sort_keys=True))
+                dump: str = json.dumps(page_data, indent=3, sort_keys=True)
+                clz.logger.error(f'total_pages missing {dump}')
 
             if movie_entries is None:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('results not found. URL:',
-                                     url, 'returned value:',
-                                     json.dumps(page_data))
+                if clz.logger.isEnabledFor(DEBUG):
+                    clz.logger.debug(f'results not found. URL: {url} '
+                                     f'returned value: '
+                                     f'{json.dumps(page_data, indent=3, sort_keys=True)}')
             else:
                 # Shuffling is done later, but this helps keep the first few
                 # (about 3) displayed being the same thing all of the time
@@ -1932,21 +1932,21 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 movie_entry: MovieType
                 for movie_entry in movie_entries:
                     try:
-                        if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                            clz.logger.debug_extra_verbose('entry:',
-                                                           json.dumps(movie_entry,
-                                                                      indent=3,
-                                                                      sort_keys=True))
+                        if clz.logger.isEnabledFor(DISABLED):
+                            dump: str = json.dumps(movie_entry, indent=3,
+                                                   sort_keys=True)
+                            clz.logger.debug_extra_verbose(f'entry: {dump}')
                         self.throw_exception_on_forced_to_stop()
 
-                        movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(movie_entry)
+                        movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(
+                                movie_entry)
                         movie_id: int = movie_summary_parser.parse_tmdb_id()
 
                         movie_summary_parser.parse_total_number_of_pages()
                         movie_title: str = movie_summary_parser.parse_title()
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                             clz.logger.debug_verbose(
-                                'Processing:', movie_title)
+                                f'Processing: {movie_title}')
 
                         year: int = movie_summary_parser.parse_year()
                         popularity: float = movie_summary_parser.parse_popularity()
@@ -1971,7 +1971,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     except AbortException:
                         reraise(*sys.exc_info())
                     except Exception as e:
-                        clz.logger.exception()
+                        clz.logger.exception(msg='')
 
         except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
@@ -2056,7 +2056,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             # Delay ten minutes per 1000 read
             delay = float(10 * 60 * number_of_unprocessed_movies / 1000)
 
-        if self._calls_to_delay % 10 == 0 and clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if self._calls_to_delay % 10 == 0 and clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(
                 f'Delay: {delay} unprocessed_movies: {number_of_unprocessed_movies} '
                 f'pages: {self._total_pages_read} number_of_movies_in_fetch_queue: '
@@ -2086,7 +2086,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
         clz = type(self)
 
-        clz.logger.enter()
+        clz.logger.debug('enter')
 
         restart_needed: bool = False
         if Settings.is_include_tmdb_trailers():

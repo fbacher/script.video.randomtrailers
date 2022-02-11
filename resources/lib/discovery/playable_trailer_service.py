@@ -16,7 +16,7 @@ from common.disk_utils import DiskUtils
 from common.exceptions import AbortException
 from common.imports import *
 from common.monitor import Monitor
-from common.logger import Trace, LazyLogger
+from common.logger import *
 from common.movie import AbstractMovie
 from common.movie_constants import MovieField
 
@@ -28,7 +28,7 @@ from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.playable_trailers_container import PlayableTrailersContainer
 from discovery.utils.recently_played_trailers import RecentlyPlayedTrailers
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayableTrailerService:
@@ -43,7 +43,7 @@ class PlayableTrailerService:
         Discovery classes for the various TrailerManager subclasses. The
         interfaces would be largely the same.
     """
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
@@ -104,9 +104,9 @@ class PlayableTrailerService:
                     finished = True
                 except StopDiscoveryException:
                     Monitor.throw_exception_if_abort_requested(timeout=0.10)
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                         clz.logger.debug_verbose(
-                            'Rediscovery in progress. attempt:', attempt)
+                            f'Rediscovery in progress. attempt: {attempt}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -183,10 +183,10 @@ class PlayableTrailerService:
             try:
                 trailer_index_to_play = DiskUtils.RandomGenerator.randint(
                     0, total_number_of_trailers - 1)
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
+                if clz.logger.isEnabledFor(DISABLED):
                     clz.logger.debug_extra_verbose(
-                        'PlayableTrailerService.next trailer_index_to_play:',
-                        trailer_index_to_play)
+                        f'PlayableTrailerService.next trailer_index_to_play: '
+                        f'{trailer_index_to_play}')
             except ValueError as e:  # Empty range
                 Monitor.throw_exception_if_abort_requested(timeout=0.01)
                 continue
@@ -215,15 +215,15 @@ class PlayableTrailerService:
                 except AbortException:
                     reraise(*sys.exc_info())
                 except Exception as e:
-                    clz.logger.log_exception(e)
+                    clz.logger.exception(e)
             try:
-                if attempts > 1 and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if attempts > 1 and clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     clz.logger.debug_verbose(
-                        'PlayableTrailerService.next Attempt:', attempts,
-                        'manager:', found_playable_trailers.__class__.__name__)
+                        f'PlayableTrailerService.next Attempt: {attempts} '
+                        f'manager: {found_playable_trailers.__class__.__name__}')
                 trailer = found_playable_trailers.get_next_movie()
             except queue.Empty:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     clz.logger.debug_verbose(f'source queue empty {source}')
                 # found_playable_trailers.set_starving(True)
                 trailer = None
@@ -243,7 +243,7 @@ class PlayableTrailerService:
             second loop.
 
             """
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 clz.logger.debug_verbose('Trailer not found by preferred method',
                                          trace=Trace.TRACE)
 
@@ -273,20 +273,20 @@ class PlayableTrailerService:
                     continue
                 try:
                     if (second_method_attempts > 1
-                            and clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
+                            and clz.logger.isEnabledFor(DEBUG_VERBOSE)):
                         clz.logger.debug_verbose(
                             f'PlayableTrailerService.next Attempt: '
                             f'{second_method_attempts} '
                             f'manager: {playable_trailers.__class__.__name__}')
                     trailer = playable_trailers.get_next_movie()
                 except queue.Empty:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                         clz.logger.debug_verbose(f'source queue empty {source}')
                     # playable_trailers.set_starving(True)
                     trailer = None
 
                 if trailer is not None:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         clz.logger.debug_extra_verbose(f'movie: '
                                                        f'{trailer.get_title()} '
                                                        f'found in second method '
@@ -314,7 +314,7 @@ class PlayableTrailerService:
             sets starving on second traversal.
             
             """
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 clz.logger.debug_verbose('Trailer not found by preferred method',
                                          trace=Trace.TRACE)
 
@@ -344,7 +344,7 @@ class PlayableTrailerService:
 
                     trailer = RecentlyPlayedTrailers.get_recently_played()
                     if trailer is not None:
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                             clz.logger.debug_verbose(f'movie: {trailer.get_title()} '
                                                      f'found in third method')
                         break
@@ -362,7 +362,7 @@ class PlayableTrailerService:
                                 and playable_trailers.get_number_of_playable_movies() == 0
                                 and movie_data.get_number_of_movies() > 0
                                 and playable_trailers.is_playable_trailers()):
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                                 clz.logger.debug_verbose(f'Shuffling because '
                                                          f'discoveredTrailerQueue empty '
                                                          f'source: {source}',
@@ -404,7 +404,7 @@ class PlayableTrailerService:
             title = trailer.get_title() + ' : ' + trailer.get_trailer_path()
             if (self._previous_title == title and
                     RecentlyPlayedTrailers.get_number_of_trailers() > 1):
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     clz.logger.debug_verbose(f'Skipping previously played: {title}')
                 trailer = None
                 self._previous_title = ''  # Don't do twice in a row
@@ -422,7 +422,7 @@ class PlayableTrailerService:
         if trailer is None:
             raise StopIteration()
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
             clz.logger.debug_verbose(f'Playing: {trailer.get_detail_title()} '
                                      f'type: {type(trailer)} '
                                      f'trailer: {trailer.get_optimal_trailer_path()}',
@@ -431,7 +431,7 @@ class PlayableTrailerService:
         # Periodically report on played movie statistics
 
         self._played_movies_count += 1
-        if clz.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+        if Trace.is_enabled(Trace.TRACE_PLAY_STATS):
             if (self._played_movies_count % 100) == 0:
                 PlayStatistics.report_play_count_stats()
 
@@ -487,7 +487,7 @@ class PlayableTrailerService:
             self.throw_exception_on_forced_to_stop(movie_data=movie_data)
             number_of_trailers: int = movie_data.get_number_of_trailers()
             trailers_queue_size = movie_data.get_discovered_trailer_queue_size()
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            if clz.logger.isEnabledFor(DEBUG):
                 number_of_movies: int = movie_data.get_number_of_movies()
                 ready_to_play_queue_size: int = \
                     playable_trailers.get_ready_to_play_queue().qsize()
@@ -509,11 +509,10 @@ class PlayableTrailerService:
             previous_projected_size: int = playable_trailers.previous_projected_size
 
             if (previous_projected_size != projected_size
-                    and clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+                    and clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)
                     and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
-                clz.logger.debug_extra_verbose('source:', source,
-                                               'projected size:',
-                                               projected_size,
+                clz.logger.debug_extra_verbose(f'source: {source} ' 
+                                               f'projected size: {projected_size}',
                                                trace=Trace.TRACE_PLAY_STATS)
             playable_trailers.previous_projected_size = previous_projected_size
             total_number_of_trailers += projected_size
@@ -524,21 +523,21 @@ class PlayableTrailerService:
 
             if (trailers_queue_size == 0
                     and playable_trailers.is_playable_trailers()):
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     clz.logger.debug('Shuffling because discoveredTrailerQueue empty',
                                      trace=Trace.TRACE_DISCOVERY)
                 movie_data.shuffle_discovered_movies(mark_unplayed=True)
                 playable_trailers.set_shuffled()
 
-        if (clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)
+        if (clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)
                 and Trace.is_enabled(Trace.TRACE_PLAY_STATS)):
-            clz.logger.debug_extra_verbose('total_number_of_trailers:',
-                                           total_number_of_trailers,
-                                           Trace.TRACE_PLAY_STATS)
+            clz.logger.debug_extra_verbose(f'total_number_of_trailers: '
+                                           f'{total_number_of_trailers}',
+                                           trace=Trace.TRACE_PLAY_STATS)
         if nothing_to_play:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('Nothing to Play! numTrailers:',
-                                         total_number_of_trailers)
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                clz.logger.debug_verbose(f'Nothing to Play! numTrailers: '
+                                         f'{total_number_of_trailers}')
             raise StopIteration()
 
         return projected_sizes_map
@@ -555,7 +554,7 @@ class PlayableTrailerService:
         clz = type(self)
         Monitor.throw_exception_if_abort_requested(timeout=delay)
         if movie_data is not None and movie_data.stop_discovery_event.isSet():
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('StopDiscoveryException source:',
-                                         movie_data.get_movie_source())
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                clz.logger.debug_verbose(f'StopDiscoveryException source: '
+                                         f'{movie_data.get_movie_source()}')
             raise StopDiscoveryException()

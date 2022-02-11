@@ -15,10 +15,10 @@ from common.movie import (AbstractMovieId, TMDbMovieId, TMDbMovie, LibraryMovieI
                           LibraryMovie)
 import threading
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LibraryTrailerIndex(BaseTrailerIndex):
@@ -55,7 +55,7 @@ class LibraryTrailerIndex(BaseTrailerIndex):
         :return:
          """
         # cls._logger.debug(f'item_id: {item_id} reverse_id: {reverse_id}')
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+        if cls._logger.isEnabledFor(DISABLED):
             cls._logger.debug(f'library id: {movie.get_library_id()} '
                               f'tmdb id: {movie.get_tmdb_id()} type: {type(movie)} '
                               f'has_local: '
@@ -161,7 +161,7 @@ class LibraryTrailerIndex(BaseTrailerIndex):
             values: List[LibraryMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_non_local_trailers(cls) -> List[LibraryMovieId]:
@@ -171,7 +171,7 @@ class LibraryTrailerIndex(BaseTrailerIndex):
             values: List[LibraryMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def get_all_with_no_known_trailers(cls) -> List[LibraryMovieId]:
@@ -181,7 +181,7 @@ class LibraryTrailerIndex(BaseTrailerIndex):
             values: List[LibraryMovieId]
             return values
         except Exception:
-            cls._logger.exception()
+            cls._logger.exception(msg='')
 
     @classmethod
     def clear(cls) -> None:

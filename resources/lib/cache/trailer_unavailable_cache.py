@@ -23,12 +23,12 @@ import xbmcvfs
 from diagnostics.statistics import (Statistics)
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import (LazyLogger)
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TrailerUnavailableCache:
@@ -69,7 +69,7 @@ class TrailerUnavailableCache:
         values = {MovieField.UNIQUE_ID_TMDB: tmdb_id,
                   'timestamp': datetime.date.today()
                   }
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_VERBOSE):
             values[MovieField.MOVIEID] = library_id
             values[MovieField.TITLE] = title
             values[MovieField.YEAR] = year
@@ -109,7 +109,7 @@ class TrailerUnavailableCache:
             'timestamp': datetime.date.today()
         }
 
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if cls._logger.isEnabledFor(DEBUG_VERBOSE):
             values[MovieField.UNIQUE_ID_TMDB] = tmdb_id
             values[MovieField.TITLE] = title
             values[MovieField.YEAR] = year
@@ -282,7 +282,7 @@ class TrailerUnavailableCache:
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
 
-                    with io.open(temp_path, mode='wt', newline=None,
+                    with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
                         json_text = \
                             json.dumps(cls._all_missing_tmdb_trailers,
@@ -342,7 +342,7 @@ class TrailerUnavailableCache:
                     if not os.path.exists(parent_dir):
                         DiskUtils.create_path_if_needed(parent_dir)
 
-                    with io.open(temp_path, mode='wt', newline=None,
+                    with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                                  encoding='utf-8', ) as cacheFile:
 
                         # TODO: Need ability to interrupt when ABORT. Object_handler
@@ -436,7 +436,7 @@ class TrailerUnavailableCache:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 if os.path.exists(path):
-                    with io.open(path, mode='rt',
+                    with io.open(path.encode('utf-8'), mode='rt',
                                  newline=None,
                                  encoding='utf-8') as cacheFile:
                         cls._all_missing_tmdb_trailers = json.load(
@@ -461,9 +461,9 @@ class TrailerUnavailableCache:
                 parent_dir, file_name = os.path.split(path)
                 DiskUtils.create_path_if_needed(parent_dir)
                 if os.path.exists(path):
-                    with io.open(path, mode='rt',
-                                           newline=None,
-                                           encoding='utf-8') as cacheFile:
+                    with io.open(path.encode('utf-8'), mode='rt',
+                                 newline=None,
+                                 encoding='utf-8') as cacheFile:
                         cls._all_missing_library_trailers = json.load(
                             cacheFile, encoding='utf-8',
                             object_hook=TrailerUnavailableCache.datetime_parser)

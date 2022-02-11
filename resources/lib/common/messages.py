@@ -8,9 +8,9 @@ Created on Feb 28, 2019
 import xbmcaddon
 from common.imports import *
 from common.constants import Constants
-from common.logger import LazyLogger
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Messages:
@@ -199,7 +199,7 @@ class Messages:
 
     _instance = None
     _debug_dump: bool = False
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls) -> None:
@@ -235,7 +235,7 @@ class Messages:
                 unformatted_msg: str = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
                     msg_number)
                 if (unformatted_msg != ""
-                        and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                        and cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
                     cls._logger.debug_extra_verbose('found msg:', msg_number,
                                                     unformatted_msg)
             Messages._debug_dump = False
@@ -249,7 +249,7 @@ class Messages:
         if msg_id is None:
             msg_id = Messages._msg_id_for_name.get(msg_key, None)
         if msg_id is None:
-            if cls._logger.isEnabledFor(LazyLogger.ERROR):
+            if cls._logger.isEnabledFor(ERROR):
                 cls._logger.error(
                     'Can not find msg_id_for_name for message key: {}'.format(msg_key))
                 unformatted_msg = msg_key
@@ -258,12 +258,12 @@ class Messages:
                 Constants.ADDON_ID).getLocalizedString(msg_id)
             if unformatted_msg == '':
                 unformatted_msg = msg_key
-                if cls._logger.isEnabledFor(LazyLogger.ERROR):
+                if cls._logger.isEnabledFor(ERROR):
                     cls._logger.error(
                         'Can not find message from strings for message id: {} msg_key: {}'
                         .format(msg_id, msg_key))
                     unformatted_msg = msg_key
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    if cls._logger.isEnabledFor(DEBUG):
                         unformatted_msg += '_dm'
 
         try:

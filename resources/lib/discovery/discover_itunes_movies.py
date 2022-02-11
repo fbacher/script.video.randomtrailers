@@ -21,7 +21,7 @@ from common.imports import *
 from common.monitor import Monitor
 from common.movie import ITunesMovie, RawMovie
 from common.movie_constants import MovieField
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.settings import Settings
 from common.utils import Utils
 from discovery.utils.itunes_filter import ITunesFilter
@@ -38,14 +38,14 @@ from discovery.utils.parse_itunes import ParseITunes
 STRIP_TZ_PATTERN: Final[Pattern] = re.compile(' .[0-9]{4}$')
 EPOCH_TIME: Final[datetime.datetime] = datetime.datetime(1970, 1, 1, 0, 1)
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverItunesMovies(BaseDiscoverMovies):
     """
 
     """
-    logger: ClassVar[LazyLogger] = None
+    logger: ClassVar[BasicLogger] = None
 
     def __init__(self) -> None:
         """
@@ -80,8 +80,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             Rediscover trailers if the changed settings impacts this manager.
         """
         clz = type(self)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.enter()
+        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose('Enter')
 
         try:
             if Settings.is_itunes_loading_settings_changed():
@@ -132,7 +132,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
                     self.finished_discovery()
                     duration: datetime.timedelta = datetime.datetime.now() - start_time
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG) and Trace.is_enabled(
+                    if clz.logger.isEnabledFor(DEBUG) and Trace.is_enabled(
                             Trace.STATS):
                         clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
                                          trace=Trace.STATS)
@@ -146,7 +146,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 except StopDiscoveryException:
                     # Stopping discovery, probably settings changed
 
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                         clz.logger.debug_verbose('Stopping discovery')
                     # self.destroy()
                     # GarbageCollector.add_thread(self)
@@ -168,7 +168,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # Send any cached TMDB trailers to the discovered list first,
             # since they require least processing.
 
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 clz.logger.debug_verbose(
                     "Sending cached TMDB trailers to discovered list")
 
@@ -207,7 +207,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         try:
             # Send any unprocessed TMDB trailers to the discovered list
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 clz.logger.debug_verbose(
                     "Sending unprocessed movies to discovered list")
 
@@ -215,7 +215,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             discovery_needed_movies: List[MovieType] = []
             unprocessed_movies = ItunesCacheIndex.get_unprocessed_movies()
             for movie in unprocessed_movies.values():
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
                         cert = movie.get(Movie.MPAA, 'none')
                         clz.logger.debug_extra_verbose('No certification. Title:',
@@ -273,16 +273,16 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
 
         show_only_itunes_trailers_of_this_type = \
             Settings.get_include_itunes_trailer_type()
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            clz.logger.debug_extra_verbose('iTunesTrailer_type:',
-                                           show_only_itunes_trailers_of_this_type)
+        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose(f'iTunesTrailer_type: '
+                                           f'{show_only_itunes_trailers_of_this_type}')
 
         # Get index of all current trailers for given type
 
         json_url = iTunes.get_url_for_trailer_type(
             show_only_itunes_trailers_of_this_type)
         json_url = f'{APPLE_URL_PREFIX}{json_url}'
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             clz.logger.debug_extra_verbose(f'iTunes json_url {json_url}')
         attempts: int = 0
         parsed_content: Dict[str, Any] = None
@@ -313,7 +313,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             if status_code == JsonReturnCode.RETRY:
                 clz.logger.debug_extra_verbose(f'iTunes call failed RETRY')
                 Monitor.throw_exception_if_abort_requested(timeout=float(timeout))
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                if clz.logger.isEnabledFor(DEBUG):
                     clz.logger.debug(f'Itunes read attempt {attempts}'
                                      f' failed waiting {timeout} seconds')
 
@@ -322,7 +322,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 finished = True
 
         if parsed_content is None:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            if clz.logger.isEnabledFor(DEBUG):
                 clz.logger.debug(f'Failed to get trailers from iTunes.'
                                  f' giving up.')
             finished = True
@@ -369,7 +369,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         #
         # Create Kodi movie entries from what iTunes has given us.
         #
-        # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        # if clz.logger.isEnabledFor(DEBUG):
         #   clz.logger.debug('Itunes parsed_content type:',
         #                type(parsed_content).__name__)
 
@@ -390,8 +390,8 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                 release_date: datetime.date = itunes_parser.parse_release_date()
                 year: int = itunes_parser.parse_year()
 
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                    clz.logger.debug_extra_verbose('value: ', itunes_movie)
+                if clz.logger.isEnabledFor(DISABLED):
+                    clz.logger.debug_extra_verbose(f'value: {itunes_movie}')
                 # If we have seen this before, then skip it.
 
                 if title is None or self.is_duplicate(title):
@@ -434,7 +434,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                            release_date=release_date)
 
                 if rc == 0 and movie is not None:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                         Debug.validate_basic_movie_properties(
                             movie)
                     self.add_to_discovered_movies(movie)
@@ -552,7 +552,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                         BaseCache.write_cache_json(raw_movie)
                     '''
                    # Debug.dump_json('downloadable_trailer', downloadable_trailer,
-                   #                  LazyLogger.DEBUG)
+                   #                  DEBUG)
                     Monitor.throw_exception_if_abort_requested()
                     keep_promotion = True
                     media_type = downloadable_trailer.get(
@@ -571,43 +571,43 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     upload_date = downloadable_trailer['upload_date']
 
                     if rt_media_type not in MovieField.TRAILER_TYPES:
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                             clz.logger.debug_verbose(f'Rejecting {title} due to '
                                                      f'media-type: '
                                                      f'{media_type}')
                         continue
                     if language != '' and language != current_language:
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                             clz.logger.debug_verbose(f'Rejecting {title} media-type: '
                                                      f'{media_type} due to language: '
                                                      f'{language}')
                         continue
                     elif (language == '' and
-                            clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)):
+                            clz.logger.isEnabledFor(DEBUG_VERBOSE)):
                         clz.logger.debug_verbose(f'Empty language specified for: {title} '
                                                  f'from media-type: {media_type}')
                     if (not Settings.get_include_clips() and
                             rt_media_type == MovieField.TRAILER_TYPE_CLIP):
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 f'Rejecting {title} due to clip')
                         keep_promotion = False
                     elif not Settings.get_include_featurettes() and (
                             rt_media_type == MovieField.TRAILER_TYPE_FEATURETTE):
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 f'Rejecting {title} due to Featurette')
                         keep_promotion = False
                     elif not Settings.get_include_teasers() and (
                             rt_media_type == MovieField.TRAILER_TYPE_TEASER):
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                             clz.logger.debug_verbose(
                                 f'Rejecting {title} due to Teaser')
                         keep_promotion = False
                     elif ((Settings.get_include_itunes_trailer_type() ==
                            iTunes.COMING_SOON) and
                           (release_date < datetime.date.today())):
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             clz.logger.debug_extra_verbose(
                                 f'Rejecting {title} due to COMING_SOON and already '
                                 f'released')
@@ -616,18 +616,18 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                     if keep_promotion:
                         for promotion_format in downloadable_trailer['formats']:
                             #Debug.dump_json('kept promotion format',
-                            # promotion_format, LazyLogger.DEBUG)
+                            # promotion_format, DEBUG)
 
                             language = promotion_format.get('language', '')
                             height = promotion_format.get('height', 0)
                             url = promotion_format.get('url', '')
 
                             if Utils.is_trailer_from_cache(url):
-                                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                                if clz.logger.isEnabledFor(DEBUG):
                                     clz.logger.debug('test passed')
 
                             if language != '' and language != current_language:
-                                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                                     clz.logger.debug_verbose(f'Rejecting {title} due to '
                                                              f'language: {language} '
                                                              f'from media-type: '
@@ -635,10 +635,11 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                                                              f'format')
                                     continue
                             elif language == '' and clz.logger.isEnabledFor(
-                                    LazyLogger.DEBUG_VERBOSE):
-                                clz.logger.debug_verbose('Empty language specified for:',
-                                                         title, 'from media-type:',
-                                                         media_type, 'format:', format)
+                                    DEBUG_VERBOSE):
+                                clz.logger.debug_verbose(f'Empty language specified for: '
+                                                         f'{title} from '
+                                                         f'media-type: {media_type} '
+                                                         f'format: {format}')
 
                             promotion: MovieType = {
                                     'type': rt_media_type,
@@ -652,13 +653,13 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
                             promotions.append(promotion)
                             media_types_map[rt_media_type].append(promotion)
                 except KeyError:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.exception()
-                        clz.logger.debug('KeyError from json:',
-                                         json.dumps(downloadable_trailer,
+                    if clz.logger.isEnabledFor(DEBUG):
+                        clz.logger.exception(msg='')
+                        dump: str =  json.dumps(downloadable_trailer,
                                                     encoding='utf-8',
                                                     ensure_ascii=False,
-                                                    indent=3, sort_keys=True))
+                                                    indent=3, sort_keys=True)
+                        clz.logger.debug('KeyError from json: {dump}')
 
             # Now have finished digesting data. Only acceptable media
             # remains. Pick the best promotional media.
@@ -684,15 +685,18 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
             # Get best resolution
             best_height = 0
             for promotion in promotions:
-                if promotion['height'] > best_height:
-                    best_height = promotion['height']
-                    del best_promotions[:]
-                if promotion['height'] == best_height:
-                    best_promotions.append(promotion)
+                try:
+                    if promotion.get('height', 0) > best_height:
+                        best_height = promotion.get('height', 0)
+                        del best_promotions[:]
+                    if promotion['height'] == best_height:
+                        best_promotions.append(promotion)
+                except:
+                    pass
 
             if len(best_promotions) > 0:
                 chosen_promotion = best_promotions[0]
-                # Debug.dump_json('chosen promotion', chosen_promotion, LazyLogger.DEBUG)
+                # Debug.dump_json('chosen promotion', chosen_promotion, DEBUG)
 
                 '''
                     raw_movie: RawMovie
@@ -733,7 +737,7 @@ class DiscoverItunesMovies(BaseDiscoverMovies):
         """
 
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug(f'Enter')
 
         restart_needed: bool = False
         if Settings.is_include_itunes_trailers():

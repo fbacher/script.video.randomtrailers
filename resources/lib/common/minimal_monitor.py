@@ -24,7 +24,7 @@ class MinimalMonitor(xbmc.Monitor):
               has occured. Other threads, via Monitor.py utilize this.
 
         During startup, we try to reduce dependencies. So here we use xbmc.log
-        instead of LazyLogger.
+        instead of BasicLogger.
 
 
         See Monitor.py for higher level methods
@@ -121,7 +121,7 @@ class MinimalMonitor(xbmc.Monitor):
         :return:
 
         Note: Included in minimal_monitor so that startup code can
-              call without dragging in LazyLogger.
+              call without dragging in BasicLogger.
         """
         #  cls.track_wait_call_counts()
         if cls._abort_received.wait(timeout=timeout):

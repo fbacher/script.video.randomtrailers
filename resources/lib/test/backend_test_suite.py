@@ -8,12 +8,12 @@ import unittest
 import sys
 
 from common.imports import *
-from test.common.test_logger import (LazyLoggerTestCase)
+from test.common.test_logger import (BasicLoggerTestCase)
 
 
 class BackendTestSuite(unittest.TestSuite):
     def __init__(self):
-        suite = unittest.makeSuite(LazyLoggerTestCase, 'test')
+        suite = unittest.makeSuite(BasicLoggerTestCase, 'test')
 
         super().__init__(suite)
 

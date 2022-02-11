@@ -8,9 +8,9 @@ Created on Feb 10, 2019
 
 from common.imports import *
 from backend.json_utils_basic import JsonUtilsBasic
-from common.logger import LazyLogger
+from common.logger import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class JsonUtils(JsonUtilsBasic):
@@ -32,7 +32,7 @@ class JsonUtils(JsonUtilsBasic):
         making requests
     """
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls) -> None:
@@ -88,9 +88,9 @@ class JsonUtils(JsonUtilsBasic):
             stop = datetime.datetime.now()
             read_time = stop - start
             Statistics.add_json_read_time(int(read_time.microseconds / 10000))
-            # if JsonUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            #    JsonUtils._logger.debug_extra_verbose('json cache read time:',
-            #                                          read_time.microseconds / 10000,
+            # if JsonUtils._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            #    JsonUtils._logger.debug_extra_verbose(f'json cache read time: '
+            #                                          f'{read_time.microseconds / 10000}'
             #                                          'ms')
             if trailer_data is not None:
                 trailer_data[Movie.CACHED] = True

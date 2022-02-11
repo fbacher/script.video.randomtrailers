@@ -19,18 +19,18 @@ from common.movie_constants import MovieField
 from common.exceptions import AbortException, CommunicationException
 from common.imports import *
 from common.settings import Settings
-from common.logger import LazyLogger
+from common.logger import *
 from cache.cache import Cache
 from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import (TrailerUnavailableCache)
 from diagnostics.statistics import Statistics
 from discovery.utils.parse_tmdb import ParseTMDb
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class TMDbMovieDownloader:
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls):
@@ -66,16 +66,16 @@ class TMDbMovieDownloader:
 
         tmdb_movie: TMDbMovie
         rejection_reasons: List[int] = []
-        if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            cls._logger.debug_verbose('title:', movie_title, 'tmdb_id:', tmdb_id,
-                                      'library_id:', library_id, 'ignore_failures:',
-                                      ignore_failures)
+        if cls._logger.isEnabledFor(DEBUG_VERBOSE):
+            cls._logger.debug_verbose(f'title: {movie_title} tmdb_id: {tmdb_id} '
+                                      f'library_id: {library_id} '
+                                      f'ignore_failures: {ignore_failures}')
 
         if tmdb_id is None:
             rejection_reasons.append(MovieField.REJECTED_NO_TMDB_ID)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                cls._logger.exit(
-                    'No tmdb_id for movie:', movie_title)
+            if cls._logger.isEnabledFor(DEBUG_VERBOSE):
+                cls._logger.debug(
+                    f'No tmdb_id for movie: {movie_title}')
             return rejection_reasons, None
 
         tmdb_id_str = str(tmdb_id)
@@ -85,9 +85,9 @@ class TMDbMovieDownloader:
             CacheIndex.remove_unprocessed_movie(tmdb_id_int)
             rejection_reasons.append(MovieField.REJECTED_NO_TRAILER)
             if not ignore_failures:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    cls._logger.exit(
-                        'No trailer found for movie:', movie_title)
+                if cls._logger.isEnabledFor(DEBUG_VERBOSE):
+                    cls._logger.debug(
+                        f'No trailer found for movie: {movie_title}')
                 return rejection_reasons, None
 
         # Query The Movie Db for Credits, Trailers and Releases for the
@@ -127,9 +127,9 @@ class TMDbMovieDownloader:
             cls._logger.exception(
                 f'Error getting info for tmdb_id: {tmdb_id_str}')
 
-        cls._logger.exit(f'Finished processing movie: {movie_title}'
-                         f' year:{tmdb_movie.get_year()} movie returned: '
-                         f'{not tmdb_movie is None}')
+        cls._logger.debug(f'Finished processing movie: {movie_title}'
+                          f' year:{tmdb_movie.get_year()} movie returned: '
+                          f'{not tmdb_movie is None}')
 
         return rejection_reasons, tmdb_movie
 
@@ -155,8 +155,8 @@ class TMDbMovieDownloader:
                 if tmdb_movie is None:
                     rejection_reasons.append(MovieField.REJECTED_NOT_IN_CACHE)
 
-                cls._logger.debug_verbose('Error getting TMDB data for:', movie_title,
-                                          'status:', status_code)
+                cls._logger.debug_verbose(f'Error getting TMDB data for: {movie_title} ' 
+                                          f'status: {status_code}')
                 return rejection_reasons, None
 
             # TODO: Remove Temp Patch to convert previous cache format
@@ -172,13 +172,13 @@ class TMDbMovieDownloader:
                 tmdb_raw_data: MovieType = dict_obj
                 tmdb_movie = cls.parse_tmdb_movie(tmdb_raw_data, library_id)
                 if tmdb_movie is None:
-                    cls._logger.exception('Error parsing movie: ', movie_title)
+                    cls._logger.exception(f'Error parsing movie: {movie_title}')
                     rejection_reasons.append(MovieField.REJECTED_FAIL)
 
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
-            cls._logger.exception('Error processing movie: ', movie_title)
+            cls._logger.exception(f'Error processing movie: {movie_title}')
             rejection_reasons.append(MovieField.REJECTED_FAIL)
             if ignore_failures:
                 return rejection_reasons, None
@@ -221,17 +221,17 @@ class TMDbMovieDownloader:
             if status_code != 0:
                 rejection_reasons.append(MovieField.REJECTED_FAIL)
                 if ignore_failures:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                    if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                         cls._logger.debug_extra_verbose(
                             f'Ignore_failures getting TMDB data for: {movie_title}')
                     return rejection_reasons, None
-                cls._logger.debug_verbose('Error getting TMDB data for:', movie_title,
-                                          'status:', status_code)
+                cls._logger.debug_verbose(f'Error getting TMDB data for: {movie_title} '
+                                          f'status: {status_code}')
                 return rejection_reasons, None
 
             tmdb_movie = cls.parse_tmdb_movie(tmdb_raw_data, library_id)
             if tmdb_movie is None:
-                cls._logger.exception('Error processing movie: ', movie_title)
+                cls._logger.exception(f'Error processing movie: {movie_title}')
                 rejection_reasons.append(MovieField.REJECTED_FAIL)
             else:
                 Cache.write_tmdb_cache_json(tmdb_movie=tmdb_movie, library_id=library_id)
@@ -239,7 +239,7 @@ class TMDbMovieDownloader:
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
-            cls._logger.exception('Error processing movie: ', movie_title)
+            cls._logger.exception(f'Error processing movie: {movie_title}')
             rejection_reasons.append(MovieField.REJECTED_FAIL)
             if ignore_failures:
                 return rejection_reasons, None
@@ -290,7 +290,7 @@ class TMDbMovieDownloader:
             cls._logger.exception(
                 f'Error getting info for tmdb_id: {tmdb_id_str}')
             try:
-                if cls._logger.isEnabledFor(LazyLogger.DISABLED):
+                if cls._logger.isEnabledFor(DISABLED):
                     json_text = json.dumps(
                         tmdb_raw_data, indent=3, sort_keys=True)
                     cls._logger.debug_extra_verbose(json_text)

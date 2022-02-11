@@ -16,13 +16,12 @@ from common.debug_utils import Debug
 from common.exceptions import AbortException
 from common.garbage_collector import GarbageCollector
 from common.imports import *
-from common.logger import LazyLogger
-from common.monitor import Monitor
+from common.logger import *
 from common.movie import AbstractMovie, LibraryMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 from discovery.playable_trailer_service import PlayableTrailerService
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BackendBridgeStatus(PluginBridgeStatus):
@@ -37,7 +36,7 @@ class BackendBridge(PluginBridge):
         communicate with other random trailers plugins. Communication is
         accomplished using the AddonSignals service.
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
     _next_trailer: AbstractMovie = None
     _trailer_iterator: Iterator = None
     _trailer: AbstractMovie = None
@@ -61,8 +60,8 @@ class BackendBridge(PluginBridge):
         try:
             cls.register_listeners()
             if playable_trailer_service is None:
-                cls._logger.error('Need to define playable_trailer_service to be',
-                                  'PlayableTrailerService()')
+                cls._logger.error(f'Need to define playable_trailer_service to be '
+                                  f'PlayableTrailerService()')
             cls._trailer_iterator = iter(playable_trailer_service)
         except AbortException:
             reraise(*sys.exc_info())
@@ -101,8 +100,8 @@ class BackendBridge(PluginBridge):
             waits for response.
         """
 
-        # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-        #    cls._logger.enter()
+        # if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+        #    cls._logger.debug('enter')
 
         #
         # Don't want to recurse on onMonitor event stack or
@@ -157,7 +156,7 @@ class BackendBridge(PluginBridge):
         except Exception as e:
             cls._logger.exception('')
             Debug.dump_dictionary(movie.get_as_movie_type(),
-                                  include_type=True, log_level=LazyLogger.ERROR)
+                                  include_type=True, level=ERROR)
 
     @classmethod
     def dump_threads(cls, _) -> None:
@@ -172,8 +171,8 @@ class BackendBridge(PluginBridge):
 
             :return: None
         """
-        if cls._logger.isEnabledFor(LazyLogger.DISABLED):
-            cls._logger.enter()
+        if cls._logger.isEnabledFor(DISABLED):
+            cls._logger.debug_extra_verbose('entered')
 
         #
         # Back-end listens for get_next_trailer requests

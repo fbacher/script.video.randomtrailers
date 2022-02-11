@@ -20,12 +20,12 @@ import xbmcvfs
 from common.imports import *
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BaseReverseIndexCache:
@@ -173,8 +173,8 @@ class BaseReverseIndexCache:
 
             with cls._lock:
                 if os.path.exists(cls.CACHE_PATH):
-                    with io.open(cls.CACHE_PATH, mode='rt', newline=None,
-                                           encoding='utf-8') as cache_file:
+                    with io.open(cls.CACHE_PATH.encode('utf-8'), mode='rt', newline=None,
+                                 encoding='utf-8') as cache_file:
                         temp_cache: Dict[str, str] = json.load(
                             cache_file, encoding='utf-8')  # object_hook=cls.datetime_parser)
                         cls._cache = temp_cache
@@ -223,8 +223,8 @@ class BaseReverseIndexCache:
                 tmp_path = cls.CACHE_PATH + '.tmp'
                 tmp_path = xbmcvfs.validatePath(tmp_path)
 
-                with cls._lock, io.open(tmp_path, mode='wt', newline=None,
-                                        encoding='utf-8') as cache_file:
+                with cls._lock, io.open(tmp_path.encode('utf-8'), mode='wt',
+                                        newline=None, encoding='utf-8') as cache_file:
                     # Can create reverse_cache from cache
                     json_text = json.dumps(cls._cache,
                                            ensure_ascii=False,

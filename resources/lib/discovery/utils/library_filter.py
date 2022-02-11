@@ -2,25 +2,25 @@ import sys
 
 from common.constants import RemoteTrailerPreference
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import LibraryMovie
 from common.movie_constants import MovieField
 from common.certification import Certification, WorldCertifications
 from common.settings import Settings
 from common.exceptions import AbortException, reraise
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LibraryFilter:
 
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     @classmethod
     def class_init(cls,) -> None:
 
         if cls.logger is None:
-            cls.logger: LazyLogger = module_logger.getChild(cls.__name__)
+            cls.logger: BasicLogger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def filter_movie(cls, movie: LibraryMovie) -> List[int]:
@@ -67,7 +67,7 @@ class LibraryFilter:
             
             is_original_language_found: bool = movie.is_original_language_found()
             if not (is_original_language_found or Settings.is_allow_foreign_languages()):
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
                         f'Rejected due to foreign language: {movie_title}')
                 add_movie = False
@@ -81,7 +81,7 @@ class LibraryFilter:
                     if movie.get_rating() < vote_value:
                         add_movie = False
                         rejection_reasons.append(MovieField.REJECTED_VOTE)
-                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             cls.logger.debug_extra_verbose(
                                 f'Rejected due to vote_average < {movie_title}')
                 elif vote_comparison == \
@@ -89,7 +89,7 @@ class LibraryFilter:
                     if movie.get_rating() > vote_value:
                         add_movie = False
                         rejection_reasons.append(MovieField.REJECTED_VOTE)
-                        if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                        if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                             cls.logger.debug_extra_verbose(
                                 f'Rejected due to vote_average > {movie_title}')
 
@@ -103,7 +103,7 @@ class LibraryFilter:
             if not certifications.filter(certification):
                 add_movie = False
                 rejection_reasons.append(MovieField.REJECTED_CERTIFICATION)
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
                         f'Rejected due to rating: {movie_title} '
                         f'cert: {str(certification)}'
@@ -113,7 +113,7 @@ class LibraryFilter:
         except AbortException as e:
             reraise(*sys.exc_info())
         except Exception as e:
-            cls.logger.exception()
+            cls.logger.exception(msg='')
 
         return rejection_reasons
 

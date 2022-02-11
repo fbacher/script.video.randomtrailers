@@ -17,10 +17,10 @@ from kutils.kodiaddon import Addon
 
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Utils:
@@ -101,9 +101,17 @@ class Utils:
                                                    date_format)[0:6]))
         return result
 
+    @staticmethod
+    def strip_null_entries(a_dict: Dict) -> None:
+        for key in list(a_dict.keys()):
+            if a_dict[key] is None:
+                del a_dict[key]
+            elif isinstance(a_dict[key], dict):
+                Utils.strip_null_entries(a_dict[key])
+
 
 class Delay:
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, bias: float = 0.0, call_scale_factor: float = 1.0,
                  scale_factor: float = 1.0) -> None:
@@ -164,7 +172,7 @@ class Delay:
 
         self._call_count += 1
 
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(f' bias: {bias} call_count: '
                                             f'{self._call_count} call_scale_factor: '
                                             f'{self._call_scale_factor:f} scale_factor: '

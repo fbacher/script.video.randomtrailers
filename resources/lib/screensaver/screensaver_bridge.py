@@ -11,10 +11,10 @@ import sys
 from common.imports import *
 from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ScreensaverBridgeStatus(PluginBridgeStatus):
@@ -73,7 +73,7 @@ class ScreensaverBridge(PluginBridge):
             #     count += 1
 
             # if not cls._ack_received:
-            #     if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            #     if cls._logger.isEnabledFor(DEBUG):
             #         cls._logger.debug(
             #             'randomtrailers front-end appears inactive')
             #     return False
@@ -94,10 +94,10 @@ class ScreensaverBridge(PluginBridge):
         """
         try:
             what = data.get('what', None)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+            if cls._logger.isEnabledFor(DEBUG):
                 cls._logger.debug(cls._context, 'received ack for:', what)
             if what != 'screensaver':
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                if cls._logger.isEnabledFor(DEBUG):
                     cls._logger.error('Unexpected response:', what)
             else:
                 cls._ack_received = what

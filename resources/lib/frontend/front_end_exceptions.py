@@ -9,12 +9,12 @@ Created on July, 25, 2021
 
 class SkipMovieException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 
 class UserExitException(Exception):
     def __init__(self):
-        super().__init__
+        super().__init__()
 
 
 class StopPlayingGroup(Exception):

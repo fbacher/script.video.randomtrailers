@@ -8,27 +8,26 @@ import sys
 
 from backend.genreutils import GenreUtils
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import ITunesMovie
 from common.movie_constants import MovieField
 from common.certification import Certification, WorldCertifications, Certifications
 from common.settings import Settings
-from six import reraise
 
 from common.exceptions import AbortException
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ITunesFilter:
 
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     @classmethod
     def class_init(cls,) -> None:
 
         if cls.logger is None:
-            cls.logger: LazyLogger = module_logger.getChild(cls.__name__)
+            cls.logger: BasicLogger = module_logger.getChild(cls.__name__)
 
     @classmethod
     def filter_movie(cls, movie: ITunesMovie) -> List[int]:
@@ -53,7 +52,7 @@ class ITunesFilter:
                     filter_passes = False
                     rejection_reasons.append(MovieField.REJECTED_FILTER_GENRE)
 
-                    if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+                    if cls.logger.isEnabledFor(DISABLED):
                         cls.logger.debug_verbose(
                             f'Rejecting {movie_title} due to genre')
                 if filter_passes and \
@@ -61,7 +60,7 @@ class ITunesFilter:
                     filter_passes = False
                     rejection_reasons.append(MovieField.REJECTED_FILTER_GENRE)
 
-                    if cls.logger.isEnabledFor(LazyLogger.DISABLED):
+                    if cls.logger.isEnabledFor(DISABLED):
                         cls.logger.debug_verbose(
                             f'Rejecting {movie_title} due to excluded genre')
 
@@ -80,7 +79,7 @@ class ITunesFilter:
                 filter_passes = False
                 rejection_reasons.append(MovieField.REJECTED_CERTIFICATION)
 
-                if cls.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+                if cls.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                     cls.logger.debug_extra_verbose(
                         f'Rejected due to rating: {movie_title} cert: '
                         f'{str(certification)}')
@@ -88,7 +87,7 @@ class ITunesFilter:
         except AbortException as e:
             reraise(*sys.exc_info())
         except Exception as e:
-            cls.logger.exception()
+            cls.logger.exception(msg='')
 
         return rejection_reasons
 

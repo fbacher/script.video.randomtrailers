@@ -10,17 +10,17 @@ from common.constants import Constants
 from common.exceptions import AbortException
 from common.imports import *
 from common.monitor import Monitor
-from common.logger import Trace, LazyLogger
-from common.movie import BaseMovie
+from common.logger import *
+from common.movie import BaseMovie, AbstractMovie
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayStatistics:
     """
 
     """
-    logger: LazyLogger = None
+    logger: BasicLogger = None
     _total_removed: int = 0
     _play_count: Dict[str, int] = dict()
     _key_to_movie: Dict[str, BaseMovie] = {}
@@ -32,7 +32,6 @@ class PlayStatistics:
     @classmethod
     def init_class(cls) -> None:
         """
-        :param movie_source:
         :return:
         """
         clz = PlayStatistics
@@ -60,7 +59,7 @@ class PlayStatistics:
         """
         clz = PlayStatistics
 
-        # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        # if clz.logger.isEnabledFor(DEBUG):
         # clz.logger.debug('movie:', movie[Movie.TITLE], 'source:',
         #                   movie[Movie.SOURCE])
         key = cls.get_key(movie)
@@ -82,9 +81,9 @@ class PlayStatistics:
             with cls._lock:
                 count = cls._play_count.get(cls.get_key(movie), 0)
         except KeyError as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            if clz.logger.isEnabledFor(DEBUG):
                 clz.logger.debug(
-                    'Could not find entry for:', movie.get_title())
+                    f'Could not find entry for: {movie.get_title()}')
 
         return count
 
@@ -105,9 +104,8 @@ class PlayStatistics:
                 cls._key_to_movie[key] = movie
 
         except KeyError as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('Could not find entry for:',
-                                 movie.get_title())
+            if clz.logger.isEnabledFor(DEBUG):
+                clz.logger.debug(f'Could not find entry for: {movie.get_title()}')
         return
 
     @classmethod
@@ -117,7 +115,7 @@ class PlayStatistics:
         :return:
         """
         clz = PlayStatistics
-        if not clz.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+        if not Trace.is_enabled(Trace.TRACE_PLAY_STATS):
             return
 
         try:
@@ -130,7 +128,7 @@ class PlayStatistics:
                 clz.first_call = False
 
             with cls._lock, \
-                io.open(path, 'at',
+                io.open(path.encode('utf-8'), 'at',
                         newline=None, encoding='utf-8') as cls.report:
                 Monitor.throw_exception_if_abort_requested()
                 timestamp = datetime.datetime.now().strftime('%c')
@@ -196,7 +194,6 @@ class PlayStatistics:
                   include_source: bool = False) -> None:
         """
 
-        :param logger:
         :param movies_with_same_count:
         :param include_source:
         :return:
@@ -227,7 +224,7 @@ class PlayStatistics:
                 reraise(*sys.exc_info())
 
             except Exception as e:
-                clz.logger.exception()
+                clz.logger.exception('')
 
             movies_in_line.append(movie_title)
             line_length += len(movie_title) + 2  # Slightly inaccurate
@@ -237,7 +234,7 @@ class PlayStatistics:
                 line = '   {}\n'.format(', '.join(movies_in_line))
                 cls.report.write(line)
             except Exception as e:
-                clz.logger.exception()
+                clz.logger.exception('')
 
     @staticmethod
     def get_key(movie: BaseMovie) -> str:

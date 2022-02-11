@@ -6,18 +6,18 @@ Created on 4/25/21
 """
 from backend.backend_constants import TMDbConstants
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.movie import TFHMovie
 from common.movie_constants import MovieField
 from common.certification import Certification, Certifications, WorldCertifications
 from common.settings import Settings
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ParseTFH:
 
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, tfh_result: Dict[str, Any], library_id: int) -> None:
         type(self).class_init()

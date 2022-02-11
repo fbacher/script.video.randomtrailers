@@ -15,10 +15,10 @@ from common.exceptions import AbortException
 from common.monitor import Monitor
 from common.settings import Settings
 from backend.api import DiscoveryManager
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
 from cache.cache_manager import CacheManager
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 def startup_non_main_thread() -> None:
@@ -40,13 +40,13 @@ def startup_non_main_thread() -> None:
     Monitor.register_settings_changed_listener(
         Settings.on_settings_changed, 'Settings.on_settings_changed')
     Monitor.register_settings_changed_listener(
-        LazyLogger.on_settings_changed, 'LazyLogger.on_settings_changed')
+        BasicLogger.on_settings_changed, 'BasicLogger.on_settings_changed')
     try:
         Settings.get_locale()
     except AbortException:
         reraise(*sys.exc_info())
     except Exception:
-        module_logger.exception(e, lazy_logger=True)
+        module_logger.exception(e)
     DiscoveryManager.load_trailers()
 
     # Start the periodic garbage collector
