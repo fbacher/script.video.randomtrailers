@@ -26,6 +26,7 @@ from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
 from common.disk_utils import DiskUtils
 from common.utils import Utils
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

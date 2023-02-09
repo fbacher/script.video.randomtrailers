@@ -13,6 +13,7 @@ from common.logger import *
 from backend.json_utils import JsonUtils
 
 from common.settings import Settings
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

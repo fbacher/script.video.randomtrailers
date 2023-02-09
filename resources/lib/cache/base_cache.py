@@ -33,6 +33,7 @@ from backend import backend_constants
 from common.disk_utils import DiskUtils
 from backend.json_utils_basic import (JsonUtilsBasic)
 from diagnostics.statistics import Statistics
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

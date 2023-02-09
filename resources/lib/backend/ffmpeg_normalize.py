@@ -19,6 +19,7 @@ from common.exceptions import AbortException
 from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
@@ -172,6 +173,12 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
             rc = 22
             module_logger.debug(f'Can not rename {temp_output_file} to {output_file}')
 
+    if os.path.exists(tmp_dir):
+        try:
+            os.rmdir(tmp_dir)
+        except Exception:
+            module_logger.debug(f'Could not remove temp directory: {tmp_dir}'
+                                f' Perhaps not empty?')
     return rc
 
 

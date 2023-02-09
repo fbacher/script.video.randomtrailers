@@ -17,6 +17,7 @@ from common.imports import *
 from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
+from __init__ import *
 
 module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 

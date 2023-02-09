@@ -14,6 +14,7 @@ from discovery.library_movie_trailer_fetcher import LibraryMovieTrailerFetcher
 from discovery.library_no_trailer_fetcher import LibraryNoTrailerTrailerFetcher
 from discovery.library_url_trailer_fetcher import LibraryURLTrailerFetcher
 from discovery.trailer_fetcher_interface import TrailerFetcherInterface
+from .__init__ import *
 
 
 class LibraryMovieData(AbstractMovieData):

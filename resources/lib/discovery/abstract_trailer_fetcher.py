@@ -42,6 +42,7 @@ from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
 from discovery.trailer_fetcher_interface import TrailerFetcherInterface
 from discovery.utils.tmdb_filter import TMDbFilter
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

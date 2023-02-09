@@ -22,6 +22,7 @@ from frontend.front_end_bridge import FrontendBridge, FrontendBridgeStatus
 from common.settings import Settings
 from frontend.history_list import HistoryList
 from frontend.history_empty import HistoryEmpty
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

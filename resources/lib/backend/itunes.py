@@ -9,6 +9,7 @@ Created on Mar 4, 2019
 from common.imports import *
 from common.settings import Settings
 from common.logger import *
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

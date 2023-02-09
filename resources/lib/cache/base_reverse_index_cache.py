@@ -24,6 +24,7 @@ from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
 from common.disk_utils import DiskUtils
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

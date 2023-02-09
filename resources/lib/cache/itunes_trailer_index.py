@@ -13,6 +13,7 @@ from common.imports import *
 from common.logger import *
 from common.movie import ITunesMovieId, ITunesMovie, AbstractMovieId, ITunesMovieId, \
     ITunesMovie
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

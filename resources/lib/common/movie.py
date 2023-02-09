@@ -13,6 +13,7 @@ from common.logger import *
 from common.movie_constants import MovieField, MovieType
 from common.certification import Certification, WorldCertifications
 from common.settings import Settings
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 CHECK_FOR_NULLS: bool = True

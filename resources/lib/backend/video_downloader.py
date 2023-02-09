@@ -6,7 +6,6 @@ Created on Apr 5, 2019
 import xbmc
 
 from backend.backend_constants import YOUTUBE_URL
-from common.imports import *
 
 import datetime
 import glob
@@ -27,6 +26,7 @@ from common.exceptions import AbortException
 from common.movie_constants import MovieField, MovieType
 from common.certification import Certifications, WorldCertifications
 from common.settings import Settings
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

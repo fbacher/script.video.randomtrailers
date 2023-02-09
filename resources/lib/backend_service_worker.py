@@ -17,6 +17,7 @@ from common.settings import Settings
 from backend.api import DiscoveryManager
 from common.logger import *
 from cache.cache_manager import CacheManager
+from __init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

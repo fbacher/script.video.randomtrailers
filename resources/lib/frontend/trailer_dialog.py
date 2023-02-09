@@ -42,6 +42,7 @@ from player.player_container import PlayerContainer
 from frontend.black_background import BlackBackground
 from frontend.movie_manager import MovieManager, MovieStatus
 from frontend.frontend_utils import FrontendUtils, ReasonEvent
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

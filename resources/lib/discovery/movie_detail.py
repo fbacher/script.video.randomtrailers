@@ -41,6 +41,7 @@ from common.playlist import Playlist
 from discovery.tmdb_movie_downloader import TMDbMovieDownloader
 from discovery.utils.db_access import DBAccess
 from discovery.utils.parse_library import ParseLibrary
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

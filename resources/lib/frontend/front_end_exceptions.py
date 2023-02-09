@@ -5,6 +5,7 @@ Created on July, 25, 2021
 
 @author: Frank Feuerbacher
 """
+from .__init__ import *
 
 
 class SkipMovieException(Exception):

@@ -34,6 +34,7 @@ from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.library_movie_data import (LibraryMovieData, LibraryNoTrailerMovieData,
                                           LibraryURLMovieData)
 from discovery.utils.parse_library import ParseLibrary
+from .__init__ import *
 
 module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 

@@ -29,6 +29,7 @@ from common.settings import Settings
 from frontend.abstract_dialog_state import BaseDialogStateMgr, DialogState
 from frontend.text_to_speech import TTS
 from player.my_player import MyPlayer
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

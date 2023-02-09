@@ -22,6 +22,7 @@ from itertools import chain
 from collections import deque
 
 from common.critical_settings import CriticalSettings
+from .__init__ import *
 
 try:
     from reprlib import repr
@@ -32,7 +33,7 @@ import xbmc
 from common.constants import Constants
 from common.imports import *
 from common.logger import *
-from common.movie import AbstractMovie, LibraryMovie
+from common.movie import AbstractMovie, LibraryMovie, FolderMovie
 from common.movie_constants import MovieField, MovieType
 from common.certification import WorldCertifications
 from common.settings import Settings
@@ -303,7 +304,9 @@ class Debug:
         """
         if not (cls._logger.isEnabledFor(DEBUG_VERBOSE) or force_check):
             return True
-
+        # if isinstance(movie_arg, FolderMovie):
+        #    return True
+       
         if movie_arg is None:
             cls._logger.debug_verbose('movie is None')
             return False

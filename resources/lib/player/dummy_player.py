@@ -6,6 +6,7 @@ from common.imports import *
 
 from common.monitor import Monitor
 from player.abstract_player import AbstractPlayer
+from .__init__ import *
 
 
 class DummyPlayer(AbstractPlayer):
@@ -194,6 +195,9 @@ class DummyPlayer(AbstractPlayer):
         return
 
     def onPlayBackPaused(self):
+        return
+
+    def onPlayBackPaused(self) -> None:
         return
 
     def onPlayBackResumed(self) -> None:

@@ -18,6 +18,7 @@ from common.imports import *
 from common.constants import (Constants,
                               RemoteTrailerPreference)
 from common.logger import *
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

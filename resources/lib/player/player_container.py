@@ -11,6 +11,7 @@ from common.logger import *
 from player.abstract_player import AbstractPlayer
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

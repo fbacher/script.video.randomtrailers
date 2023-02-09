@@ -8,6 +8,8 @@ Created on Feb 12, 2019
 
 from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
+from __init__ import *
+
 CriticalSettings.set_plugin_name('rt_frontend')
 
 REMOTE_DEBUG: bool = False

@@ -8,6 +8,7 @@ from common.movie_constants import MovieField
 from common.certification import Certification, WorldCertifications
 from common.settings import Settings
 from common.exceptions import AbortException, reraise
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

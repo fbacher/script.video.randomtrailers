@@ -18,6 +18,7 @@ from common.settings import Settings
 
 from common.exceptions import AbortException, reraise
 from discovery.restart_discovery_exception import StopDiscoveryException
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

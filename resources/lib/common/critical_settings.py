@@ -11,6 +11,7 @@ import xbmcaddon
 
 from kutils.kodiaddon import Addon
 from common.imports import *
+from .__init__ import *
 
 
 class CriticalSettings:

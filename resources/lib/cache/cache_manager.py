@@ -23,6 +23,7 @@ from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
 from common.disk_utils import DiskUtils, UsageData
+from .__init__ import *
 
 RATIO_DECIMAL_DIGITS_TO_PRINT = '{:.4f}'
 

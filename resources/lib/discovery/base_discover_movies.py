@@ -21,6 +21,7 @@ from common.movie import BaseMovie
 from diagnostics.play_stats import PlayStatistics
 from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.abstract_movie_data import AbstractMovieData
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

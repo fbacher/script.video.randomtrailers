@@ -7,7 +7,6 @@ Created on Apr 14, 2019
 
 import datetime
 import os
-import requests
 import sys
 
 import xbmcvfs
@@ -16,17 +15,17 @@ from common.certification import Certification, Certifications, WorldCertificati
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
 from common.exceptions import AbortException, reraise
-from common.imports import *
 from common.monitor import Monitor
 from common.movie import FolderMovie, LibraryMovie
 from common.movie_constants import MovieField, MovieType
 from common.logger import *
 from common.settings import Settings
 from discovery.folder_trailer_fetcher import FolderTrailerFetcher
-
+from discovery.movie_detail import MovieDetail
 from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.folder_movie_data import FolderMovieData
+from .__init__ import *
 
 module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
@@ -170,15 +169,15 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                                                          MovieField.TRAILER_TYPE:
                                                              MovieField.TRAILER_TYPE_TRAILER,
                                                          MovieField.SOURCE:
-                                                             MovieField.FOLDER_SOURCE,
-                                                         MovieField.FANART: '',
-                                                         MovieField.THUMBNAIL: '',
-                                                         MovieField.FILE: '',
-                                                         MovieField.YEAR: 0,
-                                                         MovieField.RATING: 0}
+                                                             MovieField.FOLDER_SOURCE}
                             new_movie: FolderMovie = FolderMovie(
                                 movie_info=new_movie_data)
                             new_movie.set_certification_id(unrated_certification_id)
+
+                            # Supply fake values to displayed fields to make code happy.
+
+                            MovieDetail.clone_fields(new_movie, new_movie,
+                                                     MovieField.DEFAULT_MOVIE)
                             if clz.logger.isEnabledFor(DEBUG):
                                 clz.logger.debug_extra_verbose(f'title: {title} '
                                                                f'path: {file_path}')

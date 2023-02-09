@@ -20,6 +20,7 @@ from common.logger import *
 from common.movie import AbstractMovie, LibraryMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
 from discovery.playable_trailer_service import PlayableTrailerService
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

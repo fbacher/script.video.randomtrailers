@@ -11,6 +11,7 @@ from common.imports import *
 
 from common.logger import *
 from cache.base_reverse_index_cache import BaseReverseIndexCache
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

@@ -15,7 +15,6 @@ import threading
 import xbmcvfs
 import xmltodict
 
-from common.imports import *
 from common.constants import Constants
 from common.logger import *
 from common.messages import Messages
@@ -23,6 +22,7 @@ from common.monitor import Monitor
 from common.disk_utils import DiskUtils
 from common.movie import AbstractMovie
 from common.settings import (Settings)
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

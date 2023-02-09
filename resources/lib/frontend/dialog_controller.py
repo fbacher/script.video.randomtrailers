@@ -30,6 +30,7 @@ from player.my_player import MyPlayer
 from frontend.movie_manager import MovieManager, MovieStatus
 from frontend.history_empty import HistoryEmpty
 from frontend.frontend_utils import ReasonEvent
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 SKIP_NOTIFICATION_SECONDS: int = 5

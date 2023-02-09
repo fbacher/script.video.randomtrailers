@@ -9,6 +9,8 @@ from time import sleep
 
 from common.python_debugger import PythonDebugger
 from common.critical_settings import CriticalSettings
+from __init__ import *
+
 CriticalSettings.set_plugin_name('rt_backend')
 REMOTE_DEBUG: bool = True
 
@@ -22,11 +24,13 @@ import faulthandler
 import signal
 import io
 debug_file = io.open("/home/fbacher/.kodi/temp/kodi.crash", mode='w', buffering=1,
-                         newline=None,
-                         encoding='ASCII')
+                     newline=None,
+                     encoding='ASCII')
 
 faulthandler.register(signal.SIGUSR1, file=debug_file, all_threads=True)
 
+import xbmc
+xbmc.log('About to PythonDebugger.enable', xbmc.LOGINFO)
 if REMOTE_DEBUG:
 
     PythonDebugger.enable('randomtrailers.backend')
@@ -51,8 +55,21 @@ from common.minimal_monitor import MinimalMonitor
 from common.imports import *
 
 import locale
-# module_logger.debug(f'preferredencoding: {locale.getpreferredencoding()}')
-
+module_logger.debug(f'preferredencoding: {locale.getpreferredencoding()}')
+language_code, encoding = locale.getdefaultlocale()
+module_logger.debug(f'default language_code: {language_code} '
+                    f'encoding: {encoding}')
+envars = ['LC_ALL', 'LC_CTYPE', 'LANG', 'LANGUAGE']
+for var in envars:
+    language_code, encoding = locale.getdefaultlocale((var,))
+    module_logger.debug(f'getdefaultlocale({var})')
+    module_logger.debug(f'language_code default: {language_code} '
+                        f'encoding: {encoding}')
+    module_logger.debug(f'langauge_code: {locale.getlocale()}')
+    module_logger.debug(f'langauge_code set null: '
+                        f'{locale.setlocale(locale.LC_ALL)}')
+    module_logger.debug(f'language_code set empty: '
+                        f'{locale.setlocale(locale.LC_ALL, "")}')
 
 def exit_randomtrailers():
     if PythonDebugger.is_enabled():
@@ -177,6 +194,7 @@ def bootstrap_random_trailers() -> None:
 
 def bootstrap_unit_test() -> None:
     from test.backend_test_suite import (BackendTestSuite)
+    # module_logger.enter()
     suite = BackendTestSuite()
     suite.run_suite()
 
@@ -200,7 +218,7 @@ if __name__ == '__main__':
             profile = False
             if profile:
                 import cProfile
-               
+
                 # MainThreadLoop.profiler = cProfile.Profile()
                 # MainThreadLoop.profiler.runcall(bootstrap_random_trailers)
         elif is_unit_test:
@@ -208,4 +226,4 @@ if __name__ == '__main__':
     except AbortException:
         pass  # Die, Die, Die
     finally:
-        exit()
+        exit

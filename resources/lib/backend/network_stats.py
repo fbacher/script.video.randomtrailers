@@ -13,6 +13,7 @@ from common.playlist import Playlist
 from common.logger import *
 
 from common.settings import Settings
+from .__init__ import *
 
 THIRTY_MINUTES: Final[int] = 30
 

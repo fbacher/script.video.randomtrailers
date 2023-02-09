@@ -20,6 +20,7 @@ from common.movie_constants import MovieField
 from common.certification import Certification, Certifications, WorldCertifications
 from common.settings import Settings
 from common.utils import Utils
+from .__init__ import *
 
 STRIP_TZ_PATTERN: Final[Pattern] = re.compile(' .[0-9]{4}$')
 # Map trailer-type strings from iTunes to what this app uses

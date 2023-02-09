@@ -30,6 +30,7 @@ from discovery.playable_trailers_container_interface import \
     PlayableTrailersContainerInterface
 from discovery.tmdb_movie_data import TMDbMovieData
 from discovery.utils.recently_played_trailers import RecentlyPlayedTrailers
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

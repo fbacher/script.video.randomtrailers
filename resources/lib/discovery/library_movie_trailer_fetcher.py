@@ -18,6 +18,7 @@ from discovery.abstract_trailer_fetcher import AbstractTrailerFetcher
 
 from discovery.playable_trailers_container_interface import \
     PlayableTrailersContainerInterface
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

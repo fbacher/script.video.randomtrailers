@@ -17,6 +17,7 @@ from common.logger import *
 from common.movie import AbstractMovie, AbstractMovieId, LibraryMovie, LibraryMovieId, \
     ITunesMovieId, ITunesMovie, TFHMovie, TFHMovieId, TMDbMovie, TMDbMovieId
 from common.movie_constants import MovieField
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

@@ -9,6 +9,7 @@ Created on Feb 10, 2019
 
 from common.imports import *
 import threading
+from .__init__ import *
 
 
 class TrailerFetcherInterface(threading.Thread):

@@ -7,6 +7,7 @@ Created on Feb 11, 2019
 """
 
 from common.imports import *
+from .__init__ import *
 
 APPLE_URL_PREFIX = 'http://trailers.apple.com'
 APPLE_REQUEST_LIMIT = 20  # Documented limit is 20 / minute

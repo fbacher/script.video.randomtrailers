@@ -19,6 +19,7 @@ from discovery.discover_folder_trailers import DiscoverFolderTrailers
 from discovery.discover_itunes_movies import DiscoverItunesMovies
 from discovery.discover_tmdb_movies import DiscoverTmdbMovies
 from discovery.discover_tfh_movies import DiscoverTFHMovies
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

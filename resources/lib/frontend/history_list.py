@@ -13,6 +13,7 @@ from common.logger import *
 from common.movie import AbstractMovie
 
 from frontend.history_empty import HistoryEmpty
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

@@ -10,6 +10,7 @@ from common.movie import AbstractMovie
 from player.advanced_player import AdvancedPlayer
 from common.logger import *
 from common.disk_utils import DiskUtils
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

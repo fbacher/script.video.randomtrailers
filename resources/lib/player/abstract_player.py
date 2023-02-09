@@ -6,6 +6,7 @@ from xbmc import InfoTagMusic, InfoTagRadioRDS, InfoTagVideo, PlayList
 from common.imports import *
 
 from common.monitor import Monitor
+from .__init__ import *
 
 
 class PlayerState:
@@ -141,7 +142,7 @@ class AbstractPlayer(ABC):
 
     @abstractmethod
     def seekTime(self, seek_time) -> None:
-        return
+        return 0
 
     @abstractmethod
     def setSubtitles(self, subtitle_file: Any) -> None:
@@ -254,6 +255,10 @@ class AbstractPlayer(ABC):
 
     @abstractmethod
     def onPlayBackPaused(self):
+        return
+
+    @abstractmethod
+    def onPlayBackPaused(self) -> None:
         return
 
     @abstractmethod

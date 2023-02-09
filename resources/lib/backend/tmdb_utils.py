@@ -28,6 +28,7 @@ from backend.json_utils import JsonUtils
 from backend.json_utils_basic import (JsonUtilsBasic, JsonReturnCode, Result)
 from common.utils import Delay
 from discovery.utils.parse_library import ParseLibrary
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

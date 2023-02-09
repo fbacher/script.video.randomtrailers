@@ -7,6 +7,7 @@ Created on Feb 6, 2019
 from common.imports import *
 
 import xbmc
+from __init__ import *
 
 
 class Action:

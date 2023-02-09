@@ -7,6 +7,7 @@ Created on 1/11/22
 import builtins
 import datetime
 import time
+from .__init__ import *
 
 
 class StripTimePatch(datetime.datetime):
@@ -21,7 +22,7 @@ class StripTimePatch(datetime.datetime):
     incorrect results or a Kodi crash.
 
     The other option is to call monkey_patch_strptime at your addon's startup. This
-    will Monkey-Patch striptime with the version here. It is voodoo like,
+    will Monkey-Patch strptime with the version here. It is voodoo like,
     but that is done a bit in Python.
     """
 
@@ -38,7 +39,7 @@ class StripTimePatch(datetime.datetime):
             # Globally replace Python's datetime.datetime.strptime with
             # the version here.
 
-            datetime.datetime = StripTimePatch
+            datetime.datetime.strptime = StripTimePatch.strptime
 
     @classmethod
     def strptime(cls, date_string: str, date_format: str) -> datetime.datetime:

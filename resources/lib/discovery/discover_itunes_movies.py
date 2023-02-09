@@ -34,6 +34,7 @@ from backend.video_downloader import VideoDownloader
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.itunes_movie_data import ItunesMovieData
 from discovery.utils.parse_itunes import ParseITunes
+from .__init__ import *
 
 STRIP_TZ_PATTERN: Final[Pattern] = re.compile(' .[0-9]{4}$')
 EPOCH_TIME: Final[datetime.datetime] = datetime.datetime(1970, 1, 1, 0, 1)

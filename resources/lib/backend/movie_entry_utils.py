@@ -18,6 +18,7 @@ from common.movie_constants import MovieField
 from common.certification import Certifications, WorldCertifications, Certification
 from common.settings import Settings
 from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

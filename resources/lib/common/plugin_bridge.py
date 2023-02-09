@@ -16,6 +16,7 @@ import AddonSignals as AddonSignals
 from common.exceptions import AbortException
 from common.logger import *
 from common.monitor import Monitor
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

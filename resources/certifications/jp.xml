@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<certifications version="1">
+    <country name="us" id="us" certification_name="MPAA" label_id="32269">
+          <!-- ranking of 0 means "not yet rated" -->
+         <!-- The different sources of certificat/rating information
+                (TMDB, IMDB, iTunes, etc.) return different values. Further,
+                certifications change over time. In the U.S., the Hays
+                code was in effect through mid 1968. This code only had a
+                rating of "Passed" (or "Approved"). The MPAA rating system
+                started in 1968 and has had mulitple changes over time. For
+                a while, there was an "M" (Mature) rating which later became
+                "PG-13". There was a GP rating which later became "PG". TMDB
+                currently only supports the current rating system.
+
+                TMDB has no representation for older certification values
+                    (i.e. 'M' for Mature or 'GP' now 'PG' or 'Passed' from pre-1968.
+
+                The rules here provide a means to "scrape" the ratings stored
+                in Kodi and convert them into a something which can be used to
+                filter and compare with. The certification for a particular movie
+                will come from Kodi. Each certification specifies a suggested
+                approprate "age" of the viewer. This could be used for comparison,
+                even between different country's rating systems (although
+                different cultures have very different attitudes about what is
+                appropriate for viewing). -->
+
+                <!-- Patterns are python regex -->
+        <certification ranking="0" display="Not Yet Rated" label_id="32041" adult="false" age="0"
+            preferred_id="Not Yet Rated" image_id="unrated">
+            <patterns>
+                <pattern>(?i)^Not Yet Rated$</pattern>
+            </patterns>
+        </certification>
+        <!-- ranking of 1 means "unrated" -->
+        <!-- preferred_id should perhaps be called preferred_pattern, since
+            it is used to when the certification must be saved as a kodi
+             MPAA rating field and eventually matched against one of the
+             patterns here. -->
+        <certification ranking="1" display="Unrated" label_id="32248" adult="false" age="0"
+        preferred_id="NR" image_id="unrated">
+            <patterns>
+                <pattern>^NR$</pattern>
+                <pattern>^Rated NR$</pattern>
+                <pattern>^Not Rated$</pattern>
+                <pattern>^Rated Not Rated$</pattern>
+                <pattern>^Rated UR$</pattern>
+                <pattern>^Unrated$</pattern>
+                <pattern>^Rated Unrated$</pattern>
+            </patterns>
+        </certification>
+        <certification ranking="2" display="G" label_id="32243" adult="false" age="0"
+            preferred_id="G" image_id="g">
+            <patterns>
+
+                <!-- General Audience -->
+
+                <pattern>^A$</pattern>
+                <pattern>^Approved$</pattern>
+                <pattern>^Rating Approved$</pattern>
+                <pattern>^Rated Approved$</pattern>
+                <pattern>^Rated A*$</pattern>
+                <pattern>^Passed$</pattern>
+                <pattern>^Rated Passed$</pattern>
+                <pattern>^P$</pattern>
+                <pattern>^G$</pattern>
+                <pattern>^G .$</pattern>
+                <pattern>^Rated G.*$</pattern>
+                <!-- For TV Movies -->
+                <pattern>^TV-G.*$</pattern>
+                <pattern>^Rated TV-G.*$</pattern>
+                <pattern>^Rated$$</pattern>
+            </patterns>
+        </certification>
+        <!-- For pre/young-teens. Some materials might be objectionable -->
+        <certification ranking="3" display="12" label_id="32244" adult="false" age="12"
+            preferred_id="12" image_id="jp_12">
+            <patterns>
+                <pattern>^PG$</pattern>
+                <pattern>^PG .*$</pattern>
+                <pattern>^Rated PG.*$</pattern>
+                <pattern>^TV-PG.*$</pattern>
+                <pattern>^Rated TV-PG.*$</pattern>
+            </patterns>
+        </certification>
+        <!-- For older, more mature teens. Parents strongly cautioned -->
+        <certification ranking="4" display="PG-13" label_id="32245" adult="false" age="13"
+        preferred_id="PG-13" image_id="pg13">
+            <patterns>
+                <pattern>^M$</pattern>
+                <pattern>^Rated M$</pattern>
+                <pattern>^M/PG$</pattern>
+                <pattern>^GP$</pattern>
+                <pattern>^PG-13$</pattern>
+                <!-- PG-13 with comment -->
+                <pattern>^PG-13 .*$</pattern>
+                <pattern>^Rated PG-13.*$</pattern>
+            </patterns>
+        </certification>
+        <!-- Restricted Some adult material, Requires parent or guardian to
+        attend with children -->
+        <certification ranking="5" display="R" label_id="32246" adult="false" age="17"
+            preferred_id="R" image_id="r">
+            <patterns>
+                <pattern>^R$</pattern>
+                <!-- R with comment -->
+                <pattern>^R .*$</pattern>
+                <pattern>^Rated R.*$</pattern>
+            </patterns>
+        </certification>
+        <!-- Adult. No one under 17 -->
+        <certification ranking="6" display="NC-17" label_id="32247" adult="true" age="17"
+            preferred_id="NC-17" image_id="nc17">
+            <patterns>
+                <pattern>^NC-17.*$</pattern>
+                <pattern>^Rated NC-17.*$</pattern>
+                <!-- self rating, prior to NC-17 -->
+                <pattern>^X.*$</pattern>
+            </patterns>
+        </certification>
+    </country>
+</certifications>

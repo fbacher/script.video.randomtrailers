@@ -16,6 +16,7 @@ from common.logger import *
 from common.monitor import Monitor
 from common.movie import AbstractMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

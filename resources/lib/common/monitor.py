@@ -21,6 +21,7 @@ from common.critical_settings import CriticalSettings
 from common.exceptions import AbortException
 from common.logger import *
 from common.minimal_monitor import MinimalMonitor
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 

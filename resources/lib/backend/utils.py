@@ -13,6 +13,7 @@ import sys
 from common.imports import *
 from common.exceptions import AbortException
 from common.logger import *
+from .__init__ import *
 
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)

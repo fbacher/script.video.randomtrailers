@@ -25,6 +25,7 @@ from common.movie import BaseMovie, AbstractMovieId, AbstractMovie
 from common.movie_constants import MovieField, MovieType
 from diagnostics.play_stats import PlayStatistics
 from discovery.trailer_fetcher_interface import TrailerFetcherInterface
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

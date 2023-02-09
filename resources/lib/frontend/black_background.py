@@ -13,6 +13,7 @@ from common.logger import *
 
 import xbmc
 import xbmcgui
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

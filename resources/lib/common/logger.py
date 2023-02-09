@@ -30,7 +30,7 @@ __all__ = ['BASIC_FORMAT', 'CRITICAL', 'DEBUG', 'DEBUG_VERBOSE',
            'lastResort', 'raiseExceptions', 'Trace']
 
 from common.critical_settings import CriticalSettings
-from __init__ import *
+from .__init__ import *
 
 ADDON_ID: str = CriticalSettings.ADDON_ID
 ADDON: xbmcaddon = CriticalSettings.ADDON

@@ -9,6 +9,7 @@ Created on Mar 4, 2019
 from common.imports import *
 
 from common.settings import Settings
+from .__init__ import *
 
 
 class TmdbSettings:

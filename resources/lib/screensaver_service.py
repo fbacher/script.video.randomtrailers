@@ -7,6 +7,8 @@ Created on Feb 12, 2019
 from common.critical_settings import CriticalSettings
 from common.minimal_monitor import MinimalMonitor
 from common.python_debugger import PythonDebugger
+from __init__ import *
+
 CriticalSettings.set_plugin_name('rt_screensaver')
 
 REMOTE_DEBUG: bool = False

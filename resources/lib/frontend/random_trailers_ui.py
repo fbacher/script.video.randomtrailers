@@ -25,6 +25,7 @@ from frontend.trailer_dialog import TrailerDialog
 from frontend.black_background import BlackBackground
 from player.player_container import PlayerContainer
 from frontend.legal_info import LegalInfo
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

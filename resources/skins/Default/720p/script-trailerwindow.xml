@@ -10,8 +10,8 @@
                 The videowindow overrides the default video player behavior. This keeps
                 OSD from displaying unwanted things when we press SHOW_INFO, etc..
 
-                The black background control after the videowindow alows us to  black out
-                the video screen when we we want to show Movie Details instead of the
+                The black background control after the videowindow allows us to black out
+                the video screen when we want to show Movie Details instead of the
                 Trailer.
 
                 The black background control before the videowindow probably doesn't do much
@@ -36,7 +36,7 @@
             <control type="videowindow" id="38032">
                 <description>Private Video Window for trailer to avoid default
                     navigation action processing. Leave visible so it can intercept
-                    from native window. Hidden later, in Show Details group by black image.
+                    from native window. Hidden later, in Show Details grop by black image.
                 </description>
                 <visible>true</visible>
                 <left>0</left>

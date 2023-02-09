@@ -24,6 +24,7 @@ from common.monitor import Monitor
 from common.settings import Settings
 from common.utils import Delay
 from common.garbage_collector import GarbageCollector
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

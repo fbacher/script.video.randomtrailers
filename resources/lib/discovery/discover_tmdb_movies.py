@@ -45,6 +45,7 @@ from discovery.utils.tmdb_filter import TMDbFilter
 from discovery.tmdb_movie_data import TMDbMovieData
 from discovery.utils.parse_tmdb_page_data import ParseTMDbPageData
 from gc import garbage
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

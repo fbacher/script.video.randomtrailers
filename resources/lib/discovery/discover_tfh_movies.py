@@ -27,6 +27,7 @@ from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.tfh_movie_data import TFHMovieData
 from backend.video_downloader import VideoDownloader
 from discovery.utils.parse_tfh import ParseTFH
+from .__init__ import *
 
 module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 

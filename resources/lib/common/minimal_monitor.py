@@ -12,6 +12,7 @@ import threading
 import xbmc
 from common.imports import *
 from common.exceptions import AbortException
+from .__init__ import *
 
 
 class MinimalMonitor(xbmc.Monitor):

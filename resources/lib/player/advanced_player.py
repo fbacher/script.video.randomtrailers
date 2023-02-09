@@ -11,6 +11,7 @@ from common.imports import *
 from common.logger import *
 from common.monitor import Monitor
 from player.abstract_player import AbstractPlayer
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 DEBUG_PLAYER: int = DEBUG

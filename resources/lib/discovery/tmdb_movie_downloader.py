@@ -25,6 +25,7 @@ from cache.tmdb_cache_index import CacheIndex
 from cache.trailer_unavailable_cache import (TrailerUnavailableCache)
 from diagnostics.statistics import Statistics
 from discovery.utils.parse_tmdb import ParseTMDb
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

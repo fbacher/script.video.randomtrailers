@@ -9,9 +9,10 @@ import os
 
 from common.imports import *
 from common.logger import *
-from common.movie import BaseMovie, AbstractMovie
+from common.movie import BaseMovie, AbstractMovie, FolderMovie
 from common.movie_constants import MovieField
 from common.settings import Settings
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
@@ -40,6 +41,10 @@ class TrailerCache:
         if movie.get_discovery_state() <= MovieField.DISCOVERY_NEARLY_COMPLETE:
             return False
 
+        if isinstance(movie, FolderMovie):
+            movie.set_discovery_state(MovieField.DISCOVERY_READY_TO_DISPLAY)
+            return True
+        
         movie: AbstractMovie
         more_discovery_needed: bool = False
         title = movie.get_title()

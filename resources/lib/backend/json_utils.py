@@ -9,6 +9,7 @@ Created on Feb 10, 2019
 from common.imports import *
 from backend.json_utils_basic import JsonUtilsBasic
 from common.logger import *
+from .__init__ import *
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 

@@ -9,6 +9,7 @@ Created on Jul 29, 2021
 from enum import Enum
 
 from common.imports import *
+from .__init__ import *
 
 
 class DialogState(Enum):

@@ -13,6 +13,7 @@ from common.movie_constants import MovieField, MovieType
 from discovery.abstract_movie_data import AbstractMovieData
 from discovery.tmdb_trailer_fetcher import TMDbTrailerFetcher
 from discovery.trailer_fetcher_interface import TrailerFetcherInterface
+from .__init__ import *
 
 
 class TMDbMovieData(AbstractMovieData):

@@ -21,6 +21,7 @@ from common.messages import Messages
 from common.monitor import Monitor
 from frontend.text_to_speech import TTS
 from action_map import Action
+from .__init__ import *
 
 
 module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)

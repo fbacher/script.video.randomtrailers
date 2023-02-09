@@ -11,6 +11,7 @@ from common.movie_constants import MovieField
 from discovery.abstract_movie_data import AbstractMovieData
 from discovery.folder_trailer_fetcher import FolderTrailerFetcher
 from discovery.trailer_fetcher_interface import TrailerFetcherInterface
+from .__init__ import *
 
 
 class FolderMovieData(AbstractMovieData):

@@ -27,6 +27,7 @@ from discovery.abstract_movie_data import AbstractMovieData
 from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.playable_trailers_container import PlayableTrailersContainer
 from discovery.utils.recently_played_trailers import RecentlyPlayedTrailers
+from .__init__ import *
 
 module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
@@ -332,10 +333,14 @@ class PlayableTrailerService:
 
                     # No more patience, get anything
                     # Give some time to discover a movie
+                    #
+                    # TODO: Ignore waiting for normalization, etc. just
+                    #       get one!
+                    #       
                     Monitor.throw_exception_if_abort_requested(timeout=5.0)
 
                 if third_method_attempts == len(playable_trailers_list) - 1:
-                    # After giving this second attempt a go through all
+                    # After giving this third attempt a go through all
                     # of the trailer types, see if we can replay a trailer
                     # that we have on hand.
                     #
@@ -383,7 +388,11 @@ class PlayableTrailerService:
                         if (trailer.get_discovery_state() !=
                                 MovieField.DISCOVERY_READY_TO_DISPLAY):
                             trailer = None
-
+                        elif (not Debug.validate_detailed_movie_properties(trailer)):
+                            trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
+                            trailer.set_trailer_played(False)
+                            trailer = None
+                            
                     if trailer is not None:
                         break
                 except queue.Empty:
@@ -412,12 +421,6 @@ class PlayableTrailerService:
         duration = datetime.datetime.now() - start_time
         self._next_total_duration += duration.seconds
         self._next_calls += 1
-
-        is_ok: bool = Debug.validate_detailed_movie_properties(trailer)
-        if not is_ok:
-            trailer.set_discovery_state(MovieField.NOT_FULLY_DISCOVERED)
-            trailer.set_trailer_played(False)
-            trailer = None
 
         if trailer is None:
             raise StopIteration()
