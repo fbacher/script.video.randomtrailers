@@ -6,19 +6,12 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-import datetime
-import random
-
 from common.imports import *
-from backend.json_utils_basic import (JsonUtilsBasic)
-from diagnostics.statistics import Statistics
-from cache.cache import (Cache)
-from common.constants import Movie
-from common.logger import (LazyLogger)
-from common.messages import Messages
-from common.settings import Settings
+from backend.json_utils_basic import JsonUtilsBasic
+from common.logger import *
+from .__init__ import *
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class JsonUtils(JsonUtilsBasic):
@@ -40,7 +33,7 @@ class JsonUtils(JsonUtilsBasic):
         making requests
     """
 
-    _logger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls) -> None:
@@ -52,8 +45,8 @@ class JsonUtils(JsonUtilsBasic):
 
 '''
     @staticmethod
-    def get_cached_json(url: str,
-                        movie_id: Union[str, int] = None,
+    def get_cached_tmdb_movie(url: str,
+                        tmdb_id: Union[str, int] = None,
                         error_msg: Union[str, int] = None,
                         source: str = None,
                         dump_results: bool = False,
@@ -69,7 +62,7 @@ class JsonUtils(JsonUtilsBasic):
             Any information not in the cache will be placed into it after successfully
             reading it.
         :param url:
-        :param movie_id:
+        :param tmdb_id:
         :param error_msg:
         :param source:
         :param dump_results:
@@ -91,14 +84,14 @@ class JsonUtils(JsonUtilsBasic):
         if Settings.is_use_tmdb_cache():
             start = datetime.datetime.now()
             trailer_data = Cache.read_tmdb_cache_json(
-                movie_id, source, error_msg=error_msg)
+                tmdb_id, source, error_msg=error_msg)
             status = 0
             stop = datetime.datetime.now()
             read_time = stop - start
             Statistics.add_json_read_time(int(read_time.microseconds / 10000))
-            # if JsonUtils._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            #    JsonUtils._logger.debug_extra_verbose('json cache read time:',
-            #                                          read_time.microseconds / 10000,
+            # if JsonUtils._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            #    JsonUtils._logger.debug_extra_verbose(f'json cache read time: '
+            #                                          f'{read_time.microseconds / 10000}'
             #                                          'ms')
             if trailer_data is not None:
                 trailer_data[Movie.CACHED] = True
@@ -112,7 +105,7 @@ class JsonUtils(JsonUtilsBasic):
                                                       timeout=timeout)
             if ((status == 0 or status == 200) and trailer_data is not None
                     and Settings.is_use_tmdb_cache()):
-                Cache.write_tmdb_cache_json(movie_id, source, trailer_data)
+                Cache.write_tmdb_cache_json(tmdb_id, source, trailer_data)
 
         if trailer_data is None and status == 0:
             status = -1

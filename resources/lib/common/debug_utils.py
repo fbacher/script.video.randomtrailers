@@ -5,34 +5,54 @@ Created on Feb 19, 2019
 
 @author: Frank Feuerbacher
 """
+import datetime
+import faulthandler
+import io
 from io import StringIO
-import simplejson as json
+
+import xbmcvfs
+
+import json
 import sys
 import threading
 import traceback
 
-import xbmc
-from common.constants import Constants, Movie
-from common.imports import *
-from common.logger import LazyLogger
-from common.rating import WorldCertifications
-from common.settings import Settings
-from common.monitor import Monitor
+from sys import getsizeof, stderr
+from itertools import chain
+from collections import deque
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+from common.critical_settings import CriticalSettings
+from .__init__ import *
+
+try:
+    from reprlib import repr
+except ImportError:
+    pass
+
+import xbmc
+from common.constants import Constants
+from common.imports import *
+from common.logger import *
+from common.movie import AbstractMovie, LibraryMovie, FolderMovie
+from common.movie_constants import MovieField, MovieType
+from common.certification import WorldCertifications
+from common.settings import Settings
+
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Debug:
     """
         Define several methods useful for debugging
     """
-    _logger: LazyLogger = module_logger.getChild('Debug')
+    _logger: BasicLogger = module_logger.getChild('Debug')
     _currentAddonName = Constants.CURRENT_ADDON_NAME
 
     @classmethod
     def dump_dictionary(cls, d: Dict[str, Any], prefix: str = '',
                         heading: str = '',
-                        log_level=LazyLogger.DEBUG_EXTRA_VERBOSE) -> None:
+                        include_type: bool = False,
+                        level=DISABLED) -> None:
         """
             Dump key and value fields of a dictionary in human
             readable form.
@@ -40,40 +60,46 @@ class Debug:
         :param d:
         :param prefix:
         :param heading:
-        :param log_level:
+        :param include_type:
+        :param level:
         :return:
         """
-        if cls._logger.isEnabledFor(log_level):
-            cls._logger.debug(heading, log_level=log_level)
+        if cls._logger.isEnabledFor(level):
+            cls._logger.log(level, heading)
             if d is None:
-                cls._logger.debug('None')
+                cls._logger.log(level, 'None')
             else:
                 for k, v in d.items():
                     if isinstance(v, dict):
                         child_prefix = f'{prefix}{k}: '
-                        cls.dump_dictionary(v, prefix=child_prefix)
+                        cls.dump_dictionary(v, prefix=child_prefix,
+                                            include_type=include_type,
+                                            level=level)
                     else:
-                        cls._logger.debug(f'{prefix}{k} : {v}',
-                                          log_level=log_level)
+                        the_type = ''
+                        if include_type:
+                            the_type = f'{type(v)} -'
+                        cls._logger.log(level, f'{prefix}{k} : {the_type}{v}')
 
     @classmethod
-    def dump_json(cls, text: str = '', data: str = '',
-                  log_level: int = LazyLogger.DEBUG) -> None:
+    def dump_json(cls, text: str = '', data: Any = '',
+                  level: int = DISABLED) -> None:
         """
             Log Json values using the json.dumps utility
 
         :param text:
-        :param data:
-        :param log_level:
+        :param data: Any json serializable object
+        :param level:
         :return:
         """
-        if cls._logger.isEnabledFor(log_level):
+        if cls._logger.isEnabledFor(level):
             if data is None:
-                cls._logger.log('json None', log_level=log_level)
+                cls._logger.log(level, 'json None')
             else:
-                cls._logger.log(text, json.dumps(data, ensure_ascii=False,
-                                                 encoding='unicode', indent=4,
-                                                 sort_keys=True), log_level=log_level)
+                dump = json.dumps(data, ensure_ascii=False,
+                                  indent=4,
+                                  sort_keys=True)
+                cls._logger.log(level, f'{text} {dump}')
 
     @classmethod
     def dump_all_threads(cls, delay: float = None) -> None:
@@ -87,7 +113,7 @@ class Debug:
             cls._dump_all_threads()
         else:
             dump_threads = threading.Timer(delay, cls._dump_all_threads)
-            dump_threads.setName('dump_threads')
+            dump_threads.name = 'dump_threads'
             dump_threads.start()
 
     @classmethod
@@ -105,7 +131,7 @@ class Debug:
         #  Monitor.dump_wait_counts()
         #  for threadId, stack in sys._current_frames().items():
         for th in threading.enumerate():
-            sio.write(f'\n# ThreadID: {th.name}\n\n')
+            sio.write(f'\n# ThreadID: {th.name} Daemon: {th.isDaemon()}\n\n')
             stack = sys._current_frames().get(th.ident, None)
             if stack is not None:
                 traceback.print_stack(stack, file=sio)
@@ -115,6 +141,22 @@ class Debug:
         msg = Debug._currentAddonName + ' : dump_all_threads'
         xbmc.log(msg, xbmc.LOGDEBUG)
         xbmc.log(string_buffer, xbmc.LOGDEBUG)
+
+        try:
+            dump_path = f'{xbmcvfs.translatePath("special://temp")}' \
+                        f'{CriticalSettings.get_plugin_name()}_thread_dump.txt'
+
+            with io.open(dump_path.encode('utf-8'), mode='at', buffering=1,
+                         newline=None) as dump_file:
+
+                dump_file.write(f'\n{datetime.datetime.now()}'
+                                f'   *** STACKTRACE - START ***\n\n')
+                faulthandler.dump_traceback(file=dump_file, all_threads=True)
+                dump_file.write(f'\n{datetime.datetime.now()}'
+                                f'   *** STACKTRACE - END ***\n\n')
+
+        except Exception as e:
+            cls._logger.exception(msg='')
 
     @classmethod
     def compare_movies(cls,
@@ -130,28 +172,27 @@ class Debug:
         :param max_value_length:
         :return:
         """
-        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if not cls._logger.isEnabledFor(DEBUG_VERBOSE):
             return
         if trailer is None or new_trailer is None:
             cls._logger.debug_verbose('At least one argument is None')
             return
 
-        keys_of_primary_interest = [Movie.TRAILER,
-                                    Movie.SOURCE, Movie.TITLE,
-                                    Movie.YEAR, Movie.TRAILER_TYPE]
-        keys_of_interest = [Movie.TRAILER,
-                            Movie.SOURCE, Movie.TITLE,
-                            Movie.FANART, Movie.PLOT,
-                            Movie.FILE, Movie.THUMBNAIL,
-                            Movie.YEAR, Movie.TRAILER_TYPE]
+        keys_of_primary_interest = [MovieField.TRAILER,
+                                    MovieField.SOURCE, MovieField.TITLE,
+                                    MovieField.YEAR, MovieField.TRAILER_TYPE]
+        keys_of_interest = [MovieField.TRAILER,
+                            MovieField.SOURCE, MovieField.TITLE,
+                            MovieField.FANART, MovieField.PLOT,
+                            MovieField.FILE, MovieField.THUMBNAIL,
+                            MovieField.YEAR, MovieField.TRAILER_TYPE]
         for key in trailer:
             if key in keys_of_interest and new_trailer.get(key) is None:
                 value = str(trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
-                cls._logger.debug_verbose('CompareMovies- key:', key,
-                                          'is missing from new. Value:',
-                                          value)
+                cls._logger.debug_verbose(f'CompareMovies- key: {key} '
+                                          'is missing from new. Value: {value}')
 
         for key in trailer:
             if key in keys_of_primary_interest and (trailer.get(key) is not None
@@ -164,41 +205,51 @@ class Debug:
                 new_value = str(new_trailer.get(key))
                 if len(new_value) > max_value_length:
                     new_value = new_value[:max_value_length]
-                cls._logger.debug_verbose('Values for:', key, 'different:', value,
-                                          'new:', new_value)
+                cls._logger.debug_verbose(f'Values for: {key} different: {value} '
+                                          f'new: {new_value}')
 
         for key in new_trailer:
             if key in keys_of_interest and trailer.get(key) is None:
                 value = str(new_trailer.get(key))
                 if len(value) > max_value_length:
                     value = value[:max_value_length]
-                cls._logger.debug_verbose('key:', key, 'is missing from old. Value:',
-                                          value)
+                cls._logger.debug_verbose(f'key: {key} is missing from old. '
+                                          f'Value: {value}')
 
     @classmethod
     def validate_basic_movie_properties(cls,
-                                        movie: MovieType,
+                                        movie_arg: Union[MovieType, AbstractMovie],
                                         stack_trace: bool = True) -> None:
         """
             Verifies that certain fields in a Kodi VideoInfo dictionary
             have values. Fields with Missing fields are logged and dummy
             values are added. Meant to avoid Exceptions.
-        :param movie:
+        :param movie_arg:
         :param stack_trace:
         :return:
         """
-        if not cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if not cls._logger.isEnabledFor(DEBUG_VERBOSE):
             return
 
-        if movie is None:
+        if movie_arg is None:
             cls._logger.debug_verbose('movie is None')
             return
 
+        movie: MovieType
+        if isinstance(movie_arg, LibraryMovie):
+            return
+
+        if isinstance(movie_arg, AbstractMovie):
+            movie = movie_arg.get_as_movie_type()
+        else:
+            movie = movie_arg
+
         basic_properties = {}
 
-        for key in (Movie.TRAILER_TYPE, Movie.FANART, Movie.THUMBNAIL, Movie.TRAILER,
-                    Movie.SOURCE, Movie.YEAR, Movie.RATING, Movie.TITLE):
-            basic_properties[key] = Movie.DEFAULT_MOVIE[key]
+        for key in (MovieField.TRAILER_TYPE, MovieField.FANART, MovieField.THUMBNAIL,
+                    MovieField.TRAILER, MovieField.SOURCE, MovieField.YEAR,
+                    MovieField.RATING, MovieField.TITLE):
+            basic_properties[key] = MovieField.DEFAULT_MOVIE[key]
 
         failing_properties = []
         is_failed = False
@@ -208,74 +259,137 @@ class Debug:
                 is_failed = True
                 movie.setdefault(
                     property_name, basic_properties[property_name])
-
+            else:
+                if isinstance(basic_properties[property_name], int):
+                    value =  movie.get(property_name)
+                    try:
+                        int_value: int = int(value)
+                    except:
+                        cls._logger.error(f'Invalid {property_name} int value: '
+                                          f'{value} for movie: '
+                                          f'{movie.get(MovieField.TITLE, "title missing")} '
+                                          f'source: {movie.get(MovieField.SOURCE)}')
+                        continue
+                elif isinstance(basic_properties[property_name], float):
+                    value =  movie.get(property_name)
+                    try:
+                        float_value: float = float(value)
+                    except:
+                        cls._logger.error(f'Invalid {property_name} float value: '
+                                          f'{value} for movie: '
+                                          f'{movie.get(MovieField.TITLE, "title missing")} '
+                                          f'source: {movie.get(MovieField.SOURCE)}')
+                        continue
         if len(failing_properties) > 0:
-            msg = f'{movie.get(Movie.TITLE, "title missing")} ' \
+            msg = f'title: {movie.get(MovieField.TITLE, "title missing")} ' \
                 f'{",".join(failing_properties)}'
             if stack_trace:
-                LazyLogger.dump_stack('Missing basic property: ' + msg)
+                BasicLogger.dump_stack(f'Missing basic property: {msg}')
             else:
-                cls._logger.debug_verbose('Missing properties:', msg)
+                cls._logger.debug_verbose(f'Missing properties: {msg}')
 
         assert not is_failed, 'LEAK: Invalid property values'
 
     @classmethod
-    def validate_detailed_movie_properties(cls, movie: MovieType,
+    def validate_detailed_movie_properties(cls,
+                                           movie_arg: Union[MovieType, AbstractMovie],
                                            stack_trace: bool = True,
                                            force_check: bool = False) -> bool:
         """
             Similar to validate_basic_movie_properties. Validates additional
             fields
-        :param movie:
+        :param movie_arg:
         :param stack_trace:
         :param force_check: Check even if debug level less than DEBUG_VERBOSE
         :return: True if no problems found
         """
-        if not (cls._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE) or force_check):
+        if not (cls._logger.isEnabledFor(DEBUG_VERBOSE) or force_check):
             return True
+        # if isinstance(movie_arg, FolderMovie):
+        #    return True
 
-        if movie is None:
+        if movie_arg is None:
             cls._logger.debug_verbose('movie is None')
             return False
-
-        details_properties = {}
-
-        for key in (Movie.TRAILER_TYPE, Movie.FANART, Movie.THUMBNAIL, Movie.TRAILER,
-                    Movie.SOURCE, Movie.YEAR, Movie.RATING, Movie.TITLE,
-                    Movie.WRITER, Movie.DETAIL_DIRECTORS, Movie.DETAIL_TITLE,
-                    Movie.CAST, Movie.PLOT, Movie.GENRE, Movie.STUDIO,
-                    Movie.DETAIL_ACTORS, Movie.DETAIL_GENRES,
-                    Movie.DETAIL_CERTIFICATION, Movie.DETAIL_CERTIFICATION_IMAGE,
-                    Movie.DETAIL_RUNTIME, Movie.DETAIL_WRITERS,
-                    Movie.DETAIL_STUDIOS, Movie.RUNTIME, Movie.MPAA):
-            details_properties[key] = Movie.DEFAULT_MOVIE[key]
+        movie: MovieType
+        if isinstance(movie_arg, AbstractMovie):
+            movie = movie_arg.get_as_movie_type()
+        else:
+            movie = movie_arg
 
         cls.validate_basic_movie_properties(movie, stack_trace=stack_trace)
         failing_properties = []
         is_ok = True
-        for property_name in details_properties.keys():
+        for property_name in MovieField.DEFAULT_MOVIE.keys():
             if movie.get(property_name) is None:
                 failing_properties.append(property_name)
                 movie.setdefault(
-                    property_name, details_properties[property_name])
+                    property_name, MovieField.DEFAULT_MOVIE[property_name])
                 is_ok = False
 
-        if len(failing_properties) > 0:
+        if (cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)
+                                     and len(failing_properties) > 0):
             msg = ', '.join(failing_properties)
             if stack_trace:
-                LazyLogger.dump_stack('Missing details property: ' + msg)
+                BasicLogger.dump_stack(f'Missing details property: {msg}')
             else:
-                cls._logger.debug_verbose('Missing properties:', msg)
+                cls._logger.debug_verbose(f'Missing properties: {msg}')
 
         country_id = Settings.get_country_iso_3166_1().lower()
         certifications = WorldCertifications.get_certifications(country_id)
-        if not certifications.is_valid(movie[Movie.MPAA]):
-            if movie[Movie.MPAA] != '':
+        if not certifications.is_valid(movie[MovieField.CERTIFICATION_ID]):
+            is_ok = False
+            if movie[MovieField.CERTIFICATION_ID] != '':
                 cls._logger.debug_verbose(
-                    f'Invalid certification: {movie[Movie.MPAA]} for movie: '
-                    '{movie[Movie.TITLE]} set to NR')
-            movie[Movie.MPAA] = certifications.get_unrated_certification() \
+                    f'Invalid certification: {movie[MovieField.CERTIFICATION_ID]} '
+                    f'for movie: {movie[MovieField.TITLE]} set to NR')
+            movie[MovieField.CERTIFICATION_ID] = certifications.get_unrated_certification() \
                 .get_preferred_id()
 
         # assert is_ok, 'LEAK, Invalid property values'
         return is_ok
+
+    @classmethod
+    def total_size(cls, o, handlers: Dict[Any, Any] = None, verbose: bool = False):
+        """ Returns the approximate memory footprint an object and all of its contents.
+
+        Automatically finds the contents of the following builtin containers and
+        their subclasses:  tuple, list, deque, dict, set and frozenset.
+        To search other containers, add handlers to iterate over their contents:
+
+            handlers = {SomeContainerClass: iter,
+                        OtherContainerClass: OtherContainerClass.get_elements}
+
+        """
+        if handlers is None:
+            handlers = {}
+
+        dict_handler = lambda d: chain.from_iterable(d.items())
+
+        all_handlers = {tuple: iter,
+                        list: iter,
+                        deque: iter,
+                        dict: dict_handler,
+                        set: iter,
+                        frozenset: iter,
+                       }
+        all_handlers.update(handlers)     # user handlers take precedence
+        seen = set()                      # track which object id's have already been seen
+        default_size = getsizeof(0)       # estimate sizeof object without __sizeof__
+
+        def sizeof(o):
+            if id(o) in seen:       # do not double count the same object
+                return 0
+            seen.add(id(o))
+            s = getsizeof(o, default_size)
+
+            if verbose:
+                cls._logger.debug_verbose(f'size: {s} type: {type(o)} repr: {repr(o)}')
+
+            for typ, handler in all_handlers.items():
+                if isinstance(o, typ):
+                    s += sum(map(sizeof, handler(o)))
+                    break
+            return s
+
+        return sizeof(o)

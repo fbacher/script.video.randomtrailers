@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
 import os
 import threading
+from abc import ABC
+
 import xbmcgui
 
 from common.imports import *
+from common.movie import AbstractMovie
 from player.advanced_player import AdvancedPlayer
-from common.logger import LazyLogger, Trace
-from common.constants import Movie
+from common.logger import *
 from common.disk_utils import DiskUtils
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
-class MyPlayer(AdvancedPlayer):
+class MyPlayer(AdvancedPlayer, ABC):
     """
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
@@ -25,16 +28,15 @@ class MyPlayer(AdvancedPlayer):
         super().__init__()
         clz = type(self)
         if clz._logger is None:
-            clz._logger: LazyLogger = module_logger.getChild(self.__class__.__name__)
+            clz._logger = module_logger.getChild(self.__class__.__name__)
 
         self._expected_title: str = None
         self._expected_file_path: str = None
         self._is_url: bool = False
-        self._is_activated: bool = True
         self._listener_lock: threading.RLock = threading.RLock()
         self._listeners: List[Callable[[Any], Any]] = []
 
-    def play_trailer(self, path: str, trailer: MovieType) -> None:
+    def play_trailer(self, path: str, trailer: AbstractMovie) -> None:
         """
 
         :param path:
@@ -42,22 +44,20 @@ class MyPlayer(AdvancedPlayer):
         :return:
         """
         clz = type(self)
-        title: str = trailer[Movie.TITLE]
-        if trailer.get(Movie.NORMALIZED_TRAILER) is not None:
-            file_path = trailer[Movie.NORMALIZED_TRAILER]
-        elif trailer.get(Movie.CACHED_TRAILER) is not None:
-            file_path = trailer[Movie.CACHED_TRAILER]
+        title: str = trailer.get_title()
+        if trailer.has_normalized_trailer():
+            file_path = trailer.get_normalized_trailer_path()
+        elif trailer.has_cached_trailer():
+            file_path = trailer.get_cached_trailer()
         else:
-            file_path = trailer[Movie.TRAILER]
+            file_path = trailer.get_trailer_path()
 
         file_name: str = os.path.basename(file_path)
         passed_file_name: str = os.path.basename(path)
         if file_name != passed_file_name:
-            if clz._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                clz._logger.debug_extra_verbose('passed file name:',
-                                                 passed_file_name,
-                                                 'trailer file_name:',
-                                                 file_name,)
+            if clz._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                clz._logger.debug_extra_verbose(f'passed file name: {passed_file_name} '
+                                                f'trailer file_name: {file_name}')
 
         listitem: xbmcgui.ListItem = xbmcgui.ListItem(title)
         listitem.setInfo(
@@ -65,11 +65,12 @@ class MyPlayer(AdvancedPlayer):
                       'Genre': 'randomtrailers',
                       'trailer': passed_file_name, 'path': path,
                       'mediatype': 'video', 'tag': 'randomtrailers'})
+
         listitem.setPath(file_path)
 
         self.set_playing_title(title)
         self.set_playing_file_path(file_path)
-        if clz._logger.isEnabledFor(LazyLogger.DISABLED):
+        if clz._logger.isEnabledFor(DISABLED):
             clz._logger.debug_extra_verbose(
                 'path:', file_name, 'title:', title)
 
@@ -90,7 +91,7 @@ class MyPlayer(AdvancedPlayer):
         clz = type(self)
         title = listitem.getLabel()
         clz._logger.debug(f'Playing: {title} path: {item}',
-                           trace=Trace.TRACE_PLAY_STATS)
+                          trace=Trace.TRACE_PLAY_STATS)
         super().play(item, listitem, windowed, startpos)
 
     def set_playing_title(self, title: str) -> None:
@@ -111,6 +112,11 @@ class MyPlayer(AdvancedPlayer):
         self._is_url = DiskUtils.is_url(file_path)
         self._expected_file_path = file_path
 
+    # def is_playing_trailer(self, path: str) -> bool:
+    #     if self._is_playing and self._expected_file_path == path:
+    #         return True
+    #     return False
+
     def onAVStarted(self) -> None:
         """
             Detect when the player is playing something not initiated by this
@@ -118,35 +124,35 @@ class MyPlayer(AdvancedPlayer):
             player via keyboard or remote (that does not use JSON RPC)is
             detected by other means (onAction).
 
-            Compare the movie that the player is playing versus what we expect
+            Compare the video that the player is playing versus what we expect
             it to play. If they don't match, then assume that something else
-            launched the movie.
+            launched the video.
 
         :return:
         """
         clz = type(self)
         try:
             # All local trailers played by Random Trailers will have a fake genre of
-            # 'randomtrailers'. However, if a trailer is from a remote source
+            # 'randomtrailers'. However, if a video is from a remote source
             # such that youtube plugin does the actual playing, then the
             # genre will NOT be set to 'randomtrailers'. The use of caching
             # of remote trailers will eliminate this issue.
 
+            super().onAVStarted()
+            clz._logger.debug(f'onAVStarted path: {self.getPlayingFile()}')
             genre: str = self.getVideoInfoTag().getGenre()
             # clz._logger.debug('genre:', genre)
             if genre != 'randomtrailers':
                 playing_file: str = super().getPlayingFile()
                 if not (self._is_url and DiskUtils.is_url(playing_file)):
-                    self._is_activated = False
-                    if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz._logger.isEnabledFor(DEBUG):
                         clz._logger.debug(
-                            'Player is playing movie:', playing_file)
+                            'Player is playing video:', playing_file)
                     self.notify_non_random_trailer_video()
         except Exception as e:
             pass
 
-    def register_exit_on_movie_playing(self,
-                                       listener: Callable[[Any], Any]) -> None:
+    def register_exit_on_movie_playing(self, listener: Callable[[Any], Any])-> None:
         """
             Exit quickly when the player is launched via JSON RPC call, or
             otherwise.
@@ -163,7 +169,7 @@ class MyPlayer(AdvancedPlayer):
             try:
                 listener()
             except Exception as e:
-                clz.exception('')
+                clz._logger.exception('')
 
     def dump_data(self, context: str) -> None:
         """
@@ -175,20 +181,13 @@ class MyPlayer(AdvancedPlayer):
         try:
             if self.isPlayingVideo():
                 info_tag_video = self.getVideoInfoTag()
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz._logger.debug('context:', context, 'title:',
-                                       info_tag_video.getTitle(),
-                                       'genre:', info_tag_video.getGenre(),
-                                       'trailer:', info_tag_video.getTrailer())
+                if clz._logger.isEnabledFor(DEBUG):
+                    clz._logger.debug(f'context: {context} '
+                                      f'title: {info_tag_video.getTitle()} '
+                                      f'genre: {info_tag_video.getGenre()} '
+                                      f'trailer: {info_tag_video.getTrailer()}')
             else:
-                if clz._logger.isEnabledFor(LazyLogger.DEBUG):
+                if clz._logger.isEnabledFor(DEBUG):
                     clz._logger.debug('Not playing video')
         except Exception as e:
             clz._logger.exception('')
-
-    def is_activated(self) -> bool:
-        """
-
-        :return:
-        """
-        return self._is_activated

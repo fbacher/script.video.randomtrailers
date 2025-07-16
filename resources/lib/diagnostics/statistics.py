@@ -9,11 +9,10 @@ Created on Feb 10, 2019
 import os
 
 from common.imports import *
-from common.logger import (LazyLogger, Trace)
-from common.constants import Constants, Movie
-from common.settings import Settings
+from common.logger import *
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Statistics:
@@ -66,6 +65,8 @@ class Statistics:
     _next_trailer_wait_time_attempts: int = 0
     _next_trailer_second_attempt_wait_time_elapsed_seconds: int = 0
     _next_trailer_second_attempt_wait_time_attempts: int = 0
+    _next_trailer_third_attempt_wait_time_elapsed_seconds: int = 0
+    _next_trailer_third_attempt_wait_time_attempts: int = 0
     _json_io_time: int = 0
 
     # For Discovery Modules
@@ -324,7 +325,7 @@ class Statistics:
         cls._missing_tmdb_trailers_initial_size = size
 
     @classmethod
-    def missing_library_trailers_initial_size(cls, size: int) ->None:
+    def missing_library_trailers_initial_size(cls, size: int) -> None:
         """
 
         :return:
@@ -391,6 +392,13 @@ class Statistics:
 
     @classmethod
     def add_next_trailer_second_attempt_wait_time(cls, elapsed_seconds: int,
-                                   attempts: int) -> None:
+                                                  attempts: int) -> None:
         cls._next_trailer_second_attempt_wait_time_elapsed_seconds += elapsed_seconds
         cls._next_trailer_second_attempt_wait_time_attempts += attempts
+
+    @classmethod
+    def add_next_trailer_third_attempt_wait_time(cls,
+                                                 elapsed_seconds: int,
+                                                 attempts: int) -> None:
+        cls._next_trailer_third_attempt_wait_time_elapsed_seconds += elapsed_seconds
+        cls._next_trailer_third_attempt_wait_time_attempts += attempts

@@ -6,10 +6,12 @@ Created on Mar 4, 2019
 @author: fbacher
 '''
 
+from common.imports import *
 from common.settings import Settings
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
+from .__init__ import *
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class ITunes:
@@ -22,7 +24,7 @@ class ITunes:
                        }
     '''
 
-    _logger = None
+    _logger: BasicLogger = None
 
     def __init__(self) -> None:
         cls = type(self)

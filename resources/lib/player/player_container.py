@@ -7,16 +7,18 @@ Created on Feb 12, 2019
 import xbmc
 
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
+from player.abstract_player import AbstractPlayer
 from player.my_player import MyPlayer
 from player.dummy_player import DummyPlayer
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayerContainer:
     _instance = None
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @staticmethod
     def get_instance() -> ForwardRef('PlayerContainer'):
@@ -29,9 +31,9 @@ class PlayerContainer:
         if clz._logger is None:
             clz._logger = module_logger.getChild(self.__class__.__name__)
 
-        self._player: xbmc.Player = MyPlayer()
+        self._player: Union[AbstractPlayer, xbmc.Player] = MyPlayer()
         self._is_dummy_player: bool = False
-        self._saved_player = None
+        self._saved_player: Union[AbstractPlayer, xbmc.Player] = None
 
     def register_exit_on_movie_playing(self, listener: Callable[[Any], Any]) -> None:
         """
@@ -42,7 +44,7 @@ class PlayerContainer:
 
         self._player.register_exit_on_movie_playing(listener)
 
-    def get_player(self) -> xbmc.Player:
+    def get_player(self) -> AbstractPlayer:
         return self._player
 
     def get_saved_player(self) -> xbmc.Player:
@@ -61,17 +63,18 @@ class PlayerContainer:
 
     def use_dummy_player(self, delete=False):
         clz = type(self)
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-            clz._logger.enter('delete:', delete)
+        if clz._logger.isEnabledFor(DEBUG):
+            clz._logger.debug(f'delete: {str(delete)}')
 
         self._saved_player = self._player
         self._player = DummyPlayer()
         self._is_dummy_player = True
-        self._saved_player.set_callbacks()
-        self._saved_player.disable_advanced_monitoring()
+        if self._saved_player is not None:
+            self._saved_player.set_callbacks()
+            self._saved_player.disable_advanced_monitoring()
         if delete:
             del self._saved_player
             self._saved_player = None
 
-        if clz._logger.isEnabledFor(LazyLogger.DEBUG):
-            clz._logger.exit()
+        if clz._logger.isEnabledFor(DEBUG):
+            clz._logger.debug('exiting')

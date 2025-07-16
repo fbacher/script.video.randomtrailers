@@ -7,10 +7,11 @@ Created on Feb 28, 2019
 
 import xbmcaddon
 from common.imports import *
-from common.constants import Movie, Constants
-from common.logger import LazyLogger
+from common.constants import Constants
+from common.logger import *
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Messages:
@@ -37,7 +38,8 @@ class Messages:
     PLAYING_PREVIOUS_MOVIE: Final[str] = 'Playing: %s'
     GENRE_LABEL: Final[str] = 'Genre: '
     MINUTES_DETAIL: Final[str] = '{} [B]Minutes[/B] - '
-    RUNTIME_GENRE: Final[str] = '{} [B]Genre:[/B]'
+    RUNTIME_GENRE: Final[str] = '{}  [B]Genre: [/B]'
+    VOICED_RUNTIME_GENRE: Final[str] = 'Runtime: {} ' # TODO: FINISH
     TITLE_LABEL: Final[str] = 'Title'
     DIRECTOR_LABEL: Final[str] = 'Director'
     WRITER_LABEL: Final[str] = 'Writer'
@@ -89,6 +91,7 @@ class Messages:
     GENRE_WESTERN: Final[str] = 'Western'
     MOVIE_ADDED_TO_PLAYLIST: Final[str] = 'Movie added to playlist: {}'
     MOVIE_ALREADY_ON_PLAYLIST: Final[str] = 'Movie already in playlist: {}'
+    NOT_A_PLAYLIST: Final[str] = 'Playlist {} not configured'
     SETTING_INCLUDE_THREAD_INFORMATION: Final[str] = "Include thread information"
     RATING: Final[str] = 'Rating {}'
     RATING_G: Final[str] = 'G'
@@ -97,10 +100,16 @@ class Messages:
     RATING_R: Final[str] = 'R'
     RATING_NC_17: Final[str] = 'NC-17'
     RATING_NR: Final[str] = 'Unrated'
+    # The following Trailer type values must be the same as in movie.py
+    TRAILER_TYPE_TRAILER: Final[str] = 'Trailer'
+    TRAILER_TYPE_FEATURETTE: Final[str] = 'Featurette'
+    TRAILER_TYPE_CLIP: Final[str] = 'Clip'
+    TRAILER_TYPE_TEASER: Final[str] = 'Teaser'
+    TRAILER_TYPE_BEHIND_THE_SCENES: Final[str] = 'Behind the Scenes'
 
     # VOICED messages are spoken via TTS engine when available
 
-    VOICED_CERTIFICATION: Final[str] = 'MPAA rating {}'
+    VOICED_CERTIFICATION: Final[str] = 'Certification rating'
     VOICED_STARS: Final[str] = '{} out of five stars'
 
     _msg_id_for_name: Final[Dict[str, int]] = {
@@ -169,6 +178,7 @@ class Messages:
         GENRE_WESTERN: 32238,
         MOVIE_ADDED_TO_PLAYLIST: 32239,
         MOVIE_ALREADY_ON_PLAYLIST: 32240,
+        NOT_A_PLAYLIST: 32290,
         SETTING_INCLUDE_THREAD_INFORMATION: 32241,
         RATING: 32242,
         RATING_G: 32243,
@@ -181,12 +191,17 @@ class Messages:
         VOICED_STARS: 32250,
         TFH_LICENSE: 32283,
         TMDB_LICENSE: 32281,
-        LICENSE_LABEL: 32282
+        LICENSE_LABEL: 32282,
+        TRAILER_TYPE_TRAILER: 32285,
+        TRAILER_TYPE_FEATURETTE: 32286,
+        TRAILER_TYPE_CLIP: 32287,
+        TRAILER_TYPE_TEASER: 32288,
+        TRAILER_TYPE_BEHIND_THE_SCENES: 32289
     }
 
     _instance = None
     _debug_dump: bool = False
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     @classmethod
     def class_init(cls) -> None:
@@ -219,15 +234,15 @@ class Messages:
 
         if Messages._debug_dump:
             for msg_number in range(32000, 32300):
-                unformatted_msg = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
+                unformatted_msg: str = xbmcaddon.Addon(Constants.ADDON_ID).getLocalizedString(
                     msg_number)
                 if (unformatted_msg != ""
-                        and cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE)):
+                        and cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE)):
                     cls._logger.debug_extra_verbose('found msg:', msg_number,
                                                     unformatted_msg)
             Messages._debug_dump = False
 
-        unformatted_msg = 'Message not defined'
+        unformatted_msg: str = 'Message not defined'
         try:
             msg_id = int(msg_key)
         except Exception:
@@ -236,21 +251,20 @@ class Messages:
         if msg_id is None:
             msg_id = Messages._msg_id_for_name.get(msg_key, None)
         if msg_id is None:
-            if cls._logger.isEnabledFor(LazyLogger.ERROR):
+            if cls._logger.isEnabledFor(ERROR):
                 cls._logger.error(
-                    'Can not find msg_id_for_name for message key: {}'.format(msg_key))
+                    f'Can not find msg_id_for_name for message key: {msg_key}')
                 unformatted_msg = msg_key
         else:
             unformatted_msg = xbmcaddon.Addon(
                 Constants.ADDON_ID).getLocalizedString(msg_id)
             if unformatted_msg == '':
                 unformatted_msg = msg_key
-                if cls._logger.isEnabledFor(LazyLogger.ERROR):
+                if cls._logger.isEnabledFor(ERROR):
                     cls._logger.error(
-                        'Can not find message from strings for message id: {} msg_key: {}'
-                        .format(msg_id, msg_key))
+                        f'Can not find message from strings for message id: {msg_id} msg_key: {msg_key}')
                     unformatted_msg = msg_key
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
+                    if cls._logger.isEnabledFor(DEBUG):
                         unformatted_msg += '_dm'
 
         try:
@@ -260,28 +274,3 @@ class Messages:
             msg = unformatted_msg
 
         return msg
-
-    @classmethod
-    def get_formated_title(cls, movie: MovieType) -> str:
-        """
-
-        :param movie:
-        :return:
-        """
-
-        trailer_type = movie.get(Movie.TRAILER_TYPE, '')
-
-        year = str(movie.get(Movie.YEAR, ''))
-        if year != '':
-            year = '(' + year + ')'
-
-        # A movie from a remote source (tmdb) may also be in local library.
-
-        sources = movie[Movie.SOURCE]
-        if movie[Movie.SOURCE] != Movie.LIBRARY_SOURCE and movie.get(Movie.MOVIEID, None):
-            sources += ' / ' + Movie.LIBRARY_SOURCE
-
-        title_string = (movie[Movie.TITLE] + ' ' + year + ' - ' +
-                        sources + ' ' + trailer_type)
-        return title_string
-

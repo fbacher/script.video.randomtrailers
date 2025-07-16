@@ -5,10 +5,12 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
+from .__init__ import *
 
 
-class RestartDiscoveryException(Exception):
+class StopDiscoveryException(Exception):
     """
 
     """
-    pass
+    def __init__(self):
+        super().__init__()

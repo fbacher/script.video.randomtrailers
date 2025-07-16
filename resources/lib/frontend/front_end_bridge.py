@@ -6,17 +6,19 @@ Created on Mar 21, 2019
 @author: Frank Feuerbacher
 """
 
-
+import pickle
 import sys
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.exceptions import AbortException
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
+from common.movie import AbstractMovie
 from common.plugin_bridge import PluginBridge, PluginBridgeStatus
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 """
     FrontendBridge provides support for the random trailers front_end_service to
@@ -24,7 +26,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
     accomplished using the AddonSignals service. 
 """
 
-MAX_LOOPS: int = 150
+MAX_WAIT: float = 100.0
 
 
 class FrontendBridgeStatus(PluginBridgeStatus):
@@ -37,9 +39,9 @@ class FrontendBridge(PluginBridge):
 
     """
     _logger = None
-    _next_trailer = None
+    _next_trailer: AbstractMovie = None
     _trailer_iterator = None
-    _trailer = None
+    _traile: AbstractMovie = None
     _busy_getting_trailer = False
     _status = FrontendBridgeStatus.IDLE
 
@@ -54,12 +56,12 @@ class FrontendBridge(PluginBridge):
     def class_init(cls) -> None:
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.enter()
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                cls._logger.debug_extra_verbose('In class_init')
             try:
-                cls._next_trailer: MovieType = None
+                cls._next_trailer: AbstractMovie = None
                 cls._trailer_iterator = None
-                cls._trailer: MovieType = None
+                cls._trailer: AbstractMovie = None
                 cls._busy_getting_trailer: bool = False
                 cls._status: str = FrontendBridgeStatus.IDLE
                 cls.register_listeners()
@@ -75,9 +77,9 @@ class FrontendBridge(PluginBridge):
     ###########################################################
 
     @classmethod
-    def get_next_trailer(cls) -> (str, Dict[str, Any]):
+    def get_next_trailer(cls) -> (str, AbstractMovie):
         """
-         front-end requests a trailer from the back-end and waits for
+         front-end requests a movie from the back-end and waits for
             response.
 
         :return:
@@ -88,31 +90,38 @@ class FrontendBridge(PluginBridge):
                             source_id=Constants.BACKEND_ID)
 
             # It can take some time before we get responses back
-            # Wait max 30 seconds
+            # Wait max 300 seconds
 
             # TODO: handle case where there are NO trailers to play
-            # Also, server should send ack on receipt of this request
+            #      Also, server should send ack on receipt of this request
+            #
+            # TODO: If exit due to max wait time. Need to catch any trailers
+            #       sent when called again.
 
             cls._status = FrontendBridgeStatus.BUSY
-            count = 0
-            while cls._status == FrontendBridgeStatus.BUSY and count < MAX_LOOPS:
-                Monitor.throw_exception_if_abort_requested(timeout=0.20)
-                count += 1
+            timeout: float = 0.1
+            approx_total_wait: float = 0.0
+            while (cls._next_trailer is None
+                    and cls._status == FrontendBridgeStatus.BUSY
+                    and approx_total_wait < MAX_WAIT):
+                Monitor.throw_exception_if_abort_requested(timeout=timeout)
+                approx_total_wait += timeout
+                if approx_total_wait > 5.0:
+                    timeout = 0.5
 
-            if count >= MAX_LOOPS:
+            if approx_total_wait >= MAX_WAIT:
                 cls._logger.error('Timed out waiting on get_next_trailer')
                 cls._next_trailer = None
                 cls._status = FrontendBridgeStatus.TIMED_OUT
 
-            trailer = cls._next_trailer
+            trailer: AbstractMovie = cls._next_trailer
             status = cls._status
             cls._next_trailer = None
             cls._status = FrontendBridgeStatus.IDLE
             if trailer is not None:
-                if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                    cls._logger.debug_extra_verbose('returning status:',
-                                                    status, 'title:',
-                                                    trailer[Movie.TITLE])
+                if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                    cls._logger.debug_extra_verbose(f'returning status: {status} '
+                                                    f'title: {trailer.get_title()}')
             return status, trailer
         except AbortException:
             cls.delete_instance()
@@ -127,8 +136,8 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-        if LazyLogger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-            cls._logger.enter()
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            cls._logger.debug_extra_verbose(msg='settings changed')
         signal_payload = {}
         cls.send_signal('settings_changed', data=signal_payload,
                         source_id=Constants.BACKEND_ID)
@@ -145,8 +154,8 @@ class FrontendBridge(PluginBridge):
 
         :return:
         """
-        # if LazyLogger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-        #     cls._logger.enter()
+        # if BasicLogger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+        #     cls._logger.debug('enter')
         signal_payload = {'what': what}
         cls.send_signal('ack', data=signal_payload,
                         source_id=Constants.BACKEND_ID)
@@ -154,25 +163,26 @@ class FrontendBridge(PluginBridge):
     @classmethod
     def returned_trailer(cls, data: Any) -> None:
         """
-            Front-end receives trailer from back-end
+            Front-end receives movie from back-end
 
         :param data:
         :return:
         """
         try:
             Monitor.throw_exception_if_abort_requested()
-            cls._next_trailer = data.get('trailer', None)
+            pickled_str: str = data.get('movie', None)
+            pickled: bytes = bytes.fromhex(pickled_str)
+            cls._next_trailer: AbstractMovie = pickle.loads(pickled)
             cls._status = data.get('status', None)
-            if cls._status == FrontendBridgeStatus.BUSY:
+            if cls._next_trailer is None and cls._status == FrontendBridgeStatus.BUSY:
                 Monitor.throw_exception_if_abort_requested(timeout=2.0)
-            elif cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            elif cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 if cls._next_trailer is None:
                     title = 'No Trailer Received'
                 else:
-                    title = cls._next_trailer.get(Movie.TITLE, 'No Title')
-                cls._logger.debug_extra_verbose('status:', cls._status,
-                                                'received trailer for:',
-                                                title)
+                    title = cls._next_trailer.get_title()
+                cls._logger.debug_extra_verbose(f'status: {cls._status} '
+                                                f'received movie for: {title}')
         except AbortException:
             pass  # Don't pass exception to AddonSignals
         except Exception as e:
@@ -190,8 +200,8 @@ class FrontendBridge(PluginBridge):
         """
         try:
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                cls._logger.enter()
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                cls._logger.debug('enter')
             # Inform monitor
             cls.ack('screensaver')
         except AbortException:
@@ -207,11 +217,24 @@ class FrontendBridge(PluginBridge):
 
             :return: None
         """
-        # if LazyLogger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-        #     cls._logger.enter()
+        # if BasicLogger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+        #     cls._logger.debug('enter')
 
         frontend_id = Constants.FRONTEND_ID
         cls.register_slot(
             frontend_id, 'nextTrailer', cls.returned_trailer)
         cls.register_slot(
             frontend_id, 'activate_screensaver', cls.activate_screensaver)
+
+    @classmethod
+    def dump_threads(cls) -> None:
+        """
+            Front-end informs others (back-end) to dump threads.
+
+        :return:
+        """
+        if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            cls._logger.debug_extra_verbose('enter')
+        signal_payload = {}
+        cls.send_signal('dump_threads', data=signal_payload,
+                        source_id=Constants.BACKEND_ID)

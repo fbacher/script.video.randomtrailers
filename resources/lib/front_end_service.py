@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 
-'''
+"""
 Created on Feb 12, 2019
 
 @author: Frank Feuerbacher
-'''
+"""
 
 from common.python_debugger import PythonDebugger
+from common.critical_settings import CriticalSettings
+from common import *
+
+CriticalSettings.set_plugin_name('rt_frontend')
+
 REMOTE_DEBUG: bool = False
 if REMOTE_DEBUG:
     PythonDebugger.enable('randomtrailers.frontend')
@@ -17,28 +22,29 @@ import threading
 
 import xbmc
 
+from common import *
 from common.monitor import Monitor
 from common.constants import Constants
-from common.exceptions import AbortException
 from common.imports import *
 from common.settings import Settings
 from frontend.front_end_bridge import FrontendBridge
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
 
 from frontend import random_trailers_ui
 
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 def exit_randomtrailers():
     if PythonDebugger.is_enabled():
         PythonDebugger.disable()
     sys.exit(0)
 
+
 class MainThreadLoop:
     """
         Kodi's Monitor class has some quirks in it that strongly favor creating
-        it from the main thread as well as callng xbmc.sleep/xbmc.wait_for_abort.
+        it from the main thread as well as calling xbmc.sleep/xbmc.wait_for_abort.
         The main issue is that a Monitor event can not be received until
         xbmc.sleep/xbmc.wait_for_abort is called FROM THE SAME THREAD THAT THE
         MONITOR WAS INSTANTIATED FROM. Further, it may be the case that
@@ -61,12 +67,12 @@ class MainThreadLoop:
     def class_init(cls, screensaver: bool) -> None:
         cls._logger = module_logger.getChild(cls.__name__)
         Trace.enable_all()
+        Trace.enable(Trace.TRACE_UI_CONTROLLER)
         Settings.save_settings()
         cls._advanced_player = None
         cls._is_screensaver = screensaver
         cls._start_ui = None
         cls._callableTasks = queue.Queue(maxsize=0)
-
 
     # Calls that need to be performed on the main thread
 
@@ -100,7 +106,7 @@ class MainThreadLoop:
         """
         try:
             # For the first 10 seconds use a short timeout so that initialization
-            # stuff is handled quickly. Then revert to 0.10 seconds
+            # stuff is handled quickly. Then revert to less frequent checks
 
             initial_timeout = 0.05
             switch_timeouts_count = 10 * 20
@@ -116,7 +122,7 @@ class MainThreadLoop:
             while not Monitor.real_waitForAbort(timeout=timeout):
                 i += 1
                 if i == switch_timeouts_count:
-                    timeout = 0.10
+                    timeout = CriticalSettings.LONG_POLL_DELAY
 
                 try:
                     task = cls._callableTasks.get(block=False)
@@ -184,18 +190,18 @@ def bootstrap_random_trailers(screensaver: bool) -> None:
     """
     try:
         Monitor.register_settings_changed_listener(
-            Settings.on_settings_changed)
+            Settings.on_settings_changed, 'Settings.on_settings_changed')
 
         Monitor.register_settings_changed_listener(
-            LazyLogger.on_settings_changed)
+            BasicLogger.on_settings_changed, 'BasicLogger.on_settings_changed')
 
         MainThreadLoop.class_init(screensaver)
         MainThreadLoop.startup()
 
-        # LazyLogger can be unusable during shutdown
+        # BasicLogger can be unusable during shutdown
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            module_logger.exit('Exiting plugin')
+        if module_logger.isEnabledFor(DEBUG):
+            module_logger.debug('Exiting plugin')
 
     except AbortException:
         pass  # Exit in finally block
@@ -219,6 +225,7 @@ if __name__ == '__main__':  # TODO: need quick exit if backend is not running
     for arg in sys.argv[1:]:
         if arg == 'screensaver':
             is_screensaver = True
+            xbmc.log('screensaver True', xbmc.LOGDEBUG)
         if arg == 'unittest':
             is_unit_test = True
 

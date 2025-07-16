@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <certifications version="1">
-    <country name="us" id="us" certification_name="MPAA" label_id="32269">
+    <country name="us" id="us" certification_name="MPAA" label_id="32269"
+    tts_certification_name="MPAA" tts_label_id="32295">
           <!-- ranking of 0 means "not yet rated" -->
          <!-- The different sources of certificat/rating information
                 (TMDB, IMDB, iTunes, etc.) return different values. Further,
@@ -25,7 +26,8 @@
                 appropriate for viewing). -->
 
                 <!-- Patterns are python regex -->
-        <certification ranking="0" display="Not Yet Rated" label_id="32041" adult="false" age="0"
+        <certification ranking="0" display="Not Yet Rated" label_id="32041"
+                       tts_label="Not Yet Rated" tts_label_id="32296" adult="false" age="0"
             preferred_id="Not Yet Rated" image_id="unrated">
             <patterns>
                 <pattern>(?i)^Not Yet Rated$</pattern>
@@ -36,7 +38,8 @@
             it is used to when the certification must be saved as a kodi
              MPAA rating field and eventually matched against one of the
              patterns here. -->
-        <certification ranking="1" display="Unrated" label_id="32248" adult="false" age="0"
+        <certification ranking="1" display="Unrated" label_id="32248"
+                       tts_label="Unrated" tts_label_id="32297" adult="false" age="0"
         preferred_id="NR" image_id="unrated">
             <patterns>
                 <pattern>^NR$</pattern>
@@ -48,7 +51,8 @@
                 <pattern>^Rated Unrated$</pattern>
             </patterns>
         </certification>
-        <certification ranking="2" display="G" label_id="32243" adult="false" age="0"
+        <certification ranking="2" display="G" label_id="32243"
+                       tts_label="gee" tts_label_id="32298" adult="false" age="0"
             preferred_id="G" image_id="g">
             <patterns>
 
@@ -72,7 +76,8 @@
             </patterns>
         </certification>
         <!-- For pre/young-teens. Some materials might be objectionable -->
-        <certification ranking="3" display="PG" label_id="32244" adult="false" age="10"
+        <certification ranking="3" display="PG" label_id="32244"
+                       tts_label="P.G." tts_label_id="32299" adult="false" age="10"
             preferred_id="PG" image_id="pg">
             <patterns>
                 <pattern>^PG$</pattern>
@@ -83,7 +88,8 @@
             </patterns>
         </certification>
         <!-- For older, more mature teens. Parents strongly cautioned -->
-        <certification ranking="4" display="PG-13" label_id="32245" adult="false" age="13"
+        <certification ranking="4" display="PG-13" label_id="32245"
+                       tts_label="P.G. 13" tts_label_id="32300" adult="false" age="13"
         preferred_id="PG-13" image_id="pg13">
             <patterns>
                 <pattern>^M$</pattern>
@@ -98,7 +104,8 @@
         </certification>
         <!-- Restricted Some adult material, Requires parent or guardian to
         attend with children -->
-        <certification ranking="5" display="R" label_id="32246" adult="false" age="17"
+        <certification ranking="5" display="R" label_id="32246"
+                       tts_label="R." tts_label_id="32301" adult="false" age="17"
             preferred_id="R" image_id="r">
             <patterns>
                 <pattern>^R$</pattern>
@@ -108,7 +115,8 @@
             </patterns>
         </certification>
         <!-- Adult. No one under 17 -->
-        <certification ranking="6" display="NC-17" label_id="32247" adult="true" age="17"
+        <certification ranking="6" display="NC-17" label_id="32247"
+                       tts_label="NC 17" tts_label_id="32302" adult="true" age="17"
             preferred_id="NC-17" image_id="nc17">
             <patterns>
                 <pattern>^NC-17.*$</pattern>

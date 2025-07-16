@@ -7,40 +7,23 @@ Created on Apr 17, 2019
 """
 
 import unittest
-import os
-import re
+
 import sys
-import threading
 import traceback
-import cStringIO
 
-from kodi_six import xbmc, utils
-from kodi65.kodiaddon import Addon
 
-from common.constants import Constants
-from common.critical_settings import CriticalSettings
-from common.exceptions import AbortException
-from common.imports import *
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
 import common.logger as logger
 
-lazy_module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+lazy_module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
-class LazyLoggerTestCase(unittest.TestCase):
+class BasicLoggerTestCase(unittest.TestCase):
     def setUp(self):
-        self._logger = lazy_module_logger.getChild(self.__class__.__name__)
+        self._logger = BasicLogger.get_module_logger().getChild(self.__class__.__name__)
 
     def tearDown(self):
         pass
-
-    def test_current_frame(self):
-        frame = logger.current_frame()
-        assert frame is not None
-        trace_back = traceback.extract_stack(frame, 15)
-
-        current_frame = trace_back[-1]
-        assert current_frame[2] == 'test_current_frame'
 
     def test_capture_stack(self):
         trace_back, thread_name = self._logger.capture_stack()
@@ -56,8 +39,7 @@ class LazyLoggerTestCase(unittest.TestCase):
         try:
             raise ZeroDivisionError
         except ZeroDivisionError:
-            frame = sys._getframe(0)
-            self._logger.log_exception()
+            self._logger.log_exception(msg='')
 
         pass
 
@@ -65,8 +47,7 @@ class LazyLoggerTestCase(unittest.TestCase):
         try:
             raise ZeroDivisionError
         except ZeroDivisionError:
-            frame = sys._getframe(0)
-            self._logger.exception()
+            self._logger.exception(msg='')
 
     def test_log_stack(self):
         pass

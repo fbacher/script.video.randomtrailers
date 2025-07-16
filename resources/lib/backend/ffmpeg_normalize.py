@@ -14,15 +14,14 @@ import threading
 
 import xbmc
 
-from common.constants import Constants, Movie
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import (LazyLogger, Trace, log_entry_exit)
+from common.logger import *
 from common.monitor import Monitor
 from common.settings import Settings
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(
-    file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 '''
     Normalizes the volume of video using ffmpeg. Normalizing volumes is particularly
@@ -31,7 +30,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(
 
     You may modify the parameters here to your taste.
 
-    Note that you can not change newOutFileName, otherwise Random Trailers will not see
+    Note that you can not change out_file, otherwise Random Trailers will not see
     the file.
 '''
 
@@ -150,7 +149,7 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
 
         Monitor.throw_exception_if_abort_requested()
         runner = RunCommand(args, input_trailer_file)
-        rc = runner.run_cmd()
+        rc = runner.run_cmd_and_wait()
         if os.path.exists(first_pass_log_path):
             os.remove(first_pass_log_path)
         if rc != 0:
@@ -174,11 +173,17 @@ def normalize(in_file: str, out_file: str, use_compand: bool = False) -> int:
             rc = 22
             module_logger.debug(f'Can not rename {temp_output_file} to {output_file}')
 
+    if os.path.exists(tmp_dir):
+        try:
+            os.rmdir(tmp_dir)
+        except Exception:
+            module_logger.debug(f'Could not remove temp directory: {tmp_dir}'
+                                f' Perhaps not empty?')
     return rc
 
 
 class RunCommand:
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self, args: List[str], movie_name: str) -> None:
         RunCommand.logger = module_logger.getChild(RunCommand.__name__)
@@ -193,7 +198,7 @@ class RunCommand:
         self.stdout_lines: List[str] = []
         self.stderr_lines: List[str] = []
 
-    def run_cmd(self) -> int:
+    def run_cmd_and_wait(self) -> int:
         self.rc = 0
         self.run_thread = threading.Thread(target=self.run_worker,
                                            name='normalize audio')
@@ -321,11 +326,11 @@ class RunCommand:
             return
 
         clz = RunCommand
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             if self.rc != 0:
                 clz.logger.debug(
                     f'ffmpeg failed for {self.movie_name} rc: {self.rc}')
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 stdout = '\n'.join(self.stdout_lines)
                 clz.logger.debug_verbose(f'STDOUT: {stdout}')
                 stderr = '\n'.join(self.stderr_lines)

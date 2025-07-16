@@ -7,28 +7,36 @@ Created on Apr 14, 2019
 
 import sys
 import datetime
-import time
 import threading
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.disk_utils import DiskUtils
 from common.debug_utils import Debug
-from common.exceptions import AbortException
+from common.exceptions import AbortException, reraise
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
-from common.logger import (Trace, LazyLogger)
+from common.movie import LibraryMovie, BaseMovie
+from common.movie_constants import MovieField
+from common.logger import *
 from common.settings import Settings
+from discovery.library_movie_trailer_fetcher import LibraryMovieTrailerFetcher
+from discovery.library_no_trailer_fetcher import LibraryNoTrailerTrailerFetcher
+from discovery.library_url_trailer_fetcher import LibraryURLTrailerFetcher
+from discovery.utils.db_access import DBAccess
+from discovery.utils.library_filter import LibraryFilter
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
-from common.rating import (WorldCertifications, Certifications)
+from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
-from backend.movie_utils import LibraryMovieStats
+from backend.movie_stats import LibraryMovieStats
 from backend.json_utils_basic import JsonUtilsBasic
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.library_movie_data import (LibraryMovieData, LibraryNoTrailerMovieData,
                                           LibraryURLMovieData)
+from discovery.utils.parse_library import ParseLibrary
+from .__init__ import *
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverLibraryMovies(BaseDiscoverMovies):
@@ -41,10 +49,10 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
     """
 
     _singleton_instance = None
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self,
-                 group: Any = None, # Not used
+                 group: Any = None,  # Not used
                  target: Callable[[Union[None, Any]], Union[Any, None]] = None,
                  thread_name: str = None,
                  *args: Any,
@@ -58,16 +66,19 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         :param args:
         :param kwargs:
         """
-        clz = DiscoverLibraryMovies
+        clz = type(self)
         if clz.logger is None:
             clz.logger = module_logger.getChild(clz.__name__)
         thread_name = 'Discv Lib'
         if kwargs is None:
             kwargs = {}
-        kwargs[Movie.SOURCE] = Movie.LIBRARY_SOURCE
+        kwargs[MovieField.SOURCE] = MovieField.LIBRARY_SOURCE
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
-        self._movie_data = LibraryMovieData()
+
+        self._movie_data: LibraryMovieData = None
+        if Settings.is_include_library_trailers():
+            self._movie_data = LibraryMovieData()
 
         self._selected_genres = []
         self._selected_keywords = []
@@ -76,6 +87,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         self._libraryURLManager = None
         self._libraryNoTrailerInfoManager = None
         self._some_movies_discovered_event = threading.Event()
+        self._include_library_trailers: bool = None
+        self._include_library_no_trailers: bool = None
+        self._include_library_remote_trailers: bool = None
 
     def discover_basic_information(self) -> None:
         """
@@ -89,7 +103,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         # other discovery (TMDB, iTunes) until a few local trailers have
         # been located (~50), or so many seconds have elapsed.
 
-        countdown = Constants.EXCLUSIVE_LIBRARY_DISCOVERY_SECONDS * 10
+        countdown = Constants.EXCLUSIVE_LIBRARY_DISCOVERY_SECONDS * 5
         while not self._some_movies_discovered_event.wait(timeout=0.1):
             Monitor.throw_exception_if_abort_requested()
             if self._some_movies_discovered_event.is_set():
@@ -98,23 +112,18 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             if countdown <= 0:
                 break
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
             clz.logger.debug_verbose(': started')
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Rediscover trailers if the changed settings impacts this manager.
-        """
-        clz = DiscoverLibraryMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.enter()
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-        try:
-            if Settings.is_library_loading_settings_changed():
-                stop_thread = not Settings.get_include_library_trailers()
-                self.restart_discovery(stop_thread)
-        except Exception as e:
-            clz.logger.exception('')
+        :return:
+        """
+        return Settings.is_include_library_trailers()
 
     def run(self) -> None:
         """
@@ -129,142 +138,28 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
                 try:
                     self._some_movies_discovered_event.clear()
                     self.run_worker()
-                    self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
-                    # Restart discovery
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_library_trailers():
-                        finished = True
-                        self.remove_self()
-                self._some_movies_discovered_event.set()
+                    self.finished_discovery()
+
+                    # Unblock other discovery threads
+
+                    self._some_movies_discovered_event.set()
+
+                    duration = datetime.datetime.now() - start_time
+                    if clz.logger.isEnabledFor(DEBUG):
+                        clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
+                                         trace=Trace.STATS)
+                    finished = True
+                except StopDiscoveryException:
+                    if clz.logger.isEnabledFor(DEBUG):
+                        clz.logger.debug('Stopping discovery')
+                    self.destroy()
+                    GarbageCollector.add_thread(self)
+                    finished = True
 
         except AbortException:
             return  # Just exit thread
         except Exception as e:
             clz.logger.exception('')
-
-        self.finished_discovery()
-
-        # Unblock other discovery threads
-
-        self._some_movies_discovered_event.set()
-
-        duration = datetime.datetime.now() - start_time
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug('Time to discover:', duration.seconds, 'seconds',
-                             trace=Trace.STATS)
-
-    def create_query(self,
-                     included_genres: List[str],
-                     excluded_genres: List[str],
-                     included_tags: List[str],
-                     excluded_tags: List[str]
-                     ) -> str:
-        """
-
-        :param included_genres:
-        :param excluded_genres:
-        :param included_tags:
-        :param excluded_tags:
-        :return:
-        """
-        clz = DiscoverLibraryMovies
-        formatted_genre_list = ['"%s"' % genre for genre in included_genres]
-        formatted_genre_list = ', '.join(formatted_genre_list)
-
-        formatted_excluded_genre_list = ['"%s"' %
-                                         genre for genre in excluded_genres]
-        formatted_excluded_genre_list = ', '.join(
-            formatted_excluded_genre_list)
-
-        formatted_tag_list = ['"%s"' % tag for tag in included_tags]
-        formatted_tag_list = ', '.join(formatted_tag_list)
-
-        formatted_excluded_tag_list = ['"%s"' % tag for tag in excluded_tags]
-        formatted_excluded_tag_list = ', '.join(formatted_excluded_tag_list)
-
-        query_prefix = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", \
-                    "params": {\
-                    "properties": \
-                        ["title", "lastplayed", "studio", "cast", "plot", "writer", \
-                        "director", "fanart", "rating", "ratings", "runtime", "mpaa", \
-                        "thumbnail", "file", \
-                        "year", "genre", "tag", "trailer", "uniqueid", "userrating",' \
-                       '"votes"]'
-        query_suffix = '}, "id": 1}'
-        query_filter_prefix = ''
-        include_query_filter = ''
-        tag_filter = ''
-        genre_filter = ''
-
-        if (len(included_genres) > 0 or len(included_tags) > 0 or len(excluded_genres) > 0
-                or len(excluded_tags) > 0):
-            query_filter_prefix = ', "filter": '
-
-        exclude_filters = []
-        include_filters = []
-        if len(included_genres) > 0:
-            genre_filter = ('{"field": "genre", "operator": "contains", "value": [%s]}'
-                            % formatted_genre_list)
-            include_filters.append(genre_filter)
-
-        if len(included_tags) > 0:
-            tag_filter = ('{"field": "tag", "operator": "contains", "value": [%s]}' %
-                          formatted_tag_list)
-            include_filters.append(tag_filter)
-
-        combined_include_filter = []
-        include_sub_query_filter = ''
-        if len(include_filters) > 1:
-            include_sub_query_filter = '{"or": [%s]}' % ', '.join(
-                include_filters)
-            combined_include_filter.append(include_sub_query_filter)
-        elif len(include_filters) == 1:
-            combined_include_filter.append(include_filters[0])
-
-        if len(excluded_genres) > 0:
-            excluded_genre_filter = ('{"field": "genre", "operator": "doesnotcontain", "value": [%s]}'
-                                     % formatted_excluded_genre_list)
-            exclude_filters.append(excluded_genre_filter)
-
-        if len(excluded_tags) > 0:
-            excluded_tag_filter = ('{"field": "tag", "operator": "doesnotcontain", "value": [%s]}' %
-                                   formatted_excluded_tag_list)
-            exclude_filters.append(excluded_tag_filter)
-
-        combined_exclude_filter = []
-        exclude_sub_query_filter = ''
-        if len(exclude_filters) > 1:
-            exclude_sub_query_filter = '{"or": [%s]}' % ', '.join(
-                exclude_filters)
-        elif len(exclude_filters) == 1:
-            exclude_sub_query_filter = exclude_filters[0]
-
-        combined_exclude_filter.append(exclude_sub_query_filter)
-
-        combined_filter = []
-        if len(combined_include_filter) > 0:
-            combined_filter.append(combined_include_filter[0])
-        if len(combined_exclude_filter) > 0:
-            combined_filter.append(combined_exclude_filter[0])
-        query_filter = ''
-        if len(combined_filter) > 1:
-            query_filter = '{"and": [%s]}' % ', '.join(combined_filter)
-        elif len(combined_filter) == 1:
-            query_filter = combined_filter[0]
-
-        query = (query_prefix + query_filter_prefix +
-                 query_filter + query_suffix)
-
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.debug_verbose('query', 'genres:', included_genres,
-                                     'excluded_genres:', excluded_genres, 'tags:',
-                                     included_tags, 'excluded_tags:',
-                                     excluded_tags, query)
-
-        return query
 
     def run_worker(self) -> None:
         """
@@ -280,9 +175,9 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         # There are three types of trailers for these movies:
         #
         #  a- Movies with local trailers
-        #  b- Movies with trailer URLS (typically youtube links from tmdb)
+        #  b- Movies with movie URLS (typically youtube links from tmdb)
         #    TMdb will need to be queried for details
-        #  c. Movies with no trailer information, requiring a check with tmdb
+        #  c. Movies with no movie information, requiring a check with tmdb
         #     to see if one exists
         #
         # Because of the above, this manager will query the DB for every movie
@@ -293,7 +188,7 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
         #    what the user wants, it is added to the pool of movies that
         #    can be randomly selected for playing. Once a movie has been
         #    selected, it is placed into a TrailerFetcherQueue. A
-        #    TrailerFetcher then gathers the remaining information so that
+        #    AbstractTrailerFetcher then gathers the remaining information so that
         #    it can be played.
         #
         #    If the lion's share of movies in the pool require significant
@@ -314,181 +209,216 @@ class DiscoverLibraryMovies(BaseDiscoverMovies):
             self._excluded_keywords = GenreUtils.get_internal_kodi_keyword_ids(
                 GenreUtils.LOCAL_DATABASE, exclude=True)
 
-        query = self.create_query(
-            self._selected_genres, self._excluded_genres, self._selected_keywords,
-            self._excluded_keywords)
+        is_sparse = True
+        query = DBAccess.create_query(is_sparse,
+                                      self._selected_genres,
+                                      self._excluded_genres,
+                                      self._selected_keywords,
+                                      self._excluded_keywords)
 
         if Monitor.is_abort_requested():
             return
 
-        start_time = datetime.datetime.now()
+        self._include_library_trailers = Settings.is_include_library_trailers()
+        self._include_library_no_trailers = Settings.is_include_library_no_trailer_info()
+        self._include_library_remote_trailers = \
+            Settings.is_include_library_remote_trailers()
+        collect_stats: bool = Settings.is_enable_movie_stats()
+        start_time: datetime.datetime = datetime.datetime.now()
         Monitor.throw_exception_if_abort_requested()  # Expensive operation
-        query_result = JsonUtilsBasic.get_kodi_json(query, dump_results=False)
-        Monitor.throw_exception_if_abort_requested()
-        elapsed_time = datetime.datetime.now() - start_time
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.debug_verbose('Library query seconds:',
-                                     elapsed_time.total_seconds())
+        query_result: Dict[str, Any] = {}
+        movies: List[Dict[str, Any]] = []
+        try:
+            query_result: Dict[str, Any] =\
+                JsonUtilsBasic.get_kodi_json(query, dump_results=False)
+            if query_result.get('error') is not None:
+                raise ValueError
 
-        movies_skipped = 0
-        movies_found = 0
-        movies_with_local_trailers = 0
-        movies_with_trailer_urls = 0
-        movies_without_trailer_info = 0
+            Monitor.throw_exception_if_abort_requested()
+            elapsed_time = datetime.datetime.now() - start_time
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                clz.logger.debug_verbose(f'Library query seconds: '
+                                         f'{elapsed_time.total_seconds()}')
 
-        self.throw_exception_on_forced_to_stop()
-        result = query_result.get('result', {})
+            self.throw_exception_on_forced_to_stop()
+            result: Dict[str, Any] = query_result.get('result', {})
+            movies: List[Dict[str, Any]] = result.get('movies', [])
+        except AbortException:
+            reraise(*sys.exc_info())
+        except Exception as e:
+            message: str = ''
+            if query_result is not None:
+                error = query_result.get('error')
+                if error is not None:
+                    message: str = error.get('message')
+            clz.logger.exception(message)
+            try:
+                import json
+                # json_encoded: Dict = json.loads(query)
+                dump: str =  json.dumps(query, indent=3, sort_keys=True)
+                clz.logger.debug_extra_verbose(f'JASON DUMP: {dump}')
+            except Exception:
+                pass
+
+            movies = []
+
         del query_result
-        movies = result.get('movies', [])
         del result
-
         DiskUtils.RandomGenerator.shuffle(movies)
         if self._libraryURLManager is None:
-            if Settings.get_include_library_remote_trailers():
+            if self._include_library_remote_trailers:
                 self._libraryURLManager = DiscoverLibraryURLTrailerMovies()
-            if Settings.get_include_library_no_trailer_info():
+            if self._include_library_no_trailers:
                 self._libraryNoTrailerInfoManager = DiscoverLibraryNoTrailerMovies()
-        library_movies = []
-        library_url_movies = []
-        library_no_trailer_movies = []
-        empty_limit = Constants.NUMBER_OF_LIBRARY_MOVIES_TO_DISCOVER_DURING_EXCLUSIVE_DISCOVERY
+        library_movies: List[LibraryMovie] = []
+        library_url_movies: List[LibraryMovie] = []
+        library_no_trailer_movies: List[LibraryMovie] = []
+        batch_size = \
+            Constants.NUMBER_OF_LIBRARY_MOVIES_TO_DISCOVER_DURING_EXCLUSIVE_DISCOVERY
         movie_data = None
-        if Settings.is_enable_movie_stats():
+        if collect_stats:
             movie_data = LibraryMovieStats()
 
-        country_id = Settings.get_country_iso_3166_1().lower()
-        certifications = WorldCertifications.get_certifications(country_id)
-        unrated_id = certifications.get_unrated_certification().get_preferred_id()
+        movies_found: int = 0
+        movies_with_trailer_urls: int = 0
+        movies_with_local_trailers: int = 0
+        movies_without_trailer_info: int = 0
+        movies_skipped: int = 0
 
-        for movie in movies:
+        movie_iterator: Iterator[Dict[str, Any]] = iter(movies)
+        while True:
             self.throw_exception_on_forced_to_stop()
             try:
-                #clz.logger.debug('movie:', movie)
+                raw_movie: Dict[str, Any] = next(movie_iterator)
                 movies_found += 1
-                if Settings.get_hide_watched_movies() and Movie.LAST_PLAYED in movie:
-                    if (self.get_days_since_last_played(movie[Movie.LAST_PLAYED],
-                                                        movie[Movie.TITLE]) >
-                            Settings.get_minimum_days_since_watched()):
-                        movies_skipped += 1
-                        if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                            clz.logger.debug_extra_verbose(movie[Movie.TITLE],
-                                                           'will not be played due to '
-                                                           'Hide',
-                                                           'Watched Movies')
-                        continue
 
-                # Normalize certification
+                movie: LibraryMovie = ParseLibrary.parse_movie(is_sparse=True,
+                                                               raw_movie=raw_movie)
 
-                # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                #     clz.logger.debug('mpaa:', movie[Movie.MPAA],
-                #                        'movie:', movie[Movie.TITLE])
+                rejection_reasons: List[int] = LibraryFilter.filter_movie(movie)
+                if len(rejection_reasons) == 0:
+                    if movie.is_trailer_url():
+                        movies_with_trailer_urls += 1
+                        if self._include_library_remote_trailers:
+                            library_url_movies.append(movie)
+                    else:
+                        movies_with_local_trailers += 1
+                        if self._include_library_trailers:
+                            library_movies.append(movie)
 
-                if certifications.is_valid(movie.get(Movie.MPAA, '')):
-                    movie[Movie.MPAA] = unrated_id
+                elif (MovieField.REJECTED_NO_TRAILER in rejection_reasons
+                        and len(rejection_reasons) == 1):
+                    rejection_reasons.clear()  # So we don't report as error
+                    movies_without_trailer_info += 1
+                    if self._include_library_no_trailers:
+                        library_no_trailer_movies.append(movie)
 
-                certification = certifications.get_certification(
-                    movie.get(Movie.MPAA), movie.get(Movie.ADULT))
-                movie[Movie.ADULT] = movie.get(Movie.ADULT, False)
-                if not isinstance(movie[Movie.ADULT], bool):
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose(movie[Movie.TITLE],
-                                                 'has invalid ADULT field: ',
-                                                 movie[Movie.ADULT])
-                    movie[Movie.ADULT] = str(
-                        movie[Movie.ADULT]).lower == 'true'
+                if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                    if len(rejection_reasons) > 0:
+                        rejection_reasons_str: List[str] = \
+                            BaseMovie.get_rejection_reasons_str(rejection_reasons)
+                        clz.logger.debug_extra_verbose(
+                            f'Filter failed for: '
+                            f'{movie.get_title()} '
+                            f'- {", ".join(rejection_reasons_str)}')
 
-                movie[Movie.SOURCE] = Movie.LIBRARY_SOURCE
-                movie.setdefault(Movie.TRAILER, '')
-                movie[Movie.TRAILER_TYPE] = ''
-
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                     Debug.validate_basic_movie_properties(movie)
 
-                if Settings.is_enable_movie_stats():
+                if collect_stats:
                     movie_data.collect_data(movie)
 
-                # Basic discovery is complete at this point. Now send
-                # all of the movies without any trailer information to
-                # DiscoverLibraryNoTrailerMovies while
-                # those with trailer URLs to DiscoverLibraryURLTrailerMovies
-
-                if certifications.filter(certification):
-                    trailer = movie[Movie.TRAILER]
-                    if trailer == '':
-                        movies_without_trailer_info += 1
-                        library_no_trailer_movies.append(movie)
-                    elif trailer.startswith('plugin://') or trailer.startswith('http'):
-                        movies_with_trailer_urls += 1
-                        library_url_movies.append(movie)
-                    elif Settings.get_include_library_trailers():
-                        movies_with_local_trailers += 1
-                        library_movies.append(movie)
-
-                if len(library_movies) >= empty_limit:
-                    self.add_to_discovered_trailers(library_movies)
-                    del library_movies[:]
-
-                    # Unblock other discovery now that a few movies have been
-                    # found.
-
-                    if not self._some_movies_discovered_event.isSet():
-                        self._some_movies_discovered_event.set()
-
-                if len(library_no_trailer_movies) >= empty_limit:
-                    if Settings.get_include_library_no_trailer_info():
-                        self._libraryNoTrailerInfoManager.add_to_discovered_trailers(
-                            library_no_trailer_movies)
-                    del library_no_trailer_movies[:]
-                if len(library_url_movies) >= empty_limit:
-                    if Settings.get_include_library_remote_trailers():
-                        self._libraryURLManager.add_to_discovered_trailers(
-                            library_url_movies)
-                    del library_url_movies[:]
-
-                    # Unblock other discovery now that a few movies have been
-                    # found.
-
-                    self._some_movies_discovered_event.set()
-
+                self.add_movies_to_discovery_queues(library_movies, library_url_movies,
+                                                    library_no_trailer_movies,
+                                                    batch_size)
             except AbortException:
                 reraise(*sys.exc_info())
+            except StopIteration:
+                try:
+                    self.add_movies_to_discovery_queues(library_movies, library_url_movies,
+                                                        library_no_trailer_movies,
+                                                        batch_size)
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception:
+                    clz.logger.exception(msg='')
+                break
             except Exception:
                 clz.logger.exception('')
+
+        if clz.logger.isEnabledFor(DEBUG):
+            clz.logger.debug(f'Local movies found in library: '
+                             f'{movies_found}')
+            clz.logger.debug(f'Local movies filtered out: '
+                             f'{movies_skipped}')
+            clz.logger.debug(f'Movies with local trailers: '
+                             f'{movies_with_local_trailers}')
+            clz.logger.debug(f'Movies with trailer URLs: '
+                             f'{movies_with_trailer_urls}')
+            clz.logger.debug(f'Movies with no trailer information: '
+                             f'{movies_without_trailer_info}')
+
+        if Settings.is_enable_movie_stats():
+            movie_data.report_data()
+            del movie_data
+
+    def add_movies_to_discovery_queues(self, library_movies: List[LibraryMovie],
+                                       library_url_movies: List[LibraryMovie],
+                                       library_no_trailer_movies: List[LibraryMovie],
+                                       batch_size: int
+                                       ) -> None:
+        clz = type(self)
         try:
-            if len(library_movies) >= 0:
-                self.add_to_discovered_trailers(library_movies)
-            if len(library_no_trailer_movies) >= 0:
-                if Settings.get_include_library_no_trailer_info():
-                    self._libraryNoTrailerInfoManager.add_to_discovered_trailers(
+            # Basic discovery is complete at this point. Now send
+            # all of the movies without any movie information to
+            # DiscoverLibraryNoTrailerMovies while
+            # those with movie URLs to DiscoverLibraryURLTrailerMovies
+
+            if len(library_movies) >= batch_size:
+                self.add_to_discovered_movies(library_movies)
+                del library_movies[:]
+
+                # Unblock other discovery now that a few movies have been
+                # found.
+
+                if not self._some_movies_discovered_event.isSet():
+                    self._some_movies_discovered_event.set()
+
+            if len(library_no_trailer_movies) >= batch_size:
+                if self._include_library_no_trailers:
+                    self._libraryNoTrailerInfoManager.add_to_discovered_movies(
                         library_no_trailer_movies)
                 del library_no_trailer_movies[:]
-            if len(library_url_movies) >= 0:
-                if Settings.get_include_library_remote_trailers():
-                    self._libraryURLManager.add_to_discovered_trailers(
+            if len(library_url_movies) >= batch_size:
+                if self._include_library_remote_trailers:
+                    self._libraryURLManager.add_to_discovered_movies(
                         library_url_movies)
                 del library_url_movies[:]
 
+                # Unblock other discovery now that a few movies have been
+                # found.
+
+                self._some_movies_discovered_event.set()
         except AbortException:
             reraise(*sys.exc_info())
         except Exception:
             clz.logger.exception('')
 
-        if (clz.logger.isEnabledFor(LazyLogger.DEBUG)
-                and clz.logger.is_trace_enabled(Trace.STATS)):
-            clz.logger.debug('Local movies found in library:',
-                             movies_found, trace=Trace.STATS)
-            clz.logger.debug('Local movies filtered out',
-                             movies_skipped, trace=Trace.STATS)
-            clz.logger.debug('Movies with local trailers:',
-                             movies_with_local_trailers, trace=Trace.STATS)
-            clz.logger.debug('Movies with trailer URLs:',
-                             movies_with_trailer_urls, trace=Trace.STATS)
-            clz.logger.debug('Movies with no trailer information:',
-                             movies_without_trailer_info, trace=Trace.STATS)
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
 
-        if Settings.is_enable_movie_stats():
-            movie_data.report_data()
-            del movie_data
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+        clz = type(self)
+        clz.logger.debug(f'Enter')
+        restart_needed: bool = False
+        if Settings.is_include_library_trailers():
+            restart_needed = Settings.is_library_loading_settings_changed()
+        return restart_needed
 
 
 class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
@@ -496,7 +426,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         This manager does not do any discovery, it receives local movies
         with trailer URLs from LibraryManager. This manager primarily
         acts as a container to hold the list of movies while the
-        TrailerFetcher and BaseTrailerManager does the work
+        AbstractTrailerFetcher and BaseTrailerManager does the work
     """
 
     def __init__(self) -> None:
@@ -507,32 +437,21 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         clz.logger = module_logger.getChild(clz.__class__.__name__)
         thread_name = clz.__name__
         kwargs = {}
-        kwargs[Movie.SOURCE] = Movie.LIBRARY_URL_TRAILER
+        kwargs[MovieField.SOURCE] = MovieField.LIBRARY_URL_TRAILER
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
         self._movie_data = LibraryURLMovieData()
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Settings changes is handled by DiscoveryLibraryTrailerMovies
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-            Settings changes only impact library entries with Trailer URLs
-            to stop it. Since we are here, Trailer URL discovery was active
-            prior to the settings change, therefore, only do something if
-            we are no longer active.
+        :return:
         """
-        clz = DiscoverLibraryURLTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.enter()
-
-        try:
-            stop_thread = not Settings.get_include_library_remote_trailers()
-            if stop_thread:
-                self.restart_discovery(stop_thread)
-        except AbortException:
-            pass  # don't pass exception to handler
-        except Exception as e:
-            clz.logger.exception('')
+        return (Settings.is_include_library_remote_trailers()
+                and Settings.is_include_library_trailers())
 
     def discover_basic_information(self) -> None:
         """
@@ -540,7 +459,7 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryURLTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.warning('dummy method')
 
     def run(self) -> None:
@@ -549,22 +468,44 @@ class DiscoverLibraryURLTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryURLTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.warning('dummy thread, Join Me!')
         finished = False
         while not finished:
             try:
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
-            except RestartDiscoveryException:
-                # Restart discovery
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz.logger.debug_verbose('Restarting discovery')
-                self.prepare_for_restart_discovery()
+            except StopDiscoveryException:
+                if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                    clz.logger.debug_verbose('Stopping discovery')
+                try:
+                    self.destroy()
+                    finished = True
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception:
+                    clz.logger.exception(msg='')
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
                 clz.logger.exception('')
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+        clz = type(self)
+        clz.logger.debug(f'Enter')
+        restart_needed: bool = False
+        if Settings.is_include_library_remote_trailers():
+            restart_needed = Settings.is_library_loading_settings_changed()
+
+        return restart_needed
 
 
 class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
@@ -572,7 +513,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         This manager does not do any discovery, it receives local movies
         without any trailer information from LibraryManager. This manager
         primarily acts as a container to hold the list of movies while the
-        TrailerFetcher and BaseTrailerManager does the work
+        AbstractTrailerFetcher and BaseTrailerManager does the work
     """
 
     def __init__(self) -> None:
@@ -585,30 +526,21 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         self._validate_number_of_trailers = 0
         self._reported_trailers = 0
         kwargs = {}
-        kwargs[Movie.SOURCE] = Movie.LIBRARY_NO_TRAILER
+        kwargs[MovieField.SOURCE] = MovieField.LIBRARY_NO_TRAILER
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=None)
         self._movie_data = LibraryNoTrailerMovieData()
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Settings changes is handled by DiscoveryLibraryTrailerMovies
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-            Settings changes only impact discovery of library entries without
-            Trailer entries to stop it. Since we are here, Trailer discovery
-            was active prior to the settings change, therefore, only do
-            something if we are no longer active.
+        :return:
         """
-        clz = DiscoverLibraryNoTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-            clz.logger.enter()
-
-        try:
-            stop_thread = not Settings.get_include_library_no_trailer_info()
-            if stop_thread:
-                self.restart_discovery(stop_thread)
-        except Exception as e:
-            clz.logger.exception('')
+        return (Settings.is_include_library_no_trailer_info()
+                and Settings.is_include_library_trailers())
 
     def discover_basic_information(self) -> None:
         """
@@ -616,7 +548,7 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryNoTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.warning('dummy method')
 
     def run(self) -> None:
@@ -625,44 +557,40 @@ class DiscoverLibraryNoTrailerMovies(BaseDiscoverMovies):
         :return:
         """
         clz = DiscoverLibraryNoTrailerMovies
-        if clz.logger.isEnabledFor(LazyLogger.WARNING):
+        if clz.logger.isEnabledFor(WARNING):
             clz.logger.warning('dummy thread, Join Me!')
         finished = False
         while not finished:
             try:
                 self.finished_discovery()
                 self.wait_until_restart_or_shutdown()
-            except RestartDiscoveryException:
-                # Restart discovery
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('Restarting discovery')
-                self.prepare_for_restart_discovery()
+            except StopDiscoveryException:
+                if clz.logger.isEnabledFor(DEBUG):
+                    clz.logger.debug('Stopping discovery')
+                try:
+                    self.destroy()
+                    finished = True
+                except AbortException:
+                    reraise(*sys.exc_info())
+                except Exception:
+                    clz.logger.exception(msg='')
             except AbortException:
                 return  # Just exit thread
             except Exception as e:
                 clz.logger.exception('')
 
-    def get_days_since_last_played(self, last_played_field: str, movie_name: str) -> int:
+    def needs_restart(self) -> bool:
         """
-            Get the number of days since this movie (not the trailer)
-            was last played. For invalid or missing values, -1 will be
-            returned.
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
         """
-        clz = DiscoverLibraryNoTrailerMovies
-        days_since_played = int(-1)
-        try:
-            if last_played_field is not None and last_played_field != '':
-                pd = time.strptime(last_played_field, '%Y-%m-%d %H:%M:%S')
-                pd = time.mktime(pd)
-                pd = datetime.datetime.fromtimestamp(pd)
-                last_play = datetime.datetime.now() - pd
-                days_since_played = last_play.days
-        except AbortException:
-            reraise(*sys.exc_info())
-        except Exception as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('Invalid lastPlayed field for', movie_name,
-                                 ':', last_played_field)
-            clz.logger.exception('')
-            days_since_played = 365
-        return days_since_played
+        clz = type(self)
+        clz.logger.debug('Enter')
+        restart_needed: bool = False
+        if Settings.is_include_library_no_trailer_info():
+            restart_needed = Settings.is_library_loading_settings_changed()
+        return restart_needed

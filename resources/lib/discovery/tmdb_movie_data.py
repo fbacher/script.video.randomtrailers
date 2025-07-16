@@ -6,23 +6,28 @@ Created on Feb 10, 2019
 @author: fbacher
 """
 
-from backend.movie_entry_utils import MovieEntryUtils
 from cache.tmdb_cache_index import CacheIndex
 from common.imports import *
-from common.constants import Movie
+from common.movie import TMDbMovie, AbstractMovie, TMDbMovieId, BaseMovie
+from common.movie_constants import MovieField, MovieType
 from discovery.abstract_movie_data import AbstractMovieData
+from discovery.tmdb_trailer_fetcher import TMDbTrailerFetcher
+from discovery.trailer_fetcher_interface import TrailerFetcherInterface
+from .__init__ import *
 
 
-class TMDBMovieData(AbstractMovieData):
+class TMDbMovieData(AbstractMovieData):
     """
 
     """
 
-    def __init__(self, movie_source: str = Movie.TMDB_SOURCE) -> None:
+    def __init__(self, trailer_fetcher_class: Type[TrailerFetcherInterface] = None,
+                 movie_source: str = MovieField.TMDB_SOURCE) -> None:
         """
 
         """
-        super().__init__(movie_source=Movie.TMDB_SOURCE)
+        super().__init__(trailer_fetcher_class=TMDbTrailerFetcher,
+                         movie_source=MovieField.TMDB_SOURCE)
         self.start_trailer_fetchers()
 
     def add_to_discovered_trailers(self,
@@ -34,10 +39,27 @@ class TMDBMovieData(AbstractMovieData):
         :return:
         """
 
-        super().add_to_discovered_trailers(movies)
+        super().add_to_discovered_movies(movies)
 
-    def remove_discovered_movie(self, movie: MovieType) -> None:
-        with self._discovered_trailers_lock:
+    def remove_discovered_movie(self, movie: TMDbMovie) -> None:
+        with self._discovered_movies_lock:
             super().remove_discovered_movie(movie)
-            tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-            CacheIndex.remove_unprocessed_movies(int(tmdb_id))
+            CacheIndex.remove_unprocessed_movie(movie)
+
+    def purge_rediscoverable_data(self, movie: TMDbMovie) -> TMDbMovieId:
+        """
+        Replace fully populated cached entry with light-weight entry.
+        Data can easily be rediscovered from locally cached data.
+
+        :param movie:
+        :return:
+        """
+        if isinstance(movie, TMDbMovie):
+            with self._discovered_movies_lock:
+                # super().remove_discovered_movie(movie)
+                tmdb_movie_id: TMDbMovieId = movie.get_as_movie_id_type()
+                super().replace(tmdb_movie_id)
+
+        return tmdb_movie_id
+
+

@@ -8,6 +8,17 @@
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
+				<setting help="" id="country_code" label="32295" type="string">
+					<!-- This is a hack setting to work around Kodi bug -->
+					<level>0</level>
+					<default>us</default>
+					<constraints>
+						<allowempty>false</allowempty>
+					</constraints>
+					<control type="edit" format="string">
+						<heading>32001</heading>
+					</control>
+				</setting>
 			</group>
 			<group id="2" label="32058">
 				<setting help="32247" id="rating_limit" label="32040" type="integer">
@@ -15,7 +26,7 @@
 					<default>2</default>
 					<constraints>
 						<options>
-							<!-- See resources/certifiations *.xml for your country -->
+							<!-- See resources/certifications *.xml for your country -->
 							<!-- In increasing appropriate age -->
 							<option label="32284">0</option> <!-- Special- Not Yet Rated-->
 							<option label="32248">1</option> <!-- Unrated -->
@@ -108,6 +119,13 @@
 						<heading>32060</heading>
 					</control>
 				</setting>
+				<setting help="" id="maximum_trailer_play_seconds" label="32151" type="integer">
+					<level>0</level>
+					<default>600</default>
+					<control format="integer" type="edit">
+						<heading>32151</heading>
+					</control>
+				</setting>
 			</group>
 			<group id="4" label="32061">
 				<setting help="" id="normalize_volume_of_local_trailers" label="32062" type="boolean">
@@ -139,6 +157,7 @@
 						<heading>32278</heading>
 					</control>
 				</setting>
+				<!-- Can't query volume to get current setting, so we can't restore it
 				<setting help="" id="do_volume" label="32006" type="boolean">
 					<level>0</level>
 					<default>false</default>
@@ -155,7 +174,7 @@
 					<control format="integer" type="edit">
 						<heading>32011</heading>
 					</control>
-				</setting>
+				</setting> -->
 			</group>
 			<group id="5" label="32280">
 				<setting help="" id="license_display_seconds" label="32279" type="integer">
@@ -639,7 +658,7 @@
 					</dependencies>
 					<control format="string" type="spinner"/>
 				</setting>
-				<setting help="" id="g_screwball_comedy " label="32085" type="integer">
+				<setting help="" id="g_screwball_comedy" label="32085" type="integer">
 					<level>0</level>
 					<default>0</default>
 					<constraints>
@@ -674,6 +693,23 @@
 					<control format="string" type="spinner"/>
 				</setting>
 				<setting help="" id="g_tv_movie" label="32087" type="integer">
+					<level>0</level>
+					<default>0</default>
+					<constraints>
+						<options>
+							<option label="32066">0</option>
+							<option label="32067">1</option>
+							<option label="32068">2</option>
+						</options>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="do_genre">true</condition>
+						</dependency>
+					</dependencies>
+					<control format="string" type="spinner"/>
+				</setting>
+				<setting help="" id="g_war_documentary" label="32088" type="integer">
 					<level>0</level>
 					<default>0</default>
 					<constraints>
@@ -1022,6 +1058,9 @@
 					<control format="string" type="edit">
 						<heading>32171</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_2" label="32258" type="string">
 					<level>0</level>
@@ -1029,59 +1068,86 @@
 					<control format="string" type="edit">
 						<heading>32172</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_3" label="32259" type="string">
 					<level>0</level>
-					<default>Random_Trailers_3</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32173</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_4" label="32260" type="string">
 					<level>0</level>
-					<default>Random_Trailers_4</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32174</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_5" label="32261" type="string">
 					<level>0</level>
-					<default>Random_Trailers_5</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32175</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_6" label="32262" type="string">
 					<level>0</level>
-					<default>Random_Trailers_6</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32176</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_7" label="32263" type="string">
 					<level>0</level>
-					<default>Random_Trailers_7</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32177</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_8" label="32264" type="string">
 					<level>0</level>
-					<default>Random_Trailers_8</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32178</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_9" label="32265" type="string">
 					<level>0</level>
-					<default>Random_Trailers_9</default>
+					<default></default>
 					<control format="string" type="edit">
 						<heading>32179</heading>
 					</control>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 				</setting>
 				<setting help="" id="playlist_name_10" label="32266" type="string">
 					<level>0</level>
-					<default>Random_Trailers_10</default>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
 					<control format="string" type="edit">
 						<heading>32180</heading>
 					</control>
@@ -1375,33 +1441,58 @@
 					</control>
 				</setting>
 			</group>
-			<group id="2" label="32148">
+			<group id="2" label="32291">
+				<setting help="" id="youtube_use_netrc" label="32294" type="boolean">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+				<setting help="" id="youtube_username" label="32292" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="youtube_use_netrc">false</condition>
+						</dependency>
+					</dependencies>
+					<control format="string" type="edit">
+						<heading>32292</heading>
+					</control>
+				</setting>
+				<setting help="" id="youtube_password" label="32293" type="string">
+					<level>0</level>
+					<default></default>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="youtube_use_netrc">false</condition>
+						</dependency>
+					</dependencies>
+					<control format="string" type="edit">
+						<heading>32293</heading>
+					</control>
+				</setting>
+			</group>
+			<group id="3" label="32148">
 				<setting help="" id="updateTmdbId" label="32268" type="boolean">
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
 			</group>
-			<group id="3" label="32149">
+			<group id="4" label="32149">
 				<setting help="" id="prompt_for_settings" label="32150" type="boolean">
 					<level>0</level>
 					<default>false</default>
 					<control type="toggle"/>
 				</setting>
-				<setting help="" id="max_trailer_length" label="32151" type="integer">
-					<level>0</level>
-					<default>600</default>
-					<control format="integer" type="edit">
-						<heading>32151</heading>
-					</control>
-				</setting>
-				<setting help="" id="do_fullscreen" label="32007" type="boolean">
-					<level>0</level>
-					<default>false</default>
-					<control type="toggle"/>
-				</setting>
 			</group>
-			<group id="4" label="32153">
+			<group id="5" label="32153">
 				<setting help="" id="enable_movie_stats" label="32169" type="boolean">
 					<level>0</level>
 					<default>false</default>

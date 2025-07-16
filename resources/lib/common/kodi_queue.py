@@ -11,9 +11,11 @@ from queue import (Queue)
 
 from common.imports import *
 from common.monitor import Monitor
-from common.logger import LazyLogger
+from common.logger import *
+from common.movie import BaseMovie
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class KodiQueue:
@@ -22,7 +24,7 @@ class KodiQueue:
 
     Full = _Full
     Empty = _Empty
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, maxsize: int = 0) -> None:
         """
@@ -35,9 +37,12 @@ class KodiQueue:
             clz._logger = module_logger.getChild(clz.__name__)
 
         self._wrapped_queue = Queue(maxsize=maxsize)
+        
+    def __str__(self) -> str:
+        return f'len: {self.qsize()}'
 
     def put(self,
-            item: Union[MovieType, None],
+            item: Union[BaseMovie, None],
             block: bool = True,
             timeout: Optional[float] = None) -> None:
         """
@@ -71,7 +76,7 @@ class KodiQueue:
 
     def get(self,
             block: bool = True,
-            timeout: Optional[float] = None) -> Union[MovieType, None]:
+            timeout: Optional[float] = None) -> Union[BaseMovie, None]:
         """
 
         :param block:

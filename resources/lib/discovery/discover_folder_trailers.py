@@ -7,25 +7,28 @@ Created on Apr 14, 2019
 
 import datetime
 import os
-import requests
+import re
 import sys
 
 import xbmcvfs
 
-from common.constants import Constants, Movie
+from common.certification import Certification, Certifications, WorldCertifications
 from common.debug_utils import Debug
 from common.disk_utils import DiskUtils
-from common.exceptions import AbortException
-from common.imports import *
+from common.exceptions import AbortException, reraise
 from common.monitor import Monitor
-from common.logger import (LazyLogger, Trace)
+from common.movie import FolderMovie, LibraryMovie
+from common.movie_constants import MovieField, MovieType
+from common.logger import *
 from common.settings import Settings
-
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.folder_trailer_fetcher import FolderTrailerFetcher
+from discovery.movie_detail import MovieDetail
+from discovery.restart_discovery_exception import StopDiscoveryException
 from discovery.base_discover_movies import BaseDiscoverMovies
 from discovery.folder_movie_data import FolderMovieData
+from .__init__ import *
 
-module_logger: Final[LazyLogger] = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: Final[BasicLogger] = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverFolderTrailers(BaseDiscoverMovies):
@@ -37,7 +40,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
     """
 
     _singleton_instance: ForwardRef('DiscoverFolderTrailers') = None
-    logger: LazyLogger = None
+    logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
@@ -48,10 +51,21 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             clz.logger = module_logger.getChild(clz.__name__)
 
         thread_name = 'Disc Folder'
-        kwargs = {Movie.SOURCE: Movie.FOLDER_SOURCE}
+        kwargs = {MovieField.SOURCE: MovieField.FOLDER_SOURCE}
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=kwargs)
-        self._movie_data = FolderMovieData()
+        self._movie_data = FolderMovieData(trailer_fetcher_class=
+                                           FolderTrailerFetcher)
+
+    @classmethod
+    def is_enabled(cls) -> bool:
+        """
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
+
+        :return:
+        """
+        return Settings.is_include_trailer_folders()
 
     def discover_basic_information(self) -> None:
         """
@@ -61,9 +75,8 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         clz = type(self)
 
         self.start()
-        # self._trailer_fetcher.start_fetchers(self)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug(': started')
+        if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+            clz.logger.debug_extra_verbose(': started')
 
     def run(self) -> None:
         """
@@ -71,15 +84,6 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         :return:
         """
         clz = type(self)
-
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            try:
-                import resource
-
-                memory: int = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-                clz.logger.debug(': memory: ' + str(memory))
-            except ImportError:
-                pass
 
         start_time = datetime.datetime.now()
         try:
@@ -89,14 +93,17 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                     self.discover_basic_information_worker(
                         Settings.get_trailers_paths())
                     self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
+
+                    used_memory: int = self._movie_data.get_size_of()
+                    used_mb: float = float(used_memory) / 1000000.0
+                    self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
+                except StopDiscoveryException:
                     # Restart discovery
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                    if clz.logger.isEnabledFor(DEBUG):
                         clz.logger.debug('Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_trailer_folders():
+                    if not Settings.is_include_trailer_folders():
                         finished = True
-                        self.remove_self()
+                        # self.destroy()
 
         except AbortException:
             return  # Just exit thread
@@ -105,7 +112,7 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
 
         self.finished_discovery()
         duration = datetime.datetime.now() - start_time
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(f'Time to discover: {duration.seconds} seconds',
                              trace=Trace.STATS)
 
@@ -118,21 +125,31 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
         clz = type(self)
 
         try:
+            _country_id: str = Settings.get_country_iso_3166_1().lower()
+            _certifications: Certifications = \
+                WorldCertifications.get_certifications(_country_id)
+            unrated_certification: Certification = \
+                _certifications.get_unrated_certification()
+            unrated_certification_id = unrated_certification.get_preferred_id()
             folders: List[str] = []
             if str(path).startswith('multipath://'):
                 # get all paths from the multipath
                 paths: List[str] = path[12:-1].split('/')
                 for item in paths:
-                    folders.append(requests.utils.unquote_unreserved(item))
+                    folders.append(item)
             else:
                 folders.append(path)
             DiskUtils.RandomGenerator.shuffle(folders)
             for folder in folders:
                 Monitor.throw_exception_if_abort_requested()
+                translated_path: str = xbmcvfs.translatePath(folder)
+                # translated_path MUST end in backslash (weird)
+                if translated_path[-1] != '/':
+                    translated_path += '/'
 
-                if xbmcvfs.exists(xbmcvfs.translatePath(folder)):
+                if xbmcvfs.exists(translated_path):
                     # get all files and sub-folders
-                    dirs, files = xbmcvfs.listdir(folder)
+                    dirs, files = xbmcvfs.listdir(translated_path)
 
                     # Assume every file is a movie trailer. Manufacture
                     # a movie name and other info from the filename.
@@ -142,25 +159,57 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
                             file_path: str = os.path.join(
                                 folder, item)
 
-                            title: str = xbmcvfs.translatePath(file_path)
+                            file_path: str = xbmcvfs.translatePath(file_path)
                             # TODO: DELETE ME
 
-                            title = os.path.basename(title)
+                            title = os.path.basename(file_path)
                             title = os.path.splitext(title)[0]
-                            new_trailer = {Movie.TITLE: title,
-                                           Movie.TRAILER: file_path,
-                                           Movie.TRAILER_TYPE: 'trailer file',
-                                           Movie.SOURCE:
-                                           Movie.FOLDER_SOURCE,
-                                           Movie.FANART: '',
-                                           Movie.THUMBNAIL: '',
-                                           Movie.FILE: '',
-                                           Movie.YEAR: ''}
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+                            new_movie_data: MovieType = {MovieField.TITLE: title,
+                                                         MovieField.TRAILER: file_path,
+                                                         MovieField.TRAILER_TYPE:
+                                                             MovieField.TRAILER_TYPE_TRAILER,
+                                                         MovieField.SOURCE:
+                                                             MovieField.FOLDER_SOURCE}
+                            new_movie: FolderMovie = FolderMovie(
+                                movie_info=new_movie_data)
+                            new_movie.set_certification_id(unrated_certification_id)
+
+                            # Supply fake values to displayed fields to make code happy.
+
+                            MovieDetail.clone_fields(new_movie, new_movie,
+                                                     MovieField.DEFAULT_MOVIE)
+                            #
+                            # If path is in Kodi movie format: <title> (year)<any>
+                            # then treat as the title of a movie with year and
+                            # later attempt lookup from tmdb.
+
+                            re_object = re.compile(r'(.*)(?:\(((?:19|20)[0-9]{2})\))(.*$)')
+                            match = re_object.fullmatch(title)
+                            full_match: str = ''
+                            movie_title: str = ''
+                            movie_year: str = ''
+                            movie_suffix: str = ''
+                            if match is not None:
+                                full_match: str = match.group(0)
+                                if match.lastindex > 0:
+                                    movie_title: str = match.group(1).strip()
+                                    new_movie.set_title(movie_title)
+                                    if match.lastindex > 1:
+                                        movie_year: str = match.group(2).strip()
+                                        new_movie.set_year(int(movie_year))
+                                        new_movie.set_tmdb_id_findable(True)
+                                    if match.lastindex > 2:
+                                        movie_suffix: str = match.group(3).strip()
+                            if clz.logger.isEnabledFor(DEBUG):
+                                clz.logger.debug_extra_verbose(f'full_match: {full_match} '
+                                                               f'title: {movie_title} '
+                                                               f'year: {movie_year} '
+                                                               f'suffix: {movie_suffix} '
+                                                               f'path: {file_path}')
                                 Debug.validate_basic_movie_properties(
-                                    new_trailer)
-                            self.add_to_discovered_trailers(
-                                new_trailer)
+                                    new_movie)
+                            self.add_to_discovered_movies(
+                                new_movie)
 
                         except AbortException:
                             reraise(*sys.exc_info())
@@ -187,11 +236,25 @@ class DiscoverFolderTrailers(BaseDiscoverMovies):
             active.
         """
         clz = type(self)
-        clz.logger.enter()
+        clz.logger.debug('Enter')
 
         try:
-            stop_thread: bool = not Settings.get_include_trailer_folders()
+            stop_thread: bool = not Settings.is_include_trailer_folders()
             if stop_thread:
-                self.restart_discovery(stop_thread)
+                self.stop_thread()
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+            :returns: True if settings have changed requiring restart
+                      False if relevant settings have changed or if it should
+                      be allowed to die without restart
+        """
+
+        return False

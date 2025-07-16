@@ -1,7 +1,11 @@
+# coding=utf-8
 
-from common.imports import (Any, Callable, Optional, Iterable, List, Dict,
-                                      Tuple, Sequence, Union, MovieType)
+from typing import *
+from typing import Pattern, Match
+from common.exceptions import AbortException, reraise
+DownloadInfo = Dict[str, Any]
 
-__all__ = [Any, Callable, Optional, Iterable, List, Dict,
-           Tuple, Sequence, Union,
-           MovieType]
+__all__ = ["Dict", "List", "Union", "Set", "Any", "Optional", "DownloadInfo",
+           "ForwardRef", "Tuple", "AnyStr", "Type", "AbortException",
+           "Pattern", "Match", "reraise",
+           "Final", "Callable", "ClassVar"]

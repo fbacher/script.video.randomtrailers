@@ -7,6 +7,7 @@ Created on Feb 6, 2019
 from common.imports import *
 
 import xbmc
+from common import *
 
 
 class Action:
@@ -139,7 +140,7 @@ class Action:
                      'ACTION_PLAYER_RESOLUTION_SELECT': 71,
                      'ACTION_PLAYER_REWIND': 78,
                      'ACTION_PREVIOUS_CHANNELGROUP': 187,
-                     'ACTION_PREVIOUS_MEN': 10,
+                     'ACTION_PREVIOUS_MENU': 10,
                      'ACTION_PREV_CONTROL': 182,
                      'ACTION_PREV_ITEM': 15,
                      'ACTION_PREV_LETTER': 141,

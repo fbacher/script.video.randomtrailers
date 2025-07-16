@@ -1,3 +1,18 @@
+v2.0.7 (July, 04, 2021)
+ - Beta 1 candidate
+ - Major refactoring of 'dict' movie structure to classes (wrapping dict).
+   - Large, but straightforward changes
+   - Allowed changes to delay discovery of data until actually needed
+   - Reduced startup time, cpu load and memory requirements
+   - Simpler, allows for less duplicate code
+ - Reduced volume of remote data stored on disk:
+   - Reading/Writing large caches very expensive and done too frequently
+   - Instead of saving raw data from TMDb, etc. save digested, RandomTrailers version of data
+   - Save minimal info required for an index and lookup full data later
+   - In cases where lost changes were self healing, reduce how often written to disk
+ - Realized that some xbmc.executebuiltin calls incorrectly had XBMC prefix to call
+ - Removed change volume feature since Kodi does not provide ability to query volume
+
 v.2.0.4 (February, 04,2021)
  - Alpha  candidate
  - Nearly complete rewrite

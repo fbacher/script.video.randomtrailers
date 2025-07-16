@@ -1,35 +1,53 @@
-This project is a resurection of the Kodi Random Trailers addon which has
-been dormant since 2014 and which has not been functional for some time.
+Welcome to the Kodi-script.video.randomtrailers wiki!
 
-The goals of this project are:
+Mission: To resurrect the orphaned and non-functioning Kodi random trailers
+screensaver and script.
 
-1) (DONE) To make the addon functional once more
+Status:
 
-2) (DONE) To upgrade to Python 3
+Complete rewrite. A lot more function, but bigger. Beta. Fully functional,
+but limited testing with Kodi 19 using Python 3.8 & 3.9.
 
-3) (DONE) To modernize the code base: comply with Kodi and Python coding standard
-as well as best practices.
+See RELEASE_NOTES.txt for information not contained here.
 
-4) (DONE) To improve functionality and performance.
+Major accomplishments:
 
-5) (DONE) Works with TTS plugin
+    * Feature complete
+    * Multi-threaded to speed up discovery, improve randomness and eliminate
+      wait to download information before each play of remote content
 
-Work Items:
+Among the features:
 
- * (DONE) Support for non-English languages (text processing)
- * (DONE) Messages for non-English
- * (Done) genre/certification/rating support Non-English movies (Kodi does not store certification country with movie, needs exploration)
- * (DONE) Investigate non-US movie attributes (genres, ratings, etc.)
+    * Gets trailers from the library, TMDb, TFH and local trailers folder
+    * Falls back to TMDb for missing trailers from local database
+    * Falls back to TMDb for missing local and TFH movie details
 
- * (DONE) Better define filtering capabilities (genre(s), dates, etc.)
- * (DONE) Save playing movie to user defined smart playlists
- * (DONE) Consider randomizing over a larger universe of on-line movies rather than
-   a fixed number of pages
+    * One addon, with three extension points:
+        1- A trailer discovery module that performs the hard work of finding
+           and caching the trailers. Runs as a daemon.
+        2- A Frontend is the user facing app. It is used for both screensaver
+           and manual launch.
+        3- A screensaver service. This thin piece of code gets launched by
+           Kodi's screensaver function. It then starts up the frontend.
 
- * (DONE) Create common reusable core-engine plugin for script and screensaver versions
- * (DONE) Migrate and test with Python 3
- * (LIMITED) Create test bed
- * Internal and external documentation
- * Get code review
- * Review, document any licensing requirements (TFH, iTunes, TMDB, dependent plugins)
- * Plugin review
+    * Supports a local cache for trailers and information downloaded from
+      remote sites
+    * Supports Normalization of audio, mostly to help ghastly trailers/clips
+      originating from youtube
+    * Filter by Genre, Certification, year, rating, popularity, etc. for
+      local, TMDb and TFH
+    * Can configure various cache attributes: max size, max number of
+      files, max % of disk, delete old files.
+    * Plugin runs stand alone or as a screensaver
+    * Back-end is a separate long-running service, reducing startup time
+      and high startup cost
+    * User ability to add current trailer to a playlist mostly to flag
+      movies that they would like to watch, or note for any reason
+    * Internationalized (limited testing). All messages use translation
+      system. Country code and language used in remote movie queries
+    * Genre information is loaded from .xml files allowing customization
+    * Certification/Rating information is loaded from .xml files to allow
+      different rules and names by country. (Kodi appears to have some
+      limitations in this area: ratings do not include country info.)
+
+    Support for Text to Speech plugin (under development)

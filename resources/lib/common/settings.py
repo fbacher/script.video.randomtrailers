@@ -4,7 +4,6 @@ Created on Feb 10, 2019
 
 @author: Frank Feuerbacher
 """
-
 import datetime
 import locale
 import os
@@ -12,14 +11,16 @@ import os
 import xbmc
 import xbmcvfs
 
-from kodi65.kodiaddon import Addon
+from common.movie_constants import MovieField
+from common.kodiaddon import Addon
 
 from common.imports import *
-from common.constants import (Constants, DebugLevel,
-                              RemoteTrailerPreference, GenreEnum)
-from common.logger import (LazyLogger, Trace)
+from common.constants import (Constants,
+                              RemoteTrailerPreference)
+from common.logger import *
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Settings:
@@ -27,7 +28,7 @@ class Settings:
 
     """
     _addon_singleton = None
-    _logger: LazyLogger = module_logger.getChild('Settings')
+    _logger: BasicLogger = module_logger.getChild('Settings')
     _previous_settings: Dict[str, Any] = {}
     DEFAULT_ROTTEN_TOMATOES_API_KEY: str = 'ynyq3vsaps7u8rb9nk98rcr'
     DEFAULT_TMDB_API_KEY = '35f17ee61909355c4b5d5c4f2c967f6c'
@@ -36,6 +37,7 @@ class Settings:
     TMDB_ALLOW_FOREIGN_LANGUAGES = 'tmdb_allow_foreign_languages'
     TMDB_VOTE_FILTER = 'tmdb_vote_filter'
     TMDB_VOTE_VALUE = 'tmdb_vote_value'
+    COUNTRY_CODE = 'country_code'
     DO_NOT_RATED = 'do_nr'
     DO_DEBUG = 'do_debug'
     FILTER_GENRES = 'do_genre'
@@ -46,7 +48,7 @@ class Settings:
     GENRE_COMEDY = 'g_comedy'
     GENRE_CRIME = 'g_crime'
     GENRE_DARK_COMEDY = 'g_black_comedy'
-    GENRE_DOCUMENTARY = 'g_docu'
+    GENRE_DOCUMENTARY = 'g_documentary'
     GENRE_DRAMA = 'g_drama'
     GENRE_EPIC = 'g_epic'
     GENRE_FAMILY = 'g_family'
@@ -63,7 +65,7 @@ class Settings:
     GENRE_ROMANCE = 'g_romance'
     GENRE_SATIRE = 'g_satire'
     GENRE_SCI_FI = 'g_scifi'
-    GENRE_SCREW_BALL = 'g_screwball'
+    GENRE_SCREW_BALL = 'g_screwball_comedy'
     GENRE_SWASH_BUCKLER = 'g_swashbuckler'
     GENRE_THRILLER = 'g_thriller'
     GENRE_TV_MOVIE = 'g_tv_movie'
@@ -74,6 +76,7 @@ class Settings:
     GROUP_DELAY = 'group_delay'
     TRAILERS_PER_GROUP = 'trailers_per_group'
     LIBRARY_HIDE_WATCHED_MOVIES = 'hide_watched'
+    LOGGING_LEVEL = 'log_level'
     INCLUDE_CLIPS = 'do_clips'
     INCLUDE_FEATURETTES = 'do_featurettes'
     INCLUDE_TEASERS = 'do_teasers'
@@ -111,7 +114,7 @@ class Settings:
     REPORT_TAG_STATS = 'report_tag_stats'
     REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS = 'max_report_top_actors'
     REPORT_GENRE_STATS = 'report_genre_stats'
-    MAXIMUM_TRAILER_LENGTH = 'max_trailer_length'
+    MAXIMUM_TRAILER_PLAY_SECONDS = 'maximum_trailer_play_seconds'
     MINIMUM_DAYS_SINCE_WATCHED = 'watched_days'
     NORMALIZE_VOLUME_OF_DOWNLOADED_TRAILERS = 'normalize_volume_of_downloaded_trailers'
     NORMALIZE_VOLUME_OF_LOCAL_TRAILERS = 'normalize_volume_of_local_trailers'
@@ -155,6 +158,10 @@ class Settings:
     PLAYLIST_9 = "playlist_name_9"
     PLAYLIST_10 = "playlist_name_10"
 
+    YOUTUBE_USERNAME: Final[str] = 'youtube_username'
+    YOUTUBE_PASSWORD: Final[str] = 'youtube_password'
+    YOUTUBE_USE_NETRC: Final[str] = 'youtube_use_netrc'
+
     # HIDDEN SETTINGS
 
     YOUTUBE_DL_COOKIE_PATH = 'youtube_dl_cookie_path'
@@ -162,6 +169,7 @@ class Settings:
 
     ALL_SETTINGS: List[str] = [
         ADJUST_VOLUME,
+        COUNTRY_CODE,
         TMDB_ALLOW_FOREIGN_LANGUAGES,
         TMDB_VOTE_FILTER,
         TMDB_VOTE_VALUE,
@@ -203,6 +211,7 @@ class Settings:
         GROUP_DELAY,
         TRAILERS_PER_GROUP,
         LIBRARY_HIDE_WATCHED_MOVIES,
+        LOGGING_LEVEL,
         INCLUDE_CLIPS,
         INCLUDE_FEATURETTES,
         INCLUDE_TEASERS,
@@ -239,7 +248,7 @@ class Settings:
         REPORT_TAG_STATS,
         REPORT_MAXIMUM_NUMBER_OF_TOP_ACTORS,
         REPORT_GENRE_STATS,
-        MAXIMUM_TRAILER_LENGTH,
+        MAXIMUM_TRAILER_PLAY_SECONDS,
         MINIMUM_DAYS_SINCE_WATCHED,
         NORMALIZE_VOLUME_OF_DOWNLOADED_TRAILERS,
         NORMALIZE_VOLUME_OF_LOCAL_TRAILERS,
@@ -279,11 +288,15 @@ class Settings:
         PLAYLIST_8,
         PLAYLIST_9,
         PLAYLIST_10,
+        YOUTUBE_USERNAME,
+        YOUTUBE_PASSWORD,
+        YOUTUBE_USE_NETRC,
         YOUTUBE_DL_COOKIE_PATH,
         YOUTUBE_DL_CACHE_PATH,
     ]
 
     TRAILER_LOADING_SETTINGS: List[str] = [
+        COUNTRY_CODE,
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -342,6 +355,7 @@ class Settings:
         TMDB_MAX_DOWNLOAD_MOVIES]
 
     COMMON_TRAILER_LOADING_SETTINGS: List[str] = [
+        COUNTRY_CODE,
         DO_NOT_RATED,
         FILTER_GENRES,
         GENRE_ACTION,
@@ -428,8 +442,7 @@ class Settings:
             # installed, such that script.video.randomtrailers doesn't
             # exist
             try:
-                Settings._addon_singleton = Addon(
-                    Constants.ADDON_ID)
+                Settings._addon_singleton = Addon(Constants.ADDON_ID)
             except Exception:
                 pass
 
@@ -484,7 +497,7 @@ class Settings:
         :return:
         """
 
-        Settings._logger.enter()
+        Settings._logger.debug('entered')
         changed_settings = []
         for setting in settings_to_check:
             previous_value = Settings._previous_settings.get(setting, None)
@@ -495,9 +508,10 @@ class Settings:
 
             if previous_value != current_value:
                 changed = True
-                if module_logger.isEnabledFor(LazyLogger.DEBUG):
-                    Settings._logger.debug('setting changed:', setting, 'previous_value:',
-                                           previous_value, 'current_value:', current_value)
+                if module_logger.isEnabledFor(DEBUG):
+                    Settings._logger.debug(f'setting changed: {setting} '
+                                           f'previous_value: {previous_value} '
+                                           f'current_value: {current_value}')
             else:
                 changed = False
 
@@ -518,8 +532,8 @@ class Settings:
         else:
             result = False
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -534,8 +548,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
         return result
 
     @staticmethod
@@ -550,8 +564,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -566,8 +580,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -582,8 +596,8 @@ class Settings:
         else:
             result = Settings.is_common_trailer_loading_settings_changed()
 
-        if module_logger.isEnabledFor(LazyLogger.DEBUG):
-            Settings._logger.debug('changed:', result)
+        if module_logger.isEnabledFor(DEBUG):
+            Settings._logger.debug(f'changed: {result}')
 
         return result
 
@@ -596,6 +610,7 @@ class Settings:
 
         return Settings.get_setting_int(Settings.MAX_TFH_TRAILERS)
 
+    '''
     @staticmethod
     def get_adjust_volume() -> bool:
         """
@@ -603,6 +618,7 @@ class Settings:
         :return:
         """
         return Settings.get_setting_bool(Settings.VOLUME)
+    '''
 
     @staticmethod
     def is_allow_foreign_languages() -> bool:
@@ -638,13 +654,15 @@ class Settings:
             Settings.get_media_path(), 'CurtainClosingSequence.flv'))
 
     @staticmethod
-    def get_playlist_name(playlist_number: int) -> str:
+    def get_playlist_name(playlist_number: int) -> Union[str, None]:
         """
 
         :return:
         """
-        playlist_id = "playlist_name_" + str(playlist_number)
+        playlist_id = f'playlist_name_{str(playlist_number)}'
         playlist_name = Settings.get_addon().addon.getSetting(playlist_id)
+        if playlist_name is None:
+            playlist_name = ''
 
         return playlist_name
 
@@ -686,7 +704,7 @@ class Settings:
             if Settings.get_filter_genres():
                 value = Settings.get_setting_int(genre_name)
         except Exception as e:
-            LazyLogger.exception('setting: ' + genre_name)
+            module_logger.exception(f'setting: {genre_name}')
         return value
 
     @staticmethod
@@ -712,7 +730,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_ADVENTURE)
 
     @staticmethod
-    def get_genre_animation() -> bool:
+    def get_genre_animation() -> int:
         """
 
         :return:
@@ -819,7 +837,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_FANTASY)
 
     @staticmethod
-    def get_genre_film_noir() -> bool:
+    def get_genre_film_noir() -> int:
         """
 
         :return:
@@ -850,8 +868,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_HISTORY)
 
     @staticmethod
-    def get_genre_horror():
-        # type: () -> bool
+    def get_genre_horror() -> int:
         """
 
         :return:
@@ -859,7 +876,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_HORROR)
 
     @staticmethod
-    def get_genre_melodrama() -> bool:
+    def get_genre_melodrama() -> int:
         """
 
         :return:
@@ -867,7 +884,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MELODRAMA)
 
     @staticmethod
-    def get_genre_music() -> bool:
+    def get_genre_music() -> int:
         """
 
         :return:
@@ -897,7 +914,7 @@ class Settings:
         return Settings.get_genre(Settings.GENRE_MYSTERY)
 
     @staticmethod
-    def get_genre_pre_code() -> bool:
+    def get_genre_pre_code() -> int:
         """
 
         :return:
@@ -1063,16 +1080,28 @@ class Settings:
         """
         return Settings.get_setting_bool(Settings.INCLUDE_FEATURETTES)
 
-    @staticmethod
-    def get_include_teasers() -> bool:
+    @classmethod
+    def get_include_teasers(cls) -> bool:
         """
 
         :return:
         """
         return Settings.get_setting_bool(Settings.INCLUDE_TEASERS)
 
+    @classmethod
+    def is_allowed_trailer_types(cls) -> List[str]:
+        allowed_trailer_types: List[str] = []
+
+        allowed_trailer_types.append(MovieField.TRAILER_TYPE_TRAILER)
+        if cls.get_include_featurettes():
+            allowed_trailer_types.append(MovieField.TRAILER_TYPE_FEATURETTE)
+
+        if cls.get_include_teasers():
+            allowed_trailer_types.append(MovieField.TRAILER_TYPE_TEASER)
+        return allowed_trailer_types
+
     @staticmethod
-    def get_include_itunes_trailers() -> bool:
+    def is_include_itunes_trailers() -> bool:
         """
 
         :return:
@@ -1092,7 +1121,7 @@ class Settings:
         return trailer_type
 
     @staticmethod
-    def get_include_library_no_trailer_info() -> bool:
+    def is_include_library_no_trailer_info() -> bool:
         """
 
         :return:
@@ -1101,7 +1130,7 @@ class Settings:
             Settings.INCLUDE_LIBRARY_ENTRIES_WITHOUT_TRAILER_INFO)
 
     @staticmethod
-    def get_include_library_trailers() -> bool:
+    def is_include_library_trailers() -> bool:
         """
 
         :return:
@@ -1117,7 +1146,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_NOT_YET_RATED)
 
     @staticmethod
-    def get_include_library_remote_trailers() -> bool:
+    def is_include_library_remote_trailers() -> bool:
         """
 
         :return:
@@ -1126,7 +1155,7 @@ class Settings:
             Settings.INCLUDE_LIBRARY_ENTRIES_WITH_REMOTE_TRAILERS)
 
     @staticmethod
-    def get_include_tmdb_trailers() -> bool:
+    def is_include_tmdb_trailers() -> bool:
         """
 
         :return:
@@ -1134,7 +1163,7 @@ class Settings:
         return Settings.get_setting_bool(Settings.INCLUDE_TMDB_TRAILERS)
 
     @staticmethod
-    def get_include_trailer_folders() -> bool:
+    def is_include_trailer_folders() -> bool:
         """
 
         :return:
@@ -1203,11 +1232,27 @@ class Settings:
             TODO: Make a setting. Since this is used (at least part of
             the time) to determine the certification body (mpaa) then
             should change name. Also, only US is supported.
+
+            Currently broken due to Kodi NLS bug (not passing locale
+            to addons).
         """
+        country_code = Settings.get_setting_str(Settings.COUNTRY_CODE)
+        return country_code
+
+        '''
         language_code = Settings.get_locale()
         # en_US
-        lang, country = language_code.split('_')
+        # Settings._logger.debug(f'language: {language_code}')
+        # Settings._logger.debug(f'split: {language_code.split("_")}')
+        elements = language_code.split('_')
+        if len(elements) == 2:
+            country: str = elements[1]
+        else:
+            Settings._logger.warning(f'Invalid country code: {elements}')
+            country = 'US'
+        Settings._logger.debug(f'Country code: {country}')
         return country
+        '''
 
     @staticmethod
     def get_locale() -> str:
@@ -1217,6 +1262,27 @@ class Settings:
         """
         # locale.setlocale(locale.LC_ALL, 'en_US')
         language_code, encoding = locale.getdefaultlocale()
+        if language_code is None:
+            language_code = ''
+        '''
+        Settings._logger.debug(f'default language_code: {language_code} '
+                               f'encoding: {encoding}')
+        envars = ['LC_ALL', 'LC_CTYPE', 'LANG', 'LANGUAGE']
+        for var in envars:
+            language_code, encoding = locale.getdefaultlocale((var,))
+            Settings._logger.debug(f'getdefaultlocale({var})')
+            Settings._logger.debug(f'language_code default: {language_code} '
+                                   f'encoding: {encoding}')
+            Settings._logger.debug(f'langauge_code: {locale.getlocale()}')
+            Settings._logger.debug(f'langauge_code set null: '
+                                   f'{locale.setlocale(locale.LC_ALL)}')
+            Settings._logger.debug(f'language_code set empty: '
+                                   f'{locale.setlocale(locale.LC_ALL, "")}')
+
+        if language_code is None:
+            language_code, encoding = locale.getlocale()
+            Settings._logger.debug(f'language_code from locale.getlocale: {language_code}')
+        '''
 
         return language_code
 
@@ -1279,12 +1345,12 @@ class Settings:
         return Settings.get_setting_bool(Settings.REPORT_TAG_STATS)
 
     @staticmethod
-    def get_max_trailer_length() -> int:
+    def get_max_trailer_play_seconds() -> float:
         """
-
+            Maximum seconds to play a trailer
         :return:
         """
-        return Settings.get_setting_int(Settings.MAXIMUM_TRAILER_LENGTH)
+        return Settings.get_setting_int(Settings.MAXIMUM_TRAILER_PLAY_SECONDS)
 
     @staticmethod
     def get_media_path() -> str:
@@ -1296,12 +1362,12 @@ class Settings:
             Settings.get_resources_path(), 'media'))
 
     @staticmethod
-    def get_minimum_days_since_watched() -> str:
+    def get_minimum_days_since_watched() -> int:
         """
 
         :return:
         """
-        return Settings.get_addon().setting(Settings.MINIMUM_DAYS_SINCE_WATCHED)
+        return Settings.get_setting_int(Settings.MINIMUM_DAYS_SINCE_WATCHED)
 
     @staticmethod
     def is_normalize_volume_of_downloaded_trailers() -> bool:
@@ -1368,7 +1434,7 @@ class Settings:
     @staticmethod
     def get_rating_limit_setting() -> int:
         """
-
+        Gets the maximum (maturity) certification index configured
         :return:
         """
         try:
@@ -1377,6 +1443,19 @@ class Settings:
             rating_limit = 0
 
         return rating_limit
+
+    @staticmethod
+    def get_youtube_username() -> str:
+        return Settings.get_setting_str(Settings.YOUTUBE_USERNAME)
+
+
+    @staticmethod
+    def get_youtube_password() -> str:
+        return Settings.get_setting_str(Settings.YOUTUBE_PASSWORD)
+
+    @staticmethod
+    def is_youtube_use_netrc() -> bool:
+        return Settings.get_setting_bool(Settings.YOUTUBE_USE_NETRC)
 
     @staticmethod
     def get_tmdb_trailer_preference() -> str:
@@ -1431,11 +1510,18 @@ class Settings:
 
         :return:
         """
-        try:
-            minimum_year = Settings.get_setting_int(
-                Settings.TMDB_YEAR_RANGE_MINIMUM)
-        except Exception:
-            minimum_year = 1901  # Start of talkies
+        minimum_year: int = 0
+        if Settings.is_tmdb_select_by_year_range():
+            try:
+                minimum_year = Settings.get_setting_int(
+                    Settings.TMDB_YEAR_RANGE_MINIMUM)
+            except Exception:
+                minimum_year = 1928  # Practical start of Talkies
+
+            minimum_year = max(minimum_year, 1901) # Start of Silents
+            this_year: int = datetime.date.today().year
+            minimum_year = min(minimum_year, this_year)
+
         return minimum_year
 
     @staticmethod
@@ -1444,11 +1530,16 @@ class Settings:
 
         :return:
         """
-        try:
-            maximum_year = Settings.get_setting_int(
-                Settings.TMDB_YEAR_RANGE_MAXIMUM)
-        except Exception:
-            maximum_year = 3000
+        maximum_year: int = 0
+        if Settings.is_tmdb_select_by_year_range():
+            try:
+                maximum_year = Settings.get_setting_int(
+                    Settings.TMDB_YEAR_RANGE_MAXIMUM)
+            except Exception:
+                maximum_year = 3000
+            this_year: int = datetime.date.today().year
+            maxiumum_year = max(maximum_year, this_year)
+            maxiumum_year = min(maximum_year, 1901)
 
         return maximum_year
 
@@ -1492,15 +1583,11 @@ class Settings:
         :return:
         """
         try:
-            value = Settings.get_addon().addon.getSetting(setting)
-        except Exception as e:
-            value = 1.0
-        try:
-            value = float(value)
-        except Exception as e:
-            Settings._logger.error('Setting:', setting,
-                                   ' value is not an float. Setting to 0')
-            value = 0
+            value = Settings.get_addon().addon.getSettingNumber(setting)
+        except:
+            Settings._logger.error(f'Setting: {setting} '
+                                   f'value is not a float. Setting to 0.0')
+            value = 0.0
         return value
 
     @staticmethod
@@ -1510,14 +1597,10 @@ class Settings:
         :return:
         """
         try:
-            value = Settings.get_addon().addon.getSetting(setting)
+            value = Settings.get_addon().addon.getSettingInt(setting)
         except Exception as e:
-            value = 1
-        try:
-            value = int(value)
-        except Exception as e:
-            Settings._logger.error('Setting:', setting,
-                                   ' value is not an integer. Setting to 0')
+            Settings._logger.error(f'Setting: {setting} value is not an integer.'
+                                   f' Setting to 0')
             value = 0
         return value
 
@@ -1552,7 +1635,7 @@ class Settings:
 
     '''
         Time in seconds to display detailed movie info prior
-        to playing a trailer. Default is 5 seconds
+        to playing a movie. Default is 5 seconds
     '''
 
     @staticmethod
@@ -1612,6 +1695,10 @@ class Settings:
         """
         return Settings.get_setting_bool(Settings.UPDATE_TMDB_ID)
 
+    '''
+        Not used because we can't query Kodi for current volume (needed to
+        restore to previous volume).
+        
     @staticmethod
     def get_volume() -> int:
         """
@@ -1623,6 +1710,7 @@ class Settings:
             volume = Settings.get_setting_int(Settings.VOLUME)
 
         return volume
+    '''
 
     @staticmethod
     def get_tmdb_include_old_movie_trailers() -> bool:
@@ -1721,7 +1809,7 @@ class Settings:
                 Settings.get_addon().setting(Settings.CACHE_PATH))
         except Exception as e:
             path = None
-            Settings._logger.exception()
+            Settings._logger.exception('')
 
         return path
 
@@ -1798,8 +1886,8 @@ class Settings:
         """
         value = None
         if Settings.is_limit_percent_of_cached_trailers():
-            value = Settings.get_setting_float(
-                Settings.MAX_PERCENT_OF_CACHED_TRAILERS) / 100.0
+            value = float(Settings.get_setting_int(
+                Settings.MAX_PERCENT_OF_CACHED_TRAILERS)) / 100.0
         return value
 
     @staticmethod
@@ -1878,8 +1966,8 @@ class Settings:
         """
         value = None
         if Settings.is_limit_percent_of_cached_json():
-            value = Settings.get_setting_float(
-                Settings.MAX_PERCENT_OF_CACHED_JSON) / 100.0
+            value = float(Settings.get_setting_int(
+                Settings.MAX_PERCENT_OF_CACHED_JSON)) / 100.0
         return value
 
     '''

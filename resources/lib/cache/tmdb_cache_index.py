@@ -5,31 +5,32 @@ Created on Feb 10, 2019
 
 @author: fbacher
 """
-
+from cache.tmdb_trailer_index import TMDbTrailerIndex
 from common.imports import *
 
 import datetime
 import dateutil.parser
 import io
-import simplejson as json
-from simplejson import (JSONDecodeError)
+import json
+from json import(JSONDecodeError)
 import os
 import sys
 import threading
 
 import xbmcvfs
 
-from common.constants import Constants, Movie
+from common.imports import *
+from common.constants import Constants
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
-from backend.movie_entry_utils import MovieEntryUtils
+from common.movie import AbstractMovie, TMDbMovieId, BaseMovie
 from common.settings import Settings
 from common.disk_utils import DiskUtils
-from diagnostics.statistics import Statistics
+from .__init__ import *
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class CachedPage:
@@ -94,28 +95,22 @@ class CachedPage:
         return year_str + '_' + str(self._page_number)
 
 
-class CacheParameters:
+class CacheParametersType:
     """
 
     """
-
-    _logger = None
-    _cached_value = None
 
     # Used only for comparing cached value to current value
     #
     def __init__(self,
                  dict_value: Dict[str, Any]
-                 ):
+                 ) -> None:
         """
             Settings with no impact:
             trailer_type
             get_tmdb_include_old_movie_movies
 
         """
-        if type(self)._logger is None:
-            type(self)._logger = module_logger.getChild(type(self).__name__)
-
         self._included_genres = dict_value['included_genres']
         self._excluded_genres = dict_value['excluded_genres']
         self._included_tags = dict_value['included_tags']
@@ -132,13 +127,38 @@ class CacheParameters:
                               CacheIndex.UNINITIALIZED_STATE)
         self._cache_state = dict_value['cache_state']
 
+
+class CacheParameters(CacheParametersType):
+    """
+
+    """
+
+    _logger = None
+    _cached_value: CacheParametersType = None
+
+    # Used only for comparing cached value to current value
+    #
+    def __init__(self,
+                 dict_value: Dict[str, Any]
+                 ) -> None:
+        """
+            Settings with no impact:
+            trailer_type
+            get_tmdb_include_old_movie_movies
+
+        """
+        if type(self)._logger is None:
+            type(self)._logger = module_logger.getChild(type(self).__name__)
+
+        super().__init__(dict_value)
+
     @classmethod
     def to_json(cls) -> str:
         """
 
         :return:
         """
-        cached_value = cls._cached_value
+        cached_value: CacheParametersType = cls._cached_value
         values_in_dict = {'included_genres': cached_value._included_genres,
                           'excluded_genres': cached_value._excluded_genres,
                           'included_tags': cached_value._included_tags,
@@ -155,15 +175,13 @@ class CacheParameters:
                           }
 
         json_text = json.dumps(values_in_dict,
-                               encoding='utf-8',
                                ensure_ascii=False,
                                default=CacheIndex.handler,
                                indent=3, sort_keys=True)
         return json_text
 
     @classmethod
-    def get_parameter_values(cls):
-        # type: () -> CacheParameters
+    def get_parameter_values(cls) -> CacheParametersType:
         """
 
         :return:
@@ -171,7 +189,7 @@ class CacheParameters:
         return cls._cached_value
 
     def __ne__(self,
-               other_value  # type: CacheParameters
+               other_value: ForwardRef('CacheParameters')
                ) -> bool:
         return not self.__eq__(other_value)
 
@@ -257,6 +275,130 @@ class CacheParameters:
 
         return is_equal
 
+    def is_rebuild_cache(self,
+                         other_value  # type: CacheParameters
+                         ) -> bool:
+        """
+        Determines whether settings have changed enough to cause json cache to be
+        rebuilt.
+
+        It is expensive to rebuild the cache, but having many old .json entries
+        creates multiple problems:
+            * At startup, in an attempt to save time, the cache is walked and
+              all of the tmdb_ids from the json files are added to the AbstractTrailerFetcher
+              to be examined for matches.
+            * The previous step can be expensive. Further, if most fail the configured
+              filter, much time can be wasted resulting in a blank screen
+            * Even if many or all .json files pass the filter, the results can
+              be skewed to an old more limited range of years, genres, etc.
+        """
+        finished = False
+        rebuild_needed = False
+        while not finished:
+
+            if other_value is None:
+                is_equal = False
+                break
+
+            # Don't understand why this is failing
+            if not isinstance(other_value, CacheParameters):
+                # is_equal = False
+                # break
+                pass
+
+            '''
+             TMDB related settings 
+        * indicates saved in search_parameters
+        - indicates change does not warrant destroying tmdb cache
+        + indicates change does warrant destroying tmdb cache
+        
+        - TMDB_MAX_NUMBER_OF_TRAILERS,
+        - TMDB_MAX_DOWNLOAD_MOVIES
+        *- TMDB_ALLOW_FOREIGN_LANGUAGES,
+        - TMDB_TRAILER_TYPE,
+        -    INCLUDE_TMDB_TRAILERS,
+        -    INCLUDE_CLIPS,
+        -    INCLUDE_FEATURETTES,
+        -    INCLUDE_TEASERS,
+        * TMDB_SORT_ORDER,
+        * TMDB_VOTE_VALUE,
+        * TMDB_VOTE_FILTER,
+        *+ TMDB_ENABLE_SELECT_BY_YEAR_RANGE (increase of range not too destructive),
+            * TMDB_YEAR_RANGE_MINIMUM or None
+            * TMDB_YEAR_RANGE_MAXIMUM or None
+        *+ TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
+        FILTER_GENRES
+        * GENREXXX
+        * keywords
+        * certifications: not-yet-rated, Unknown certification, max_certification
+        '''
+            included_genres_set = CacheParameters.create_set(
+                self._included_genres)
+            other_included_genres_set = CacheParameters.create_set(
+                other_value._included_genres)
+            if len(included_genres_set ^ other_included_genres_set) != 0:
+                rebuild_needed = True
+                break
+
+            excluded_genres_set = CacheParameters.create_set(
+                self._excluded_genres)
+            other_excluded_genres_set = CacheParameters.create_set(
+                other_value._excluded_genres)
+            if len(excluded_genres_set ^ other_excluded_genres_set) != 0:
+                rebuild_needed = True
+                break
+
+            included_tags_set = CacheParameters.create_set(self._included_tags)
+            other_included_tags_set = CacheParameters.create_set(
+                other_value._included_tags)
+            if len(included_tags_set ^ other_included_tags_set) != 0:
+                rebuild_needed = True
+                break
+
+            excluded_tags_set = CacheParameters.create_set(self._excluded_tags)
+            other_excluded_tags_set = CacheParameters.create_set(
+                other_value._excluded_tags)
+            if len(excluded_tags_set ^ other_excluded_tags_set) != 0:
+                rebuild_needed = True
+                break
+
+            if self._minimum_year != other_value._minimum_year:
+                rebuild_needed = True
+                break
+
+            if self._maximum_year != other_value._maximum_year:
+                rebuild_needed = True
+                break
+
+            if self._remote_trailer_preference != other_value._remote_trailer_preference:
+                rebuild_needed = True
+
+            if self._vote_comparison != other_value._vote_comparison:
+                rebuild_needed = True
+                break
+
+            if self._vote_value != other_value._vote_value:
+                rebuild_needed = True
+                break
+
+            if self._rating_limit_string != other_value._rating_limit_string:
+                rebuild_needed = True
+                break
+
+            '''
+            if self._language != other_value._language:
+                rebuild_needed = True
+                break
+            '''
+
+            if self._country != other_value._country:
+                rebuild_needed = True
+                break
+
+            finished = True
+
+        return rebuild_needed
+
     @classmethod
     def save_cache(cls) -> None:
         """
@@ -275,7 +417,7 @@ class CacheParameters:
             try:
                 Monitor.throw_exception_if_abort_requested()
 
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     json_text = cls.to_json()
                     cacheFile.write(json_text)
@@ -289,28 +431,30 @@ class CacheParameters:
 
     @classmethod
     def load_cache(cls,
-                   current_parameters  # type: CacheParameters
-                   ) -> bool:
+                   current_parameters: ForwardRef('CacheParameters')
+                   ) -> Tuple[bool, bool]:
         """
 
         :param current_parameters:
         :return bool: True when cache has changed
         """
         saved_parameters = cls.read_cached_value_from_disk()
-        cache_changed = False
+        cache_changed: bool = False
+        rebuild_cache: bool = False
         if saved_parameters != current_parameters:
             current_parameters._cache_state =\
                 CacheIndex.CACHE_PARAMETERS_INITIALIZED_STATE
             cls.set_cached_value(current_parameters)
             cache_changed = True
+            rebuild_cache = current_parameters.is_rebuild_cache(saved_parameters)
         else:
             cls.set_cached_value(saved_parameters)
 
-        return cache_changed
+        return cache_changed, rebuild_cache
 
     @classmethod
     def set_cached_value(cls,
-                         new_parameters  # type: CacheParameters
+                         new_parameters: ForwardRef('CacheParameters')
                          ) -> None:
         """
 
@@ -339,8 +483,7 @@ class CacheParameters:
         return cls._cached_value._cache_state
 
     @classmethod
-    def read_cached_value_from_disk(cls):
-        # type: () -> CacheParameters
+    def read_cached_value_from_disk(cls) -> ForwardRef('CacheParameters'):
         """
 
         :return:
@@ -368,20 +511,23 @@ class CacheParameters:
                     Settings.get_expire_remote_db_cache_entry_days())
 
                 if file_mod_time < expiration_time:
-                    if cls._logger.isEnabledFor(LazyLogger.DEBUG):
-                        cls._logger.debug('cache file EXPIRED for:', path)
+                    if cls._logger.isEnabledFor(DEBUG):
+                        cls._logger.debug(f'cache file EXPIRED for: {path}')
                     return None
 
                 Monitor.throw_exception_if_abort_requested()
 
-                with io.open(path, mode='rt', newline=None,
+                with io.open(path.encode('utf-8'), mode='rt', newline=None,
                              encoding='utf-8') as cacheFile:
-                    saved_preferences = json.load(cacheFile, encoding='utf-8')
+                    saved_preferences = json.load(cacheFile)
                     saved_preferences = CacheParameters(saved_preferences)
             except AbortException:
                 reraise(*sys.exc_info())
             except IOError as e:
-                cls._logger.exception('')
+                cls._logger.exception(f'Reading Json from {path}')
+                exception_occurred = True
+            except JSONDecodeError:
+                cls._logger.exception(f'Invalid Json from {path}')
                 exception_occurred = True
             except Exception as e:
                 cls._logger.exception('')
@@ -390,8 +536,7 @@ class CacheParameters:
         return saved_preferences
 
     @staticmethod
-    def create_set(a_list):
-        # type: (List[Any]) -> Set[Any]
+    def create_set(a_list: List[Any]) -> Set[Any]:
         """
 
         :param a_list:
@@ -407,40 +552,47 @@ class CacheParameters:
 class CachedPagesData:
     """
 
-    """
-    pages_data = None
+    There are three types of pages data, each stored in a Dict:
+
+    pages_data: {'genre': CachedPagesData(key='genre'),
+     'keyword': CachedPagesData(key='keyword'),
+     'generic': CachedPagesData(key='generic')}
+
+     Initialized after definition of class
+
+     """
+
+    pages_data: Dict[str, ForwardRef('CachedPagesData')] = None
 
     def __init__(self,
-                 key='',  # type: str
-                 total_pages=0,  # type: int
-                 query_by_year=False  # type: bool
-                 ):
-        # type: (...) -> None
+                 key: str = '',
+                 total_pages: int = 0,
+                 query_by_year: bool = False
+                 ) -> None:
         """
 
         :param key:
         :param total_pages:
         """
-        self._logger = module_logger.getChild(type(self).__name__)
-        self._number_of_unsaved_changes = 0
+        self._logger: BasicLogger = module_logger.getChild(type(self).__name__)
+        self._number_of_unsaved_changes: int = 0
         self._time_of_last_save = None
-        self._key = key
-        self._total_pages = total_pages
+        self._key: str = key
+        self._total_pages: int = total_pages
         self._total_pages_by_year = {}
-        self._query_by_year = query_by_year
+        self._query_by_year: bool = query_by_year
         self._years_to_query = None
-        self._search_pages_configured = False
-        self._logger.debug('remote_db_cache_path:',
-                           Settings.get_remote_db_cache_path())
-        self._path = os.path.join(Settings.get_remote_db_cache_path(),
-                                  'index', f'tmdb_{key}.json')
-        self._temp_path = os.path.join(Settings.get_remote_db_cache_path(),
-                                       'index', f'tmdb_{key}.json.tmp')
-        # type:
-        self._cached_page_by_key: Optional[Dict[str, CachedPage]] = None
+        self._search_pages_configured: bool = False
 
-    def get_total_pages(self):
-        # type: () -> int
+        self._logger.debug(f'remote_db_cache_path: '
+                           f'{Settings.get_remote_db_cache_path()}')
+        self._path: str = os.path.join(Settings.get_remote_db_cache_path(),
+                                  'index', f'tmdb_{key}.json')
+        self._temp_path: str = os.path.join(Settings.get_remote_db_cache_path(),
+                                       'index', f'tmdb_{key}.json.tmp')
+        self._cached_page_by_key: Dict[str, CachedPage] = None
+
+    def get_total_pages(self) -> int:
         """
 
         :return:
@@ -448,8 +600,7 @@ class CachedPagesData:
         self.load_search_pages()
         return self._total_pages
 
-    def set_total_pages(self, total_pages):
-        # type: (int) -> None
+    def set_total_pages(self, total_pages: int) -> None:
         """
         :param total_pages:
         :return:
@@ -457,8 +608,7 @@ class CachedPagesData:
         self.load_search_pages()
         self._total_pages = total_pages
 
-    def is_query_by_year(self):
-        # type: () -> bool
+    def is_query_by_year(self) -> bool:
         """
 
         :return:
@@ -466,8 +616,7 @@ class CachedPagesData:
         self.load_search_pages()
         return self._query_by_year
 
-    def set_query_by_year(self, query_by_year):
-        # type: (bool) -> None
+    def set_query_by_year(self, query_by_year: bool) -> None:
         """
         :param query_by_year:
         :return:
@@ -486,7 +635,7 @@ class CachedPagesData:
     def set_years_to_query(self, years_to_query: List[int]) -> None:
         """
 
-        :param years_to_get:
+        :param years_to_query:
         :return:
         """
         self.load_search_pages()
@@ -519,9 +668,9 @@ class CachedPagesData:
         return self._search_pages_configured
 
     def add_search_pages(self,
-                         search_pages,  # type: List[CachedPage]
-                         flush=False  # type: bool
-                         ):
+                         search_pages: List[CachedPage],
+                         flush: bool = False
+                         ) -> None:
         """
 
         :param search_pages:
@@ -541,9 +690,8 @@ class CachedPagesData:
         self.save_search_pages(flush=flush)
 
     def get_total_pages_for_year(self,
-                                 year  # type: int
-                                 ):
-        #  type: (...) -> Optional[int]
+                                 year: int
+                                 ) -> Optional[int]:
         """
         :param year:
         :return:
@@ -556,8 +704,7 @@ class CachedPagesData:
 
         return total_pages
 
-    def get_number_of_search_pages(self):
-        # type: () -> int
+    def get_number_of_search_pages(self) -> int:
         """
 
         :return:
@@ -573,8 +720,7 @@ class CachedPagesData:
         except Exception as e:
             self._logger.exception('')
 
-    def get_undiscovered_search_pages(self):
-        # type: () -> List[CachedPage]
+    def get_undiscovered_search_pages(self) -> List[CachedPage]:
         """
 
         :return:
@@ -596,8 +742,7 @@ class CachedPagesData:
 
         return undiscovered_search_pages
 
-    def get_number_of_undiscovered_search_pages(self):
-        # type: () -> int
+    def get_number_of_undiscovered_search_pages(self) -> int:
         """
 
         :return:
@@ -617,8 +762,7 @@ class CachedPagesData:
 
         return int(number_of_undiscovered_pages)
 
-    def get_number_of_discovered_search_pages(self):
-        # type: () -> int
+    def get_number_of_discovered_search_pages(self) -> int:
         """
 
         :return:
@@ -638,8 +782,8 @@ class CachedPagesData:
 
         return int(number_of_discovered_pages)
 
-    def get_entry_by_year_and_page(self, year, page_number):
-        # type: (int, int) -> CachedPage
+    def get_entry_by_year_and_page(self, year: int,
+                                   page_number: int) -> CachedPage:
         """
 
         :param year:
@@ -659,12 +803,10 @@ class CachedPagesData:
 
         return cached_page
 
-    def get_entries_for_year(self, year):
-        # type: (int) -> List[CachedPage]
+    def get_entries_for_year(self, year: int) -> List[CachedPage]:
         """
 
         :param year:
-        :param page_number:
         :return:
         """
         cached_pages = []
@@ -682,8 +824,7 @@ class CachedPagesData:
 
         return cached_pages
 
-    def mark_page_as_discovered(self, cached_page):
-        #  type: (CachedPage) -> None
+    def mark_page_as_discovered(self, cached_page: CachedPage) -> None:
         """
 
         :param cached_page:
@@ -694,8 +835,7 @@ class CachedPagesData:
         self._number_of_unsaved_changes += 1
         self.save_search_pages(flush=True)
 
-    def get_number_of_unsaved_changes(self):
-        # type: () -> int
+    def get_number_of_unsaved_changes(self) -> int:
         """
 
         :return:
@@ -738,8 +878,7 @@ class CachedPagesData:
             self._logger.exception('')
         return json_dict
 
-    def from_json(self, encoded_values):
-        # type: (Dict[str, Any]) -> CachedPagesData
+    def from_json(self, encoded_values: Dict[str, Any]) -> ForwardRef('CachedPagesData'):
         """
 
         :param encoded_values:
@@ -804,7 +943,7 @@ class CachedPagesData:
                 DiskUtils.create_path_if_needed(parent_dir)
 
                 Monitor.throw_exception_if_abort_requested()
-                with io.open(temp_path, mode='wt', newline=None,
+                with io.open(temp_path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8') as cacheFile:
                     json_dict = self.to_json()
 
@@ -812,7 +951,6 @@ class CachedPagesData:
                     # not a valid arg to dumps
 
                     json_text = json.dumps(json_dict,
-                                           encoding='utf-8',
                                            ensure_ascii=False,
                                            default=CacheIndex.handler,
                                            indent=3, sort_keys=True)
@@ -836,30 +974,33 @@ class CachedPagesData:
             except Exception as e:
                 self._logger.exception('')
 
-        self._logger.debug_verbose("Entries Saved: ", saved_pages)
+        self._logger.debug_verbose(f'Entries Saved: {saved_pages}')
 
     def load_search_pages(self) -> None:
         """
 
         :return:
         """
+
         if self._cached_page_by_key is not None:
             return
 
-        path = xbmcvfs.validatePath(self._path)
+        path: str = xbmcvfs.validatePath(self._path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
 
             if os.path.exists(path):
                 Monitor.throw_exception_if_abort_requested()
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
                                               encoding='utf-8') as cacheFile:
                     encoded_values = json.load(
-                        cacheFile, encoding='utf-8',
+                        cacheFile,
                         object_hook=CacheIndex.datetime_parser)
                     loaded_cached_pages_data = self.from_json(encoded_values)
-                    self._cached_page_by_key = loaded_cached_pages_data._cached_page_by_key
+                    self._cached_page_by_key = \
+                        loaded_cached_pages_data._cached_page_by_key
             else:
                 self._cached_page_by_key: Dict[str, CachedPage] = dict()
 
@@ -874,11 +1015,11 @@ class CachedPagesData:
             self._logger.exception('')
 
         self._logger.debug_verbose(
-            "Loaded entries:", len(self._cached_page_by_key))
+            f'Loaded entries key: {self._key} # pages: '
+            f'{len(self._cached_page_by_key)}')
         self._time_of_last_save = datetime.datetime.now()
 
-    def clear(self):
-        # type: () -> None
+    def clear(self) -> None:
         """
 
         :return:
@@ -893,6 +1034,8 @@ class CachedPagesData:
         self.save_search_pages(flush=True)
 
 
+# Can't initialize within class
+
 CachedPagesData.pages_data: Dict[str, CachedPagesData] = \
     {'genre': CachedPagesData(key='genre'),
      'keyword': CachedPagesData(key='keyword'),
@@ -906,21 +1049,27 @@ class CacheIndex:
     UNINITIALIZED_STATE = 'uninitialized_state'
     CACHE_PARAMETERS_INITIALIZED_STATE = 'cache_parameters_initialized_state'
     _found_tmdb_trailer_ids: Set[int] = set()
+
+    # TMDb ids of movies partially discovered by TMDbDiscovery. Additional
+    # discovery using the full details returned by TMDb movie query.
+    # Note that if discovery parameters change, then this should be destroyed and
+    # discovery restarted
+
+    _unprocessed_tmdb_trailer_ids: Set[int] = set()
     lock = threading.RLock()
     last_saved = datetime.datetime.now()
     _last_saved_trailer_timestamp = datetime.datetime.now()
     _last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
 
     _parameters = None
-    _unprocessed_movies: Dict[int, MovieType] = {}
-    _unprocessed_movie_changes: int = 0
-    _unsaved_trailer_changes: int = 0
+    # _unprocessed_movies: Dict[int, TMDbMoviePageData] = {}
+    # _unprocessed_movie_changes: int = 0
+    _unsaved_movie_changes: int = 0
+    _unprocesseed_movie_changes: int = 0
     _logger = None
 
     @classmethod
-    def class_init(cls,
-                   ):
-        # type: (...) -> None
+    def class_init(cls) -> None:
         """
         :return:
         """
@@ -929,7 +1078,7 @@ class CacheIndex:
 
     @classmethod
     def load_cache(cls,
-                   cache_changed: bool
+                   cache_changed: bool,
                    ) -> None:
         """
         :param cache_changed:
@@ -940,31 +1089,28 @@ class CacheIndex:
             if cache_changed:
                 # Replace Cache
                 cls._parameters = CacheParameters.get_parameter_values()
-                cls._unprocessed_movies: Dict[int, MovieType] = {}
-                cls._found_tmdb_trailer_ids: Set(int) = set()
-                cls._unsaved_trailer_changes = 1
-                cls._unprocessed_movie_changes = 1
+                cls._found_tmdb_trailer_ids = set()
+                cls._unprocessed_tmdb_trailer_ids = set()
+                cls._unprocesseed_movie_changes = 1
+                cls._unsaved_movie_changes = 1
                 cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
                 cls._last_saved_trailer_timestamp = datetime.datetime.now()
                 cls.save_parameter_cache()
-                cls.save_unprocessed_movie_cache(flush=True)
-                cls.save_found_trailer_ids_cache(flush=True)
-                for cached_page_data in CachedPagesData.pages_data.values():
+                cls.save_tmdb_ids_with_trailers(flush=True)
+                cls.save_unprocessed_movies_cache(flush=True)
+
+                # Clear each type of CachedPagesData: 'genre', 'keyword' and 'generic'
+
+                cached_page_data: CachedPagesData
+                cached_page_key: str
+                for cached_page_key in CachedPagesData.pages_data.keys():
                     cached_page_data: CachedPagesData
+                    cached_page_data = CachedPagesData.pages_data[cached_page_key]
                     cached_page_data.clear()
-            else:
-                cls.load_unprocessed_movie_cache()
-                cls.load_found_trailer_ids_cache()
+                    cached_page_data.save_search_pages(flush=True)
 
-    @classmethod
-    def is_tmdb_cache_empty(cls) -> bool:
-        """
-
-        :return:
-        """
-        if len(cls._unprocessed_movies) == 0 and len(cls._found_tmdb_trailer_ids) == 0:
-            return True
-        return False
+            cls.load_tmdb_ids_with_trailers()
+            cls.load_unprocessed_movies_cache()
 
     @classmethod
     def add_search_pages(cls,
@@ -989,6 +1135,8 @@ class CacheIndex:
         :return:
         """
 
+        cls._logger.debug(f'tmdb_search_query: {tmdb_search_query}')
+        cached_pages_data: CachedPagesData
         cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
         return list(cached_pages_data.get_undiscovered_search_pages())
 
@@ -1000,6 +1148,7 @@ class CacheIndex:
         """
         number_of_discovered_pages = 0
         for page_type in ('genre', 'keyword', 'generic'):
+            cached_pages_data: CachedPagesData
             cached_pages_data = CachedPagesData.pages_data[page_type]
             number_of_discovered_pages +=\
                 cached_pages_data.get_number_of_discovered_search_pages()
@@ -1007,102 +1156,12 @@ class CacheIndex:
         return int(number_of_discovered_pages)
 
     @classmethod
-    def logger(cls) -> LazyLogger:
+    def logger(cls) -> BasicLogger:
         """
 
         :return:
         """
         return cls._logger
-
-    @classmethod
-    def add_unprocessed_movies(cls,
-                               movies: List[MovieType]
-                               ) -> None:
-        """
-
-        :param movies:
-        :return:
-        """
-        with cls.lock:
-            for movie in movies:
-                tmdb_id = int(MovieEntryUtils.get_tmdb_id(movie))
-                if tmdb_id not in cls._unprocessed_movies:
-                    cls._unprocessed_movies[tmdb_id] = movie
-
-            cls._unprocessed_movie_changes += len(movies)
-            cls.save_unprocessed_movie_cache()
-
-        Statistics.add_tmdb_total_number_of_unprocessed_movies(len(movies))
-
-    @classmethod
-    def remove_unprocessed_movies(cls,
-                                  tmdb_ids: Union[int, List[int]]
-                                  ) -> None:
-        """
-        :param tmdb_ids:
-        :return:
-        """
-        if not isinstance(tmdb_ids, list):
-            tmdb_ids = [tmdb_ids]
-
-        with cls.lock:
-            for tmdb_id in tmdb_ids:
-                tmdb_id = int(tmdb_id)
-                if tmdb_id in cls._unprocessed_movies:
-                    del cls._unprocessed_movies[tmdb_id]
-                    cls._unprocessed_movie_changes += 1
-                    cls.save_unprocessed_movie_cache()
-
-        Statistics.add_tmdb_total_number_of_removed_unprocessed_movies()
-
-    @classmethod
-    def add_cached_tmdb_trailer(cls, tmdb_id: int) -> None:
-        """
-
-        :param tmdb_id:
-        :return:
-         """
-        tmdb_id = int(tmdb_id)
-        with CacheIndex.lock:
-            if tmdb_id not in cls._found_tmdb_trailer_ids:
-                cls._found_tmdb_trailer_ids.add(tmdb_id)
-                cls._unsaved_trailer_changes += 1
-                cls.save_found_trailer_ids_cache()  # If needed
-
-            cls.remove_unprocessed_movies(tmdb_id)
-
-    @classmethod
-    def remove_cached_tmdb_trailer_id(cls, tmdb_id: int) -> None:
-        """
-        :param tmdb_id:
-        :return:
-         """
-        tmdb_id = int(tmdb_id)
-        with CacheIndex.lock:
-            try:
-                cls._found_tmdb_trailer_ids.remove(tmdb_id)
-                cls._unsaved_trailer_changes += 1
-            except KeyError:
-                pass
-
-            cls.remove_unprocessed_movies(tmdb_id)  # if needed
-            cls.save_found_trailer_ids_cache()  # If needed
-
-    @classmethod
-    def get_found_tmdb_ids_with_trailer(cls) -> Set[int]:
-        """
-        :return:
-        """
-        return cls._found_tmdb_trailer_ids.copy()
-
-    @classmethod
-    def get_unprocessed_movies(cls) -> Dict[int, MovieType]:
-        """
-
-        :return:
-        """
-        with cls.lock:
-            return cls._unprocessed_movies
 
     @classmethod
     def save_parameter_cache(cls) -> None:
@@ -1119,106 +1178,96 @@ class CacheIndex:
         cached_pages_data.save_search_pages(flush=flush)
 
     @classmethod
-    def save_unprocessed_movie_cache(cls, flush: bool = False) -> None:
+    def add_tmdb_id_with_trailer(cls, tmdb_id: int) -> None:
         """
-        :param flush:
+
+        :param tmdb_id:
         :return:
-        """
+         """
+        tmdb_id = int(tmdb_id)
+        with CacheIndex.lock:
+            if tmdb_id not in cls._found_tmdb_trailer_ids:
+                cls._found_tmdb_trailer_ids.add(tmdb_id)
+                cls._unsaved_movie_changes += 1
+                cls.save_tmdb_ids_with_trailers()  # If needed
 
-        #  TODO: Should use lock here, review locking
-        with cls.lock:
-            if cls._unprocessed_movie_changes == 0:
-                return
-
-            if (not flush and
-                    # Constants.TRAILER_CACHE_FLUSH_UPDATES)
-                    (cls._unprocessed_movie_changes < 10)
-                    and
-                    ((datetime.datetime.now() -
-                      cls._last_saved_unprocessed_movie_timestamp))
-                    < datetime.timedelta(minutes=5)):
-                return
-
-            try:
-                path = os.path.join(Settings.get_remote_db_cache_path(),
-                                    'index', 'tmdb_unprocessed_movies.json')
-                path = xbmcvfs.validatePath(path)
-                parent_dir, file_name = os.path.split(path)
-                if not os.path.exists(parent_dir):
-                    DiskUtils.create_path_if_needed(parent_dir)
-
-                # Don't save unneeded fields. Takes up disk and RAM
-
-                temp_entries = {}
-                for tmdb_id, entry in cls.get_unprocessed_movies().items():
-                    temp_entry = {}
-                    for key in Movie.TMDB_PAGE_DATA_FIELDS:
-                        value = entry.get(key, None)
-                        if value is not None:
-                            temp_entry[key] = value
-                        else:
-                            cls._logger.debug(f'TMDB_id: {tmdb_id} missing value for {key}')
-
-                    temp_entries[tmdb_id] = temp_entry
-
-                json_text = json.dumps(temp_entries,
-                                       encoding='utf-8',
-                                       ensure_ascii=False,
-                                       default=CacheIndex.handler,
-                                       indent=3, sort_keys=True)
-
-                with io.open(path, mode='wt', newline=None,
-                             encoding='utf-8', ) as cache_file:
-
-                    # TODO: Need ability to interrupt when ABORT. Object_handler
-                    # not a valid arg to dumps
-
-                    cache_file.write(json_text)
-                    cache_file.flush()
-                    cls._last_saved_unprocessed_movie_timestamp = datetime.datetime.now()
-                    cls._unprocessed_movie_changes = 0
-
-                    Monitor.throw_exception_if_abort_requested()
-
-                del json_text
-                del temp_entries
-            except AbortException:
-                reraise(*sys.exc_info())
-            except IOError as e:
-                cls.logger().exception('')
-            except Exception as e:
-                cls.logger().exception('')
+            cls.remove_unprocessed_movie(tmdb_id)
 
     @classmethod
-    def load_unprocessed_movie_cache(cls) -> None:
+    def remove_tmdb_id_with_trailer(cls, tmdb_id: int) -> None:
         """
+        Remove the TMDbMovieId with the given tmdb_id from the
+        cached and persisted entries.
+
+        As trailers from TMDb are discovered, their ids are
+        persisted. Only by discovering full details will it be
+        known whether to include the trailers or not.
+
+        :param tmdb_id:
+        :return:
+         """
+        tmdb_id = int(tmdb_id)
+        with CacheIndex.lock:
+            try:
+                cls._found_tmdb_trailer_ids.remove(tmdb_id)
+                cls._unsaved_movie_changes += 1
+            except KeyError:
+                pass
+
+            cls.remove_unprocessed_movie(tmdb_id)  # if needed
+            cls.save_tmdb_ids_with_trailers()  # If needed
+
+    @classmethod
+    def get_tmdb_ids_with_trailers(cls) -> Set[TMDbMovieId]:
+        """
+        Return all TMDbMovieIds that are known to have trailers.
+
+        As trailers from TMDb are discovered, their ids are
+        persisted. Only by discovering full details will it be
+        known whether to include the trailers or not.
+
+        :return:
+        """
+        tmdb_movie_ids: Set[TMDbMovieId] = set()
+        with cls.lock:
+            tmdb_id: int
+            for tmdb_id in cls._found_tmdb_trailer_ids:
+                tmdb_movie_id: TMDbMovieId = TMDbMovieId(str(tmdb_id))
+                tmdb_movie_ids.add(tmdb_movie_id)
+
+        return tmdb_movie_ids
+
+    @classmethod
+    def load_tmdb_ids_with_trailers(cls) -> None:
+        """
+        Loads the cache of TMDb Ids which are known to have trailers.
 
         :return:
         """
         path = os.path.join(Settings.get_remote_db_cache_path(),
-                            'index', 'tmdb_unprocessed_movies.json')
+                            'index', 'tmdb_found_trailers.json')
         path = xbmcvfs.validatePath(path)
         try:
             parent_dir, file_name = os.path.split(path)
             DiskUtils.create_path_if_needed(parent_dir)
-            with CacheIndex.lock:
-                if os.path.exists(path):
-                    with io.open(path, mode='rt', newline=None,
-                                 encoding='utf-8') as cacheFile:
-                        unprocessed_movies = json.load(
-                            cacheFile, encoding='utf-8',
-                            object_hook=CacheIndex.datetime_parser)
-                        cls._unprocessed_movies.clear()
-                        for key, value in unprocessed_movies.items():
-                            if not isinstance(key, int):
-                                key = int(key)
-                            cls._unprocessed_movies[key] = value
+            if os.path.exists(path):
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
+                                              encoding='utf-8') as cacheFile:
+                    found_trailers_list = json.load(
+                        cacheFile,
+                        object_hook=CacheIndex.datetime_parser)
+                    cls._last_saved_trailer_timestamp = datetime.datetime.now()
+                    cls._found_tmdb_trailer_ids: Set[int] = set(
+                        found_trailers_list)
+                    cls._unsaved_movie_changes = 0
+                    cls._unprocessed_tmdb_trailer_ids.difference_update(
+                        cls._found_tmdb_trailer_ids)
+            else:
+                cls._found_tmdb_trailer_ids: Set[int] = set()
 
-                        cls.last_saved_movie_timestamp = None
-                        cls._unprocessed_movie_changes = 0
-                else:
-                    cls._unprocessed_movies = {}
             Monitor.throw_exception_if_abort_requested()
+
         except AbortException:
             reraise(*sys.exc_info())
         except IOError as e:
@@ -1229,17 +1278,17 @@ class CacheIndex:
             CacheIndex.logger().exception('')
 
     @classmethod
-    def save_found_trailer_ids_cache(cls, flush: bool = False) -> None:
+    def save_tmdb_ids_with_trailers(cls, flush: bool = False) -> None:
         """
         :param flush:
         :return:
         """
         with cls.lock:
-            if cls._unsaved_trailer_changes == 0:
+            if cls._unsaved_movie_changes == 0:
                 return
 
             if (not flush and
-                    (cls._unsaved_trailer_changes <
+                    (cls._unsaved_movie_changes <
                      Constants.TRAILER_CACHE_FLUSH_UPDATES)
                 and
                 (datetime.datetime.now() - cls._last_saved_trailer_timestamp) <
@@ -1253,7 +1302,7 @@ class CacheIndex:
                 parent_dir, file_name = os.path.split(path)
                 if not os.path.exists(parent_dir):
                     DiskUtils.create_path_if_needed(parent_dir)
-                with io.open(path, mode='wt', newline=None,
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
                              encoding='utf-8', ) as cacheFile:
                     found_trailer_id_list = list(
                         cls._found_tmdb_trailer_ids)
@@ -1264,7 +1313,167 @@ class CacheIndex:
                     cacheFile.write(json_text)
                     cacheFile.flush()
                     cls._last_saved_trailer_timestamp = datetime.datetime.now()
-                    cls._unsaved_trailer_changes = 0
+                    cls._unsaved_movie_changes = 0
+
+                Monitor.throw_exception_if_abort_requested()
+            except AbortException:
+                reraise(*sys.exc_info())
+            except IOError as e:
+                CacheIndex.logger().exception('')
+            except Exception as e:
+                CacheIndex.logger().exception('')
+
+    @classmethod
+    def add_unprocessed_tmdb_movies(cls,
+                                    arg_tmdb_ids: Union[TMDbMovieId,
+                                                          Iterable[TMDbMovieId]])\
+            -> None:
+        """
+
+        :param arg_tmdb_ids:
+        :return:
+         """
+        tmdb_ids: List[int]
+        if not isinstance(arg_tmdb_ids, Iterable):
+            tmdb_ids = [arg_tmdb_ids.get_tmdb_id()]
+        else:
+            tmdb_movie_id: TMDbMovieId
+            tmdb_ids = []
+            for tmdb_movie_id in arg_tmdb_ids:
+                tmdb_ids.append(tmdb_movie_id.get_tmdb_id())
+
+        with CacheIndex.lock:
+            orig_size: int = len(cls._unprocessed_tmdb_trailer_ids)
+            cls._unprocessed_tmdb_trailer_ids.update(tmdb_ids)
+            delta_size: int = len(cls._unprocessed_tmdb_trailer_ids) - orig_size
+            cls._unprocesseed_movie_changes += delta_size
+            cls.save_unprocessed_movies_cache()  # If needed
+
+    @classmethod
+    def get_unprocessed_movies(cls) -> List[TMDbMovieId]:
+        unprocessed_ids: List[TMDbMovieId]
+        unprocessed_ids = []
+        tmdb_id: int
+        for tmdb_id in cls._unprocessed_tmdb_trailer_ids:
+            tmdb_movie_id: TMDbMovieId
+            tmdb_movie_id = TMDbMovieId(str(tmdb_id))
+            unprocessed_ids.append(tmdb_movie_id)
+
+        return unprocessed_ids
+
+    @classmethod
+    def remove_unprocessed_movie(cls, arg_tmdb_id: Union[TMDbMovieId, int]) -> None:
+        """
+        :param arg_tmdb_id:
+        :return:
+         """
+        tmdb_id: int
+
+        if arg_tmdb_id is None:
+            cls._logger.debug(f'arg_tmdb_id is None')
+
+        tmdb_id: int = None
+        if isinstance(arg_tmdb_id, TMDbMovieId):
+            tmdb_id = int(arg_tmdb_id.get_tmdb_id())
+        elif isinstance(arg_tmdb_id, AbstractMovie):
+            abstract_movie: AbstractMovie = arg_tmdb_id
+            tmdb_id = abstract_movie.get_tmdb_id()
+        elif isinstance(arg_tmdb_id, int) or isinstance(arg_tmdb_id, str):
+            tmdb_id = int(arg_tmdb_id)
+        else:
+            cls._logger.debug(f'Unexpected tmdb_id argument')
+            return
+        if tmdb_id is None:
+            cls._logger.debug('tmdb_id is None')
+            return
+        with CacheIndex.lock:
+            try:
+                cls._unprocessed_tmdb_trailer_ids.remove(tmdb_id)
+                cls._unprocesseed_movie_changes += 1
+            except KeyError:
+                pass
+
+            cls.save_unprocessed_movies_cache()  # If needed
+
+    @classmethod
+    def get_number_of_unprocessed_movies(cls) -> int:
+        return len(cls._unprocessed_tmdb_trailer_ids)
+
+    @classmethod
+    def load_unprocessed_movies_cache(cls) -> None:
+        """
+
+        :return:
+        """
+        path = os.path.join(Settings.get_remote_db_cache_path(),
+                            'index', 'tmdb_unprocessed_movies.json')
+        path = xbmcvfs.validatePath(path)
+        try:
+            parent_dir, file_name = os.path.split(path)
+            DiskUtils.create_path_if_needed(parent_dir)
+
+            if os.path.exists(path):
+                with CacheIndex.lock, io.open(path.encode('utf-8'), mode='rt',
+                                              newline=None,
+                                              encoding='utf-8') as cacheFile:
+                    unprocessed_trailers_list = json.load(
+                        cacheFile,
+                        object_hook=CacheIndex.datetime_parser)
+                    cls._last_saved_unprocssed_trailer_timestamp = datetime.datetime.now()
+                    cls._unprocessed_tmdb_trailer_ids: Set[int] = set(
+                        unprocessed_trailers_list)
+                    cls._unprocesseed_movie_changes = 0
+            else:
+                cls._unprocessed_tmdb_trailer_ids: Set[int] = set()
+
+            Monitor.throw_exception_if_abort_requested()
+        except AbortException:
+            reraise(*sys.exc_info())
+        except IOError as e:
+            CacheIndex.logger().exception('')
+        except JSONDecodeError as e:
+            os.remove(path)
+        except Exception as e:
+            CacheIndex.logger().exception('')
+
+    @classmethod
+    def save_unprocessed_movies_cache(cls, flush: bool = False) -> None:
+        """
+        :param flush:
+        :return:
+        """
+        with cls.lock:
+            if cls._unprocesseed_movie_changes == 0:
+                return
+
+            if (not flush and
+                    (cls._unprocesseed_movie_changes <
+                     Constants.TRAILER_CACHE_FLUSH_UPDATES)
+                    and
+                    (datetime.datetime.now() -
+                     cls._last_saved_unprocssed_trailer_timestamp) <
+                    datetime.timedelta(minutes=5)):
+                return
+
+            try:
+                path = os.path.join(Settings.get_remote_db_cache_path(),
+                                    'index', 'tmdb_unprocessed_movies.json')
+                path = xbmcvfs.validatePath(path)
+                parent_dir, file_name = os.path.split(path)
+                if not os.path.exists(parent_dir):
+                    DiskUtils.create_path_if_needed(parent_dir)
+                with io.open(path.encode('utf-8'), mode='wt', newline=None,
+                             encoding='utf-8', ) as cacheFile:
+                    unprocessed_trailer_ids = list(
+                        cls._unprocessed_tmdb_trailer_ids)
+                    json_text = json.dumps(unprocessed_trailer_ids,
+                                           ensure_ascii=False,
+                                           default=CacheIndex.handler,
+                                           indent=3, sort_keys=True)
+                    cacheFile.write(json_text)
+                    cacheFile.flush()
+                    cls._last_saved_unprocssed_trailer_timestamp = datetime.datetime.now()
+                    cls._unprocesseed_movie_changes = 0
 
                 Monitor.throw_exception_if_abort_requested()
             except AbortException:
@@ -1294,9 +1503,6 @@ class CacheIndex:
         Monitor.throw_exception_if_abort_requested()
         if hasattr(obj, 'isoformat'):
             return obj.isoformat()
-        else:
-            raise TypeError('Object of type %s with value of %s is not JSON serializable' % (
-                type(obj), repr(obj)))
 
     @staticmethod
     def datetime_parser(dct: Dict) -> Dict:
@@ -1312,43 +1518,6 @@ class CacheIndex:
             return dct
         else:
             return dct
-
-    @classmethod
-    def load_found_trailer_ids_cache(cls) -> None:
-        """
-
-        :return:
-        """
-        path = os.path.join(Settings.get_remote_db_cache_path(),
-                            'index', 'tmdb_found_trailers.json')
-        path = xbmcvfs.validatePath(path)
-        try:
-            parent_dir, file_name = os.path.split(path)
-            DiskUtils.create_path_if_needed(parent_dir)
-
-            if os.path.exists(path):
-                with CacheIndex.lock, io.open(path, mode='rt', newline=None,
-                                              encoding='utf-8') as cacheFile:
-                    found_trailers_list = json.load(
-                        cacheFile, encoding='utf-8',
-                        object_hook=CacheIndex.datetime_parser)
-                    cls._last_saved_trailer_timestamp = datetime.datetime.now()
-                    cls._found_tmdb_trailer_ids: Set[int] = set(
-                        found_trailers_list)
-                    cls._unsaved_trailer_changes = 0
-            else:
-                cls._found_tmdb_trailer_ids: Set[int] = set()
-
-            Monitor.throw_exception_if_abort_requested()
-            cls.remove_unprocessed_movies(list(cls._found_tmdb_trailer_ids))
-        except AbortException:
-            reraise(*sys.exc_info())
-        except IOError as e:
-            CacheIndex.logger().exception('')
-        except JSONDecodeError as e:
-            os.remove(path)
-        except Exception as e:
-            CacheIndex.logger().exception('')
 
 
 CacheIndex.class_init()

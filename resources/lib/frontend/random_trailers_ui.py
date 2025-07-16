@@ -16,7 +16,7 @@ import xbmcvfs
 from common.constants import Constants
 from common.imports import *
 from common.exceptions import AbortException
-from common.logger import LazyLogger
+from common.logger import *
 from common.monitor import Monitor
 from common.playlist import Playlist
 from common.settings import Settings
@@ -25,8 +25,9 @@ from frontend.trailer_dialog import TrailerDialog
 from frontend.black_background import BlackBackground
 from player.player_container import PlayerContainer
 from frontend.legal_info import LegalInfo
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 '''
@@ -51,7 +52,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
             * On each iteration it gets movie a to play from
               TrailerManager's ReadyToPlay queue
             * Listens for events:stop & exit, pause, play, queue_movie, showInfo,
-              Skip to next trailer, etc.
+              Skip to next movie, etc.
 
         TrailerManager holds various queues and lists:
             * Queues for each video source (library, iTunes, etc.) for
@@ -70,7 +71,7 @@ module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file_
 
 '''
 
-logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 def get_title_font() -> str:
@@ -146,7 +147,7 @@ def play_trailers() -> None:
             black_background.destroy()
             del black_background
         if exiting_playing_movie:
-            if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if logger.isEnabledFor(DEBUG_VERBOSE):
                 logger.debug('ReplaceWindow(12005)')
             xbmc.executebuiltin('ReplaceWindow(12005)')
 
@@ -160,7 +161,7 @@ def kodi_hack() -> None:
     listitem.setInfo(
         'video', {'title': title, 'genre': 'randomtrailers',
                   'Genre': 'randomtrailers',
-                  'trailer': title, 'path': path_to_black_video,
+                  'trailer': path_to_black_video, 'path': path_to_black_video,
                   'mediatype': 'video', 'tag': 'randomtrailers'})
     listitem.setPath(path_to_black_video)
     player.play(item=path_to_black_video, listitem=listitem)
@@ -170,7 +171,7 @@ class StartUI(threading.Thread):
     """
 
     """
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, started_as_screesaver: bool) -> None:
         """
@@ -201,7 +202,7 @@ class StartUI(threading.Thread):
             clz._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(LazyLogger.DEBUG):
+            if logger.isEnabledFor(DEBUG):
                 clz._logger.debug('Stopping random_trailers player')
 
             Monitor.abort_requested()
@@ -217,42 +218,47 @@ class StartUI(threading.Thread):
                 if (self._started_as_screensaver and
                         Settings.is_set_fullscreen_when_screensaver()):
                     if not xbmc.getCondVisibility('System.IsFullscreen'):
-                        xbmc.executebuiltin('xbmc.Action(togglefullscreen)')
+                        xbmc.executebuiltin('Action(ToggleFullScreen)')
 
                 # TODO: Use settings
 
+                # Ability to set volume is DISABLED since there does not appear
+                # to be a way to find out what the volume is currently set to.
+                # We can't restore volume without knowing what it was.
+                '''
                 volume_was_adjusted = False
                 if Settings.get_adjust_volume():
-                    muted = xbmc.getCondVisibility(u"Player.Muted")
+                    muted = xbmc.getCondVisibility("Player.Muted")
                     if not muted and Settings.get_volume() == 0:
-                        xbmc.executebuiltin('xbmc.Mute()')
+                        xbmc.executebuiltin('Mute')
                     else:
                         volume = Settings.get_volume()
                         if volume != 100:
                             volume_was_adjusted = True
-                            xbmc.executebuiltin(
-                                'XBMC.SetVolume(' + str(volume) + ')')
+                            xbmc.executebuiltin(f'SetVolume({volume})')
+                '''
 
                 self._player_container = PlayerContainer.get_instance()
                 play_trailers()
 
+                '''
                 # TODO: Need to adjust whenever settings changes
 
                 if volume_was_adjusted:
                     muted = xbmc.getCondVisibility('Player.Muted')
 
                     if muted and Settings.get_volume() == 0:
-                        xbmc.executebuiltin('xbmc.Mute()')
+                        xbmc.executebuiltin('Mute')
                     else:
                         # TODO: Looks fishy, why not set to what it was?
 
                         current_volume = xbmc.getInfoLabel('Player.Volume')
                         current_volume = int(
                             (float(current_volume.split(' ')[0]) + 60.0) / 60.0 * 100.0)
-                        xbmc.executebuiltin(
-                            'XBMC.SetVolume(' + str(current_volume) + ')')
+                        xbmc.executebuiltin(f'SetVolume({current_volume})') 
+                '''
 
-                if logger.isEnabledFor(LazyLogger.DEBUG):
+                if logger.isEnabledFor(DEBUG):
                     clz._logger.debug('Shutting down')
                 Playlist.shutdown()
             else:
@@ -264,7 +270,7 @@ class StartUI(threading.Thread):
             clz._logger.exception('')
 
         finally:
-            if logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            if logger.isEnabledFor(DEBUG_VERBOSE):
                 clz._logger.debug_verbose('Stopping xbmc.Player')
             #
             # Player is set to a dummy in the event that it is no longer in
@@ -286,7 +292,7 @@ class StartUI(threading.Thread):
         :return:
         """
         clz = type(self)
-        clz._logger.enter()
+        clz._logger.debug('enter')
         key_map_dest_file = os.path.join(xbmcvfs.translatePath(
             'special://userdata/keymaps'), "xsqueeze.xml")
         if os.path.isfile(key_map_dest_file):

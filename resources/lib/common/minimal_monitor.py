@@ -10,7 +10,9 @@ Created on Feb 19, 2019
 import threading
 
 import xbmc
+from common.imports import *
 from common.exceptions import AbortException
+from .__init__ import *
 
 
 class MinimalMonitor(xbmc.Monitor):
@@ -23,7 +25,7 @@ class MinimalMonitor(xbmc.Monitor):
               has occured. Other threads, via Monitor.py utilize this.
 
         During startup, we try to reduce dependencies. So here we use xbmc.log
-        instead of LazyLogger.
+        instead of BasicLogger.
 
 
         See Monitor.py for higher level methods
@@ -31,6 +33,7 @@ class MinimalMonitor(xbmc.Monitor):
     _initialized: bool = False
     _xbmc_monitor: xbmc.Monitor = None
     _abort_received: threading.Event = None
+    _abort_callback: Callable[[], None]  = None
 
     """
     xbmc wants to be called.
@@ -87,18 +90,22 @@ class MinimalMonitor(xbmc.Monitor):
             abort = cls._xbmc_monitor.waitForAbort(timeout=timeout_arg)
             # cls.track_wait_return_counts('real')
 
-        if abort and not cls._abort_received.is_set():
-            cls._abort_received.set()
-            # if cls._logger.isEnabledFor(Logger.DEBUG):
-            #     cls._logger.debug('SYSTEM ABORT received',
-            #                       trace=Trace.TRACE_MONITOR)
+        if abort:
+            cls.set_abort_received()
 
         return abort
 
     @classmethod
     def abort_requested(cls) -> None:
         cls._xbmc_monitor.abortRequested()
-        cls._abort_received.set()
+        cls.set_abort_received()
+
+    @classmethod
+    def set_abort_received(cls):
+        if not cls._abort_received.is_set():
+            cls._abort_received.set()
+            if MinimalMonitor._abort_callback is not None:
+                MinimalMonitor._abort_callback()
 
     @classmethod
     def throw_exception_if_abort_requested(cls, timeout: float = 0) -> None:
@@ -115,12 +122,16 @@ class MinimalMonitor(xbmc.Monitor):
         :return:
 
         Note: Included in minimal_monitor so that startup code can
-              call without dragging in LazyLogger.
+              call without dragging in BasicLogger.
         """
         #  cls.track_wait_call_counts()
         if cls._abort_received.wait(timeout=timeout):
             raise AbortException()
         #  cls.track_wait_return_counts()
+
+    @classmethod
+    def register_abort_callback(cls, callback: Callable[[], None]) -> None:
+        MinimalMonitor._abort_callback = callback
 
 
 # Initialize class:

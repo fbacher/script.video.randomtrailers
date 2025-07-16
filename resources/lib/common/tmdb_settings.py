@@ -9,6 +9,7 @@ Created on Mar 4, 2019
 from common.imports import *
 
 from common.settings import Settings
+from .__init__ import *
 
 
 class TmdbSettings:
@@ -23,10 +24,10 @@ class TmdbSettings:
     #                                '5': Rating.RATING_NC_17}
 
     _trailer_type_string_for_setting_map = {'0': 'popular',
-                                       '1': 'top_rated',
-                                       '2': 'upcoming',
-                                       '3': 'now_playing',
-                                       '4': 'all'}
+                                            '1': 'top_rated',
+                                            '2': 'upcoming',
+                                            '3': 'now_playing',
+                                            '4': 'all'}
 
     @classmethod
     def get_rating_limit_string_from_setting(cls) -> str:

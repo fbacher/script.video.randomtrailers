@@ -13,12 +13,13 @@ import xmltodict
 import xbmcvfs
 
 from common.exceptions import AbortException
-from common.constants import (Constants, GenreEnum)
+from common.constants import Constants, GenreEnum
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from common.settings import Settings
+from .__init__ import *
 
 """
 
@@ -38,7 +39,7 @@ from common.settings import Settings
     sometimes both (Film Noir).
 """
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 TMDB_SOURCE: Final[str] = 'tmdb'
 IMDB_SOURCE: Final[str] = 'imdb'
@@ -243,7 +244,7 @@ class Genres:
                 except AbortException:
                     reraise(*sys.exc_info())
                 except Exception as e:
-                    cls._logger.exception()
+                    cls._logger.exception(msg='')
                     cls._allowed_genres = []  # To prevent hang
 
         return cls._allowed_genres
@@ -297,8 +298,7 @@ class LoadGenreDefinitions:
                         except AbortException:
                             reraise(*sys.exc_info())
                         except Exception as e:
-                            cls._logger.exception('Failed to parse {}'
-                                                  .format(file))
+                            cls._logger.exception(f'Failed to parse {file}')
             except AbortException:
                 reraise(*sys.exc_info())
             except Exception as e:
@@ -310,45 +310,39 @@ class LoadGenreDefinitions:
     def _create_genres(cls,
                        pathname: str, rules: dict) -> None:
         if rules is None:
-            cls._logger.error('{} contains invalid XML.'.format(pathname))
+            cls._logger.error(f'{pathname} contains invalid XML.')
             return
 
         genres_element = rules.get('genres', None)
         if genres_element is None:
-            cls._logger.error('Can not find "genres" entity in {}'
-                              .format(pathname))
+            cls._logger.error(f'Can not find "genres" entity in {pathname}')
             return
 
         source_attribute = genres_element.get('@source', None)
         if source_attribute is None:
-            cls._logger.error('Can not find "source attribute" entity in {}'
-                              .format(pathname))
+            cls._logger.error(f'Can not find "source attribute" entity in {pathname}')
             return
 
         genre_elements = genres_element.get('genre', None)
         if genre_elements is None:
-            cls._logger.error('Can not find "genre element" entity in {}'
-                              .format(pathname))
+            cls._logger.error(f'Can not find "genre element" entity in {pathname}')
             return
 
         for genre_element in genre_elements:
 
             genre_id = genre_element.get('@id', None)
             if genre_id is None:
-                cls._logger.error('Missing genre "id" attribute in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing genre "id" attribute in {pathname}')
                 genre_id = 'Missing'
 
             genre_name = genre_element.get('@name', None)
             if genre_name is None:
-                cls._logger.error('Missing "genre name" attribute in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing "genre name" attribute in {pathname}')
                 genre_name = 'Missing'
 
             genre_name_id = genre_element.get('@name_id', None)
             if genre_name_id is None:
-                cls._logger.error('Missing "genre name_id" attribute in {}'
-                                  .format(pathname))
+                cls._logger.error(f'Missing "genre name_id" attribute in {pathname}')
                 genre_name_id = 'Missing'
 
             genre = _BaseGenreEntry(genre_id, genre_name, genre_name_id)
@@ -407,7 +401,7 @@ class _RandomTrailersGenre:
        """
 
     _logger = None
-    _instances = None  # type: Dict[str, _RandomTrailersGenre]
+    _instancese: Dict[str, ForwardRef('_RandomTrailersGenre')] = None
     _lock = threading.RLock()
     _initialized = False
 
@@ -438,7 +432,7 @@ class _RandomTrailersGenre:
         self._is_preselected = False
         self._filter_value = False
         if cls._instances is None:
-            cls._instances: Dict[str, _RandomTrailersGenre] = {}
+            cls._instances = {}
 
         cls._instances[self._genre_id] = self
 
@@ -577,7 +571,7 @@ class _RandomTrailersGenre:
         # if (destination_id == GenreUtils.ROTTEN_TOMATOES_DATABASE
         #                    or destination_id == GenreUtils.LOCAL_DATABASE):
         #    if self.getTomatoesGenre() is not None:
-        #        genres.extend(self.getTomatoesGenre().get_genres())
+        #        genres.extend(self.getTomatoesGenre().get_genre_names())
 
         return genres
 
@@ -646,7 +640,8 @@ class GenreUtils:
         """
         if cls._logger is None:
             cls._logger = module_logger.getChild(cls.__name__)
-            Monitor.register_settings_changed_listener(cls.on_settings_changed)
+            Monitor.register_settings_changed_listener(cls.on_settings_changed,
+                                                       'GenreUtils.on_settings_changed')
 
     @classmethod
     def on_settings_changed(cls) -> None:
@@ -727,7 +722,7 @@ class GenreUtils:
             particular destination (LOCAL_DATABASE, TMDB_DATABASE,
             etc.). Different destinations use different ids for
             genres. In some cases, tags are used instead of genres,
-            so both get_genres and get_tags must be done.
+            so both get_genre_names and get_tags must be done.
         """
         genres = []
         for genre in generic_genres:
@@ -743,7 +738,7 @@ class GenreUtils:
             particular destination (LOCAL_DATABASE, TMDB_DATABASE,
             etc.). Different destinations use different ids for
             genres. In some cases, tags are used instead of genres,
-            so both get_genres and get_tags must be done.
+            so both get_genre_names and get_tags must be done.
         """
         tags = []
         for genre in generic_genres:
@@ -790,7 +785,7 @@ class GenreUtils:
             for genre in domain_selected_genres:
                 genre_ids.add(genre.get_external_id())
 
-            # if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            # if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
             #    genre_strings = []
             #    for genre in domain_selected_genres:
             #        genre_strings.append('{}/{}'
@@ -835,7 +830,7 @@ class GenreUtils:
             for genre in domain_selected_genres:
                 genre_ids.add(genre.get_kodi_id())
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 keyword_strings = []
                 for genre in domain_selected_genres:
                     keyword_strings.append('{}/{}'
@@ -843,9 +838,9 @@ class GenreUtils:
                                                    genre.get_external_id()))
 
                 domain_str = GenreUtils.domain_str[genre_domain_id]
-                cls._logger.debug_extra_verbose('internal {} exclude: {} {}'
-                                                .format(domain_str, exclude,
-                                                        ': '.join(keyword_strings)))
+                cls._logger.debug_extra_verbose(f'internal {domain_str} '
+                                                f'exclude: {exclude} '
+                                                f'{":".join(keyword_strings)}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -886,10 +881,10 @@ class GenreUtils:
 
             query_string = separator.join(selected_genre_ids)
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 domain_str = GenreUtils.domain_str[genre_domain_id]
-                cls._logger.debug_extra_verbose('query {} genre ids: {}'
-                                                .format(domain_str, query_string))
+                cls._logger.debug_extra_verbose(f'query {domain_str} '
+                                                f'genre ids: {query_string}')
 
         except AbortException:
             reraise(*sys.exc_info())
@@ -928,17 +923,16 @@ class GenreUtils:
             for tag in filtered_tags:
                 keyword_ids.add(tag.get_external_id())
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 keyword_strings = []
                 for genre in filtered_tags:
-                    keyword_strings.append('{}/{}'
-                                           .format(genre.get_kodi_id(),
-                                                   genre.get_external_id()))
+                    keyword_strings.append(f'{genre.get_kodi_id()}/{genre.get_external_id()}')
+
 
                 domain_str = GenreUtils.domain_str[genre_domain_id]
-                cls._logger.debug_extra_verbose('external {} exclude: {} {}'
-                                                .format(domain_str, exclude,
-                                                        ': '.join(keyword_strings)))
+                cls._logger.debug_extra_verbose(f'external {domain_str} '
+                                                f'exclude: {exclude} '
+                                                f'{": ".join(keyword_strings)}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -975,15 +969,16 @@ class GenreUtils:
             for tag in filtered_tags:
                 keyword_ids.add(tag.get_kodi_id())
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 keyword_strings = []
                 for genre in filtered_tags:
                     keyword_strings.append(genre.get_kodi_id())
 
                 domain_str = GenreUtils.domain_str[genre_domain_id]
-                cls._logger.debug_extra_verbose('internal {} exclude: {} {}'
-                                                .format(domain_str, exclude,
-                                                        ': '.join(keyword_strings)))
+                cls._logger.debug_extra_verbose(f'internal {domain_str} '
+                                                f'exclude: {exclude} '
+                                                f'{": ".join(keyword_strings)}')
+
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -1023,10 +1018,10 @@ class GenreUtils:
                 separator = ',',  # AND operations
             query = separator.join(selected_keyword_ids)
 
-            if cls._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if cls._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 domain_str = GenreUtils.domain_str[genre_domain_id]
-                cls._logger.debug_extra_verbose('query {} keyword ids: {}'
-                                                .format(domain_str, query))
+                cls._logger.debug_extra_verbose(f'query {domain_str} '
+                                                f'keyword ids: {query}')
         except AbortException:
             reraise(*sys.exc_info())
         except Exception as e:
@@ -1037,17 +1032,17 @@ class GenreUtils:
 
     @classmethod
     def include_movie(cls,
-                      genres: List[str] = None,
-                      tags: List[str] = None) -> bool:
+                      genre_names: List[str] = None,
+                      tag_names: List[str] = None) -> bool:
         if not Settings.get_filter_genres():
             return True
 
-        if genres is None:
-            genres = []
+        if genre_names is None:
+            genre_names = []
 
-        if tags is None:
+        if tag_names is None:
             ignore_tags = True
-            tags = []
+            tag_names = []
         else:
             # When tags is None, they haven't been discovered yet for this
             # movie. Assume that any allowed_tag will be found.
@@ -1065,7 +1060,7 @@ class GenreUtils:
 
         genre_found = False
         genre_excluded = False
-        for genre_id in genres:
+        for genre_id in genre_names:
             genre_id = str(genre_id)
             if genre_id in allowed_genres:
                 genre_found = True
@@ -1074,7 +1069,7 @@ class GenreUtils:
 
         tag_found = False
         tag_excluded = False
-        for tag_id in tags:
+        for tag_id in tag_names:
             tag_id = str(tag_id)
             if tag_id in allowed_tags:
                 tag_found = True

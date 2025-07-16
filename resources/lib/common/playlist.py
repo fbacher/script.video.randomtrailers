@@ -15,15 +15,16 @@ import threading
 import xbmcvfs
 import xmltodict
 
-from common.imports import *
-from common.constants import Constants, Movie
-from common.logger import (LazyLogger, Trace)
+from common.constants import Constants
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
 from common.disk_utils import DiskUtils
+from common.movie import AbstractMovie
 from common.settings import (Settings)
+from .__init__ import *
 
-module_logger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class Playlist:
@@ -70,7 +71,7 @@ class Playlist:
 
     _playlist_lock: threading.RLock = threading.RLock()
     _playlists: Dict[str, 'Playlist'] = {}
-    _logger: LazyLogger = None
+    _logger: BasicLogger = None
 
     def __init__(self, *args: str, **kwargs: Any) -> None:
         """
@@ -97,11 +98,10 @@ class Playlist:
         self.playlist_format = kwargs.get('playlist_format', False)
 
         if self.playlist_format:
-            self.path = Constants.PLAYLIST_PATH + '/' + \
-                playlist_name + Playlist.SMART_PLAYLIST_SUFFIX
+            self.path = f'{Constants.PLAYLIST_PATH}/{playlist_name}' \
+                        f'{Playlist.SMART_PLAYLIST_SUFFIX}'
         else:
-            self.path = Constants.FRONTEND_DATA_PATH + '/' + \
-                playlist_name  # + Playlist.PLAYLIST_SUFFIX
+            self.path = f'{Constants.FRONTEND_DATA_PATH}/{playlist_name}'
         self.path = xbmcvfs.validatePath(self.path)
         self.path = xbmcvfs.translatePath(self.path)
         DiskUtils.create_path_if_needed(Constants.FRONTEND_DATA_PATH)
@@ -113,7 +113,7 @@ class Playlist:
                 self.mode = 'wt'
             if rotate:
                 try:
-                    save_path = Constants.FRONTEND_DATA_PATH + '/' + playlist_name + '.old'
+                    save_path = f'{Constants.FRONTEND_DATA_PATH}/{playlist_name}.old'
                     save_path = xbmcvfs.validatePath(save_path)
                     try:
                         if os.path.exists(self.path):
@@ -124,17 +124,18 @@ class Playlist:
                     clz._logger.exception('')
 
             try:
-                self._file = io.open(self.path, mode=self.mode, buffering=1, newline=None,
-                                     encoding='utf-8')
+                self._file = io.open(self.path.encode('utf-8'), mode=self.mode,
+                                     buffering=1,
+                                     newline=None, encoding='utf-8')
             except Exception as e:
                 clz._logger.exception('')
 
-    def load_smart_playlist(self) -> None:
+    def load_smart_playlist(self) -> Union[Dict[str, Any], None]:
         clz = type(self)
         playlist_dict = None
         try:
             if os.path.exists(self.path):
-                with io.open(self.path, mode='rt', newline=None,
+                with io.open(self.path.encode('utf-8'), mode='rt', newline=None,
                              encoding='utf-8') as playlist_file:
                     buffer = playlist_file.read()
                     playlist_dict = xmltodict.parse(buffer)
@@ -143,11 +144,13 @@ class Playlist:
 
         return playlist_dict
 
-    def add_to_smart_playlist(self, trailer) -> bool:
+    def add_to_smart_playlist(self, movie: AbstractMovie) -> bool:
         clz = type(self)
-        movie_filename = trailer.get(Movie.FILE, None)
-        if movie_filename is not None:
-            movie_filename = os.path.basename(movie_filename)
+        movie_path: str = movie.get_movie_path() # Never returns None
+        if not os.path.exists(movie_path):
+            return False
+
+        movie_filename = os.path.basename(movie_path)
         playlist_dict = self.load_smart_playlist()
         if playlist_dict is None:
             playlist_dict = copy.deepcopy(Playlist.smart_playlist_skeleton)
@@ -175,7 +178,8 @@ class Playlist:
         rule_list.append(new_rule)
         playlist_dict['smartplaylist']['rule'] = rule_list
         try:
-            with io.open(self.path, mode='wt', buffering=1, newline=None,
+            with io.open(self.path.encode('utf-8'), mode='wt', buffering=1,
+                         newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 
@@ -186,7 +190,8 @@ class Playlist:
     def write_playlist(self, playlist_dict: Dict[str, 'Playlist']) -> None:
         clz = type(self)
         try:
-            with io.open(self.path, mode=self.mode, buffering=1, newline=None,
+            with io.open(self.path.encode('utf-8'), mode=self.mode, buffering=1,
+                         newline=None,
                          encoding='utf-8') as file:
                 file.write(xmltodict.unparse(playlist_dict, pretty=True))
 
@@ -220,16 +225,16 @@ class Playlist:
 
         :return:
         """
-        now = datetime.datetime.now().strftime('%m/%d/%y %H:%M:%S')
-        self.writeLine('random trailers started: {!s}'.format(now))
+        now = datetime.datetime.now()
+        self.writeLine(f'{now:%Y-%m-%d %H:%M} START')
 
     def record_played_trailer(self,
-                              trailer: MovieType,
+                              movie: AbstractMovie,
                               use_movie_path: bool = False,
                               msg: str = '') -> None:
         """
 
-        :param trailer:
+        :param movie:
         :param use_movie_path:
         :param msg:
         :return:
@@ -237,15 +242,15 @@ class Playlist:
         if self.playlist_format:
             use_movie_path = True
 
-        name = trailer.get(Movie.TITLE, 'unknown Title')
-        year = '(' + str(trailer.get(Movie.YEAR, 'unknown Year')) + ')'
-        movie_type = trailer.get(Movie.TRAILER_TYPE, 'Unknown MovieType')
-        movie_path = trailer.get(Movie.FILE, None)
+        name: str = movie.get_title()
+        year: str = str(movie.get_year())
+        trailer_type: str = movie.get_trailer_type()
+        trailer_path: str = movie.get_trailer_path()
+        movie_path: str = movie.get_movie_path()
         if movie_path is None:
             if use_movie_path:  # Nothing to do if there is no movie path
                 return
             movie_path = 'Unknown movie path'
-        trailer_path = trailer.get(Movie.TRAILER, '')
         cache_path_prefix = Settings.get_downloaded_trailer_cache_path()
         trailer_path = trailer_path.replace(cache_path_prefix, '<cache_path>')
         missing_detail_msg = Messages.get_msg(Messages.MISSING_DETAIL)
@@ -255,14 +260,12 @@ class Playlist:
             name = 'name is None'
         if year is None:
             year = 'year is None'
-        if movie_type is None:
-            movie_type = 'movie_type is None'
+        if trailer_type is None:
+            trailer_type = 'trailer_type is None'
 
         path = trailer_path
         if use_movie_path:
             path = movie_path
-
-        formatted_title = Messages.get_formated_title(trailer)
 
         with Playlist._playlist_lock:
             # file closed
@@ -273,8 +276,8 @@ class Playlist:
             line = Playlist.PLAYLIST_ENTRY_PREFIX + name + '\n'
             line += path + '\n'
         else:
-            line = name + '  ' + year + '  # path: ' + formatted_title + ' ' +\
-                path + ' ' + msg + '\n'
+            now = datetime.datetime.now()
+            line = f'{movie.get_detail_title()} {path} {msg} {now:%Y-%m-%d %H:%M}\n'
         self._file.writelines(line)
 
     def writeLine(self, line: str) -> None:

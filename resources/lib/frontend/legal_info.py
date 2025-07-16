@@ -16,14 +16,15 @@ from xbmcgui import (Control, ControlImage, ControlButton, ControlEdit,
 
 from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger, Trace
+from common.logger import *
 from common.messages import Messages
 from common.monitor import Monitor
-from frontend import text_to_speech
+from frontend.text_to_speech import TTS
 from action_map import Action
+from .__init__ import *
+from .phrases import Phrase, PhraseList
 
-
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class LegalInfo(xbmcgui.WindowXMLDialog):
@@ -59,8 +60,8 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         self._wait_or_interrupt_event = threading.Event()
         self._license_display_seconds = kwargs['license_display_seconds']
         Monitor.register_abort_listener(self.on_abort_event)
-        self._exit_dialog_timer = threading.Timer(self._license_display_seconds,
-                                                  self.exit_dialog)
+        self._exit_dialog_timer = threading.Timer(
+            interval=float(self._license_display_seconds), function=self.exit_dialog)
         self._exit_dialog_timer.setName('LegalInfoTimer')
         self._update_dialog_thread = None
 
@@ -77,30 +78,32 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         :return:
         """
-        # self._logger.debug_extra_verbose('In onInit')
-        self._exit_dialog_timer.start()
         self._update_dialog_thread = threading.Thread(
             target=self.update_dialog, name='LegalInfo.update_dialog')
         self._update_dialog_thread.start()
+        self._exit_dialog_timer.start()
 
     def update_dialog(self) -> None:
-        # self._logger.debug_extra_verbose('In update_dialog')
         label: Union[ControlLabel, Control] = self.getControl(38021)
         label_text = Messages.get_msg(Messages.LICENSE_LABEL)
         label.setLabel(f'[B]{label_text}[/B]')
-        text_to_speech.say_text(label_text, interrupt=True)
+        phrase: Phrase = Phrase(label_text, interrupt=True,
+                                pre_pause_ms=Phrase.PAUSE_NORMAL)
+        phrases: PhraseList = PhraseList()
+        phrases.append(phrase)
 
         tmdb_license = Messages.get_msg(Messages.TMDB_LICENSE)
-
         text_control: Union[Control, ControlTextBox] = self.getControl(38022)
         text_control.setText(tmdb_license)
-        text_to_speech.say_text(tmdb_license, interrupt=False)
+        phrase = Phrase(tmdb_license)
+        phrases.append(phrase)
 
         tfh_license = Messages.get_msg(Messages.TFH_LICENSE)
-
         text_control: Union[Control, ControlTextBox] = self.getControl(38023)
         text_control.setText(tfh_license)
-        text_to_speech.say_text(tfh_license, interrupt=False)
+        phrase = Phrase(tfh_license)
+        phrases.append(phrase)
+        TTS.say_text(phrases.data)
 
         while not self._wait_or_interrupt_event.is_set():
             Monitor.wait_for_abort(0.1)
@@ -143,9 +146,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         :return:
         """
-        # self._logger.debug_extra_verbose('In doModal')
         super().doModal()
-        # self._logger.debug_extra_verbose('Exiting doModal')
         return True
 
     def onAction(self, action: xbmcgui.Action) -> None:
@@ -154,7 +155,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         :param action:
         :return:
 
-            ACTION_MOVE_RIGHT -> Skip to next trailer
+            ACTION_MOVE_RIGHT -> Skip to next movie
 
             PREVIOUS_MENU | NAV_BACK | ACTION_BUILT_IN_FUNCTION ->
                                                  Exit Random Trailer script
@@ -162,16 +163,16 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         """
         action_id = action.getId()
 
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(DISABLED):
             self._logger.debug_extra_verbose(f'In onAction id: {action_id}')
 
         if action_id != 107:  # Mouse Move
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                self._logger.debug_extra_verbose('Action.id:', action_id,
-                                                 hex(action_id),
-                                                 'Action.button_code:',
-                                                 action.getButtonCode(),
-                                                 hex(action.getButtonCode()),
+            if self._logger.isEnabledFor(DISABLED):
+                self._logger.debug_extra_verbose(f'Action.id: {action_id}'
+                                                 f'{hex(action_id)} '
+                                                 f'Action.button_code: '
+                                                 f'{action.getButtonCode()} '
+                                                 f'{hex(action.getButtonCode())}',
                                                  trace=Trace.TRACE)
 
         action_mapper = Action.get_instance()
@@ -179,12 +180,12 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         # Mouse Move
         if action_id != 107 and self._logger.isEnabledFor(
-                LazyLogger.DEBUG_EXTRA_VERBOSE):
+                DISABLED):
             for line in matches:
                 self._logger.debug_extra_verbose(line)
 
         key = ''
-        if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+        if self._logger.isEnabledFor(DISABLED):
             button_code = action.getButtonCode()
 
             # These return empty string if not found
@@ -208,7 +209,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
                 key = action_button
             # Mouse Move
             if action_id != 107:
-                self._logger.debug_extra_verbose('Key found:', key)
+                self._logger.debug_extra_verbose(f'Key found: {key}')
 
         #################################################################
         #   ACTIONS
@@ -216,7 +217,7 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         #    DEBUG thread dump
         #################################################################
 
-        if (self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE)
+        if (self._logger.isEnabledFor(DEBUG_VERBOSE)
                 and (action_id == xbmcgui.ACTION_PAGE_UP
                      or action_id == xbmcgui.ACTION_MOVE_UP)):
 
@@ -226,9 +227,9 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         ##################################################################
         elif (action_id == xbmcgui.ACTION_STOP
               or action_id == xbmcgui.ACTION_MOVE_RIGHT):
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if self._logger.isEnabledFor(DISABLED):
                 self._logger.debug_extra_verbose(
-                    key, 'Exit display license at user\'s request')
+                    f'{key} Exit display license at user\'s request')
             self.exit_dialog()
             # self._logger.debug_extra_verbose(
             #    f'just set: {self._wait_or_interrupt_event.is_set()}')
@@ -237,9 +238,9 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
 
         elif (action_id == xbmcgui.ACTION_PREVIOUS_MENU
               or action_id == xbmcgui.ACTION_NAV_BACK):
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
+            if self._logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
                 self._logger.debug_extra_verbose(
-                    key, 'Exiting RandomTrailers at user request')
+                    f'{key} Exiting RandomTrailers at user request')
 
             Monitor.abort_requested()
             self.on_abort_event()
@@ -250,8 +251,8 @@ class LegalInfo(xbmcgui.WindowXMLDialog):
         # handle. Sigh
 
         elif action_id == xbmcgui.ACTION_BUILT_IN_FUNCTION:
-            if self._logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                self._logger.debug_verbose(key, 'Exiting RandomTrailers due to',
+            if self._logger.isEnabledFor(DEBUG_VERBOSE):
+                self._logger.debug_verbose(f'{key} Exiting RandomTrailers due to '
                                            'ACTION_BUILT_IN_FUNCTION',
                                            trace=Trace.TRACE_SCREENSAVER)
             Monitor.abort_requested()

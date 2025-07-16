@@ -7,14 +7,15 @@ Created on Apr 17, 2019
 '''
 
 
-from common.constants import Constants, Movie
+from common.constants import Constants
 from common.imports import *
-from common.logger import LazyLogger
+from common.logger import *
 
 import xbmc
 import xbmcgui
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class BlackBackground(xbmcgui.WindowXML):
@@ -87,6 +88,7 @@ class BlackBackground(xbmcgui.WindowXML):
             command = "Skin.SetBool(Opaque)"
         else:
             command = "Skin.Reset(Opaque)"
+        self._logger.debug(f'Setting Opaque: {command}')
         xbmc.executebuiltin(command)
 
     @classmethod

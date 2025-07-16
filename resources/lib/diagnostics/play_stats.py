@@ -6,24 +6,25 @@ import os
 import threading
 import sys
 
-from common.constants import Constants, Movie
-from common.exceptions import AbortException, DuplicateException
+from common.constants import Constants
+from common.exceptions import AbortException
 from common.imports import *
 from common.monitor import Monitor
-from backend.movie_entry_utils import (MovieEntryUtils)
-from common.logger import (Trace, LazyLogger)
+from common.logger import *
+from common.movie import BaseMovie, AbstractMovie
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class PlayStatistics:
     """
 
     """
-    logger: LazyLogger = None
+    logger: BasicLogger = None
     _total_removed: int = 0
     _play_count: Dict[str, int] = dict()
-    _key_to_movie: Dict[str, MovieType] = {}
+    _key_to_movie: Dict[str, BaseMovie] = {}
     _lock: threading.RLock = threading.RLock()
     _number_of_added_movies = 0
     report: io.TextIOBase = None
@@ -32,7 +33,6 @@ class PlayStatistics:
     @classmethod
     def init_class(cls) -> None:
         """
-        :param movie_source:
         :return:
         """
         clz = PlayStatistics
@@ -52,7 +52,7 @@ class PlayStatistics:
             cls._number_of_added_movies = 0
 
     @classmethod
-    def add(cls, movie: MovieType) -> None:
+    def add(cls, movie: BaseMovie) -> None:
         """
 
         :param movie:
@@ -60,7 +60,7 @@ class PlayStatistics:
         """
         clz = PlayStatistics
 
-        # if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        # if clz.logger.isEnabledFor(DEBUG):
         # clz.logger.debug('movie:', movie[Movie.TITLE], 'source:',
         #                   movie[Movie.SOURCE])
         key = cls.get_key(movie)
@@ -69,7 +69,7 @@ class PlayStatistics:
             cls._number_of_added_movies += 1
 
     @classmethod
-    def get_play_count(cls, movie: MovieType) -> int:
+    def get_play_count(cls, movie: BaseMovie) -> int:
         """
 
         :param movie:
@@ -82,14 +82,14 @@ class PlayStatistics:
             with cls._lock:
                 count = cls._play_count.get(cls.get_key(movie), 0)
         except KeyError as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+            if clz.logger.isEnabledFor(DEBUG):
                 clz.logger.debug(
-                    'Could not find entry for:', movie[Movie.TITLE])
+                    f'Could not find entry for: {movie.get_title()}')
 
         return count
 
     @classmethod
-    def increase_play_count(cls, movie: MovieType) -> None:
+    def increase_play_count(cls, movie: BaseMovie) -> None:
         """
 
         :param movie:
@@ -105,9 +105,8 @@ class PlayStatistics:
                 cls._key_to_movie[key] = movie
 
         except KeyError as e:
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('Could not find entry for:',
-                                 movie[Movie.TITLE])
+            if clz.logger.isEnabledFor(DEBUG):
+                clz.logger.debug(f'Could not find entry for: {movie.get_title()}')
         return
 
     @classmethod
@@ -117,7 +116,7 @@ class PlayStatistics:
         :return:
         """
         clz = PlayStatistics
-        if not clz.logger.is_trace_enabled(Trace.TRACE_PLAY_STATS):
+        if not Trace.is_enabled(Trace.TRACE_PLAY_STATS):
             return
 
         try:
@@ -130,7 +129,7 @@ class PlayStatistics:
                 clz.first_call = False
 
             with cls._lock, \
-                io.open(path, 'at',
+                io.open(path.encode('utf-8'), 'at',
                         newline=None, encoding='utf-8') as cls.report:
                 Monitor.throw_exception_if_abort_requested()
                 timestamp = datetime.datetime.now().strftime('%c')
@@ -196,7 +195,6 @@ class PlayStatistics:
                   include_source: bool = False) -> None:
         """
 
-        :param logger:
         :param movies_with_same_count:
         :param include_source:
         :return:
@@ -209,13 +207,13 @@ class PlayStatistics:
         for key in movies_with_same_count:
             Monitor.throw_exception_if_abort_requested()
             try:
-                movie: Optional[MovieType] = cls._key_to_movie.get(key, None)
+                movie: Optional[AbstractMovie] = cls._key_to_movie.get(key, None)
                 if movie is not None:
-                    movie_title = movie.get(Movie.TITLE, 'unknown')
+                    movie_title = movie.get_title()
                 else:
                     movie_title = 'Not in dictionary'
                 if include_source:
-                    movie_title = movie_title + f': {movie.get(Movie.SOURCE)}'
+                    movie_title = movie_title + f': {movie.get_source()}'
 
                 if line_length + len(movie_title) >= clz.MAX_LINE_LENGTH:
                     line = '   {}\n'.format(', '.join(movies_in_line))
@@ -227,7 +225,7 @@ class PlayStatistics:
                 reraise(*sys.exc_info())
 
             except Exception as e:
-                clz.logger.exception()
+                clz.logger.exception('')
 
             movies_in_line.append(movie_title)
             line_length += len(movie_title) + 2  # Slightly inaccurate
@@ -237,28 +235,16 @@ class PlayStatistics:
                 line = '   {}\n'.format(', '.join(movies_in_line))
                 cls.report.write(line)
             except Exception as e:
-                clz.logger.exception()
+                clz.logger.exception('')
 
     @staticmethod
-    def get_key(movie: MovieType) -> str:
+    def get_key(movie: BaseMovie) -> str:
         """
 
         :param movie:
         :return:
         """
-
-        key = None
-        movie_source = movie[Movie.SOURCE]
-        if movie_source == Movie.TMDB_SOURCE:
-            key = str(MovieEntryUtils.get_tmdb_id(movie))
-        elif movie_source == Movie.ITUNES_SOURCE:
-            key = movie[Movie.ITUNES_ID]
-        elif movie_source == Movie.LIBRARY_SOURCE:
-            key = movie_source + str(movie[Movie.MOVIEID])
-        elif movie_source == Movie.TFH_SOURCE:
-            key = movie_source + str(movie[Movie.TFH_ID])
-
-        return key
+        return movie.get_source() + movie.get_id()
 
 
 PlayStatistics.init_class()

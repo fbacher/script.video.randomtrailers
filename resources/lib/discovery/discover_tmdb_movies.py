@@ -10,58 +10,69 @@ import datetime
 from pathlib import Path
 from re import Match
 
-import simplejson as json
+import json
 import xbmcvfs
 
-from cache.cache import (Cache)
+from backend.backend_constants import TMDbConstants
+from cache.cache import Cache
+from cache.json_cache_helper import JsonCacheHelper
 from cache.tmdb_cache_index import (CachedPage, CacheIndex, CacheParameters,
                                     CachedPagesData)
-from cache.trailer_cache import TrailerCache
-from common.constants import Constants, Movie, RemoteTrailerPreference
+# from cache.unprocessed_tmdb_page_data import UnprocessedTMDbPages
+from cache.tmdb_trailer_index import TMDbTrailerIndex
+from cache.trailer_unavailable_cache import TrailerUnavailableCache
+from common.constants import Constants, RemoteTrailerPreference
+from common.critical_settings import CriticalSettings
+from common.debug_utils import Debug
 from common.disk_utils import DiskUtils, FindFiles
-from common.exceptions import AbortException, CommunicationException
+from common.exceptions import AbortException, CommunicationException, reraise
+from common.garbage_collector import GarbageCollector
 from common.imports import *
 from common.monitor import Monitor
-from backend.movie_entry_utils import MovieEntryUtils
-from common.logger import (LazyLogger, Trace)
+from common.logger import *
+from common.movie import TMDbMovieId, BaseMovie, TMDbMoviePageData
+from common.movie_constants import MovieField, MovieType
 from common.settings import Settings
 from common.tmdb_settings import TmdbSettings
 from common.utils import Delay
 
-from discovery.restart_discovery_exception import RestartDiscoveryException
+from discovery.restart_discovery_exception import StopDiscoveryException
 from backend.genreutils import GenreUtils
-from backend.json_utils_basic import JsonUtilsBasic
-from common.rating import WorldCertifications
+from backend.json_utils_basic import JsonUtilsBasic, JsonReturnCode, Result
+from common.certification import WorldCertifications
 from discovery.base_discover_movies import BaseDiscoverMovies
-from discovery.tmdb_movie_data import TMDBMovieData
-from discovery.trailer_fetcher import TrailerFetcher
+from discovery.utils.tmdb_filter import TMDbFilter
+from discovery.tmdb_movie_data import TMDbMovieData
+from discovery.utils.parse_tmdb_page_data import ParseTMDbPageData
+from gc import garbage
+from .__init__ import *
 
-module_logger: LazyLogger = LazyLogger.get_addon_module_logger(file_path=__file__)
+module_logger: BasicLogger = BasicLogger.get_module_logger(module_path=__file__)
 
 
 class DiscoverTmdbMovies(BaseDiscoverMovies):
     """
         TMDB, like iTunes, provides trailers. Query TMDB for trailers
-        and manufacture trailer entries for them.
+        and manufacture movie entries for them.
     """
 
     MOVIES_PER_PAGE: Final[int] = 20
 
     _singleton_instance: ForwardRef('DiscoverTmdbMovies') = None
-    logger: ClassVar[LazyLogger] = None
+    logger: BasicLogger = None
 
     def __init__(self) -> None:
         """
 
         """
         clz = type(self)
-        clz.logger: LazyLogger = module_logger.getChild(clz.__name__)
+        type(self).logger: BasicLogger = module_logger.getChild(clz.__name__)
         thread_name = 'Discover TMDB'
-        kwargs = {Movie.SOURCE: Movie.TMDB_SOURCE}
+        kwargs = {MovieField.SOURCE: MovieField.TMDB_SOURCE}
 
         super().__init__(group=None, target=None, thread_name=thread_name,
                          args=(), kwargs=kwargs)
-        self._movie_data: TMDBMovieData = TMDBMovieData()
+        self._movie_data: TMDbMovieData = TMDbMovieData()
         self._select_by_year_range: bool = None
         self._language: str = None
         self._country: str = None
@@ -81,6 +92,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         self._rejected_due_to_year: bool = None
         self._total_pages_read: int = 0
         self._on_filter_failure_purge_json_cache: int = False
+        self._rebuild_cache: bool = False
+        self._calls_to_delay: int = 0
 
     def discover_basic_information(self) -> None:
         """
@@ -91,25 +104,18 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         clz = type(self)
 
         self.start()
-        # self._trailer_fetcher.start_fetchers(self)
-
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        if clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(': started')
 
-    def on_settings_changed(self) -> None:
+    @classmethod
+    def is_enabled(cls) -> bool:
         """
-            Rediscover trailers if the changed settings impacts this manager.
+        Returns True when the Settings indicate this type of trailer should
+        be discovered
 
-            By being here, TMDB discover is currently running. Only restart
-            if there is a change.
+        :return:
         """
-        clz = type(self)
-
-        clz.logger.enter()
-
-        if Settings.is_tmdb_loading_settings_changed():
-            stop_thread = not Settings.get_include_tmdb_trailers()
-            self.restart_discovery(stop_thread)
+        return Settings.is_include_tmdb_trailers()
 
     def run(self) -> None:
         """
@@ -130,28 +136,28 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 try:
                     self.run_worker()
                     self.wait_until_restart_or_shutdown()
-                except RestartDiscoveryException:
-                    # Restart discovery
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        clz.logger.debug_verbose(
-                            'Restarting discovery')
-                    self.prepare_for_restart_discovery()
-                    if not Settings.get_include_tmdb_trailers():
-                        finished = True
-                        self.remove_self()
-
-            self.finished_discovery()
-            duration = datetime.datetime.now() - start_time
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose('Time to discover:',
-                                                 duration.seconds,
-                                                 'seconds',
+                    self.finished_discovery()
+                    duration = datetime.datetime.now() - start_time
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                        clz.logger.debug_verbose(f'Time to discover: {duration.seconds} '
+                                                 f'seconds',
                                                  trace=Trace.STATS)
 
+                        used_memory: int = self._movie_data.get_size_of()
+                        used_mb: float = float(used_memory) / 1000000.0
+                        self.logger.debug(f'movie_data size: {used_memory} MB: {used_mb}')
+                except StopDiscoveryException:
+                    if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                        clz.logger.debug_verbose('Stopping discovery')
+                    # self.destroy()
+                    finished = True
+
         except AbortException:
-            return
+            return  # Let thread die
         except Exception as e:
             clz.logger.exception('')
+        finally:
+            GarbageCollector.add_thread(self)
 
     def run_worker(self) -> None:
         """
@@ -163,11 +169,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         clz = type(self)
 
         try:
-            Monitor.throw_exception_if_abort_requested()
+            self.wait_until_restart_or_shutdown(CriticalSettings.SHORT_POLL_DELAY)
             tmdb_trailer_type = TmdbSettings.get_trailer_type()
 
             #
-            # TMDB accepts iso-639-1 but adding an iso-3166- suffix
+            # TMDb accepts iso-639-1 but adding an iso-3166- suffix
             # would be better (en_US)
             #
             self._language = Settings.get_lang_iso_639_1()
@@ -207,9 +213,10 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     self._filter_genres = False
 
             self._remote_trailer_preference = Settings.get_tmdb_trailer_preference()
-            self._vote_comparison, self._vote_value = Settings.get_tmdb_avg_vote_preference()
+            self._vote_comparison, self._vote_value = \
+                Settings.get_tmdb_avg_vote_preference()
             self._rating_limit_string = \
-                TmdbSettings.get_rating_limit_string_from_setting()
+                WorldCertifications.get_certification_limit_setting()
 
             # Trailers may be sparse for old movies. Could implement a max# of trailers,
             # but that is done much later in the pipeline
@@ -221,7 +228,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             self.discover_movies(
                 max_pages, tmdb_trailer_type=tmdb_trailer_type)
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -232,11 +239,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             discover movies based on the filters specified by the settings.
 
         :param max_pages: # type int
-                The TMDB API returns movies in pages which contains info for
+                The TMDb API returns movies in pages which contains info for
                 about 20 movies. The caller specifies which page to get.
         :param tmdb_trailer_type: # type: str
                 Specifies the type of movies to get (popular, recent, etc.)
-        :return: # type: None (Lower code uses add_to_discovered_trailers).
+        :return: # type: None (Lower code uses add_to_discovered_movies).
         """
         clz = type(self)
 
@@ -249,10 +256,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             movies = self.configure_search_parameters(
                                         tmdb_trailer_type=tmdb_trailer_type)
-            self.send_cached_movies_to_discovery()
+            if self._rebuild_cache:
+                self.purge_cache(actually_delete=False)
+                # self.purge_cache(actually_delete=True)
+            else:
+                self.send_cached_movies_to_discovery()
 
             process_genres: bool
-            process_keywards: bool
+            process_keywords: bool
             pages_in_chunks: int
             genre_finished: bool
             if self._filter_genres:
@@ -276,7 +287,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         genre_finished = self.second_phase_discovery(
                             max_pages,
                             pages_in_chunk,
-                            tmdb_trailer_type,  # type: str
+                            tmdb_trailer_type,
                             "genre", additional_movies=movies)
                         del movies[:]
                         if genre_finished:
@@ -285,7 +296,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         keyword_finished = self.second_phase_discovery(
                             max_pages,
                             pages_in_chunk,
-                            tmdb_trailer_type,  # type: str
+                            tmdb_trailer_type,
                             "keyword", additional_movies=movies)
                         if keyword_finished:
                             process_keywords = False
@@ -294,55 +305,48 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 self.second_phase_discovery(
                     max_pages,
                     max_pages,
-                    tmdb_trailer_type,  # type: str
+                    tmdb_trailer_type,
                     "generic",
                     additional_movies=movies)
 
-            finished = False
-            while not finished:
-                finished = True
+            clz.logger.debug_verbose('Completed second phase discovery')
+            more_to_get: bool = True
+            while more_to_get:
                 if self._filter_genres:
                     if self._selected_genres != '' or self._excluded_genres != '':
                         tmdb_search_query = "genre"
-                        cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
-                        number_of_pages = cached_pages_data.get_number_of_undiscovered_search_pages()
-                        if number_of_pages > 0:
-                            genre_finished = False
-                        self.discover_movies_using_search_pages(
-                            tmdb_trailer_type,  # type: str
-                            tmdb_search_query=tmdb_search_query  # type: str
-                        )
+                        #
+                        # Exit when there are no more pages to process
+                        #
+                        more_to_get = self.discover_movies_using_search_pages(
+                            tmdb_trailer_type,
+                            tmdb_search_query=tmdb_search_query)
                     if self._selected_keywords != '' or self._excluded_keywords != '':
                         tmdb_search_query = "keyword"
-                        cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
-                        number_of_pages = \
-                            cached_pages_data.get_number_of_undiscovered_search_pages()
-                        if number_of_pages > 0:
-                            finished = False
-                        self.discover_movies_using_search_pages(
-                            tmdb_trailer_type,  # type: str
-                            tmdb_search_query=tmdb_search_query  # type: str
-                        )
+                        #
+                        # Exit when there are no more pages to process
+                        #
+                        more_to_get = self.discover_movies_using_search_pages(
+                            tmdb_trailer_type,
+                            tmdb_search_query=tmdb_search_query)
                 else:
                     tmdb_search_query = "generic"
-                    cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
-                    number_of_pages = \
-                        cached_pages_data.get_number_of_undiscovered_search_pages()
-                    if number_of_pages > 0:
-                        finished = False
-                    self.discover_movies_using_search_pages(
-                        tmdb_trailer_type,  # type: str
-                        tmdb_search_query=tmdb_search_query  # type: str
-                    )
+                    #
+                    # Exit when there are no more pages to process
+                    #
+                    more_to_get = self.discover_movies_using_search_pages(
+                        tmdb_trailer_type,
+                        tmdb_search_query=tmdb_search_query)
+            clz.logger.debug_verbose(f'Completed creating all search pages')
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception:
             clz.logger.exception('')
 
     def configure_search_parameters(self,
                                     tmdb_trailer_type: str = ''
-                                    ) -> List[MovieType]:
+                                    ) -> List[TMDbMoviePageData]:
         """
             Performs the critical task of translating complex
             search parameters into multiple groups of API calls
@@ -357,10 +361,37 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
         clz = type(self)
         self.throw_exception_on_forced_to_stop()
-        movies: List[MovieType] = []
+        movies: List[TMDbMoviePageData] = []
+        '''
+        TMDB related settings 
+        * indicates saved in search_parameters
+        - indicates change does not warrant destroying tmdb cache
+        + indicates change does warrant destroying tmdb cache
+        
+        - TMDB_MAX_NUMBER_OF_TRAILERS,
+        - TMDB_MAX_DOWNLOAD_MOVIES
+        *- TMDB_ALLOW_FOREIGN_LANGUAGES,
+        - TMDB_TRAILER_TYPE,
+        -    INCLUDE_TMDB_TRAILERS,
+        -    INCLUDE_CLIPS,
+        -    INCLUDE_FEATURETTES,
+        -    INCLUDE_TEASERS,
+        * TMDB_SORT_ORDER,
+        * TMDB_VOTE_VALUE,
+        * TMDB_VOTE_FILTER,
+        *+ TMDB_ENABLE_SELECT_BY_YEAR_RANGE (increase of range not too destructive),
+            * TMDB_YEAR_RANGE_MINIMUM or None
+            * TMDB_YEAR_RANGE_MAXIMUM or None
+        *+ TMDB_INCLUDE_OLD_MOVIE_TRAILERS,
+        FILTER_GENRES
+        * GENREXXX
+        * keywords
+        * certifications: not-yet-rated, Unknown certification, max_certification
+        
+        '''
         try:
-            self._minimum_year = None
-            self._maximum_year = None
+            self._minimum_year = 0
+            self._maximum_year = 0
             self._select_by_year_range = Settings.is_tmdb_select_by_year_range()
             if self._select_by_year_range:
                 self._minimum_year = Settings.get_tmdb_minimum_year()
@@ -390,8 +421,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 'cache_state': CacheIndex.UNINITIALIZED_STATE  # type: str
             })
 
-            cache_changed = CacheParameters.load_cache(current_parameters)
+            cache_changed: bool
+            rebuild_cache: bool
+            cache_changed, rebuild_cache = CacheParameters.load_cache(current_parameters)
             CacheIndex.load_cache(cache_changed)
+            self._rebuild_cache = rebuild_cache
 
             if self._filter_genres:
                 if self._selected_genres != '' or self._excluded_genres != '':
@@ -422,147 +456,25 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     movies.extend(generic_movies)
                     del generic_movies
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
 
         return movies
 
-    def pre_filter_movie(self,
-                         movie: MovieType) -> bool:
-        """
-        Filter the given movie information, likely incomplete information
-        to determine if it passes the current filter settings.
-
-        The movie information can be either complete or partial information.
-
-        Complete information is from TrailerFetcher.get_tmdb_trailer,
-        by way of the cache Cache.read_tmdb_cache_json.
-
-        Partial information is from the initial TMDb page discovery via
-        CacheIndex.get_unprocessed_movies.
-
-        For the most part, the fields are the same for both types of entries.
-
-        :param movie:
-                Movie to filter
-        :return:
-        """
-        clz = type(self)
-        filter_passes = True
-        try:
-            if self._minimum_year is not None \
-                    and movie[Movie.YEAR] < self._minimum_year:
-                filter_passes = False
-            elif self._maximum_year is not None \
-                    and movie[Movie.YEAR] > self._maximum_year:
-                filter_passes = False
-            movie_type = movie.get(Movie.TRAILER_TYPE, '')
-            if (movie_type == Movie.VIDEO_TYPE_FEATURETTE
-                    and not Settings.get_include_featurettes()):
-                filter_passes = False
-            elif (movie_type == Movie.VIDEO_TYPE_CLIP
-                    and not Settings.get_include_clips()):
-                filter_passes = False
-            elif (movie_type == Movie.VIDEO_TYPE_TRAILER
-                  and not Settings.get_include_tmdb_trailers()):
-                filter_passes = False
-            # if Settings.get_country_iso_3166_1() != movie[Movie.COUNTRY]:
-            #     break
-            elif movie.get(Movie.MPAA) is not None:
-                country_id = Settings.get_country_iso_3166_1().lower()
-                certifications = WorldCertifications.get_certifications(
-                    country_id)
-                certification = certifications.get_certification(
-                    movie.get(Movie.MPAA), movie.get(Movie.ADULT))
-
-                if not certifications.filter(certification):
-                    filter_passes = False
-            elif not Settings.is_allow_foreign_languages() \
-                    and movie[Movie.ORIGINAL_LANGUAGE] != Settings.get_lang_iso_639_1():
-                filter_passes = False
-
-            movie_title = movie.get(Movie.TITLE)
-            # plot = movie.get('overview', '')
-            # popularity = movie.get('popularity', '0.0')
-            #  original_title = movie_entry.get('original_title', '')
-            #  backdrop_path = movie_entry.get('backdrop_path', '')
-            # vote_count = movie.get('vote_count', '-1')
-            is_video = movie.get('video', 'false')
-            is_adult = movie.get('adult', 'false')
-            vote_average = movie.get('vote_average', '-1.0')
-            genre_ids: [int] = movie.get('genre_ids', [])
-            original_language: str = movie.get(Movie.ORIGINAL_LANGUAGE)
-
-            # We know the genres for this movie, but not the keywords.
-
-            if not GenreUtils.include_movie(genres=genre_ids, tags=None):
-                filter_passes = False
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                    clz.logger.debug_verbose('Rejected due to Genre')
-
-            if self._vote_comparison == \
-                    RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
-                if vote_average < self._vote_value:
-                    filter_passes = False
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose(
-                            f'Rejected due to vote_average < {movie_title}')
-            elif self._vote_comparison  == \
-                    RemoteTrailerPreference.AVERAGE_VOTE_LESS_OR_EQUAL:
-                if vote_average > self._vote_value:
-                    filter_passes = False
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_EXTRA_VERBOSE):
-                        clz.logger.debug_extra_verbose(
-                            f'Rejected due to vote_average > {movie_title}')
-
-            """
-            original_title = tmdb_result['original_title']
-            if original_title is not None:
-                dict_info[Movie.ORIGINAL_TITLE] = original_title
-
-            adult_movie = tmdb_result['adult'] == 'true'
-            if adult_movie and not include_adult:
-                add_movie = False
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('Rejected due to adult')
-
-            dict_info[Movie.ADULT] = adult_movie
-            dict_info[Movie.SOURCE] = Movie.TMDB_SOURCE
-
-            # Normalize rating
-
-            mpaa = Rating.get_certification(mpaa_rating=mpaa, adult_rating=None)
-            if not Rating.filter(mpaa):
-                add_movie = False
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('Rejected due to rating')
-                    # Debug.dump_json(text='get_tmdb_trailer exit:', data=dict_info)
-
-            current_parameters = CacheParameters({
-                'excluded_tags': self._excluded_keywords,
-                'remote_trailer_preference': self._remote_trailer_preference,
-                'vote_comparison': self._vote_comparison,  # type: int
-                'vote_value': self._vote_value,  # type: int
-                'rating_limit_string': self._rating_limit_string,  # type: str
-                'language': self._language,  # type str
-                'country': self._country,  # type: str
-            })
-            """
-
-        except (AbortException, RestartDiscoveryException):
-            reraise(*sys.exc_info())
-        except Exception as e:
-            clz.logger.exception('')
-
-        return filter_passes
-
     def first_phase_discovery(self,
                               tmdb_trailer_type: str,
                               tmdb_search_query: str = "",
-                              ) -> Optional[List[MovieType]]:
+                              ) -> Optional[List[TMDbMoviePageData]]:
         """
+        If a year range is NOT specified, then years are IGNORED. Only get
+        search pages 1..n.
+
+        If a year range is specified, then we want to get as close to an even
+        sampling of movies across the years. What follows is how a range
+        of years is processed:
+
         First, ignoring any specified years, find out how many total
         trailers will be found by the query. From this, decide if
         querying by year is needed.
@@ -585,24 +497,48 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         if cached_pages_data.get_total_pages() != 0:
             return None
 
-        page_to_get = DiskUtils.RandomGenerator.randint(1, 50)
+        page_to_get: int = 1
+        if self._select_by_year_range:
+            page_to_get = DiskUtils.RandomGenerator.randint(1, 50)
+
         url, data = self.create_request(
             tmdb_trailer_type, page=page_to_get, tmdb_search_query=tmdb_search_query)
         finished = False
         delay = 0.5
+        page_data: MovieType = {}
         while not finished:
             try:
-                status_code, page_data = JsonUtilsBasic.get_json(
-                    url, params=data)
-                if page_data is None:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug(
-                            'Problem communicating with TMDB')
-                    # TODO: Wait for communication to resume
-                    # TODO: Notification to user
-                    raise CommunicationException()
+                if clz.logger.isEnabledFor(DEBUG_EXTRA_VERBOSE):
+                    dump_json = True
                 else:
+                    dump_json = False
+
+                result: Result = JsonUtilsBasic.get_json(
+                    url, params=data, dump_results=dump_json)
+
+                s_code = result.get_api_status_code()
+                if s_code is not None:
+                    clz.logger.debug(f'api status: {s_code}')
+
+                status_code: JsonReturnCode = result.get_rc()
+                if status_code == JsonReturnCode.OK:
                     finished = True
+
+                    page_data = result.get_data()
+                    if page_data is None:
+                        if clz.logger.isEnabledFor(DEBUG):
+                            clz.logger.debug(f'page_data None status OK. Skipping page')
+
+                if status_code in (JsonReturnCode.FAILURE_NO_RETRY,
+                                   JsonReturnCode.UNKNOWN_ERROR):
+                    clz.logger.debug_extra_verbose(f'TMDb call'
+                                                   f' {status_code.name}')
+                    finished = True
+
+                if status_code == JsonReturnCode.RETRY:
+                    clz.logger.debug_extra_verbose(f'TMDb call failed RETRY')
+                    raise CommunicationException()
+
             except CommunicationException as e:
                 self.throw_exception_on_forced_to_stop(timeout=delay)
                 delay += delay
@@ -618,13 +554,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         query_by_year = False
 
         if self._select_by_year_range:
-            minimum_year = 1928  # Start of talkies
-            if self._minimum_year is not None:
-                minimum_year = self._minimum_year
-            maximum_year = datetime.datetime.now().year
-            if self._maximum_year is not None:
-                maximum_year = self._maximum_year
-            years_in_range = maximum_year - minimum_year + 1
+            years_in_range = self._maximum_year - self._minimum_year + 1
             if total_pages > (years_in_range * 1.5):
                 query_by_year = True
 
@@ -637,14 +567,14 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         # few trailers played, don't add movies to the list of
         # discovered movies until a second page is read.
 
-        movies = self.process_page(page_data,
-                                   url=url)
+        movies: List[TMDbMoviePageData]
+        movies = self.process_page(page_data, url=url)
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug('Search Query type:', tmdb_search_query,
-                                     'TMDB movies:', total_results,
-                                     'total_pages:', total_pages,
-                                     'query_by_year:', query_by_year)
+        if clz.logger.isEnabledFor(DEBUG):
+            clz.logger.debug(f'Search Query type: {tmdb_search_query} '
+                             f'TMDB movies: {total_results} '
+                             f'total_pages: {total_pages} '
+                             f'query_by_year: {query_by_year}')
 
         return movies
 
@@ -653,7 +583,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                pages_in_chunk: int,
                                tmdb_trailer_type: str,
                                tmdb_search_query: str,
-                               additional_movies: List[MovieType]
+                               additional_movies: List[TMDbMoviePageData]
                                ) -> bool:
         """
         :param max_pages:
@@ -691,7 +621,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         #
         # As a side-effect, as each page is read, the movies for that page are
         # added to the discovered movies list for further processing by
-        # TrailerFetcher thread.
+        # AbstractTrailerFetcher thread.
         #
         clz = type(self)
         if additional_movies is None:
@@ -699,11 +629,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
         pages_read = 0
         cached_pages_data: CachedPagesData = CachedPagesData.pages_data[tmdb_search_query]
-        query_by_year = cached_pages_data.is_query_by_year()
+        query_by_year: bool = cached_pages_data.is_query_by_year()
 
         #  TODO: Verify this
         if cached_pages_data.is_search_pages_configured():
-            return False  # Not known if finished reading pages
+            return True  # Not known if finished reading pages
 
         if query_by_year:
 
@@ -734,9 +664,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 DiskUtils.RandomGenerator.shuffle(years_to_get)
                 cached_pages_data.set_years_to_query(years_to_get)
                 cached_pages_data.save_search_pages(flush=True)
-                clz.logger.debug('# years to get:',
-                                         len(years_to_get),
-                                         trace=Trace.TRACE_CACHE_PAGE_DATA)
+                clz.logger.debug(f'# years to get: {len(years_to_get)}',
+                                 trace=Trace.TRACE_CACHE_PAGE_DATA)
             #
             # Cache now has years to query
 
@@ -797,12 +726,25 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                         # get_movies processes any movies found. No additional
                         # work required here.
 
-                        movies_read = self.get_trailers(url=url, data=data,
-                                                        pages_to_get=[
-                                                            first_page_to_get],
-                                                        already_found_movies=additional_movies,
-                                                        year=year, year_map=pages_in_year,
-                                                        tmdb_search_query=tmdb_search_query)
+                        # A bit kludgey. Originally the page number was sent to
+                        # get_movies, but it was highly desirable for the successfully
+                        # discovered info to be recorded in the caches there rather than
+                        # to pass back a complex structure indicating the successfully
+                        # read pages and record into the caches here. Probably should
+                        # come up with something cleaner.
+
+                        dummy_page = CachedPage(year, first_page_to_get,
+                                                processed=True,
+                                                # movies sent to unprocessed
+                                                total_pages_for_year=1)
+
+                        movies_read = self.get_movies(url=url, data=data,
+                                                      pages_to_get=[
+                                                          dummy_page],
+                                                      already_found_movies=
+                                                      additional_movies,
+                                                      year=year, year_map=pages_in_year,
+                                                      tmdb_search_query=tmdb_search_query)
                     del additional_movies[:]
 
                     # Cache what page was read and total available in year
@@ -826,11 +768,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             # Grand total of TMDB pages for all of the years read
 
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                clz.logger.debug('configuring search pages',
-                                 'query_by_year: True',
-                                 'total_pages_for_years:',
-                                 total_pages_for_years,
+            if clz.logger.isEnabledFor(DEBUG):
+                clz.logger.debug(f'configuring search pages query_by_year: True '
+                                 f'total_pages_for_years: {total_pages_for_years}',
                                  trace=Trace.TRACE_DISCOVERY)
 
             # Now that one page per year has been read and we also know
@@ -897,24 +837,23 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 except KeyError:
                     pages_for_year = []
                 except ValueError:
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('ValueError: 1,',
-                                                 total_pages_in_year,
-                                                 'scaled_pages:',
-                                                 scaled_pages)
+                    if clz.logger.isEnabledFor(DEBUG):
+                        clz.logger.debug(f'ValueError: 1 {total_pages_in_year}  '
+                                         f'scaled_pages: {scaled_pages}')
 
         if not query_by_year:
             # This is much easier. Just plan on what pages to read from TMDB.
-            # (The pages TMDB returns is based upon the query results. The
-            # year only impacts if it is part of the query).
             # Use the information returned from the initial query made in
             # first_phase_discovery to guide how many subsequent pages need to
             # be read.
             #
+            # Do not read random pages to spread pages across years. We are bound
+            # to the search order specified by the query.
+            #
 
             search_pages = []
             total_pages = cached_pages_data.get_total_pages()
-            for page in list(range(1, min(total_pages, max_pages) + 1)):
+            for page in list(range(2, min(total_pages, max_pages) + 1)):
                 cached_page = CachedPage(None, page)
                 search_pages.append(cached_page)
 
@@ -922,52 +861,18 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                         search_pages, flush=True)
 
         cached_pages_data.set_search_pages_configured(flush=True)
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-            clz.logger.debug('SEARCH_PAGES_CONFIGURED',
-                                     'len(cached_pages_data):',
-                                     cached_pages_data.get_number_of_search_pages(),
-                                     trace=Trace.TRACE_DISCOVERY)
+        if clz.logger.isEnabledFor(DEBUG):
+            clz.logger.debug(f'SEARCH_PAGES_CONFIGURED: {len(cached_pages_data)}: ',
+                             f'{cached_pages_data.get_number_of_search_pages()} ',
+                             trace=Trace.TRACE_DISCOVERY)
         return True  # finished
 
-    def send_cached_movies_to_discovery(self) -> None:
+    def purge_cache_x(self, actually_delete: bool) -> None:
         """
-
-        :return:
+        Settings have changed enough to warrant destroying all of the .json
+        files in the TMDb cache.
         """
         clz = type(self)
-        try:
-            # Send any cached TMDb trailers to the discovered list first,
-            # since they require least processing AND known to have trailers.
-
-            additional_movies_to_get = (Settings.get_max_tmdb_trailers()
-                                          - self.get_number_of_known_trailers())
-            tmdb_trailer_ids: Set[int] = \
-                CacheIndex.get_found_tmdb_ids_with_trailer()
-
-            # Add wait between each movie added = 0.1 + log(# trailers_added * 2) seconds
-            # For 1,000 trailers added, the delay is 0.1 + 3.3 = 3.4 seconds
-
-            delay = Delay(bias=0.1, call_scale_factor=2.0, scale_factor=1.0)
-            movies: List[MovieType] = self.load_from_cache(tmdb_trailer_ids,
-                                                           additional_movies_to_get,
-                                                           delay=delay)
-
-            # Don't add found trailers to unprocessed_movies
-
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose(
-                    f"Sending cached {len(movies)} TMDb trailers to discovered list")
-
-            self.add_to_discovered_trailers(movies)
-            #
-            # Give fetcher time to load ready_to_play list. The next add
-            # will likely shuffle and mix these up with some that will take
-            # longer to process.
-            #
-            if len(movies) > 0:
-                Monitor.throw_exception_if_abort_requested(timeout=5.0)
-        except Exception as e:
-            clz.logger.exception('')
 
         # TODO: How do we know when to do this? It is very expensive to traverse
         # files and load JSON. Perhaps track when it was last done?
@@ -978,187 +883,316 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         # If more trailers are needed, scan the cache for movies. This is
         # done because the cache is not purged when the search query is changed.
 
+        '''
+        All downloaded tmdb .json files are recorded in tmdb_json_cache.json.
+        We can simply clear this cache without deleting the downloaded 
+        tmdb json files. The metadata garbage collector will eventually
+        blow away the downloaded tmdb json files, but it can be a while
+        (the default is 180 days after file creation).
+        
+        TODO: We can create a setting to clear unreferenced downloaded 
+        json files. If so, should probably also specify # days to wait
+        before clearing them in case the new download filter will end
+        up re-downloading the already cached files. 
+        note: deletion of downloaded json files should ensure that they
+        are not still referenced by the other xxx_json_cache files.
+        '''
+
+        clz.logger.debug_verbose(f'Purging Cache')
+
+        json_cache = JsonCacheHelper.get_json_cache_for_source(MovieField.TMDB_SOURCE)
+        json_cache.clear()
+
+    def purge_cache(self, actually_delete: bool) -> None:
+        """
+        Settings have changed enough to warrant destroying all of the .json
+        files in the TMDb cache.
+        """
+        clz = type(self)
+
+        # TODO: How do we know when to do this? It is very expensive to traverse
+        # files and load JSON. Perhaps track when it was last done?
+        # It is effective only when settings change what movies are selected
+        # so that there are some in the cache that were filtered out by last
+        # settings. Just a waste of time if no settings change.
+        #
+        # If more trailers are needed, scan the cache for movies. This is
+        # done because the cache is not purged when the search query is changed.
+
+        clz.logger.debug_verbose(f'Purging Cache actually_delete: {actually_delete}')
+
         start_time: datetime.datetime = datetime.datetime.now()
+        deleted_files: int = 0
         try:
-            # The easiest way to do this is to walk the cache and collect
-            # tmdb ids. Then treat the ids as get_found_tmdb_ids_with_trailer,
-            # above. Later, trailer fetcher will reject any that don't pass
-            # the filter.
+            '''
+            Walk the entire TMDb cache and delete all .json files
+            '''
+            cache_top: str = xbmcvfs.translatePath(
+                Settings.get_remote_db_cache_path())
 
-            # Add wait between each movie added = 0.1 + log(# trailers_added * 2) seconds
-            # For 1,000 trailers added, the delay is 0.1 + 3.3 = 3.4 seconds
-            #
-            # The delay does not occur until when they json files are read
-
-            delay = Delay(bias=0.1, call_scale_factor=2.0, scale_factor=1.0)
-
-            cache_top: str = xbmcvfs.translatePath(Settings.get_remote_db_cache_path())
-
-            additional_movies_to_get = (Settings.get_max_tmdb_trailers()
-                                        - self.get_number_of_known_trailers())
-            tmdb_movie_ids: List[int] = []
             path: Path
-            for path in FindFiles(cache_top, Constants.TMDB_GLOB_JSON_PATTERN):
+            file_iterable: FindFiles
+            file_iterable = FindFiles(cache_top, Constants.TMDB_GLOB_JSON_PATTERN)
+            for path in file_iterable:
                 try:
+                    self.throw_exception_on_forced_to_stop(0.0)
                     if path.parent.name == 'index':
                         continue
 
-                    clz.logger.debug(f'path: {path.absolute()} name: {path.name}')
+                    # clz.logger.debug(f'path: {path.absolute()} name: {path.name}')
                     match: Match = Constants.TMDB_ID_PATTERN.search(path.name)
                     if match is None:  # Just in case
                         continue
 
-                    tmdb_id: str = match.group(1)
-                    clz.logger.debug(f'tmdb_id: {tmdb_id}')
+                    clz.logger.debug(f'Deleting TMDb JSON: {path}')
+                    if actually_delete:
+                        path.unlink(True)  # Missing is ok
+                    deleted_files += 1
 
-                    # Is Movie already discovered?
-
-                    movie: MovieType = self.get_by_id(tmdb_id)
-                    if movie is not None:
-                        continue
-
-                    try:
-                        tmdb_movie_ids.append(int(tmdb_id))
-                    except ValueError:
-                        clz.logger.debug(f'Could not convert tmdb_id to int: {tmdb_id}')
-
-                    if len(tmdb_movie_ids) > 5:
-                        movies: List[MovieType] = self.load_from_cache(tmdb_movie_ids,
-                                                                additional_movies_to_get,
-                                                                delay=delay)
-                        additional_movies_to_get -= len(movies)
-                        self.add_to_discovered_trailers(movies)
-                        movies.clear()
-
+                except (AbortException, StopDiscoveryException):
+                    reraise(*sys.exc_info())
                 except Exception as e:
-                    clz.logger.exception()
+                    clz.logger.exception(msg='')
 
                 # Get leftovers
 
-            if len(tmdb_movie_ids) > 0:
-                movies: List[MovieType] = self.load_from_cache(tmdb_movie_ids,
-                                                               additional_movies_to_get,
-                                                               delay=delay)
-                additional_movies_to_get -= len(movies)
-                self.add_to_discovered_trailers(movies)
-                movies.clear()
+            # In case loop is exited early, tell it to kill
+            # file iteration thread.
 
+            # file_iterable.kill()
+
+            stop_time: datetime.datetime = datetime.datetime.now()
+            delta_time_seconds: int = int((stop_time - start_time).total_seconds())
+
+            clz.logger.debug_extra_verbose(
+                f'Seconds to delete {deleted_files} json files: '
+                f'{delta_time_seconds:,d} actually_delete: {actually_delete}')
+
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
-            clz.logger.exception()
+            clz.logger.exception(msg='')
 
-        stop_time: datetime.datetime = datetime.datetime.now()
-        delta_time_minutes: int = int((stop_time - start_time).total_seconds() / 60.0)
+    def send_cached_movies_to_discovery(self) -> None:
+        """
+            Before doing the expensive discovery of trailers from TMDb,
+            enter previously discovered information into the discovery queue.
 
-        clz.logger.debug_extra_verbose(f'Minutes discover json files: '
-                                       f'{delta_time_minutes:%,d}')
+            First, load all TMDb ids which are known to have trailers. TMDb
+            discovery will be required to determine if the trailer passes the
+            current filter. Hopefully, the TMDb discovery data is already
+            persisted so that the download from TMDb is not required.
+
+            Next, get the persisted list of TMDb ids which passed the
+            filter criteria from a previous run, but not yet fully discovered
+            from TMDb. Add these to the discovery queue.
+
+            Finally, get a list of every TMDb id from the
+            local cache of TMDb information. This is done in an attempt to
+            reuse information that is local.
+
+        :return:
+        """
+
+        clz = type(self)
+        additional_movies_to_get: int = 0
 
         try:
-            # Send any unprocessed TMDB trailers to the discovered list
 
-            additional_trailers_to_get = (Settings.get_max_tmdb_trailers()
-                                          - self.get_number_of_known_trailers())
+            #  Send any cached TMDb trailers to the discovered list first,
+            #  since they require least processing AND known to have trailers.
 
-            discovery_complete_movies: List[MovieType] = []
-            discovery_needed_movies: List[MovieType] = []
-            unprocessed_movies = CacheIndex.get_unprocessed_movies()
-            for movie in unprocessed_movies.values():
-                if clz.logger.isEnabledFor(LazyLogger.DISABLED):
-                    if Movie.MPAA not in movie or movie[Movie.MPAA] == '':
-                        cert = movie.get(Movie.MPAA, 'none')
-                        clz.logger.debug_extra_verbose('No certification. Title:',
-                                                               movie[Movie.TITLE],
-                                                               'year:',
-                                                               movie.get(
-                                                                   Movie.YEAR),
-                                                               'certification:', cert,
-                                                               'trailer:',
-                                                               movie.get(
-                                                                   Movie.TRAILER),
-                                                               trace=Trace.TRACE_DISCOVERY)
-                        # Don't change MPAA 'None' value at this time. Doing so
-                        # would break filter code for undiscovered entries.
+            additional_movies_to_get = (Settings.get_max_tmdb_trailers()
+                                        - self.get_number_of_known_trailers())
+            '''
+            TODO: Review if we can still use this, with modification.
+            
+            tmdb_movies: Set[TMDbMovieId] = \
+                CacheIndex.get_tmdb_ids_with_trailers()
+            
 
-                discovery_state = movie.get(Movie.DISCOVERY_STATE,
-                                            Movie.NOT_FULLY_DISCOVERED)
-                if (discovery_state < Movie.DISCOVERY_COMPLETE
-                        and self.pre_filter_movie(movie)):
-                    discovery_needed_movies.append(movie)
-                if (discovery_state >= Movie.DISCOVERY_COMPLETE
-                        and self.pre_filter_movie(movie)):
-                    if TrailerCache.is_more_discovery_needed(movie):
-                        additional_movies_to_get = (
-                                Settings.get_tmdb_max_download_movies()
-                                - self.get_number_of_movies())
-                        if additional_movies_to_get <= 0:
-                            break
-
-                        discovery_needed_movies.append(movie)
-                    else:
-                        if additional_trailers_to_get <= 0:
-                            break
-
-                        additional_trailers_to_get -= 1
-                        discovery_complete_movies.append(movie)
-                        tmdb_id = MovieEntryUtils.get_tmdb_id(movie)
-                        CacheIndex.remove_unprocessed_movies(tmdb_id)
-
-            # Add the fully discovered movies first, this should be rare,
-            # but might feed a few that can be displayed soon first.
-            # There will likely be a shuffle on each call, so they will be
-            # blended together anyway.
-
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
+            # Only send movies which are also known to be in our cache of known
+            # TMDb
+            additional_movies_to_get -= len(tmdb_movies)
+            
+            if clz.logger.isEnabledFor(DEBUG_VERBOSE):
                 clz.logger.debug_verbose(
-                    f"Sending {len(discovery_complete_movies)} fully discovered"
-                    f" movies to discovered list")
+                    f"Sending {len(tmdb_movies)} TMDb movies with trailers to "
+                    f"discovery. Additional to get: {additional_movies_to_get} "
+                    f"# known trailers: {self.get_number_of_known_trailers()}")
 
-            self.add_to_discovered_trailers(discovery_complete_movies)
-            if len(discovery_complete_movies) > 0:
-                Monitor.throw_exception_if_abort_requested(timeout=5.0)
-
-            if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                clz.logger.debug_verbose(
-                    f"Sending {len(discovery_needed_movies)} discovery needed"
-                    f" movies to discovered list")
-            self.add_to_discovered_trailers(discovery_needed_movies)
-
+            self.add_to_discovered_movies(tmdb_movies)
+            '''
+            pass
+        except AbortException:
+            reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
 
-    def load_from_cache(self, tmdb_trailer_ids: List[int],
-                        additional_movies_to_get: int,
-                        delay: Delay = None) -> List[MovieType]:
-        movies = []
-        for tmdb_id in tmdb_trailer_ids:
-            if delay is not None:
-                delay.delay()
-            cached_movie = Cache.read_tmdb_cache_json(tmdb_id, Movie.TMDB_SOURCE,
-                                                      error_msg='TMDb trailer '
-                                                                'not found')
-            if cached_movie is not None:
-                year = cached_movie['release_date'][:-6]
-                year = int(year)
-                movie_entry = {Movie.TRAILER: Movie.TMDB_SOURCE,
-                               Movie.SOURCE: Movie.TMDB_SOURCE,
-                               Movie.TITLE: cached_movie[Movie.TITLE],
-                               Movie.YEAR: year,
-                               Movie.ORIGINAL_LANGUAGE:
-                                   cached_movie[Movie.ORIGINAL_LANGUAGE]}
-                MovieEntryUtils.set_tmdb_id(movie_entry, tmdb_id)
-                if self.pre_filter_movie(movie_entry):
-                    if additional_movies_to_get <= 0:
-                        break
-                    movies.append(movie_entry)
-                    additional_movies_to_get -= 1
+        if additional_movies_to_get > 0:
+            try:
+                unprocessed_movies: List[TMDbMovieId]
+
+                # First, purge any unprocessed movies which are known to not
+                # have a trailer
+
+                unprocessed_movies = CacheIndex.get_unprocessed_movies()
+                tmdb_movie_id: TMDbMovieId
+                for tmdb_movie_id in unprocessed_movies:
+                    tmdb_id_int: int = tmdb_movie_id.get_tmdb_id()
+                    if TrailerUnavailableCache.is_tmdb_id_missing_trailer(tmdb_id_int):
+                        CacheIndex.remove_unprocessed_movie(tmdb_id_int)
+
+                # Next, add movies with known, local (cached) trailers to
+                # first stage discovery. Also purge these from unprocessed
+                # movies cache, since they were clearly processed once.
+
+                unprocessed_movies = CacheIndex.get_unprocessed_movies()
+                movies_with_trailers: List[TMDbMovieId]
+                movies_with_trailers = TMDbTrailerIndex.get_all_with_local_trailers()
+
+                self.add_to_discovered_movies(movies_with_trailers)
+                for tmdb_movie_id in movies_with_trailers:
+                    try:
+                        unprocessed_movies.remove(tmdb_movie_id)
+                    except ValueError:
+                        pass
+
+                additional_movies_to_get -= len(movies_with_trailers)
+
+                # Same thing, but with movies that we know have a trailer, but not
+                # yet downloaded
+
+                unprocessed_movies = CacheIndex.get_unprocessed_movies()
+                movies_with_trailers = TMDbTrailerIndex.get_all_with_non_local_trailers()
+
+                self.add_to_discovered_movies(movies_with_trailers)
+                for tmdb_movie_id in movies_with_trailers:
+                    try:
+                        unprocessed_movies.remove(tmdb_movie_id)
+                    except ValueError:
+                        pass
+
+                additional_movies_to_get -= len(movies_with_trailers)
+
+                if len(unprocessed_movies) > additional_movies_to_get:
+                    del unprocessed_movies[additional_movies_to_get:]
                 else:
-                    if self._on_filter_failure_purge_json_cache:
-                        Cache.delete_cache_json(tmdb_id, Movie.TMDB_SOURCE)
-        return movies
+                    unprocessed_movies.clear()
+
+                clz.logger.debug_verbose(f'Sending {len(unprocessed_movies)} '
+                                         f'unprocessed movies to discovery')
+                self.add_to_discovered_movies(unprocessed_movies, shuffle=True)
+
+            except AbortException:
+                reraise(*sys.exc_info())
+            except Exception as e:
+                clz.logger.exception('')
+
+        '''
+            TODO: Review this
+            
+        # TODO: How do we know when to do this? It is very expensive to traverse
+        # files and load JSON. Perhaps track when it was last done?
+        # It is effective only when settings change what movies are selected
+        # so that there are some in the cache that were filtered out by last
+        # settings. Just a waste of time if no settings change.
+        #
+        # If more trailers are needed, scan the cache for movies. This is
+        # done because the cache is not purged when the search query is changed.
+
+        if additional_movies_to_get > 0:
+            start_time: datetime.datetime = datetime.datetime.now()
+            tmdb_ids_found: int = 0
+            try:
+                # The easiest way to do this is to walk the cache and collect
+                # tmdb ids. Then treat the ids as get_tmdb_ids_with_trailers,
+                # above. Later, movie fetcher will reject any that don't pass
+                # the filter.
+
+                # Add wait between each movie added = 0.1 + log(# trailers_added * 2)
+                # seconds
+                # For 1,000 trailers added, the delay is 0.1 + 3.3 = 3.4 seconds
+                #
+                # The delay does not occur until when they json files are read
+
+                delay = Delay(bias=0.1, call_scale_factor=2.0, scale_factor=1.0)
+
+                cache_top: str = xbmcvfs.translatePath(Settings.get_remote_db_cache_path())
+
+                tmdb_movie_ids: List[TMDbMovieId] = []
+                path: Path
+                file_iterable: FindFiles
+                file_iterable = FindFiles(cache_top, Constants.TMDB_GLOB_JSON_PATTERN)
+                for path in file_iterable:
+                    try:
+                        self.throw_exception_on_forced_to_stop(0.0)
+                        if path.parent.name == 'index':
+                            continue
+
+                        # clz.logger.debug(f'path: {path.absolute()} name: {path.name}')
+                        match: Match = Constants.TMDB_ID_PATTERN.search(path.name)
+                        if match is None:  # Just in case
+                            continue
+
+                        tmdb_id: str = match.group(1)
+
+                        # Is Movie already discovered?
+
+                        movie: BaseMovie = self.get_by_id(tmdb_id)
+                        if movie is not None:
+                            continue
+
+                        try:
+                            tmdb_movie_ids.append(TMDbMovieId(tmdb_id))
+                            additional_movies_to_get -= 1
+                        except ValueError:
+                            clz.logger.debug(f'Could not convert tmdb_id to int: {tmdb_id}')
+
+                        if len(tmdb_movie_ids) > 5:
+                            additional_movies_to_get -= len(tmdb_movie_ids)
+                            self.add_to_discovered_movies(tmdb_movie_ids)
+                            tmdb_movie_ids.clear()
+
+                        if additional_movies_to_get <= 0:
+                            break
+
+                    except (AbortException, StopDiscoveryException):
+                        reraise(*sys.exc_info())
+                    except Exception as e:
+                        clz.logger.exception(msg='')
+
+                    # Get leftovers
+
+                # In case loop is exited early, tell it to kill
+                # file iteration thread.
+
+                # file_iterable.kill()
+
+                tmdb_ids_found = len(tmdb_movie_ids)
+                stop_time: datetime.datetime = datetime.datetime.now()
+                delta_time_minutes: int = int((stop_time - start_time).total_seconds()
+                                              / 60.0)
+
+                clz.logger.debug_extra_verbose(f'Minutes to discover {tmdb_ids_found}'
+                                               f' json files: '
+                                               f'{delta_time_minutes:,d}')
+
+                if tmdb_ids_found > 0:
+                    additional_movies_to_get -= len(tmdb_movie_ids)
+                    self.add_to_discovered_movies(tmdb_movie_ids)
+                    tmdb_movie_ids.clear()
+
+            except AbortException:
+                reraise(*sys.exc_info())
+            except Exception as e:
+                clz.logger.exception(msg='')
+            '''
 
     def discover_movies_using_search_pages(self,
                                            tmdb_trailer_type: str,
                                            tmdb_search_query: str = "",
-                                           pages_in_chunk: int = 5) -> None:
+                                           pages_in_chunk: int = 5) -> bool:
         """
         At this point the decision about what pages and years to search
         have been made and saved to the cache. Now, execute the plan!
@@ -1166,9 +1200,11 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :param tmdb_trailer_type:
         :param tmdb_search_query:
         :param pages_in_chunk:
-        :return:
+        :return: True when there are more movies to get
+                 False when there are no more movies to get
         """
         clz = type(self)
+        more_to_get: bool = True
         try:
             cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
             page_to_get = 1  # Will be overridden
@@ -1178,7 +1214,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             query_by_year = cached_pages_data.is_query_by_year()
             additional_movies_to_get = (Settings.get_tmdb_max_download_movies()
                                         - self.get_number_of_movies())
-            additional_pages_to_get = additional_movies_to_get / clz.MOVIES_PER_PAGE
+            additional_pages_to_get = int(additional_movies_to_get / clz.MOVIES_PER_PAGE)
 
             if query_by_year:
                 # Search delay is influenced by number of discovered pages
@@ -1201,62 +1237,87 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 pages_in_chunk = min(pages_in_chunk, len(search_pages))
                 search_pages = search_pages[:pages_in_chunk]
 
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('length of year/page pairs:',
-                                     len(search_pages),
+                if clz.logger.isEnabledFor(DEBUG):
+                    clz.logger.debug(f'length of year/page pairs: {len(search_pages)}',
                                      trace=Trace.TRACE_CACHE_PAGE_DATA)
 
                 for cached_page in search_pages:
                     additional_pages_to_get -= 1
                     if additional_pages_to_get < 0:
+                        more_to_get = False
                         break
                     if self.is_exceeded_limit_of_trailers():
+                        more_to_get = False
                         break
                     if self.is_exceeded_limit_of_movies():
+                        more_to_get = False
                         break
                     self.throw_exception_on_forced_to_stop()
                     year = cached_page.get_year()
-                    page = cached_page.get_page_number()
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                        clz.logger.debug('Getting trailers for year:',
-                                         year, 'page:', page,
+                    if clz.logger.isEnabledFor(DEBUG):
+                        clz.logger.debug(f'Getting trailers for year: {year} '
+                                         f'page: {cached_page.get_page_number()}',
                                          trace=Trace.TRACE_CACHE_PAGE_DATA)
 
-                    self.get_trailers(url=url, data=data,
-                                      pages_to_get=[page],
-                                      already_found_movies=[], year=year,
-                                      tmdb_search_query=tmdb_search_query)
-
-                    cached_pages_data.mark_page_as_discovered(cached_page)
+                    self.get_movies(url=url, data=data,
+                                    pages_to_get=[cached_page],
+                                    already_found_movies=[], year=year,
+                                    tmdb_search_query=tmdb_search_query)
 
             if not query_by_year:
                 # TODO: could be done much cleaner. Redundant
                 # cached_pages_data, etc.
 
                 search_pages = CacheIndex.get_search_pages(tmdb_search_query)
-                pages_to_get = []
                 processed_search_pages = []
+                clz.logger.debug(f'# search_pages: {len(search_pages)} '
+                                 f'additional_pages_to_get: {additional_pages_to_get} ')
+                DiskUtils.RandomGenerator.shuffle(search_pages)
                 for cached_page in search_pages:
                     additional_pages_to_get -= 1
                     if additional_pages_to_get < 0:
+                        more_to_get = False
                         break
                     if self.is_exceeded_limit_of_trailers():
+                        clz.logger.debug(f'Exceeded limit of trailers')
+                        more_to_get = False
                         break
                     if self.is_exceeded_limit_of_movies():
+                        clz.logger.debug(f'Exceeded limit of movies')
+                        more_to_get = False
                         break
-                    pages_to_get.append(cached_page.get_page_number())
                     processed_search_pages.append(cached_page)
 
-                DiskUtils.RandomGenerator.shuffle(pages_to_get)
-                self.get_trailers(url=url, data=data,
-                                  pages_to_get=pages_to_get,
-                                  tmdb_search_query=tmdb_search_query)
-
-                for cached_page in processed_search_pages:
-                    cached_pages_data.mark_page_as_discovered(cached_page)
+                self.get_movies(url=url, data=data,
+                                pages_to_get=processed_search_pages,
+                                tmdb_search_query=tmdb_search_query)
 
             # Make sure cache is flushed
-            CacheIndex.save_unprocessed_movie_cache(flush=True)
+            CacheIndex.save_unprocessed_movies_cache(flush=True)
+
+            # Recalculate how many pages we still need to get, since there
+            # may have been some failures in get_movies, or the remote
+            # possibility that enough movies without trailers have ben
+            # removed from the discovered trailer queue
+
+            additional_movies_to_get = (Settings.get_tmdb_max_download_movies()
+                                        - self.get_number_of_movies())
+            additional_pages_to_get = int(additional_movies_to_get / clz.MOVIES_PER_PAGE)
+            search_pages = CacheIndex.get_search_pages(tmdb_search_query)
+            clz.logger.debug(f'Final # search_pages: {len(search_pages)} '
+                             f'additional_pages_to_get: {additional_pages_to_get} ')
+
+            more_to_get = True
+            if len(search_pages) <= 0:
+                more_to_get = False
+            elif additional_pages_to_get <= 0:
+                more_to_get = False
+            elif self.is_exceeded_limit_of_trailers():
+                clz.logger.debug(f'Exceeded limit of trailers')
+                more_to_get = False
+            elif self.is_exceeded_limit_of_movies():
+                clz.logger.debug(f'Exceeded limit of movies')
+                more_to_get = False
 
             #
             # API key used is marked inactive. Terms from Rotten Tomatoes appears to
@@ -1285,21 +1346,21 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             #    for movie in infostring['movies']:
             #        data = {}
             #        data['api_key'] = Settings.get_tmdb_api_key()
-            #        data['query'] = movie[Movie.TITLE]
+            #        data['query'] = movie[MovieField.TITLE]
             #        data['year'] = movie['year']
             #        url = 'https://api.themoviedb.org/3/search/movie'
             #        statusCode, infostring = DiskUtils.get_json(url, params=data)
             #
             #        for m in infostring['results']:
             #            trailerId = m['id']
-            #            trailerEntry = {Movie.TRAILER: Movie.TMDB_SOURCE,
-            #                            Movie.TMDB_ID: trailerId,
-            #                            Movie.SOURCE: Movie.TMDB_SOURCE,
-            #                            Movie.TITLE: movie[Movie.TITLE]}
-            #            self.add_to_discovered_trailers(trailerEntry)
+            #            trailerEntry = {MovieField.TRAILER: MovieField.TMDB_SOURCE,
+            #                            MovieField.TMDB_ID: trailerId,
+            #                            MovieField.SOURCE: MovieField.TMDB_SOURCE,
+            #                            MovieField.TITLE: movie[MovieField.TITLE]}
+            #            self.add_to_discovered_movies(trailerEntry)
             #
             #            clz.logger.debug(' DVD title: ' +
-            #                              trailerEntry[Movie.TITLE])
+            #                              trailerEntry[MovieField.TITLE])
             #            break
             #
             # ========================
@@ -1308,17 +1369,16 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             #
             # ========================
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
-
         except Exception as e:
-            clz.logger.exception('')
-        return
+            clz.logger.exception(msg='')
+        return more_to_get
 
     def is_exceeded_limit_of_trailers(self) -> bool:
         """
             Checks to see if the maximum number of trailers has been
-            discovered. Note that TMDb trailer discovery occurs in two
+            discovered. Note that TMDb movie discovery occurs in two
             steps:
                 1) general movie information matching a filter (from
                 settings) is built. This is done over time.
@@ -1557,7 +1617,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         """
         clz = type(self)
         data: Dict[str, Any] = {}
-        url = ''
+        url: str = ''
 
         try:
             data['page'] = page
@@ -1582,12 +1642,13 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             data['include_video'] = 'false'
             data['include_adult'] = self._include_adult
 
-            if self._vote_comparison != RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
-                if self._vote_comparison != \
-                        RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
-                    data['vote_average.gte'] = str(self._vote_value)
-                else:
-                    data['vote_average.lte'] = str(self._vote_value)
+            if self._vote_comparison == RemoteTrailerPreference.AVERAGE_VOTE_DONT_CARE:
+                data['vote_average.gte'] = '0'  # Try to force vote_average in result
+            elif self._vote_comparison == RemoteTrailerPreference.AVERAGE_VOTE_GREATER_OR_EQUAL:
+                data['vote_average.gte'] = str(self._vote_value)
+            else:
+                data['vote_average.lte'] = str(self._vote_value)
+
             #
             # TMDB accepts iso-639-1 but adding an iso-3166- suffix
             # would be better (en_US)
@@ -1601,6 +1662,8 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             data['certification_country'] = Settings.get_country_iso_3166_1().lower()
             data['certification.lte'] = self._rating_limit_string
 
+            # data['with_runtime.gte'] = '600'  # Ten minutes
+
             # TMDB API does not have a means to find different language
             # versions of movies (dubbed or subtitles). Can only use
             # original language version. Spoken Language is used to specify
@@ -1610,9 +1673,9 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             data['with_original_language'] = Settings.get_lang_iso_639_1()
 
             if tmdb_trailer_type == 'all':
-                url = 'http://api.themoviedb.org/3/discover/movie'
+                url = TMDbConstants.DISCOVER_ALL_URL
             else:
-                url = 'https://api.themoviedb.org/3/movie/' + tmdb_trailer_type
+                url = f'{TMDbConstants.DISCOVER_TRAILER_URL}{tmdb_trailer_type}'
 
             if tmdb_search_query == "genre":
                 data['with_genres'] = self._selected_genres
@@ -1626,7 +1689,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 data['without_genres'] = []
                 data['without_keywords'] = self._excluded_keywords
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -1634,18 +1697,18 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         finally:
             return url, data
 
-    def get_trailers(self,
-                     url: str = None,
-                     data: Dict[str, Any] = None,
-                     pages_to_get: List[int] = None,
-                     year: int = None,
-                     already_found_movies: List[MovieType] = None,
-                     year_map: Dict[str, ForwardRef('AggregateQueryResults')] = None,
-                     tmdb_search_query: str = ""
-                     ) -> int:
+    def get_movies(self,
+                   url: str = None,
+                   data: Dict[str, Any] = None,
+                   pages_to_get: List[CachedPage] = None,
+                   year: int = None,
+                   already_found_movies: List[TMDbMoviePageData] = None,
+                   year_map: Dict[str, ForwardRef('AggregateQueryResults')] = None,
+                   tmdb_search_query: str = ""
+                   ) -> int:
         """
-            Discovers movies and adds them to the discovered trailers pool
-            via add_to_discovered_trailers.
+            Discovers movies and adds them to the discovered movies pool
+            via add_to_discovered_movies.
 
             Returns number of movies processed and added to discovered
             trailers pool.
@@ -1664,17 +1727,18 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             already_found_movies = []
         number_of_movies_processed: int = 0
         try:
+            page: CachedPage
             for page in pages_to_get:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('year:', year, 'page:', page)
+                if clz.logger.isEnabledFor(DEBUG):
+                    clz.logger.debug(f'year: {year} page: {page.get_page_number()}')
 
                 # Pages are read faster at the beginning, then progressively
                 # slower.
 
                 delay = self.get_delay()
-                self.throw_exception_on_forced_to_stop(delay=delay)
+                self.throw_exception_on_forced_to_stop(timeout=delay)
 
-                data['page'] = page
+                data['page'] = page.get_page_number()
                 if year is not None:
                     data['primary_release_year'] = year
                 elif 'primary_release_year' in data:
@@ -1692,39 +1756,74 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                     data['without_keywords'] = self._excluded_keywords
 
                 finished = False
-                delay: int = 0.5
+                delay: float = 0.5
+                info_string: Dict[str, Any] = {}
+                status_code: JsonReturnCode = JsonReturnCode.UNKNOWN_ERROR
                 while not finished:
                     try:
-                        status_code, info_string = JsonUtilsBasic.get_json(
+                        result: Result = JsonUtilsBasic.get_json(
                             url, params=data)
 
-                        if info_string is None:
-                            raise CommunicationException()
-                        else: finished = True
-                    except CommunicationException as e:
-                        self.wait_until_restart_or_shutdown(timeout=delay)
-                        delay += delay
+                        s_code = result.get_api_status_code()
+                        if s_code is not None:
+                            clz.logger.debug(f'api status: {s_code}')
 
+                        status_code = result.get_rc()
+                        if status_code == JsonReturnCode.OK:
+                            finished = True
+                            info_string = result.get_data()
+                            if info_string is None:
+                                clz.logger.debug_extra_verbose(
+                                    f'Status OK but data is None '
+                                    f'Skipping page')
+                                status_code = JsonReturnCode.UNKNOWN_ERROR
+                        elif status_code in (JsonReturnCode.FAILURE_NO_RETRY,
+                                             JsonReturnCode.UNKNOWN_ERROR):
+                            clz.logger.debug_extra_verbose(f'TMDb call'
+                                                           f' {status_code.name}')
+                            finished = True
+                        elif status_code == JsonReturnCode.RETRY:
+                            clz.logger.debug_extra_verbose(
+                                f'TMDb call failed RETRY')
+                            raise CommunicationException()
+
+                    except CommunicationException as e:
+                        self.throw_exception_on_forced_to_stop(timeout=delay)
+                        delay += delay
 
                 # Optional, record the number of matching movies and pages
                 # for this query. Can be used to decide which pages to
                 # query later.
 
+                if status_code != JsonReturnCode.OK:
+                    # Skip processing this bad page
+                    continue
+
                 if year is not None and year_map is not None:
-                    total_pages = info_string['total_pages']
+                    total_pages = info_string.get('total_pages')
                     if str(year) not in year_map:
                         aggregate_query_results = DiscoverTmdbMovies.AggregateQueryResults(
                             total_pages=total_pages,
-                            viewed_page=page)
+                            viewed_page=page.get_page_number())
 
                         year_map[str(year)] = aggregate_query_results
 
+                movies: List[TMDbMovieId]
                 movies = self.process_page(info_string, url=url)
+                #  TODO: Probably should have better error checking in process_page
+                #        So that we can determine if a fatal error occurred that
+                #        would cause us to re-do processing the page again later or not
+                #        For now, assume that it worked.
+
                 movies.extend(already_found_movies)
                 number_of_movies_processed += len(movies)
                 DiskUtils.RandomGenerator.shuffle(movies)
-                CacheIndex.add_unprocessed_movies(movies)
-                self.add_to_discovered_trailers(movies)
+                clz.logger.debug(f'adding {len(movies)} movies to unprocessed and '
+                                 f'discovered_movies')
+                CacheIndex.add_unprocessed_tmdb_movies(movies)
+                self.add_to_discovered_movies(movies)
+                cached_pages_data = CachedPagesData.pages_data[tmdb_search_query]
+                cached_pages_data.mark_page_as_discovered(page)
 
                 # From now on, only add one page's worth of movies to discovered
                 # trailers.
@@ -1733,7 +1832,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                 if self.is_exceeded_limit_of_trailers():
                     break
 
-        except (AbortException, RestartDiscoveryException):
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -1756,8 +1855,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
             :param viewed_page:
             """
             clz = type(self)
-            clz.logger = module_logger.getChild(
-                self.__class__.__name__)
+            clz.logger = module_logger.getChild(self.__class__.__name__)
             self._total_pages = total_pages
             self._viewed_page = viewed_page
 
@@ -1780,7 +1878,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
     def process_page(self,
                      page_data: MovieType,
                      url: str = ''
-                     ) -> List[MovieType]:
+                     ) -> List[TMDbMoviePageData]:
         """
             Parses a page's worth of movie results from TMDB into Kodi
             style MovieType dictionary entries.
@@ -1800,7 +1898,7 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                   on Earth, the city of Atlantis is now an underwater
                                   ..,",
                                "release_date": "2018-12-07"
-                               "popularity": 303.019, "
+                               "popularity": 303.019, 
                                "original_title": "Aquaman",
                                "backdrop_path": "/5A2bMlLfJrAfX9bqAibOL2gCruF.jpg",
                                "vote_count": 3134,
@@ -1809,97 +1907,74 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
                                "vote_average": 6.9,
                                "genre_ids": [28, 14, 878, 12],
                                "id": 297802,
-                               "original_language": "en"},
+                               "original_language": "en"
+                               },
         '''
         clz = type(self)
-        movies = []
+        movies: List[TMDbMoviePageData] = []
         try:
-            page = page_data.get('page', 1)
-            total_pages = page_data.get('total_pages', -1)
-            movie_entries = page_data.get('results', None)
+            page: int = page_data.get('page', 1)
+            total_pages: int = page_data.get('total_pages', -1)
+            movie_entries: Dict[str, MovieType] = page_data.get('results', None)
             if total_pages == -1:
-                clz.logger.error('total_pages missing',
-                                         json.dumps(page_data, indent=3, sort_keys=True))
+                dump: str = json.dumps(page_data, indent=3, sort_keys=True)
+                clz.logger.error(f'total_pages missing {dump}')
 
             if movie_entries is None:
-                if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                    clz.logger.debug('results not found. URL:',
-                                             url, 'returned value:',
-                                             json.dumps(page_data))
+                if clz.logger.isEnabledFor(DEBUG):
+                    clz.logger.debug(f'results not found. URL: {url} '
+                                     f'returned value: '
+                                     f'{json.dumps(page_data, indent=3, sort_keys=True)}')
             else:
                 # Shuffling is done later, but this helps keep the first few
                 # (about 3) displayed being the same thing all of the time
 
                 DiskUtils.RandomGenerator.shuffle(movie_entries)
+                movie_entry: MovieType
                 for movie_entry in movie_entries:
-                    self.throw_exception_on_forced_to_stop()
-
-                    trailer_id = movie_entry['id']
-                    if clz.logger.isEnabledFor(LazyLogger.DEBUG_VERBOSE):
-                        tmp_title = movie_entry[Movie.TITLE]
-                        clz.logger.debug_verbose(
-                            'Processing:', tmp_title)
                     try:
-                        year = movie_entry['release_date'][:-6]
-                        year = int(year)
-                    except Exception:
-                        year = datetime.datetime.now().year
+                        if clz.logger.isEnabledFor(DISABLED):
+                            dump: str = json.dumps(movie_entry, indent=3,
+                                                   sort_keys=True)
+                            clz.logger.debug_extra_verbose(f'entry: {dump}')
+                        self.throw_exception_on_forced_to_stop()
 
-                    if year != 0 and self._select_by_year_range:
-                        if self._minimum_year is not None and year < self._minimum_year:
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                                clz.logger.debug(
-                                    'Omitting movie_entry older than minimum Year:',
-                                    self._minimum_year, 'movie_entry:',
-                                    movie_entry[Movie.TITLE],
-                                    'release:', year)
-                            self._rejected_due_to_year += 1
-                            continue
-                        if self._maximum_year is not None and year > self._maximum_year:
-                            if clz.logger.isEnabledFor(LazyLogger.DEBUG):
-                                clz.logger.debug(
-                                    'Omitting movie_entry newer than maximum Year: ',
-                                    self._maximum_year, 'movie_entry:',
-                                    movie_entry[Movie.TITLE],
-                                    'release:', year)
-                            self._rejected_due_to_year += 1
-                            continue
+                        movie_summary_parser: ParseTMDbPageData = ParseTMDbPageData(
+                                movie_entry)
+                        movie_id: int = movie_summary_parser.parse_tmdb_id()
 
-                    # Save extra fields to aid in filtering of entries
-                    # prior to downloading full movie data from TMDb. This
-                    # is particularly useful if filter is changed: entries
-                    # can be mostly filtered before download of full TMDB entry.
+                        movie_summary_parser.parse_total_number_of_pages()
+                        movie_title: str = movie_summary_parser.parse_title()
+                        if clz.logger.isEnabledFor(DEBUG_VERBOSE):
+                            clz.logger.debug_verbose(
+                                f'Processing: {movie_title}')
 
-                    # plot = movie_entry.get('overview', '')
-                    popularity = movie_entry.get('popularity', '0.0')
-                    #  original_title = movie_entry.get('original_title', '')
-                    #  backdrop_path = movie_entry.get('backdrop_path', '')
-                    vote_count = movie_entry.get('vote_count', '-1')
-                    is_video = movie_entry.get('video', 'false')
-                    is_adult = movie_entry.get('adult', 'false')
-                    vote_average = movie_entry.get('vote_average', '-1.0')
-                    genre_ids: [int] = movie_entry.get('genre_ids', [])
-                    original_language: str = movie_entry.get(Movie.ORIGINAL_LANGUAGE)
+                        year: int = movie_summary_parser.parse_year()
+                        popularity: float = movie_summary_parser.parse_popularity()
+                        original_title = movie_summary_parser.parse_original_title()
+                        #  backdrop_path = movie_entry.get('backdrop_path', '')
+                        votes: int = movie_summary_parser.parse_votes()
+                        # is_video: bool = movie_summary_parser.parse_is_video()
+                        # Certification not part of this type of discovery.
+                        certification_id: str = \
+                            movie_summary_parser.parse_certification()
+                        vote_average = movie_summary_parser.parse_vote_average()
+                        genre_ids: [int] = movie_summary_parser.parse_genre_ids()
+                        original_language: str = \
+                            movie_summary_parser.parse_original_language()
 
-                    trailer_entry = {Movie.TRAILER: Movie.TMDB_SOURCE,
-                                     Movie.TMDB_PAGE_DATA: True,
-                                     Movie.SOURCE: Movie.TMDB_SOURCE,
-                                     Movie.TITLE: movie_entry[Movie.TITLE],
-                                     Movie.YEAR: year,
-                                     # Movie.PLOT: plot,
-                                     Movie.TMDB_POPULARITY: popularity,
-                                     Movie.VOTES: vote_count,
-                                     Movie.TMDB_IS_VIDEO: is_video,
-                                     Movie.ADULT: is_adult,
-                                     Movie.TMDB_VOTE_AVERAGE: vote_average,
-                                     Movie.TMDB_GENRE_IDS: genre_ids,
-                                     Movie.ORIGINAL_LANGUAGE: original_language,
-                                     Movie.TMDB_PAGE: page,
-                                     Movie.TMDB_TOTAL_PAGES: total_pages}
-                    MovieEntryUtils.set_tmdb_id(trailer_entry, trailer_id)
-                    movies.append(trailer_entry)
+                        movie: TMDbMoviePageData = movie_summary_parser.get_movie()
+                        movie.set_buffer_number(page)
+                        movie.set_total_pages(total_pages)
 
-        except (AbortException, RestartDiscoveryException):
+                        if TMDbFilter.pre_filter_movie(movie):
+                            movies.append(movie)
+                    except AbortException:
+                        reraise(*sys.exc_info())
+                    except Exception as e:
+                        clz.logger.exception(msg='')
+
+        except (AbortException, StopDiscoveryException):
             reraise(*sys.exc_info())
         except Exception as e:
             clz.logger.exception('')
@@ -1907,9 +1982,18 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
 
             return movies
 
-    def get_delay(self) -> int:
+    def get_delay(self) -> float:
         """
-        Gets the delay (in seconds) to wait before querying the database.
+        Gets the delay (in seconds) to wait before querying the TMDb for
+        a page of movies matching a search criteria. A page contains basic
+        information on 20 movies which most do not have trailers.
+
+        These partially discovered trailers are first added (and persisted)
+        to a map of unprocessed_trailers.
+
+        These unprocessed movies are also added to the fetcher queue which
+        will crawl through all of them to get more detailed info.
+
         Delay is based upon how many read and how many unprocessed.
 
         This is done to prevent overloading Kodi as well as TMDB.
@@ -1917,32 +2001,71 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :return:
         """
         clz = type(self)
+
+        # Pages (20 partially discovered movies) read this run of Kodi. They
+        # are persisted so that over time the backlog will shrink
+
         self._total_pages_read += 1
+
         # If there is a backlog of movies discovered here, then slow down
         # discovering more. Note that depending upon the search, that most
         # TMDB movies are missing trailers.
 
-        # No delay for first 100 movies
-        delay: int
-        number_of_unprocessed_movies: int = len(CacheIndex.get_unprocessed_movies())
-        if self.get_number_of_movies() < 100:
-            delay = 0
-        elif self.get_number_of_movies() < 200:
-            delay = 60
-        elif number_of_unprocessed_movies < 1000:
-            delay = 120
-        elif number_of_unprocessed_movies > 1000:
-            # Delay ten minutes per /100 read
-            delay = 10 * 60 * number_of_unprocessed_movies / 1000
-        else:
-            delay = 5
+        # number_of_unprocessed_movies:
+        # These are the partially discovered trailers
+        number_of_unprocessed_movies: int = \
+            CacheIndex.get_number_of_unprocessed_movies()
 
-        if clz.logger.isEnabledFor(LazyLogger.DEBUG):
+        # number_of_movies_in_fetch_queue:
+        # Number of movies in fetch queue. This includes partially discovered
+        # and partially filtered movies, most without trailers as well as
+        # fully discovered movies that have trailers and passed all search criteria.
+        # As the trailer fetcher goes through this queue, it consults locally
+        # cached TMDb movie information as well as querying TMDb. From the
+        # TMDb info many of the entries in the queue are discarded.
+        #
+        # It is import to:
+        #   1) Not overwhelm TMDb (and Kodi) with too many queries for more
+        #   pages of partial movie info.
+        #   2) Not starve the trailer fetcher queue (number_of_movies_in_fetch_queue)
+        #
+        #  There is little point in having too many movies in the fetcher queue,
+        #  so we can slow things down a bit when it has a lot of entries,
+        #  especially when there are a lot of partially discovered movies to
+        #  be processed.
+
+        # TODO: Needs more tweaking
+        #
+        number_of_movies_in_fetch_queue: int = self.get_number_of_movies()
+        # number_of_fully_processed_movies: int = self.get_number_of_known_trailers()
+        # number_of_partially_processed_movies: int = (number_of_movies_in_fetch_queue -
+        #                                             number_of_fully_processed_movies)
+
+        delay: float
+        # If fetch queue is running a bit low on movies to discover details
+        # for, then feed it more quickly
+
+        if number_of_movies_in_fetch_queue < 100:
+            delay = 1.0
+        elif number_of_movies_in_fetch_queue < 200:
+            delay = 60.0
+        # If fetch queue is sufficiently full, then slow down adding more.
+        # Instead, slow down even more based upon
+        elif number_of_unprocessed_movies < 1000:
+            delay = 120.0
+        else:
+            # Delay ten minutes per 1000 read
+            delay = float(10 * 60 * number_of_unprocessed_movies / 1000)
+
+        if self._calls_to_delay % 10 == 0 and clz.logger.isEnabledFor(DEBUG):
             clz.logger.debug(
                 f'Delay: {delay} unprocessed_movies: {number_of_unprocessed_movies} '
-                f'pages: {self._total_pages_read} number_of_movies: {self.get_number_of_movies()}',
+                f'pages: {self._total_pages_read} number_of_movies_in_fetch_queue: '
+                f'{self.get_number_of_movies()}',
                 trace=Trace.TRACE_DISCOVERY)
-        return int(delay)
+
+        self._calls_to_delay += 1
+        return delay
 
     def cache_results(self, query_data: List, movies: List[MovieType]) -> None:
         """
@@ -1952,3 +2075,22 @@ class DiscoverTmdbMovies(BaseDiscoverMovies):
         :return:
         """
         pass
+
+    def needs_restart(self) -> bool:
+        """
+            A restart is needed when settings that impact our results have
+            changed.
+
+        :returns: True if settings have changed requiring restart
+                  False if relevant settings have changed or if it should
+                  be allowed to die without restart
+        """
+        clz = type(self)
+
+        clz.logger.debug('enter')
+
+        restart_needed: bool = False
+        if Settings.is_include_tmdb_trailers():
+            restart_needed = Settings.is_tmdb_loading_settings_changed()
+
+        return restart_needed

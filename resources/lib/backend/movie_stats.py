@@ -1,0 +1,303 @@
+# -*- coding: utf-8 -*-
+
+"""
+Created on Feb 11, 2019
+
+@author: fbacher
+"""
+
+from common.imports import *
+from common.movie import LibraryMovie
+from common.playlist import Playlist
+from common.logger import *
+from backend.json_utils import JsonUtils
+
+from common.settings import Settings
+from .__init__ import *
+
+module_logger = BasicLogger.get_module_logger(module_path=__file__)
+
+
+class LibraryMovieStats:
+    """
+
+    """
+    _logger: BasicLogger = None
+
+    def __init__(self) -> None:
+        """
+
+        """
+        clz = type(self)
+        if clz._logger is None:
+            clz._logger = module_logger.getChild(self.__class__.__name__)
+
+        self._genre_map = {}
+        self._actor_map = {}
+        self._tag_map = {}
+
+    '''
+       Determine which genres are represented in the movie library
+    '''
+
+    @classmethod
+    def get_genres_in_library(cls) -> List[str]:
+        """
+
+        :return:
+        """
+        my_genres = []
+
+        query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetGenres", \
+                 "params": {\
+                    "type" : "movie"\
+                        }, \
+                         "id": 1}'
+        query_result = JsonUtils.get_kodi_json(query, dump_results=False)
+
+        genre_result = query_result['result']
+        for genreEntry in genre_result.get('genres', []):
+            genre = genreEntry['label']
+            my_genres.append(genre)
+
+        my_genres.sort()
+        return my_genres
+
+    def collect_data(self, movie: LibraryMovie) -> None:
+        """
+
+        :param movie:
+        :return:
+        """
+        self.collect_actors(movie)
+        self.collect_genres(movie)
+        self.collect_tags(movie)
+
+    def report_data(self) -> None:
+        """
+
+        :return:
+        """
+        self.report_actor_frequency()
+        self.report_genre_map()
+        self.report_tag_map()
+        genres = self.get_genres_in_library()
+        self.report_genres(genres)
+        tags = self.discover_tags()
+        self.report_tags(tags)
+
+        # After report, disable setting so that time is not wasted on future
+        # runs for this rarely wanted report.
+
+        Settings.disable_movie_stats()
+
+    def collect_actors(self, movie: LibraryMovie) -> None:
+        """
+
+        :param movie:
+        :return:
+        """
+        actors = movie.get_actors()
+        movie_name = movie.get_title()
+        movie_year = movie.get_year()
+        movie_id = movie_name + ' (' + str(movie_year) + ')'
+
+        actor_count = 0
+        actor: str
+        for actor in actors:
+            actor_count += 1
+            if self._actor_map.get(actor) is None:
+                self._actor_map[actor] = []
+            self._actor_map[actor].append(movie_id)
+            if actor_count == Settings.get_report_max_top_actors():
+                break
+
+    def report_actor_frequency(self, msg: str = '') -> None:
+        """
+
+        :param msg:
+        :return:
+        """
+        # First sort by number of movies that each actor is
+        # in
+
+        a = sorted(self._actor_map, key=lambda key: len(
+            self._actor_map[key]), reverse=True)
+
+        playlist = Playlist.get_playlist(
+            'Actor_Frequency.report', append=False)
+
+        for actor in a:
+            movies_in = self._actor_map[actor]
+            string_buffer = actor + ' : ' + str(len(movies_in))
+            for movie in sorted(movies_in):
+                if len(string_buffer) > 100:
+                    playlist.writeLine(string_buffer)
+                    string_buffer = '       '
+                string_buffer = string_buffer + ' ' + movie
+
+            playlist.writeLine(string_buffer)
+
+        playlist.close()
+
+    def collect_tags(self, movie: LibraryMovie) -> None:
+        """
+
+        :param movie:
+        :return:
+        """
+        tags = movie.get_tags()
+        movie_name = movie.get_title()
+        movie_year = movie.get_year()
+        movie_id = movie_name + ' (' + str(movie_year) + ')'
+
+        tag_count = 0
+        for tag in tags:
+            tag_count += 1
+            if self._tag_map.get(tag) is None:
+                self._tag_map[tag] = []
+            self._tag_map[tag].append(movie_id)
+
+    def report_genre_map(self, msg: str = '') -> None:
+        """
+
+        :param msg:
+        :return:
+        """
+        # First sort by number of movies that each genre is
+        # in
+
+        a = sorted(self._genre_map, key=lambda key: len(
+            self._genre_map[key]), reverse=True)
+
+        playlist = Playlist.get_playlist(
+            'Genre_Frequency.report', append=False)
+
+        for genre in a:
+            movies_in = self._genre_map[genre]
+            string_buffer = genre + ' : ' + str(len(movies_in))
+            separator = ' '
+            for movie in sorted(movies_in):
+                if len(string_buffer) > 100:
+                    string_buffer += separator
+                    playlist.writeLine(string_buffer)
+                    string_buffer = '       '
+                    separator = ' '
+                string_buffer = string_buffer + separator + movie
+                separator = ', '
+
+            playlist.writeLine(string_buffer)
+
+        playlist.close()
+
+    def collect_genres(self, movie: LibraryMovie) -> None:
+        """
+
+        :param movie:
+        :return:
+        """
+        genres = movie.get_genre_names()
+        movie_name = movie.get_title()
+        movie_year = movie.get_year()
+        movie_id = movie_name + ' (' + str(movie_year) + ')'
+
+        genre_count = 0
+        for genre in genres:
+            genre_count += 1
+            if self._genre_map.get(genre) is None:
+                self._genre_map[genre] = []
+            self._genre_map[genre].append(movie_id)
+
+    @staticmethod
+    def report_genres(genres: List[str]) -> None:
+        """
+
+        :param genres:
+        :return:
+        """
+        string_buffer = ''
+        separator = ''
+        playlist = Playlist.get_playlist(
+            'Genres.report', append=False)
+        for genre in genres:
+            string_buffer = string_buffer + separator + genre
+            separator = ', '
+            if len(string_buffer) > 100:
+                string_buffer = string_buffer + separator
+                playlist.writeLine(string_buffer)
+                string_buffer = '       '
+                separator = ''
+
+        playlist.close()
+
+    @staticmethod
+    def discover_tags() -> List[str]:
+        """
+
+        :return:
+        """
+        query = '{"jsonrpc": "2.0", "method": "VideoLibrary.GetTags", \
+                    "params": {\
+                    "type" : "movie"\
+                        }, \
+                         "id": 1}'
+        query_result = JsonUtils.get_kodi_json(query)
+        tags = []
+        for tag in query_result.get('result', {}).get('tags', []):
+            tags.append(tag['label'])
+
+        tags = sorted(tags)
+        return tags
+
+    @staticmethod
+    def report_tags(tags: List[str]) -> None:
+        """
+
+        :param tags:
+        :return:
+        """
+        string_buffer = ''
+        separator = ''
+        playlist = Playlist.get_playlist(
+            'Tags.report', append=False)
+        for tag in tags:
+            string_buffer = string_buffer + separator + tag
+            separator = ', '
+            if len(string_buffer) > 100:
+                string_buffer = string_buffer + separator
+                playlist.writeLine(string_buffer)
+                string_buffer = '       '
+                separator = ''
+
+        playlist.close()
+
+    def report_tag_map(self, msg: str = '') -> None:
+        """
+
+        :param msg:
+        :return:
+        """
+        # First sort by number of movies that each tag is
+        # in
+
+        a = sorted(self._tag_map, key=lambda key: len(
+            self._tag_map[key]), reverse=True)
+
+        playlist = Playlist.get_playlist(
+            'Tag_Frequency.report', append=False)
+
+        for tag in a:
+            movies_in = self._tag_map[tag]
+            string_buffer = tag + ' : ' + str(len(movies_in))
+            separator = ' '
+            for movie in sorted(movies_in):
+                if len(string_buffer) > 100:
+                    string_buffer = string_buffer + separator
+                    playlist.writeLine(string_buffer)
+                    string_buffer = '       '
+                string_buffer = string_buffer + separator + movie
+                separator = ' '
+
+            playlist.writeLine(string_buffer)
+
+        playlist.close()
